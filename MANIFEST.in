@@ -1,0 +1,5 @@
+include README.md
+include LICENSE
+recursive-include your_project *
+recursive-include tests *
+

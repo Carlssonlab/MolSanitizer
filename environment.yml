@@ -1,0 +1,7 @@
+name: your_project_env
+dependencies:
+  - python=3.8
+  - numpy
+  - pandas
+  - other_package
+
