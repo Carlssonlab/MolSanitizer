@@ -1,7 +1,12 @@
-name: your_project_env
+name: MolSanitizer
+
+channels:
+  - conda-forge
+  - rdkit
+
 dependencies:
-  - python=3.8
+  - python=3.11
   - numpy
   - pandas
-  - other_package
-
+  - pip
+  - rdkit
