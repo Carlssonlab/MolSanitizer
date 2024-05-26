@@ -8,15 +8,17 @@ import os
 
 from . import parsers
 from . import loggers
+from . import filters
 
+from rdkit import Chem
 
 def cleanData(args):
 
-    saltStripping_df, cleanFilter_df, protonation_df = parsers.parseDatabases(args)
+    # cleanFilter_df, protonation_df = parsers.parseDatabases(args)
 
     for inputFile in args.input_files:
 
-        df_input = pd.read_csv(inputFile, sep=r'\s+', names=['smarts', 'ids'], header=None, chunksize=1_000_000)
+        df_input = pd.read_csv(inputFile, sep=r'\s+', names=['smiles', 'ids'], header=None, chunksize=1_000_000)
 
         inputFilePath = pathlib.Path(inputFile)
         outputFile = inputFilePath.with_name(f"{inputFilePath.stem}_clean{inputFilePath.suffix}")
@@ -25,7 +27,15 @@ def cleanData(args):
 
         for chunk in df_input:
 
-            #DO something with the chunk
+            chunk['mol'] = chunk['smiles'].apply(lambda x: Chem.MolFromSmiles(x))
+
+            chunk = filters.remove_invalid_SMILES(chunk)
+
+            if args.removeSalts: chunk = filters.removeSalts(chunk)
+
+            if args.protonation: chunk = filters.protonation(chunk)
+
+            if args.cleanFilter: chunk = filters.cleanFilter(chunk)
 
             print(chunk)
 

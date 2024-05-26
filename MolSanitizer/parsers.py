@@ -30,7 +30,7 @@ def parseArguments():
 
 def template(templateFile: str, label: str) -> pd.DataFrame:
 
-    # Get the absolute path to the protonation SMARTS file using pathlib
+    # Get the absolute path to the template SMARTS file using pathlib
     smartsFile = Path(__file__).parent / 'Data' / templateFile
     logger.info(f'Parsing {label} SMARTS file: {smartsFile.resolve()}')
 
@@ -42,15 +42,12 @@ def template(templateFile: str, label: str) -> pd.DataFrame:
 def parseDatabases(args):
 
     protonation_df = None
-    saltStripping_df = None
     cleanFilter_df = None
 
     if args.protonation: 
         protonation_df = template('ionizations.txt', 'ionization')
-    if args.removeSalts: 
-        saltStripping_df = template('salt_stripping.txt', 'removeSalts')
     if args.cleanFilter: 
         cleanFilter_df = template('filter-out.txt', 'CleanFilter')
 
 
-    return saltStripping_df, cleanFilter_df, protonation_df
+    return cleanFilter_df, protonation_df
