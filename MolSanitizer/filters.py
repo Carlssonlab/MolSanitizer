@@ -2,7 +2,8 @@ from pathlib import Path
 
 import pandas as pd
 
-from rdkit import Chem, AllChem
+from rdkit import Chem
+from rdkit.Chem import AllChem
 from rdkit.Chem import SaltRemover
 from rdkit.Chem.MolStandardize import rdMolStandardize
 
