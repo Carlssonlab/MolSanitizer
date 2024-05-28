@@ -4,6 +4,7 @@ import pandas as pd
 
 from rdkit import Chem, AllChem
 from rdkit.Chem import SaltRemover
+from rdkit.Chem.MolStandardize import rdMolStandardize
 
 import logging
 logger = logging.getLogger('molsani')
@@ -80,3 +81,37 @@ def apply_reactions(mol, reactions):
 def cleanFilter(df: pd.DataFrame) -> pd.DataFrame:
 
     pass
+
+def applyFlavioFilters(mol, params):
+
+    clean_mol = rdMolStandardize.Cleanup(mol, params) 
+
+    # if many fragments, get the "parent"
+    parent_clean_mol = rdMolStandardize.FragmentParent(clean_mol, params)
+
+    # try to neutralize molecule
+    uncharger = rdMolStandardize.Uncharger()
+    uncharged_parent_clean_mol = uncharger.uncharge(parent_clean_mol)
+    
+    # tautomer enumerator
+    te = rdMolStandardize.TautomerEnumerator(params) 
+    taut_uncharged_parent_clean_mol = te.Canonicalize(uncharged_parent_clean_mol)
+
+    return taut_uncharged_parent_clean_mol
+
+
+def flavioFilters(df: pd.DataFrame) -> pd.DataFrame:
+
+    # follows the steps in
+    # https://github.com/greglandrum/RSC_OpenScience_Standardization_202104/blob/main/MolStandardize%20pieces.ipynb
+    # https://www.youtube.com/watch?v=eWTApNX8dJQ
+    # removeHs, disconnect metal atoms, normalize the molecule, reionize the molecule
+
+    params = rdMolStandardize.CleanupParameters()
+    params.tautomerRemoveSp3Stereo = False
+    params.tautomerRemoveBondStereo = False
+    params.tautomerRemoveIsotopicHs = False
+
+    df['mol'] = df['mol'].apply(lambda x:  applyFlavioFilters(x, params))
+
+    return df

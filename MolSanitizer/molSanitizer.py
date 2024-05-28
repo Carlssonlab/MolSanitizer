@@ -27,6 +27,8 @@ def cleanData(args):
 
         for chunk in df_input:
 
+            print(chunk)
+
             chunk['mol'] = chunk['smiles'].apply(lambda x: Chem.MolFromSmiles(x))
 
             chunk = filters.remove_invalid_SMILES(chunk)
@@ -36,6 +38,8 @@ def cleanData(args):
             if args.protonation: chunk = filters.protonation(chunk)
 
             if args.cleanFilter: chunk = filters.cleanFilter(chunk)
+
+            if args.flavioFilters: chunk = filters.cleanFilter(chunk)
 
             print(chunk)
 

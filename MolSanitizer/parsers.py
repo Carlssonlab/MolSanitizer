@@ -19,6 +19,7 @@ def parseArguments():
     parser.add_argument('--neutralize', action='store_true', help='Neutralize the structures')
     parser.add_argument('--tautomers', action='store_true', help='Consider tautomers for the structures')
     parser.add_argument('--cleanFilter', action='store_true', help='Filter BAD molecules (PAINS, Reactive,...)')
+    parser.add_argument('--flavioFilters', action='store_true', help='Filter using Flavio script (For databases based on Greg Landrum)')
     
     # Add integer option
     parser.add_argument('--maxTautomers', type=int, default=0, help='Maximum number of tautomers to consider (default: 0)')
