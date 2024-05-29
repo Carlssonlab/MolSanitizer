@@ -5,16 +5,19 @@ import pandas as pd
 
 import pathlib
 import os
+import time
 
 from . import parsers
 from . import loggers
 from . import filters
 
 from rdkit import Chem
+from rdkit import rdBase
 
 def cleanData(args):
 
-    # cleanFilter_df, protonation_df = parsers.parseDatabases(args)
+    start_time = time.time()
+
 
     for inputFile in args.input_files:
 
@@ -23,11 +26,12 @@ def cleanData(args):
         inputFilePath = pathlib.Path(inputFile)
         outputFile = inputFilePath.with_name(f"{inputFilePath.stem}_clean{inputFilePath.suffix}")
 
-        if os.path.exists(outputFile): os.remove(outputFile)
+        if os.path.exists(outputFile): 
+            os.remove(outputFile)
 
-        for chunk in df_input:
+        logger.info(rdBase.rdkitVersion)
 
-            print(chunk)
+        for step, chunk in enumerate(df_input, start=1):
 
             chunk['mol'] = chunk['smiles'].apply(lambda x: Chem.MolFromSmiles(x))
 
@@ -41,7 +45,7 @@ def cleanData(args):
 
             if args.flavioFilters: chunk = filters.cleanFilter(chunk)
 
-            print(chunk)
+            print(f"Step {step} took {time.time() - start_time:.2f} seconds to complete.")
 
             chunk.to_csv(outputFile, index=False, mode='a', header=False, sep=' ')
 

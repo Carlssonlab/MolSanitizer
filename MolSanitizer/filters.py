@@ -3,6 +3,7 @@ from pathlib import Path
 import pandas as pd
 
 from rdkit import Chem
+
 from rdkit.Chem import AllChem
 from rdkit.Chem import SaltRemover
 from rdkit.Chem.MolStandardize import rdMolStandardize
@@ -31,7 +32,7 @@ def remove_invalid_SMILES(df):
     return df_cleaned
 
 
-def removeSalts(df: pd.Dataframe) -> pd.DataFrame:
+def removeSalts(df: pd.DataFrame) -> pd.DataFrame:
 
     # Get the absolute path to the template SMARTS file using pathlib
     smartsFile = Path(__file__).parent / 'Data' / 'salt_stripping.txt'
@@ -108,11 +109,21 @@ def flavioFilters(df: pd.DataFrame) -> pd.DataFrame:
     # https://www.youtube.com/watch?v=eWTApNX8dJQ
     # removeHs, disconnect metal atoms, normalize the molecule, reionize the molecule
 
+    #Sc, Y, In, Sn, W, Ac are not included for now (need to check how they can hit other structures).
+    organometallics={'Ti', 'V', 'Cr', 'Mn', 'Fe', 'Co', 'Ni', 'Cu', 'Ga', 'Zr', 'Nb', 'Mo', 'Tc', 'Ru', 'Rh', 'Pd',\
+    'Cd', 'La', 'Hf ', 'Ta', 'Re', 'Os', 'Ir', 'Pt', 'Au', 'Hg', 'Tl', 'Pb', 'Bi', 'Po', 'Ce', 'Pr', 'Nd',\
+    'Pm', 'Sm', 'Eu', 'Gd', 'Tb', 'Dy', 'Ho', 'Er', 'Tm', 'Yb', 'Lu', 'Th', 'Pa', 'U', 'Np', 'Pu', 'Am', 'Cm', 'Bk', 'Cf ', 'Es', 'Fm', 'Md', 'No', 'Lr', 'Ge', 'Sb'}
+
+
+    # Filter out rows where 'smiles' contains any organometallics
+    filtered_df = df[~df['smiles'].apply(lambda x: any(om in x for om in organometallics))]
+
     params = rdMolStandardize.CleanupParameters()
     params.tautomerRemoveSp3Stereo = False
     params.tautomerRemoveBondStereo = False
     params.tautomerRemoveIsotopicHs = False
 
-    df['mol'] = df['mol'].apply(lambda x:  applyFlavioFilters(x, params))
+    filtered_df['mol'] = filtered_df['mol'].apply(lambda x:  applyFlavioFilters(x, params))
 
-    return df
+
+    return filtered_df
