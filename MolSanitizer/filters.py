@@ -21,6 +21,8 @@ def stripSMILESsalt(mol, molRemover):
 
 def remove_invalid_SMILES(df):
 
+    #djcbjdvbjdfvjdf
+
     # Log rows where 'mol' is None before dropping
     invalid_rows = df[df['mol'].isna()]
     for index, row in invalid_rows.iterrows():
