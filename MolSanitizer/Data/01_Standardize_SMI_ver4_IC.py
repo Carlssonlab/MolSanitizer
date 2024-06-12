@@ -70,26 +70,31 @@ def main():
     print(rdBase.rdkitVersion)
 
     mols = [mol for mol in Chem.SmilesMolSupplier(args.input) if mol != None]
-    with open(args.output, 'w') as outfile, open(args.input,'r'): as infile
+    with open(args.output, 'w') as outfile, open(args.input,'r') as infile:
 
         outfile.write('SMILES'+ ' ' + 'ID\n')
         
         for line in infile:
 
-                mol = Chem.SmilesToMol(line.split()[0])
+                tmp = line.split('\t')
+
+                smiles = tmp[0].split()[0]
+                molid = tmp[1]
+                mol = Chem.SmilesToMol(smiles)
 
                 if mol == None: 
 
-			print(f'Error with SMILES:{line}')
-                        continue
+                    print(f'Error with SMILES:{line}')
+                    continue
 
                 #for mol in mols:
                 match = True in [item in Chem.MolToSmiles(mol) for item in organometallics]
 
                 if match == False:
-                    outfile.write("{} {}\n".format(Chem.MolToSmiles(standardize(Chem.MolToSmiles(mol))), mol.GetProp(args.field)))
+                    outfile.write("{} {}\n".format(Chem.MolToSmiles(standardize(Chem.MolToSmiles(mol))), molid))
                 elif match == True:
-                    outfile.write("{} {}\n".format(Chem.MolToSmiles(mol), mol.GetProp(args.field)))
+                    print(f'Ignoring organometallic: {Chem.MolToSmiles(mol)} {molid}')
+                    #outfile.write("{} {}\n".format(, molid))
 
 if __name__ == "__main__":
     main()
