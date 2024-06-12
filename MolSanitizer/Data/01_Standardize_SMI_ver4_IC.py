@@ -23,7 +23,7 @@ def ParseArgs():
     parser = argparse.ArgumentParser()
     parser.add_argument('-i', '--input', required=True, type=str, help='source .smi file')
     parser.add_argument('-o', '--output', required=True, help='output .smi file')
-    parser.add_argument('-f', '--field', required=True, help='use: _Name')
+    # parser.add_argument('-f', '--field', required=True, help='use: _Name')
     parser.parse_args()
     parser.set_defaults(verbose=False)
     args = parser.parse_args()
@@ -69,7 +69,7 @@ def main():
 'Pm', 'Sm', 'Eu', 'Gd', 'Tb', 'Dy', 'Ho', 'Er', 'Tm', 'Yb', 'Lu', 'Th', 'Pa', 'U', 'Np', 'Pu', 'Am', 'Cm', 'Bk', 'Cf ', 'Es', 'Fm', 'Md', 'No', 'Lr', 'Ge', 'Sb']
     print(rdBase.rdkitVersion)
 
-    mols = [mol for mol in Chem.SmilesMolSupplier(args.input) if mol != None]
+    # mols = [mol for mol in Chem.SmilesMolSupplier(args.input) if mol != None]
     with open(args.output, 'w') as outfile, open(args.input,'r') as infile:
 
         outfile.write('SMILES'+ ' ' + 'ID\n')
@@ -80,7 +80,7 @@ def main():
 
                 smiles = tmp[0].split()[0]
                 molid = tmp[1]
-                mol = Chem.SmilesToMol(smiles)
+                mol = Chem.MolFromSmiles(smiles)
 
                 if mol == None: 
 
