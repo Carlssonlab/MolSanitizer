@@ -21,8 +21,6 @@ def stripSMILESsalt(mol, molRemover):
 
 def remove_invalid_SMILES(df):
 
-    #djcbjdvbjdfvjdf lllll
-
     # Log rows where 'mol' is None before dropping
     invalid_rows = df[df['mol'].isna()]
     for index, row in invalid_rows.iterrows():
@@ -82,29 +80,110 @@ def apply_reactions(mol, reactions):
                 products.add(Chem.MolToSmiles(prod))
     return list(products)
 
-def cleanFilter(df: pd.DataFrame) -> pd.DataFrame:
 
-    pass
-
-def applyFlavioFilters(mol, params):
-
-    clean_mol = rdMolStandardize.Cleanup(mol, params) 
-
-    # if many fragments, get the "parent"
-    parent_clean_mol = rdMolStandardize.FragmentParent(clean_mol, params)
-
-    # try to neutralize molecule
-    uncharger = rdMolStandardize.Uncharger()
-    uncharged_parent_clean_mol = uncharger.uncharge(parent_clean_mol)
+def loadSMARTSdata(smartsFile: str):
     
-    # tautomer enumerator
-    te = rdMolStandardize.TautomerEnumerator(params) 
-    taut_uncharged_parent_clean_mol = te.Canonicalize(uncharged_parent_clean_mol)
+    logger.info(f'Loading SMARTS from: {smartsFile}')
+    
+    smarts_df = pd.read_csv(smartsFile, delim_whitespace=True, header=None)
+    
+    smarts_lst = smarts_df[0].to_list()
+    
+    smarts_names = smarts_df[1].to_list()
+    
+    if smarts_df.shape[0] > 1: smarts_names = smarts_df[1].to_list()
+
+    matchers = [Chem.MolFromSmarts(x, mergeHs=True) for x in smarts_lst]
+    
+    painsDefs = [[smart, id] for smart,id in zip(smarts_lst, smarts_names)]
+    
+    return matchers, painsDefs
+
+def reactivityFilter(df: pd.DataFrame) -> pd.DataFrame:
+
+    # Get the absolute path to the template SMARTS file using pathlib
+    smartsFile = Path(__file__).parent / 'Data' / 'filter_out.csv'
+    logger.info(f'Parsing reactive filters SMARTS file: {smartsFile.resolve()}')
+
+    # Load smarts to clean  from file
+    matchers, painsDefs = loadSMARTSdata(smartsFile.resolve())
+
+    # Apply reactions to each SMILES in the DataFrame
+    df['mol'] = df['mol'].apply(lambda x: apply_reactions(x, reactions))
+
+    return df
+
+
+def generateFilteredFile(matchers: list, painsDefs: list, filtered_dict: dict):
+
+    painsLOGdata = []
+    filtered_pains = {}
+    
+    my_iterator = filtered_dict.items()
+    
+    for id, data in my_iterator:
+        
+        try:
+    
+            moleculeRDkit = Chem.MolFromSmiles(data)
+            
+        except:
+
+            logger.info(f'Problem generating molecule RDkit: {id} ')
+            continue
+
+        if moleculeRDkit == None: 
+            
+                logger.warning(f'Molecule ID {id} has some structural problem. Molecule removed')
+                continue
+
+        matchFound = False
+        painDef = ''
+        
+        for matcher in matchers:
+            
+            if moleculeRDkit.HasSubstructMatch(matcher):
+                
+                matchFound = True
+                painDef = painsDefs[matchers.index(matcher)][1].replace('regId=', '')
+                break                
+
+        if matchFound: painsLOGdata.append(f"{' '.join([str(iddata) for iddata in id])} {painDef}")
+        else: filtered_pains[id] = data
+                        
+            
+    return filtered_pains, painsLOGdata
+
+
+def applyStandarizeFilters(mol, params):
+
+    taut_uncharged_parent_clean_mol = None
+
+    try:
+
+        clean_mol = rdMolStandardize.Cleanup(mol, params) 
+
+        # if many fragments, get the "parent"
+        parent_clean_mol = rdMolStandardize.FragmentParent(clean_mol, params)
+
+        # try to neutralize molecule
+        uncharger = rdMolStandardize.Uncharger()
+        uncharged_parent_clean_mol = uncharger.uncharge(parent_clean_mol)
+        
+        # tautomer enumerator
+        te = rdMolStandardize.TautomerEnumerator(params) 
+        taut_uncharged_parent_clean_mol = te.Canonicalize(uncharged_parent_clean_mol)
+
+    except:
+
+        logger.info(f'Molecule NOT processed: {Chem.MolToSmiles(mol)}')
 
     return taut_uncharged_parent_clean_mol
 
 
-def flavioFilters(df: pd.DataFrame) -> pd.DataFrame:
+def standarizeFilters(df: pd.DataFrame) -> pd.DataFrame:
+
+    # Flavio filters to prepara SMILES databases
 
     # follows the steps in
     # https://github.com/greglandrum/RSC_OpenScience_Standardization_202104/blob/main/MolStandardize%20pieces.ipynb
@@ -125,7 +204,7 @@ def flavioFilters(df: pd.DataFrame) -> pd.DataFrame:
     params.tautomerRemoveBondStereo = False
     params.tautomerRemoveIsotopicHs = False
 
-    filtered_df['mol'] = filtered_df['mol'].apply(lambda x:  applyFlavioFilters(x, params))
+    filtered_df['mol'] = filtered_df['mol'].apply(lambda x:  applyStandarizeFilters(x, params))
 
 
     return filtered_df

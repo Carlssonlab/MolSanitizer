@@ -18,7 +18,6 @@ def cleanData(args):
 
     start_time = time.time()
 
-
     for inputFile in args.input_files:
 
         df_input = pd.read_csv(inputFile, sep=r'\s+', names=['smiles', 'ids'], header=None, chunksize=1_000_000)
@@ -41,9 +40,9 @@ def cleanData(args):
 
             if args.protonation: chunk = filters.protonation(chunk)
 
-            if args.cleanFilter: chunk = filters.cleanFilter(chunk)
+            if args.reactivityFilter: chunk = filters.reactivityFilter(chunk)
 
-            if args.flavioFilters: chunk = filters.cleanFilter(chunk)
+            if args.standarizeFilters: chunk = filters.standarizeFilters(chunk)
 
             print(f"Step {step} took {time.time() - start_time:.2f} seconds to complete.")
 
@@ -62,9 +61,6 @@ def main():
 
 
     cleanData(args)
-
-
-
 
 
 
