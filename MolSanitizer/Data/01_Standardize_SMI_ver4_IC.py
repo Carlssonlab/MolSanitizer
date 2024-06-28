@@ -23,7 +23,7 @@ def ParseArgs():
     parser = argparse.ArgumentParser()
     parser.add_argument('-i', '--input', required=True, type=str, help='source .smi file')
     parser.add_argument('-o', '--output', required=True, help='output .smi file')
-    parser.add_argument('-f', '--field', required=True, help='use: _Name')
+    # parser.add_argument('-f', '--field', required=True, help='use: _Name')
     parser.parse_args()
     parser.set_defaults(verbose=False)
     args = parser.parse_args()
@@ -69,27 +69,32 @@ def main():
 'Pm', 'Sm', 'Eu', 'Gd', 'Tb', 'Dy', 'Ho', 'Er', 'Tm', 'Yb', 'Lu', 'Th', 'Pa', 'U', 'Np', 'Pu', 'Am', 'Cm', 'Bk', 'Cf ', 'Es', 'Fm', 'Md', 'No', 'Lr', 'Ge', 'Sb']
     print(rdBase.rdkitVersion)
 
-    mols = [mol for mol in Chem.SmilesMolSupplier(args.input) if mol != None]
-    with open(args.output, 'w') as outfile, open(args.input,'r'): as infile
+    # mols = [mol for mol in Chem.SmilesMolSupplier(args.input) if mol != None]
+    with open(args.output, 'w') as outfile, open(args.input,'r') as infile:
 
         outfile.write('SMILES'+ ' ' + 'ID\n')
         
         for line in infile:
 
-                mol = Chem.SmilesToMol(line.split()[0])
+                tmp = line.split('\t')
+
+                smiles = tmp[0].split()[0]
+                molid = tmp[1]
+                mol = Chem.MolFromSmiles(smiles)
 
                 if mol == None: 
 
-			print(f'Error with SMILES:{line}')
-                        continue
+                    print(f'Error with SMILES:{line}')
+                    continue
 
                 #for mol in mols:
                 match = True in [item in Chem.MolToSmiles(mol) for item in organometallics]
 
                 if match == False:
-                    outfile.write("{} {}\n".format(Chem.MolToSmiles(standardize(Chem.MolToSmiles(mol))), mol.GetProp(args.field)))
+                    outfile.write("{} {}\n".format(Chem.MolToSmiles(standardize(Chem.MolToSmiles(mol))), molid))
                 elif match == True:
-                    outfile.write("{} {}\n".format(Chem.MolToSmiles(mol), mol.GetProp(args.field)))
+                    print(f'Ignoring organometallic: {Chem.MolToSmiles(mol)} {molid}')
+                    #outfile.write("{} {}\n".format(, molid))
 
 if __name__ == "__main__":
     main()
