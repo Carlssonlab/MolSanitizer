@@ -11,14 +11,6 @@ from rdkit.Chem.MolStandardize import rdMolStandardize
 import logging
 logger = logging.getLogger('molsani')
 
-def stripSMILESsalt(mol, molRemover):
-
-    res, deleted = molRemover.StripMolWithDeleted(mol)
-
-    if len(deleted) > 0: logger.info(f"Stripped salt {Chem.MolToSmiles(mol)}:  Salts:{' '.join([Chem.MolToSmiles(m) for m in deleted])}")
-
-    return res
-
 def remove_invalid_SMILES(df):
 
     # Log rows where 'mol' is None before dropping
@@ -32,6 +24,14 @@ def remove_invalid_SMILES(df):
     return df_cleaned
 
 
+def stripSMILESsalt(mol, molRemover):
+
+    res, deleted = molRemover.StripMolWithDeleted(mol)
+
+    if len(deleted) > 0: logger.info(f"Stripped salt {Chem.MolToSmiles(mol)}:  Salts:{' '.join([Chem.MolToSmiles(m) for m in deleted])}")
+
+    return res
+
 def removeSalts(df: pd.DataFrame) -> pd.DataFrame:
 
     # Get the absolute path to the template SMARTS file using pathlib
@@ -43,6 +43,8 @@ def removeSalts(df: pd.DataFrame) -> pd.DataFrame:
     df['mol'] = df['mol'].apply(lambda x: stripSMILESsalt(x, remover))
 
     return df
+
+
 
 def protonation(df: pd.DataFrame) -> pd.DataFrame:
 

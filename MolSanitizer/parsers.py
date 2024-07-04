@@ -14,11 +14,13 @@ def parseArguments():
     parser.add_argument('input_files', metavar='input_files', type=str, nargs='+', help='Input files containing chemical structures')
 
     # Add Boolean options
-    parser.add_argument('--protonation', action='store_true', help='Apply protonation to the structures')
     parser.add_argument('--removeSalts', action='store_true', help='Remove salts from the structures')
-    parser.add_argument('--neutralize', action='store_true', help='Neutralize the structures')
+    parser.add_argument('--PAINSFilter', action='store_true', help='Remove PAINS violations from the structures')
+    # TODO: for this argument, let the user choose which reactive functional group to retain (Target-specific)
+    parser.add_argument('--reactivityFilter', action='store_true', help='Filter out reactive functional groups')
     parser.add_argument('--tautomers', action='store_true', help='Consider tautomers for the structures')
-    parser.add_argument('--cleanFilter', action='store_true', help='Filter BAD molecules (PAINS, Reactive,...)')
+    parser.add_argument('--protonation', action='store_true', help='Apply protonation to the structures')
+    parser.add_argument('--neutralize', action='store_true', help='Neutralize the structures')
     parser.add_argument('--flavioFilters', action='store_true', help='Filter using Flavio script (For databases based on Greg Landrum)')
     
     # Add integer option

@@ -35,22 +35,26 @@ def cleanData(args):
             chunk['mol'] = chunk['smiles'].apply(lambda x: Chem.MolFromSmiles(x))
 
             chunk = filters.remove_invalid_SMILES(chunk)
-
+            # Desaltation
             if args.removeSalts: chunk = filters.removeSalts(chunk)
+            
+            # PAINS functional groups filtering
+            if args.PAINSFilter: chunk = filters.PAINSFilter(chunk) 
 
+            # Reactive functional groups filtering
+            if args.reactivityFilter: chunk = filters.reactivityFilter(chunk) 
+            
+            # Stereoisomers enumeration
+            if args.tautomers: chunk = filters.tautomers(chunk)
+
+            # Protonation
             if args.protonation: chunk = filters.protonation(chunk)
 
-            if args.reactivityFilter: chunk = filters.reactivityFilter(chunk) 
-
-            # Add PAINS
-            #ADD stereo info
-
-            if args.standarizeFilters: chunk = filters.standarizeFilters(chunk)
+            #if args.standarizeFilters: chunk = filters.standarizeFilters(chunk)
 
             print(f"Step {step} took {time.time() - start_time:.2f} seconds to complete.")
-
-            chunk.to_csv(outputFile, index=False, mode='a', header=False, sep=' ')
-
+            chunk['smiles'] = chunk['mol'].apply(lambda x: Chem.MolToSmiles(x))
+            chunk.to_csv(outputFile, index=False, mode='a', columns=['smiles','ids'], header=False, sep=' ')
 
 def main():
 
