@@ -40,7 +40,10 @@ def cleanData(args):
 
             if args.protonation: chunk = filters.protonation(chunk)
 
-            if args.reactivityFilter: chunk = filters.reactivityFilter(chunk)
+            if args.reactivityFilter: chunk = filters.reactivityFilter(chunk) 
+
+            # Add PAINS
+            #ADD stereo info
 
             if args.standarizeFilters: chunk = filters.standarizeFilters(chunk)
 

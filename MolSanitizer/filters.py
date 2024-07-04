@@ -109,7 +109,7 @@ def reactivityFilter(df: pd.DataFrame) -> pd.DataFrame:
     matchers, painsDefs = loadSMARTSdata(smartsFile.resolve())
 
     # Apply reactions to each SMILES in the DataFrame
-    df['mol'] = df['mol'].apply(lambda x: apply_reactions(x, reactions))
+    # df['mol'] = df['mol'].apply(lambda x: apply_reactions(x, reactions))
 
     return df
 
