@@ -5,14 +5,14 @@ SMARTS LABEL REASON MODE REF_DOI
 [$([#6](~[#1])),$([#6](~[#6]))]#[#6]~[#6]#[#7] Michael_acceptors4 Reactive Regular 10.1021/cr010182v
 [#6](~[#9])(~[#9])~[#6](~[#9])(~[#9]) tetrafluoroethylene Greasy Regular 10.1002/cmdc.200700139
 [$([#6R1](~[#9,#17,#35,#53])~[#6R1](~[#9,#17,#35,#53])~[#6R1]~[#9,#17,#35,#53]),$([#6R1](~[#9,#17,#35,#53])~[#6R1](~[#9,#17,#35,#53])~[*R1]~[#6R1]~[#9,#17,#35,#53]),$([#6R1](~[#9,#17,#35,#53])~[#6R1](~[#9,#17,#35,#53])~[*R1]~[*R1]~[#6R1]~[#9,#17,#35,#53]),$([#6R1](~[#9,#17,#35,#53])~[*R1]~[#6R1](~[#9,#17,#35,#53])~[*R1]~[#6R1]~[#9,#17,#35,#53])] perhalogenated_rings_3_holgenids_and_more Greasy Special 10.1002/cmdc.200700139
-[#6](=[#16])~[#7] thioamides Complexing_metals Regular 10.1021/acschembio.8b01022
+[#6](=[#16])~[#7] thioamides_thiocyanates Complexing_metals Regular 10.1021/acschembio.8b01022
 [#8]=[#6]1~c2c(~[#8]~[#6]=,:[#6]~1)cccc2 flavons Reactive Optional 10.1021/acs.jmedchem.5b01009
 [#16]~[#1] thiols Reactive Regular 10.1021/acs.jmedchem.8b01153
 [*]~[#16]~[#16]~[*] disulfides Reactive Regular 10.1021/acs.jmedchem.8b01153
 [!#7&R0]~[#7&R0]=[#7&R0]~[!#7&R0] diazo_compounds Reactive Regular 10.1021/jm901137j
 [#6]~[#6H1&R0]=[#8] aldehydes Reactive Regular 10.1021/acs.jmedchem.8b01153
 [$([#6]=[#7&R0]~[#7,#8]),$([#6]=[#7]~[#7&R0,#8&R0])] hydrazones_oximes Instable Optional 10.1002/cmdc.200700139
-[#6]=[#7&R0]~[#6] imines Instable Optional 10.1002/cmdc.200700139
+[#6;!$([#6]-[#7])!$([#6]=[#8])]=[#7&R0]~[#6] imines Instable Optional 10.1002/cmdc.200700139
 [$([#6](=[#8,#16])~[#7&R0]-[#7,#8]),$([#6](=[#8,#16])~[#7]-[#7&R0,#8&R0])] hydrazides_hydroxamates Cancerogenic Regular 10.1002/cmdc.200700139
 [#7&R0]-[#7&R0] hydrazines Cancerogenic Regular 10.1002/cmdc.200700139
 [#7]1~[#6](=[#8])~[#7]~[#7]~[#7]~[#6]~1 temozolomide Cancerogenic Regular "10.1016/s0305-7372(97)90019-0 "
