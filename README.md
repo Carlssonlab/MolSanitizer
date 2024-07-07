@@ -16,19 +16,19 @@ This is an example for how to set up a working conda environment to run the code
     conda activate msani
     pip install -e MolSanitizer
 
-# Input
-
-The program requires a white-space or tab delimited file containing two columns (SMILES, moleculeID) without headers.
-
-```
-COCCC(=O)Nc1ncc(s1)Br  CP000000418470  -22.99
-C1CC(C(=O)NC1)SCCC=CBr  CP000000432409  -19.54
-CC(C)(C)CNC(=O)c1ccsc1Br  CP000001634597  -21.29
-c1c(coc1Br)C(=O)NC2CCSC2  CP000001645677  -19.28
-c1c(c([nH]n1)C(=O)NCC2(CC2)N)Br  CP000001647414  -12.96
-```
-
 # Usage
+
+## Input
+
+The program requires a white-space or tab-delimited file containing two columns (SMILES, moleculeID) without headers.
+
+```
+COCCC(=O)Nc1ncc(s1)Br  CP000000418470
+C1CC(C(=O)NC1)SCCC=CBr  CP000000432409
+CC(C)(C)CNC(=O)c1ccsc1Br  CP000001634597
+c1c(coc1Br)C(=O)NC2CCSC2  CP000001645677
+c1c(c([nH]n1)C(=O)NCC2(CC2)N)Br  CP000001647414
+```
 
 ## **Overview**
 The pipeline contains five preparation and/or filtering steps, which could be used simultaneously to prepare the database:
