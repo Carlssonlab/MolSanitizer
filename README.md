@@ -1,16 +1,15 @@
 # MolSanitizer - A package to prepare SMILES databases
 
-MolSannitizer is a package for preparation (remove salts, stereoisomers enumeration, protonation) and filtering of undesireable substructures (PAINS, reactive functional groups) for drug discovery projects.
+MolSannitizer is a package for preparation (remove salts, stereoisomers enumeration, protonation, ...) and filtering undesirable substructures (PAINS, reactive functional groups, ...) for drug discovery projects.
 
-# Setup Environment
+# Installation (CONDA environment)
 
 We will set up the environment using [Anaconda](https://docs.anaconda.com/anaconda/install/index.html). Clone the
 current repository:
 
     git clone https://github.com/Isra3l/MolSanitizer.git
     
-
-This is an example for how to set up a working conda environment to run the code:
+Example of how to set up a working conda environment to run the code:
 
     conda env create -f MolSanitizer/environment.yml
     conda activate msani
@@ -39,27 +38,27 @@ This is an example for a lazy pipeline which use all the preparation steps:
 msani -i example.smi --removesalts --tautomers --pains --unwanted all --stereoisomers --protonation
 ```
 
-Use the `--help (-h)` flag for more information.
+**Use the `--help (-h)` flag for more information.**
 
 
-By default, the program produces a new file with a **_clean** suffix. If the PAINS or unwanted filters are applied, the rejected molecules with reason of rejection will be output by **_rejected** suffix.
+By default, the program produces a new file with a **_clean** suffix. If the PAINS or unwanted filters are applied, the rejected molecules with the reason for rejection will be output by **_rejected** suffix.
 
-The program by default will conduct the preparation and filtering in the order as below:
+The program by default will conduct the preparation and filtering in the order below:
 
 ```
     Put an image of the workflow here.
 ```
 
 ## **Step 1: Remove salts**
- To use the remove salts function, simply use `--removesalts` flag. The program uses a predefined salt list in [Data/salt_stripping.csv](Data/salt_stripping.csv) to remove the salts, which contains both organic and inorganic salts that are commonly used in medicinal chemistry. 
+ To use the remove salts function, simply use `--removesalts` flag. The program uses a predefined salt list in [Data/salt_stripping.csv](Data/salt_stripping.csv) to remove the salts, which contain both organic and inorganic salts commonly used in medicinal chemistry. 
 
-*Caution:* if the entry is an organic salt (eg. sodium acetate CH_{3}COO^{-}Na{+}), all the entry will be removed.
+*Caution:* if the entry is an organic salt (eg. sodium acetate CH_{3}COO^{-}Na{+}), all the entries will be removed.
 ```bash
 msani -i example.smi --removesalts
 ```
 
 ## **Step 2: Tautomer enumeration**
-The tautomers could be generated using a `--tautomers` flag. The program uses a predefined SMARTS rules to generate the possible tautomers of more specifically the conjugated ring systems containing Nitrogen.
+The tautomers could be generated using a `--tautomers` flag. The program uses predefined SMARTS rules to generate the possible tautomers of more specifically the conjugated ring systems containing Nitrogen.
 ```bash
 msani -i example.smi --tautomers
 ```
@@ -81,9 +80,9 @@ CCCCN(Cc1ccc(OS(=O)(=O)F)cc1)Cc1ccccc1O           Z4607533150   "PAINS violation
 ```
 
 ## **Step 4: Unwanted substructures filtering**
-Molecules that contain unwanted substructures could be efficiently eliminated using the `--unwanted` flag. MolSanitizer uses an expert-curated list that contains undesireable substructures, accompanied with the reasons and references for filtering. The list could be obtained from [Data/filter_out.csv](Data/filter_out.csv). 
+Molecules that contain unwanted substructures could be efficiently eliminated using the `--unwanted` flag. MolSanitizer uses an expert-curated list that contains undesirable substructures, accompanied by the reasons and references for filtering. The list could be obtained from [Data/filter_out.csv](Data/filter_out.csv). 
 
-There are four options accompanied with the `--unwanted` flag, which are *['all', 'regular', 'special', 'optional']*. Unspecified option would result in the *regular* filters. The choice of the options would depends on the user and varies between targets.
+There are four options accompanied by the `--unwanted` flag, which are *['all', 'regular', 'special', 'optional']*. An unspecified option would result in the *regular* filters. The choice of the options would depends on the user and varies between targets.
 
 ```bash
 msani -i example.smi --unwanted
@@ -98,7 +97,7 @@ It is also possible to filter out the customized unwanted substructures, dependi
 msani --create_custom
 ```
 
-The first two columns (SMARTS and LABEL) are required for the program to parse while the remaining columns would be ommited by the program. To filter using the customized list, use the `--custom` flag with the path to the customized list file. It is also possible to apply both the available filters with the customized filters.
+The first two columns (SMARTS and LABEL) are required for the program to parse while the remaining columns would be omitted by the program. To filter using the customized list, use the `--custom` flag with the path to the customized list file. It is also possible to apply both the available filters with the customized filters.
 
 ```bash
 msani -i example.smi --custom templates.tsv
@@ -120,7 +119,7 @@ msani -i example.smi --stereoisomers
 ```
 
 ## **Step 6: Protonation**
-Protonation stage could be assigned to the molecules using the `--protonation` flag. The program uses an SMARTS reaction to iteratively assigns the protonation stages to the atoms. The SMARTS reactions could be obtained from [Data/ionizations.txt](Data/ionizations.txt)
+The protonation stage could be assigned to the molecules using the `--protonation` flag. The program uses an SMARTS reaction to iteratively assign the protonation stages to the atoms. The SMARTS reactions could be obtained from [Data/ionizations.txt](Data/ionizations.txt)
 
 ```bash
 msani -i example.smi --protonation
