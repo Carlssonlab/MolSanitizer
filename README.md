@@ -51,7 +51,7 @@ The program by default will conduct the preparation and filtering in the order a
 ```
 
 ## **Step 1: Remove salts**
- To use the remove salts function, simply use `--removesalts` flag. The program uses a predefined salt list in **Data/salt_stripping.txt** to remove the salts, which contains both organic and inorganic salts that are commonly used in medicinal chemistry. 
+ To use the remove salts function, simply use `--removesalts` flag. The program uses a predefined salt list in [Data/salt_stripping.csv](Data/salt_stripping.csv) to remove the salts, which contains both organic and inorganic salts that are commonly used in medicinal chemistry. 
 
 *Caution:* if the entry is an organic salt (eg. sodium acetate CH_{3}COO^{-}Na{+}), all the entry will be removed.
 ```bash
@@ -81,7 +81,7 @@ CCCCN(Cc1ccc(OS(=O)(=O)F)cc1)Cc1ccccc1O           Z4607533150   "PAINS violation
 ```
 
 ## **Step 4: Unwanted substructures filtering**
-Molecules that contain unwanted substructures could be efficiently eliminated using the `--unwanted` flag. MolSanitizer uses an expert-curated list that contains undesireable substructures, accompanied with the reasons and references for filtering. The list could be obtained from **Data/filter_out.csv**. 
+Molecules that contain unwanted substructures could be efficiently eliminated using the `--unwanted` flag. MolSanitizer uses an expert-curated list that contains undesireable substructures, accompanied with the reasons and references for filtering. The list could be obtained from [Data/filter_out.csv](Data/filter_out.csv). 
 
 There are four options accompanied with the `--unwanted` flag, which are *['all', 'regular', 'special', 'optional']*. Unspecified option would result in the *regular* filters. The choice of the options would depends on the user and varies between targets.
 
@@ -112,11 +112,16 @@ Stereoisomers enumeration will be considered for nonspecified chiral centers usi
 msani -i example.smi --stereoisomers
 
 # Input:
-C1C2CC3CC1CC(C2)(C3O)N mol8
+# C1C2CC3CC1CC(C2)(C3O)N                            mol8
 
 # Output:
-N[C@@]12C[C@@H]3C[C@@H](C[C@@H](C3)[C@H]1O)C2 mol8_1
-N[C@@]12C[C@@H]3C[C@@H](C[C@@H](C3)[C@@H]1O)C2 mol8_2
+# N[C@@]12C[C@@H]3C[C@@H](C[C@@H](C3)[C@H]1O)C2     mol8_1
+# N[C@@]12C[C@@H]3C[C@@H](C[C@@H](C3)[C@@H]1O)C2    mol8_2
 ```
 
 ## **Step 6: Protonation**
+Protonation stage could be assigned to the molecules using the `--protonation` flag. The program uses an SMARTS reaction to iteratively assigns the protonation stages to the atoms. The SMARTS reactions could be obtained from [Data/ionizations.txt](Data/ionizations.txt)
+
+```bash
+msani -i example.smi --protonation
+```
