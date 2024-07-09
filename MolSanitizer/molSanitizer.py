@@ -38,24 +38,23 @@ def cleanData(args):
 
             chunk = filters.remove_invalid_SMILES(chunk)
             # Remove salts
-            if args.removesalts: chunk = filters.removesalts(chunk)
+            if args.removesalts: chunk = filters.removesalts(chunk, args.debug)
 
             # Tautomers enumeration
-            if args.tautomers: chunk = filters.tautomers(chunk)
+            if args.tautomers: chunk = filters.tautomers(chunk, args.debug)
 
             # PAINS functional groups filtering
-            if args.pains: chunk = filters.pains(chunk, rejectedFile) 
+            if args.pains: chunk = filters.pains(chunk, rejectedFile, args.debug) 
 
             # Unwanted substructures filtering
-            if args.unwanted is not None: chunk = filters.unwanted(chunk, rejectedFile, args.unwanted) 
-            if args.custom is not None: chunk = filters.custom(chunk, rejectedFile, args.custom) 
-
+            if args.unwanted is not None: chunk = filters.unwanted(chunk, rejectedFile, args.unwanted, args.debug) 
+            if args.custom is not None: chunk = filters.custom(chunk, rejectedFile, args.custom, args.debug) 
 
             # Stereoisomers enumeration
-            if args.stereoisomers: chunk = filters.stereoisomers(chunk, args.max_isomers)
+            if args.stereoisomers: chunk = filters.stereoisomers(chunk, args.max_isomers, args.debug)
 
             # Protonation
-            if args.protonation: chunk = filters.protonation(chunk)
+            if args.protonation: chunk = filters.protonation(chunk, args.debug)
 
             #if args.standarizeFilters: chunk = filters.standarizeFilters(chunk)
 
@@ -64,6 +63,14 @@ def cleanData(args):
             chunk.to_csv(outputFile, index=False, mode='a', columns=['smiles','ids'], header=False, sep=' ')
 
 def Sanitycheck(args: dict):
+    """Sanity check for the unwanted flag
+
+    Args:
+        args (dict): Arguments from the command line
+
+    Returns:
+        dict: The updated arguments
+    """
     if args.unwanted is not None:
         if not args.unwanted: args.unwanted=['regular']
         if 'all' in args.unwanted: args.unwanted=['regular','special','optional']
@@ -71,6 +78,9 @@ def Sanitycheck(args: dict):
     return args
 
 def generateCustomTemplate():
+    """Generate the custom template for substructure filtering 
+    by copying the default template to the current directory.
+    """
     file = os.path.join(os.path.dirname(__file__), 'Data', 'filter_out.csv')
     os.system(f"cp {file} template.tsv") 
     print(f"Generated template substructure list as template.tsv")
@@ -91,7 +101,8 @@ def main():
         log_file = input_path.with_suffix('.log')
         loggers.setup_logger(log_file)
         original_command = ' '.join(sys.argv)
-        logger.info(f"Starting MolSanitizer: {original_command}")    
+        logger.info(f"STARTING MOLSANITIZER")
+        logger.info(f"Input: {original_command}")    
         loggers.arguments(args)
         cleanData(args)
 
