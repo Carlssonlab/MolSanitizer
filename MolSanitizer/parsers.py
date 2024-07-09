@@ -6,9 +6,23 @@ from pathlib import Path
 import logging
 logger = logging.getLogger('molsani')
 
+
+
 def parseArguments():
+    info = """MolSanitizer - A package to prepare SMILES databases
+
+    Ex. input file (space or tab-separated file):
+        COCCC(=O)Nc1ncc(s1)Br  CP000000418470
+        C1CC(C(=O)NC1)SCCC=CBr  CP000000432409
+        CC(C)(C)CNC(=O)c1ccsc1Br  CP000001634597
+
+    Ex. run
+    msani -i example.smi --removesalts --pains --unwanted all --stereoisomers --protonation
+    msani -i example.smi --removesalts
+    msani -i example.smi --pains --unwanted all --stereoisomers --protonation
+    """
     # Create the argument parser
-    parser = argparse.ArgumentParser(description="Process some chemical structures.")
+    parser = argparse.ArgumentParser(description= info, formatter_class=argparse.RawTextHelpFormatter)
     
     # Add the required input files argument
     parser.add_argument('-i', '--input_files', type=str, nargs='+', help='Input files containing chemical structures')

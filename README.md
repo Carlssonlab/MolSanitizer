@@ -30,12 +30,12 @@ c1c(c([nH]n1)C(=O)NCC2(CC2)N)Br  CP000001647414
 ```
 
 ## **Overview**
-The pipeline contains five preparation and/or filtering steps, which could be used simultaneously to prepare the database:
+The pipeline contains six preparation and/or filtering steps, which could be used simultaneously to prepare the database:
 
 This is an example for a lazy pipeline which use all the preparation steps:
 
 ```bash
-msani -i example.smi --removesalts --tautomers --pains --unwanted all --stereoisomers --protonation
+msani -i example.smi --removesalts --pains --unwanted all --stereoisomers --protonation
 ```
 
 **Use the `--help (-h)` flag for more information.**
