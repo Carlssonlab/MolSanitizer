@@ -45,8 +45,7 @@ By default, the program produces a new file with a **_clean** suffix. If the PAI
 
 The program by default will conduct the preparation and filtering in the order below:
 
-<img src="./plots/Workflow.png" width="500"> | <img src="./plots/Workflow.png" width="500"> 
-
+<img src="./plots/Workflow.png" width="1000">
 
 ## **Option 1: Remove salts**
  To use the remove salts function, simply use `--removesalts` flag. The program uses a predefined salt list in [MolSanitizer/Data/salt_stripping.txt](MolSanitizer/Data/salt_stripping.txt) to remove the salts, which contain both organic and inorganic salts commonly used in medicinal chemistry. 
