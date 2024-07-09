@@ -15,7 +15,7 @@ def parseArguments():
 
     # Add Boolean options
     parser.add_argument('--removesalts', action='store_true', help='Remove salts from the structures')
-    parser.add_argument('--tautomers', action='store_true', help='Tautomers enumeration')
+    #parser.add_argument('--tautomers', action='store_true', help='Tautomers enumeration')
     parser.add_argument('--pains', action='store_true', help='Remove PAINS violations from the structures')
     parser.add_argument('--unwanted', choices=['all', 'regular', 'special', 'optional'], default=None, nargs='*', help='Filter out unwanted substructures using the default list')
     parser.add_argument('--custom', default=None, type=str, help='Filter out unwanted substructures using the customized list. To generate an example list, use --create_custom')
@@ -23,7 +23,7 @@ def parseArguments():
     parser.add_argument('--stereoisomers', action='store_true', help='Stereoisomers enumeration (only consider unspecified chiral centers)')
     parser.add_argument('--protonation', action='store_true', help='Apply protonation to the structures')
     parser.add_argument('--neutralize', action='store_true', help='Neutralize the structures')
-    parser.add_argument('--flavioFilters', action='store_true', help='Filter using Flavio script (For databases based on Greg Landrum)')
+    #parser.add_argument('--flavioFilters', action='store_true', help='Filter using Flavio script (For databases based on Greg Landrum)')
     parser.add_argument('--debug', action='store_true', help='Debugging mode')
 
     # Add integer option

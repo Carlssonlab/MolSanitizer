@@ -41,7 +41,7 @@ def cleanData(args):
             if args.removesalts: chunk = filters.removesalts(chunk, args.debug)
 
             # Tautomers enumeration
-            if args.tautomers: chunk = filters.tautomers(chunk, args.debug)
+            #if args.tautomers: chunk = filters.tautomers(chunk, args.debug)
 
             # PAINS functional groups filtering
             if args.pains: chunk = filters.pains(chunk, rejectedFile, args.debug) 

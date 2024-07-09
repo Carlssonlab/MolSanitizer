@@ -32,7 +32,7 @@ def arguments(args):
     # Print the parsed arguments 
     logger.info(f"Input files: {args.input_files}")
     logger.info(f"Remove Salts: {args.removesalts}")
-    logger.info(f"Tautomers enumeration: {args.tautomers}")
+    #logger.info(f"Tautomers enumeration: {args.tautomers}")
     logger.info(f"PAINS filter: {args.pains}")
     logger.info(f"Unwanted filter: {args.unwanted}")
     logger.info(f"Customized filter: {args.custom}")
