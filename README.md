@@ -45,25 +45,24 @@ By default, the program produces a new file with a **_clean** suffix. If the PAI
 
 The program by default will conduct the preparation and filtering in the order below:
 
-```
-    Put an image of the workflow here.
-```
+<img src="./plots/Workflow.png" width="500"> | <img src="./plots/Workflow.png" width="500"> 
 
-## **Step 1: Remove salts**
- To use the remove salts function, simply use `--removesalts` flag. The program uses a predefined salt list in [Data/salt_stripping.csv](Data/salt_stripping.csv) to remove the salts, which contain both organic and inorganic salts commonly used in medicinal chemistry. 
 
-*Caution:* if the entry is an organic salt (eg. sodium acetate CH_{3}COO^{-}Na{+}), all the entries will be removed.
+## **Option 1: Remove salts**
+ To use the remove salts function, simply use `--removesalts` flag. The program uses a predefined salt list in [MolSanitizer/Data/salt_stripping.txt](MolSanitizer/Data/salt_stripping.txt) to remove the salts, which contain both organic and inorganic salts commonly used in medicinal chemistry. 
+
+*Caution:* if the entry is an organic salt (eg. sodium acetate CH<sub>3</sub>COO<sup>-</sup>Na<sup>+</sup>), all the entries will be removed.
 ```bash
 msani -i example.smi --removesalts
 ```
 
-## **Step 2: Tautomer enumeration**
+## **Option 2: Tautomer enumeration**
 The tautomers could be generated using a `--tautomers` flag. The program uses predefined SMARTS rules to generate the possible tautomers of more specifically the conjugated ring systems containing Nitrogen.
 ```bash
 msani -i example.smi --tautomers
 ```
 
-## **Step 3: PAINS filtering**
+## **Option 3: PAINS filtering**
 Molecules that contain PAINS substructures could be efficiently eliminated using the `--pains` flag. The violated structures would be stored in the **_rejected** file.
 
 ```bash
@@ -79,8 +78,8 @@ COCC1(CC(=O)NCc2cc(O)ccc2O)CC1                    Z2832180283   "PAINS violation
 CCCCN(Cc1ccc(OS(=O)(=O)F)cc1)Cc1ccccc1O           Z4607533150   "PAINS violation: Mannich_a(296)"
 ```
 
-## **Step 4: Unwanted substructures filtering**
-Molecules that contain unwanted substructures could be efficiently eliminated using the `--unwanted` flag. MolSanitizer uses an expert-curated list that contains undesirable substructures, accompanied by the reasons and references for filtering. The list could be obtained from [Data/filter_out.csv](Data/filter_out.csv). 
+## **Option 4: Unwanted substructures filtering**
+Molecules that contain unwanted substructures could be efficiently eliminated using the `--unwanted` flag. MolSanitizer uses an expert-curated list that contains undesirable substructures, accompanied by the reasons and references for filtering. The list could be obtained from [MolSanitizer/Data/filter_out.csv](MolSanitizer/Data/filter_out.csv). 
 
 There are four options accompanied by the `--unwanted` flag, which are *['all', 'regular', 'special', 'optional']*. An unspecified option would result in the *regular* filters. The choice of the options would depends on the user and varies between targets.
 
@@ -104,7 +103,7 @@ msani -i example.smi --custom templates.tsv
 msani -i example.smi --unwanted all --custom templates.tsv
 ```
 
-## **Step 5: Stereoisomers enumeration**
+## **Option 5: Stereoisomers enumeration**
 Stereoisomers enumeration will be considered for nonspecified chiral centers using the `--stereoisomers` flag. For an entry that contains multiple stereoisomers, its ID would be expanded (Eg. mol8 -> mol8_1 mol8_2).
 
 ```bash
@@ -118,8 +117,8 @@ msani -i example.smi --stereoisomers
 # N[C@@]12C[C@@H]3C[C@@H](C[C@@H](C3)[C@@H]1O)C2    mol8_2
 ```
 
-## **Step 6: Protonation**
-The protonation stage could be assigned to the molecules using the `--protonation` flag. The program uses an SMARTS reaction to iteratively assign the protonation stages to the atoms. The SMARTS reactions could be obtained from [Data/ionizations.txt](Data/ionizations.txt)
+## **Option 6: Protonation**
+The protonation stage could be assigned to the molecules using the `--protonation` flag. The program uses an SMARTS reaction to iteratively assign the protonation stages to the atoms. The SMARTS reactions could be obtained from [MolSanitizer/Data/ionizations.txt](MolSanitizer/Data/ionizations.txt)
 
 ```bash
 msani -i example.smi --protonation
