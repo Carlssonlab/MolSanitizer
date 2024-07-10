@@ -72,6 +72,60 @@ def removesalts(df: pd.DataFrame, debug = False) -> pd.DataFrame:
     return df
 
 
+def tautomerize_step1(mol, params):
+    """Tautomerize the input molecule using the RDKit TautomerEnumerator class.
+
+    Args:
+        mol (RO Mol): The input molecule.
+        params (_type_): The RDKit CleanupParameters object.
+
+    Returns:
+        RO Mol: Canonical tautomeric form of the input molecule.
+    """
+    te = rdMolStandardize.TautomerEnumerator(params) 
+    canonical_tautomer = te.Canonicalize(mol)
+    return canonical_tautomer
+    
+def tautomers(df: pd.DataFrame, debug = False) -> pd.DataFrame:
+    """Tautomers enumeration for the input molecules using the RDKit TautomerEnumerator class and cleaning using an in-house SMARTS reaction list.
+
+    Args:
+        df (pd.DataFrame): Input DataFrame with 'mol' column containing RDKit molecule objects.
+        debug (bool, optional): Debug mode. Defaults to False.
+
+    Returns:
+        pd.DataFrame: A new DataFrame chunk with tautomerized molecules.
+    """
+    # Step 1: Tautomerize the input molecules using the RDKit TautomerEnumerator class
+    params = rdMolStandardize.CleanupParameters()
+    params.tautomerRemoveSp3Stereo = False
+    params.tautomerRemoveBondStereo = False
+    params.tautomerRemoveIsotopicHs = False
+    df['mol'] = df['mol'].apply(lambda x:  tautomerize_step1(x, params))
+
+    # Step 2: Clean the tautomerized molecules using an in-house SMARTS reaction list
+    smartsFile = Path(__file__).parent / 'Data' / 'tautomers.txt'
+    logger.info(f'Parsing tautomers SMARTS file: {smartsFile.resolve()}')
+    reactions = load_reactions(smartsFile)
+
+    # Apply reactions to each SMILES in the DataFrame
+    updated_df = []
+    for _, row in df.iterrows():
+        updates = list(recursive_reaction(row['mol'], reactions, set()))
+        #print(updates)
+        if (len(updates) == 1): 
+            updated_df.append(
+                {'smiles': updates[0], 'ids': row['ids'],'mol': Chem.MolFromSmiles(updates[0])})
+        else:
+            for i, update in enumerate(updates):
+                print(update)
+                updated_df.append({
+                    'smiles': update,
+                    'ids': row['ids']+'_'+str(i+1),
+                    'mol': Chem.MolFromSmiles(update)
+                })
+    return pd.DataFrame(updated_df)
+
 def detectPAINS(mol, catalog):
     """Detect PAINS functional groups in a molecule.
 
