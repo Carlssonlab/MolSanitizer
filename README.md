@@ -30,9 +30,9 @@ c1c(c([nH]n1)C(=O)NCC2(CC2)N)Br  CP000001647414
 ```
 
 ## **Overview**
-The pipeline contains six preparation and/or filtering steps, which could be used simultaneously to prepare the database:
+The pipeline contains sĩ preparation and/or filtering steps, which could be used simultaneously to prepare the database:
 
-This is an example for a lazy pipeline which use all the preparation steps:
+This is an example of a lazy pipeline that use all the preparation steps:
 
 ```bash
 msani -i example.smi --removesalts --pains --unwanted all --stereoisomers --protonation
@@ -50,12 +50,12 @@ The program by default will conduct the preparation and filtering in the order b
 ## **Option 1: Remove salts**
  To use the remove salts function, simply use `--removesalts` flag. The program uses a predefined salt list in [MolSanitizer/Data/salt_stripping.txt](MolSanitizer/Data/salt_stripping.txt) to remove the salts, which contain both organic and inorganic salts commonly used in medicinal chemistry. 
 
-*Caution:* if the entry is an organic salt (eg. sodium acetate CH<sub>3</sub>COO<sup>-</sup>Na<sup>+</sup>), all the entries will be removed.
+*Caution:* if the entry is an organic salt (eg. sodium acetate CH<sub>3</sub>COO<sup>-</sup>Na<sup>+</sup>), the whole entry will be removed.
 ```bash
 msani -i example.smi --removesalts
 ```
 
-## **Option 2: Tautomer enumeration**
+## **Option 2: Tautomers enumeration**
 The tautomers could be generated using a `--tautomers` flag. The program uses predefined SMARTS rules to generate the possible tautomers of more specifically the conjugated ring systems containing Nitrogen.
 ```bash
 msani -i example.smi --tautomers
@@ -80,7 +80,7 @@ CCCCN(Cc1ccc(OS(=O)(=O)F)cc1)Cc1ccccc1O           Z4607533150   "PAINS violation
 ## **Option 4: Unwanted substructures filtering**
 Molecules that contain unwanted substructures could be efficiently eliminated using the `--unwanted` flag. MolSanitizer uses an expert-curated list that contains undesirable substructures, accompanied by the reasons and references for filtering. The list could be obtained from [MolSanitizer/Data/filter_out.csv](MolSanitizer/Data/filter_out.csv). 
 
-There are four options accompanied by the `--unwanted` flag, which are *['all', 'regular', 'special', 'optional']*. An unspecified option would result in the *regular* filters. The choice of the options would depends on the user and varies between targets.
+There are four options accompanied by the `--unwanted` flag, which are *['all', 'regular', 'special', 'optional']*. An unspecified option would result in the *regular* filters. The choice of the options would depend on the user and vary between targets.
 
 ```bash
 msani -i example.smi --unwanted
@@ -117,8 +117,15 @@ msani -i example.smi --stereoisomers
 ```
 
 ## **Option 6: Protonation**
-The protonation stage could be assigned to the molecules using the `--protonation` flag. The program uses an SMARTS reaction to iteratively assign the protonation stages to the atoms. The SMARTS reactions could be obtained from [MolSanitizer/Data/ionizations.txt](MolSanitizer/Data/ionizations.txt)
+The protonation stage could be assigned to the molecules using the `--protonation` flag. The program uses SMARTS reactions to iteratively assign the protonation stages to the atoms. The SMARTS reactions could be obtained from [MolSanitizer/Data/ionizations.txt](MolSanitizer/Data/ionizations.txt). If there are multiple possibilities of protonation, the output will be expanded.
 
 ```bash
 msani -i example.smi --protonation
+
+# Input:
+# O=C(N1C(C2C(C1)C2O)C(O)=O)CN3CCNCC3 mol4_editted
+
+# Output:
+# O=C([O-])C1C2C(O)C2CN1C(=O)CN1CC[NH2+]CC1 mol4_editted_1
+# O=C([O-])C1C2C(O)C2CN1C(=O)C[NH+]1CCNCC1 mol4_editted_2
 ```
