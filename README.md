@@ -116,6 +116,12 @@ msani -i example.smi --stereoisomers
 # N[C@@]12C[C@@H]3C[C@@H](C[C@@H](C3)[C@@H]1O)C2    mol8_2
 ```
 
+It is possible to define the maximum number of stereoisomers generated for each molecule by adding the `--max_isomers` flag.
+
+```bash
+msani -i example.smi --stereoisomers --max_isomers 30
+```
+
 ## **Option 6: Protonation**
 The protonation stage could be assigned to the molecules using the `--protonation` flag. The program uses SMARTS reactions to iteratively assign the protonation stages to the atoms. The SMARTS reactions could be obtained from [MolSanitizer/Data/ionizations.txt](MolSanitizer/Data/ionizations.txt). If there are multiple possibilities of protonation, the output will be expanded.
 
