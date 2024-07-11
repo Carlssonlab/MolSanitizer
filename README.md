@@ -30,12 +30,12 @@ c1c(c([nH]n1)C(=O)NCC2(CC2)N)Br  CP000001647414
 ```
 
 ## **Overview**
-The pipeline contains sĩ preparation and/or filtering steps, which could be used simultaneously to prepare the database:
+The pipeline contains six preparation and/or filtering steps, which could be used simultaneously to prepare the database:
 
 This is an example of a lazy pipeline that use all the preparation steps:
 
 ```bash
-msani -i example.smi --removesalts --pains --unwanted all --stereoisomers --protonation
+msani -i example.smi --removesalts --tautomers --pains --unwanted all --stereoisomers --protonation
 ```
 
 **Use the `--help (-h)` flag for more information.**
@@ -56,7 +56,8 @@ msani -i example.smi --removesalts
 ```
 
 ## **Option 2: Tautomers enumeration**
-The tautomers could be generated using a `--tautomers` flag. The program uses predefined SMARTS rules to generate the possible tautomers of more specifically the conjugated ring systems containing Nitrogen.
+The tautomers could be generated using a `--tautomers` flag. MolSanitizer uses a two-step approach for enumeration of tautomers. First, the canonical tautomer from the scoring function of rdMolStandardize.TautomerEnumerator was used. Then, the exceptions were corrected using the expert-curated SMARTS rules. The SMARTS rules are readily accessible at [MolSanitizer/Data/tautomers.txt](MolSanitizer/Data/tautomers.txt)
+
 ```bash
 msani -i example.smi --tautomers
 ```
