@@ -62,7 +62,7 @@ def removesalts(df: pd.DataFrame, debug = False) -> pd.DataFrame:
     """
     # Get the absolute path to the template SMARTS file using pathlib
     smartsFile = Path(__file__).parent / 'Data' / 'salt_stripping.txt'
-    logger.info(f'Parsing salts SMARTS file: {smartsFile.resolve()}')
+    if debug: logger.info(f'Parsing salts SMARTS file: {smartsFile.resolve()}')
 
     remover = SaltRemover.SaltRemover(defnFilename=smartsFile)
 
