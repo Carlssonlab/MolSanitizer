@@ -4,7 +4,7 @@ SMARTS LABEL REASON MODE REF_DOI
 [$([#6R1](~[#9,#17,#35,#53])~[#6R1](~[#9,#17,#35,#53])~[#6R1]~[#9,#17,#35,#53]),$([#6R1](~[#9,#17,#35,#53])~[#6R1](~[#9,#17,#35,#53])~[*R1]~[#6R1]~[#9,#17,#35,#53]),$([#6R1](~[#9,#17,#35,#53])~[#6R1](~[#9,#17,#35,#53])~[*R1]~[*R1]~[#6R1]~[#9,#17,#35,#53]),$([#6R1](~[#9,#17,#35,#53])~[*R1]~[#6R1](~[#9,#17,#35,#53])~[*R1]~[#6R1]~[#9,#17,#35,#53])] perhalogenated_rings_3_holgenids_and_more Greasy Special 10.1002/cmdc.200700139
 [#6](=[#16])~[#7] thioamides_thiocyanates Complexing_metals Regular 10.1021/acschembio.8b01022
 [#8]=[#6]1~c2c(~[#8]~[#6]=,:[#6]~1)cccc2 flavons Reactive Optional 10.1021/acs.jmedchem.5b01009
-[#16]~[#1] thiols Reactive Regular 10.1021/acs.jmedchem.8b01153
+[#16H] thiols Reactive Regular 10.1021/acs.jmedchem.8b01153
 [*]~[#16]~[#16]~[*] disulfides Reactive Regular 10.1021/acs.jmedchem.8b01153
 [!#7&R0]~[#7&R0]=[#7&R0]~[!#7&R0] diazo_compounds Reactive Regular 10.1021/jm901137j
 [#6]~[#6H1&R0]=[#8] aldehydes Reactive Regular 10.1021/acs.jmedchem.8b01153
@@ -45,7 +45,7 @@ SMARTS LABEL REASON MODE REF_DOI
 [#7]-[#6&R0](=[#8])-[#7&R1] heterocyclic_ureas Reactive Special 10.1021/jm2004283
 [#8]1~[#7]=,:[#6]~[#6](-[#6,#7]=[#8])=,:[#6]~1 4-(electron-withdrawing-group)-isoxazoles Reactive Special 10.1038/s41589-020-0501-5
 [#5] any_boron Exotic_chemistry Optional none
-[$([#15]~[#1]),$([#15X2])] phopsphines_phosphicycles Reactive Regular 10.1002/cmdc.200700139
+[$([#15H]),$([#15X2])] phopsphines_phosphicycles Reactive Regular 10.1002/cmdc.200700139
 [$([#6&+]),$([#6&-])] charged_carbon Reactive Regular 10.1002/cmdc.200700139
 [#8&+,#16&+] positive_oxygen_sulfur Reactive Regular 10.1002/cmdc.200700139
 [*&R]=[*&R]=[*&R] cyclic_cumulated_double_bonds Reactive Regular none
