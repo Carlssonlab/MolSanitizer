@@ -28,6 +28,8 @@ def parseArguments(args = None):
     parser.add_argument('-i', '--input_files', type=str, nargs='+', help='Input files containing chemical structures')
 
     # Add Boolean options
+    parser.add_argument('-e', '--enamine', action='store_true', help='Enamine input format (default: False)')
+    parser.add_argument('--lazy', action='store_true', help='Implement all the processing and preparation steps (default: False)')
     parser.add_argument('--removesalts', action='store_true', help='Remove salts from the structures')
     parser.add_argument('--tautomers', action='store_true', help='Tautomers enumeration')
     parser.add_argument('--pains', action='store_true', help='Remove PAINS violations from the structures')
@@ -35,7 +37,7 @@ def parseArguments(args = None):
     parser.add_argument('--create_custom', action='store_true', help='Generate a template for customized substructure filtering')
     parser.add_argument('--stereoisomers', action='store_true', help='Stereoisomers enumeration (only consider unspecified chiral centers)')
     parser.add_argument('--protonation', action='store_true', help='Apply protonation to the structures')
-    parser.add_argument('--neutralize', action='store_true', help='Neutralize the structures')
+    #parser.add_argument('--neutralize', action='store_true', help='Neutralize the structures')
     #parser.add_argument('--flavioFilters', action='store_true', help='Filter using Flavio script (For databases based on Greg Landrum)')
     parser.add_argument('--debug', action='store_true', help='Debugging mode')
 
