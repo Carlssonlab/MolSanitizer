@@ -1,0 +1,9 @@
+Nc1ncnc2[nH]cnc12 7H-adenine
+O=c1cccc[nH]1 pyridine-2-ol
+Clc1cccc(Cl)c1N=C1NCCN1 endo-clonidine
+c1ccc2c(CC3=NCCN3)cccc2c1 exo-naphazoline
+Oc1ccncc1 4-pyridone
+c1c[nH]nn1 2H-triazole
+c1ccc2n[nH]nc2c1 1H-benzotriazole
+Nc1ncnc2[nH]c(=O)[nH]c12 nothing
+Cn1cc(-c2ccccc2)c(=O)c(-c2cccc(C(F)(F)F)c2)c1 fluridone

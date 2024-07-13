@@ -1,0 +1,17 @@
+CN(C)C.Cl salt1
+CN(C)C.Cl.Cl.Br salt2
+CN(Br)Cl notsalt1
+CN(Br)Cl.Cl salt3
+C[NH+](C)(C).[Cl-] salt4
+CC(=O)O.[Na] sodiumacetate
+CN(C)CCCN1C2=CC=CC=C2CCC3=CC=CC=C31.Cl ImipramineHydrochloride
+C1=CC(=CC=C1COC(CN2C=CN=C2)C3=C(C=C(C=C3)Cl)Cl)Cl.[N+](=O)(O)[O-] EconazoleNitrate
+C[C@@H]1C[C@H]2[C@@H]3CCC4=CC(=O)C=C[C@@]4([C@]3([C@H](C[C@@]2([C@]1(C(=O)COP(=O)([O-])[O-])O)C)O)F)C.[Na+].[Na+] DexamethasoneSodiumPhosphate
+C1=NC(=C2C(=N1)N(C=N2)C3C(C(C(O3)COP(=O)(O)OP(=O)(O)OP(=O)(O)O)O)O)N ATP
+OP(O)(O)=O.OP(O)(O)=O.[H][C@]1(C)CN(C[C@@]([H])(C)O1)C1=NC=C(C=C1)N=C(O)C1=CC=CC(=C1C)C1=CC=C(OC(F)(F)F)C=C1 sonidegib_bisphosphate
+CC(O)=O.CC(C)(N)C(=O)N[C@H](CC1=CNC2=CC=CC=C12)C(=O)N[C@H](CC1=CNC2=CC=CC=C12)NC=O macirelin_acetate
+CCOC(=O)C1=C(NC(=C(C1C2=CC=CC=C2Cl)C(=O)OC)C)COCCN.C(=CC(=O)O)C(=O)O amlodipin_acetate
+CC1=CC(=C(C(=C1)C)S(=O)(=O)[O-])C.C[N+]1=CC=C(C=C1)C=CC2=CC=C(C=C2)N(C)C.O 4-{2-[4-(Dimethylamino)phenyl]ethenyl}-1-methylpyridinium-2,4,6-trimethylbenzenesulfonatemonohydrate
+CC1=CC=C(C=C1)C2=C(N3C=C(C=CC3=N2)C)CC(=O)N(C)C.CC1=CC=C(C=C1)C2=C(N3C=C(C=CC3=N2)C)CC(=O)N(C)C.C(C(C(=O)O)O)(C(=O)O)O zolpidem_tartrate
+
+

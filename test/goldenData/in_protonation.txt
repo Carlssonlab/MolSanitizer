@@ -10,3 +10,12 @@ O=C(NCCCS(=O)(=O)O)C acamprosate
 O=C(O)P(=O)(O)O foscarnet
 O=C(NC1CCCCC1)NS(=O)(=O)c2ccc(cc2)CCNC(=O)c3cc(Cl)ccc3OC glibenclamide
 C1=CN=CC=C1C(=O)NN isoniazid
+N1CCNCC1    piperazine
+CN1CCN(CC)CC1    test
+CN1CCCN(CC)CC1    test2
+CN1CCCN(CC)CCC1    test3
+CNCCCCCNCC    test4
+C/C(C(O)=O)=C/CN1CCCC[C@@H]1c2onc(c3ccccc3)n2  bipolar
+CC(=O)N1C(C(=O)O)C2C(C2O)C1 mol4
+O=C(N1C(C2C(C1)C2O)C(O)=O)CN3CCNCC3 mol4_editted
+CN1CCN(CC1)CCC2CC(CCC3CNC(CCC(O)=O)CN3)O2 test2_hard

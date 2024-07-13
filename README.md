@@ -2,6 +2,13 @@
 
 MolSannitizer is a package for preparation (remove salts, stereoisomers enumeration, protonation, ...) and filtering undesirable substructures (PAINS, reactive functional groups, ...) for drug discovery projects.
 
+# Table of Contents
+
+- [Installation](#installation-conda-environment)
+- [Usage](#usage)
+- [Feedback](#feedback)
+- [Contact](#con)
+
 # Installation (CONDA environment)
 
 We will set up the environment using [Anaconda](https://docs.anaconda.com/anaconda/install/index.html). Clone the
@@ -19,7 +26,7 @@ Example of how to set up a working conda environment to run the code:
 
 ## Input
 
-The program requires a white-space or tab-delimited file containing two columns (SMILES, moleculeID) without headers.
+The program requires a white-space or tab-delimited file containing two columns (SMILES, moleculeID) without headers. The program also supports the Enamine file format by the added `-e` or `--enamine` flag.
 
 ```
 COCCC(=O)Nc1ncc(s1)Br  CP000000418470
@@ -32,10 +39,14 @@ c1c(c([nH]n1)C(=O)NCC2(CC2)N)Br  CP000001647414
 ## **Overview**
 The pipeline contains six preparation and/or filtering steps, which could be used simultaneously to prepare the database:
 
-This is an example of a lazy pipeline that use all the preparation steps:
+This is an example of a lazy pipeline that use all the preparation and processing steps:
 
 ```bash
-msani -i example.smi --removesalts --tautomers --pains --unwanted all --stereoisomers --protonation
+msani -i example.smi --enamine --lazy # For enamine format
+msani -i example.smi --lazy
+
+# This is equivalent to:
+# msani -i example.smi --removesalts --tautomers --pains --unwanted all --stereoisomers --protonation
 ```
 
 **Use the `--help (-h)` flag for more information.**
@@ -136,3 +147,11 @@ msani -i example.smi --protonation
 # O=C([O-])C1C2C(O)C2CN1C(=O)CN1CC[NH2+]CC1 mol4_editted_1
 # O=C([O-])C1C2C(O)C2CN1C(=O)C[NH+]1CCNCC1 mol4_editted_2
 ```
+
+# Feedback
+MolSanitizer is a rule-based program that relies on our experience from previous drug discovery projects. We are committed to continuously improving the program's performance by adding more rules to the filters and tautomers/protonation. If you have any ideas or suggestions, please don't hesitate to open an issue or contact us at lamthuaphong@gmail.com, israel.cabezadevaca@icm.uu.se, or szymon.pach@icm.uu.se.
+
+# Contact
+1. Israel Cabeza de Vaca Lopez, israel.cabezadevaca@icm.uu.se
+2. Szymon Pach, szymon.pach@icm.uu.se
+3. Thua-Phong Lam, lamthuaphong@gmail.com 
