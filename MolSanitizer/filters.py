@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from rdkit import Chem, RDConfig
+from rdkit import Chem, RDConfig, RDLogger
 
 from rdkit.Chem import AllChem
 from rdkit.Chem import SaltRemover
@@ -12,6 +12,7 @@ from rdkit.Chem.EnumerateStereoisomers import EnumerateStereoisomers, StereoEnum
 
 import logging
 logger = logging.getLogger('molsani')
+RDLogger.DisableLog('rdApp.*') # To disable error messages with kekulizing tautomers from RDKit
 
 def remove_invalid_SMILES(df:pd.DataFrame) -> pd.DataFrame:
     """Remove rows with invalid SMILES from the input DataFrame.
@@ -46,7 +47,7 @@ def stripSMILESsalt(mol, molRemover, debug = False):
     """
     res, deleted = molRemover.StripMolWithDeleted(mol)
 
-    if len(deleted) > 0: logger.info(f"Stripped salt {Chem.MolToSmiles(mol)}:  Salts:{' '.join([Chem.MolToSmiles(m) for m in deleted])}")
+    if debug and len(deleted) > 0: logger.info(f"Stripped salt {Chem.MolToSmiles(mol)}:  Salts:{' '.join([Chem.MolToSmiles(m) for m in deleted])}")
 
     return res
 
@@ -101,18 +102,20 @@ def tautomers(df: pd.DataFrame, debug = False) -> pd.DataFrame:
     params.tautomerRemoveSp3Stereo = False
     params.tautomerRemoveBondStereo = False
     params.tautomerRemoveIsotopicHs = False
+    params.maxTransforms = 10000
+    params.maxTautomers = 10000
+
     df['mol'] = df['mol'].apply(lambda x:  tautomerize_step1(x, params))
 
     # Step 2: Clean the tautomerized molecules using an in-house SMARTS reaction list
     smartsFile = Path(__file__).parent / 'Data' / 'tautomers.txt'
-    logger.info(f'Parsing tautomers SMARTS file: {smartsFile.resolve()}')
     reactions = load_reactions(smartsFile)
 
     # Apply reactions to each SMILES in the DataFrame
     updated_df = []
     for _, row in df.iterrows():
+        if debug: logger.info(f"Processing tautomer: {row['ids']}, {Chem.MolToSmiles(row['mol'])}")
         updates = list(recursive_reaction(row['mol'], reactions, set()))
-        #print(updates)
         if (len(updates) == 1): 
             updated_df.append(
                 {'smiles': updates[0], 'ids': row['ids'],'mol': Chem.MolFromSmiles(updates[0])})
@@ -180,15 +183,14 @@ def loadSMARTSdata(smartsFile: str, unwanted_option=None) -> pd.DataFrame:
 
     Args:
         smartsFile (str): Path to the file containing the SMARTS patterns.
-        unwanted_option (_type_, optional): The mode input by the user. Defaults to None.
+        unwanted_option (list): The mode input by the user. Defaults to None.
 
     Returns:
         pd.DataFrame: A DataFrame containing the SMARTS patterns and their corresponding RDKit molecule objects.
     """
-    logger.info(f'Loading SMARTS from: {smartsFile}')
     if unwanted_option is not None: 
         # Using default substructure file 
-        smarts_df = pd.read_csv(smartsFile, sep='\s+', names=['smarts','label', 'reason', 'mode', 'ref'])
+        smarts_df = pd.read_csv(smartsFile, sep='\s+', header=0, names=['smarts','label', 'reason', 'mode', 'ref'])
         smarts_df = smarts_df[smarts_df["mode"].isin(unwanted_option)]
     else:
         # Using customized substructure file
@@ -200,7 +202,7 @@ def loadSMARTSdata(smartsFile: str, unwanted_option=None) -> pd.DataFrame:
             smarts_df = pd.read_csv(smartsFile, sep='\s+', header=None, usecols=[0,1], names=['smarts','label'])
 
     smarts_df['mol'] = smarts_df['smarts'].apply(lambda x: Chem.MolFromSmarts(x)) #do we need mergeHs here?
-    logger.info(f'Parsed {len(smarts_df)} substructures')
+    
     return smarts_df
 
 def filterbysmarts(mol, smarts_df: pd.DataFrame) -> str:
@@ -214,8 +216,8 @@ def unwanted(df: pd.DataFrame, rejectedFile, unwanted_option, debug = False) -> 
 
         Args:
             df (pd.DataFrame): Input DataFrame with 'mol' column containing RDKit molecule objects.
-            rejectedFile (_type_): Path to the file to save rejected molecules.
-            smartsFile (_type_): Path to the file containing the predefined list of SMARTS patterns.
+            rejectedFile (str): Path to the file to save rejected molecules.
+            unwanted_option (list): The mode input by the user.
             debug (bool, optional): Debug mode. Defaults to False.
 
         Returns:
@@ -248,6 +250,7 @@ def custom(df: pd.DataFrame, rejectedFile, smartsFile, debug = False) -> pd.Data
     """
     # Load smarts to clean  from file
     unwanted_df = loadSMARTSdata(smartsFile)
+
     # Apply reactions to each SMILES in the DataFrame
     df['reason'] = df['mol'].apply(lambda x: filterbysmarts(x, unwanted_df))
     rejected_df=df[df['reason']!='OK']
@@ -287,7 +290,12 @@ def stereoisomers(df: pd.DataFrame, max_isomers = 0, debug = False) -> pd.DataFr
     # TODO: Log of how many stereoisomers for each compounds?
     product_df = []
     for _, row in df.iterrows():
-        isomers = generate_stereoisomers(row['mol'], max_isomers)
+        try:
+            isomers = generate_stereoisomers(row['mol'], max_isomers)
+        except Exception as e:
+            logger.error(f"Error generating stereoisomers for compound {row['ids']}: {Chem.MolToSmiles(row['mol'])}")
+            isomers = []
+            continue
         if (len(isomers) == 1): 
             product_df.append(
                 {'smiles': row['smiles'], 'ids': row['ids'],'mol': row['mol']})
@@ -340,12 +348,20 @@ def recursive_reaction(mol, reactions, collection):
             if name == 'amine':
                 for outcome in outcomes:
                     product = outcome[0]
-                    Chem.SanitizeMol(product)
-                    recursive_reaction(product, reactions, collection)  # Recurse with the new product
+                    try:
+                        Chem.SanitizeMol(product)
+                        recursive_reaction(product, reactions, collection)  # Recurse with the new product
+                    except:
+                        logger.error(f"Error sanitizing molecule: {Chem.MolToSmiles(mol)} to {Chem.MolToSmiles(product)}")
+                        pass
             else:
                 product = outcomes[0][0]
-                Chem.SanitizeMol(product)
-                recursive_reaction(product, reactions, collection)
+                try:
+                        Chem.SanitizeMol(product)
+                        recursive_reaction(product, reactions, collection)  # Recurse with the new product
+                except:
+                    logger.error(f"Error sanitizing molecule: {Chem.MolToSmiles(mol)} to {Chem.MolToSmiles(product)}")
+                    pass
     if not reactive: 
         collection.add(Chem.MolToSmiles(mol))  # Add the initial molecule if it is not reactive
     return collection  # Return the collection of products
@@ -365,7 +381,6 @@ def protonation(df: pd.DataFrame, debug = False) -> pd.DataFrame:
     """
     # Get the absolute path to the template SMARTS file using pathlib
     smartsFile = Path(__file__).parent / 'Data' / 'ionizations.txt'
-    logger.info(f'Parsing ionization SMARTS file: {smartsFile.resolve()}')
 
     # Load reactions from file
     reactions = load_reactions(smartsFile)
