@@ -1,4 +1,6 @@
 import logging
+from pathlib import Path
+from .filters import loadSMARTSdata, load_reactions
 logger = logging.getLogger('molsani')
 
 def setup_logger(log_file):
@@ -28,15 +30,35 @@ def setup_logger(log_file):
     # return logger
 
 def arguments(args):
-
     # Print the parsed arguments 
     logger.info(f"Input files: {args.input_files}")
+    logger.info(f"Enamine format: {args.enamine}")
     logger.info(f"Remove Salts: {args.removesalts}")
-    #logger.info(f"Tautomers enumeration: {args.tautomers}")
+    logger.info(f"Tautomers enumeration: {args.tautomers}")
     logger.info(f"PAINS filter: {args.pains}")
     logger.info(f"Unwanted filter: {args.unwanted}")
     logger.info(f"Customized filter: {args.custom}")
     logger.info(f"Protonation: {args.protonation}")
-    logger.info(f"Neutralize: {args.neutralize}")
+    #logger.info(f"Neutralize: {args.neutralize}")
     logger.info(f"Stereoisomers: {args.stereoisomers}")
     logger.info(f"Max stereoisomers: {args.max_isomers}")
+
+    if args.tautomers:
+        smartsFile = Path(__file__).parent / 'Data' / 'tautomers.txt'
+        temp_df = loadSMARTSdata(smartsFile.resolve())
+        logger.info(f'Parsed {len(temp_df)} tautomerization rules from: {smartsFile}')
+
+    if args.unwanted: 
+        smartsFile = Path(__file__).parent / 'Data' / 'filter_out.csv'
+        temp_df = loadSMARTSdata(smartsFile.resolve(), args.unwanted)
+        logger.info(f'Parsed {len(temp_df)} substructures from: {smartsFile}')
+    
+    if args.protonation:
+        smartsFile = Path(__file__).parent / 'Data' / 'ionizations.txt' 
+        reactions = load_reactions(smartsFile)
+        logger.info(f'Parsed {len(reactions)} ionization reactions from: {smartsFile}')
+        
+    if args.custom is not None: 
+        temp_df = loadSMARTSdata(args.custom)
+        logger.info(f'Parsed {len(temp_df)} substructures from: {args.custom}')
+
