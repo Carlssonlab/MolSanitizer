@@ -149,7 +149,7 @@ msani -i example.smi --protonation
 ```
 
 # Feedback
-MolSanitizer is a rule-based program that relies on our experience from previous drug discovery projects. We are committed to continuously improving the program's performance by adding more rules to the filters and tautomers/protonation. If you have any ideas or suggestions, please don't hesitate to open an issue or contact us at lamthuaphong@gmail.com, israel.cabezadevaca@icm.uu.se, or szymon.pach@icm.uu.se.
+MolSanitizer is a rule-based program that relies on our experience from previous drug discovery projects. We are committed to continuously improving the program's performance by adding more rules to the filters and tautomers/protonation. If you have any ideas or suggestions, please don't hesitate to open an issue or contact us.
 
 # Contact
 1. Israel Cabeza de Vaca Lopez, israel.cabezadevaca@icm.uu.se
