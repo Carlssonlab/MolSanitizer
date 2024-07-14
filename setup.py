@@ -17,8 +17,8 @@ setup(name='MolSanitizer',
     ],
     keywords='docking, drug design',
     url='https://github.com/Isra3l/MolSanitizer.git',
-    author='Israel Cabeza de Vaca Lopez',
-    author_email='israel.cabezadevaca@icm.uu.se',
+    author='Israel Cabeza de Vaca Lopez, Thua-Phong Lam, Szymon Pach',
+    author_email='israel.cabezadevaca@icm.uu.se, lamthuaphong@gmail.com, szymon.pach@icm.uu.se'
     license='MIT',
     packages=find_packages(),
     install_requires=[
