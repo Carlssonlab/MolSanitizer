@@ -293,7 +293,7 @@ def stereoisomers(df: pd.DataFrame, max_isomers = 0, debug = False) -> pd.DataFr
         try:
             isomers = generate_stereoisomers(row['mol'], max_isomers)
         except Exception as e:
-            logger.error(f"Error generating stereoisomers for compound {row['ids']}: {Chem.MolToSmiles(row['mol'])}")
+            logger.info(f"Error generating stereoisomers for compound {row['ids']}: {Chem.MolToSmiles(row['mol'])}")
             isomers = []
             continue
         if (len(isomers) == 1): 
@@ -352,7 +352,7 @@ def recursive_reaction(mol, reactions, collection):
                         Chem.SanitizeMol(product)
                         recursive_reaction(product, reactions, collection)  # Recurse with the new product
                     except:
-                        logger.error(f"Error sanitizing molecule: {Chem.MolToSmiles(mol)} to {Chem.MolToSmiles(product)}")
+                        logger.info(f"Error sanitizing molecule: {Chem.MolToSmiles(mol)} to {Chem.MolToSmiles(product)}")
                         pass
             else:
                 product = outcomes[0][0]
@@ -360,7 +360,7 @@ def recursive_reaction(mol, reactions, collection):
                         Chem.SanitizeMol(product)
                         recursive_reaction(product, reactions, collection)  # Recurse with the new product
                 except:
-                    logger.error(f"Error sanitizing molecule: {Chem.MolToSmiles(mol)} to {Chem.MolToSmiles(product)}")
+                    logger.info(f"Error sanitizing molecule: {Chem.MolToSmiles(mol)} to {Chem.MolToSmiles(product)}")
                     pass
     if not reactive: 
         collection.add(Chem.MolToSmiles(mol))  # Add the initial molecule if it is not reactive

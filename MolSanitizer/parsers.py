@@ -40,6 +40,7 @@ def parseArguments(args = None):
     #parser.add_argument('--neutralize', action='store_true', help='Neutralize the structures')
     #parser.add_argument('--flavioFilters', action='store_true', help='Filter using Flavio script (For databases based on Greg Landrum)')
     parser.add_argument('--debug', action='store_true', help='Debugging mode')
+    parser.add_argument('--test', action='store_true', help='Test mode (silent mode)')
 
     # Add string option
     parser.add_argument('--custom', default=None, type=str, help='Filter out unwanted substructures using the customized list. To generate an example list, use --create_custom')

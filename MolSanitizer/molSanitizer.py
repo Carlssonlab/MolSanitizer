@@ -36,7 +36,6 @@ def cleanData(args):
             logger.info(f'Using Enamine format for parsing')
         else: 
             df_input = pd.read_csv(inputFile, sep=r'\s+', names=['smiles', 'ids'], usecols=[0,1], header=None, chunksize=1_000)
-        """df_input = pd.read_csv(inputFile, sep=r'\s+', names=['smiles', 'ids'], usecols=[0,1], header=None, chunksize=500_000)"""
         
         inputFilePath = pathlib.Path(inputFile)
         logger.info(f'Processing: {inputFile}')
@@ -72,7 +71,7 @@ def cleanData(args):
 
             #if args.standarizeFilters: chunk = filters.standarizeFilters(chunk)
 
-            print(f"Step {step} took {time.time() - start_time:.2f} seconds to complete.")
+            if not (args.test): print(f"Step {step} took {time.time() - start_time:.2f} seconds to complete.")
             chunk['smiles'] = chunk['mol'].apply(lambda x: Chem.MolToSmiles(x))
             chunk.to_csv(outputFile, index=False, mode='a', columns=['smiles','ids'], header=False, sep=' ')
 
@@ -105,10 +104,11 @@ def generateCustomTemplate(args):
     """
     file = os.path.join(os.path.dirname(__file__), 'Data', 'filter_out.csv')
     if args.prefix is not None: os.system(f"cp {file} {args.prefix}.tsv") 
-    else: os.system(f"cp {file} template.tsv") 
-    print(f"Generated template substructure list as template.tsv")
-    print(f"The first two columns (SMARTS and LABEL) are required for substructure filtering.")
-    print(f"Other arguments are skipped, the program exitted normally.")
+    else: os.system(f"cp {file} template.tsv")
+    if not (args.test): 
+        print(f"Generated template substructure list as template.tsv")
+        print(f"The first two columns (SMARTS and LABEL) are required for substructure filtering.")
+        print(f"Other arguments are skipped, the program exitted normally.")
 
 def main():
 
