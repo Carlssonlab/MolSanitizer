@@ -1,0 +1,37 @@
+CCc1csc(CNC2CCc3c(F)ccc(O)c32)n1 m_269862____15108942____21615662 "PAINS violation: Mannich_a(296)"
+CCc1cc(C(=O)N[C@@H](CN=[N+]=[N-])C(=O)NC2CC3C=CC2C3)on1 m_274552____23521488____24966326____15985202 "PAINS violation: Azo_a(324)"
+COC1CCC(NC(=O)C=C(C)CNC(=O)CC2CCOC2C)CC1 m_274552____23521132____13735436____25033468 Michael_acceptors
+C=CCOCCC(NCC1CC2(C1)CC2(F)F)c1nnnn1CCC m_281630____20794928____21625556____20772830 butylene_chains
+CC(C)(C)[C@H](N)CC(=O)NCC1CC(=C2CCC2)C1 m_240690____17317754____13654158 cyclic_double_bonds_3-4-membered
+CSCC(C)(NC(=O)CCOC1CC1)C(=O)NC1CCCC1C#N m_274552____23521620____25004494____15977484 aliphatic_nitriles
+CCn1ccc(CCNC(=O)CONC(=O)C=Cc2cnn(C)c2)n1 m_274552____23522728____24973580____15979158 Michael_acceptors
+CCN(CCCNC(=O)C1=CCCCCC1)C(=O)c1ccncn1 m_275592____25038076____14137674____13186740 Michael_acceptors
+Cc1nc(=O)cc(C(=O)N[C@H]2CCCC[C@H]2C(=O)NOCC=CCl)[nH]1 m_274552____23522480____24993440____25023730 hydrazides_hydroxamates
+O=C(CC(Cl)Cl)NCc1ccc(C(=O)NCCn2cnnc2)nc1 m_274552____23520988____15963658____25032120 alkyl_halides
+CN(C(=O)CCCCCC#N)C(C)(C)CC(=O)NCc1cc[nH]n1 m_274552____23521678____13730052____15977380 butylene_chains
+C=C(Cl)CCC(=O)NCC(C)(C)NC(=O)c1ccc(O)cn1 m_275592____18896392____15845014____15861690 alkyl_halides_generic
+N#CC1CCNCC1NC(=O)c1cnn2cccc2c1 m_240690____16722450____21398380 aliphatic_nitriles
+C#CCCNC(=O)[C@@H]1CN(C(=O)c2cc(O)ccc2F)C[C@H]1F m_274552____23520406____15945672____15978084 alkynes_generic
+COCCC(OC)C(=O)N(CCC(=O)NC1CN(C(C)=O)C1)OC m_274552____23522560____15963454____25045976 hydrazides_hydroxamates
+CCCOCC(=O)N[C@@H]1CC[C@H](O)CN(C(=O)[C@H]2CCC(=O)N2C)C1 m_275592____15865462____13187142____14133492 butylene_chains
+CC(CNC(=O)CCCCN(C)C)C(=O)NCCC(C)c1cn[nH]c1 m_274552____23522486____24974668____15984810 butylene_chains
+CC(C)C#CC(=O)N[C@H]1C=C[C@@H](C(=O)NCc2c(F)cccc2F)C1 m_274552____23414892____24992836____12354164 Michael_acceptors
+O=C(Nc1nc(CCC2CC2)cs1)N1CCC(O)(c2ncc[nH]2)CC1 m_2430____22524108____20812070 heterocyclic_ureas
+Cc1nncn1NC(=O)[C@H]1C[C@@H]1C(C)NC(=O)C=Cc1cnn(C)c1 m_274552____23519416____24993390____15979158 Michael_acceptors
+C#Cc1cc(F)c(F)cc1NC(=O)NCC1(O)CCOC1 m_2430____21853074____9788192 alkynes_generic
+C#CCCCCNC(=O)C1CC2(CCC2)CN1C(=O)c1conc1C m_274552____23520554____15959492____15978020 4-(electron-withdrawing-group)-isoxazoles
+CCOCCOCCOCCNc1ncnc2c(Br)cc(F)cc12 s_27____21592456____25396964 butylene_chains
+CC/C=C/CC(=O)NC(C)(CSC)C(=O)N1C2CCC1CC1(C2)N=N1 m_274552____23521620____15960150____25053680 3_membered_heterocycles
+C=C=CCCC(=O)NC[C@H]1CC[C@H]1NC(=O)c1ccc(OC)c(F)c1 m_275592____20026932____21831638____14132314 allenes
+CC(C)(C)CCCC(=O)NC(CC(=O)NOCC(F)(F)F)C(F)F m_274552____23520550____13185634____13454154 hydrazides_hydroxamates
+CCCC(C(=O)NCC(C)=CC(=O)NCCN1CCC(C)C1)N(C)C m_274552____23521132____15946236____15975552 Michael_acceptors
+CCOCCC(=O)N1CC2(COC(CNC(=O)C3(C)CSC3)C2)C1 m_275592____15865228____21825244____13186506 butylene_chains
+CC1(C)CC=C(C(=O)N2CC(=O)C[C@@H]2C(=O)NCC=CCl)CC1 m_274552____23522342____15968096____15984166 Michael_acceptors
+CC(C)SCCNC(=O)C(C)CN(C)C(=O)[C@@H]1CCCN1C(N)=O m_274552____23521756____15971570____15986570 heterocyclic_ureas
+C#CC(CNC(=O)C1(CCNC(=O)C2CCCO2)CCC1)C(C)C m_274552____18630736____24986536____13453936 alkynes_generic
+COCC#CCNc1cc(N2Cc3ccncc3C2)nc(C(C)C)n1 m_282030____21895246____23157428____21969936 alkynes_generic
+C#CC1(C(=O)N2CCC2(CC)CC)CN(C(=O)c2ccccc2F)C1 m_274552____23520288____24976768____13453892 alkynes_generic
+COCC=CC(=O)N1CC[C@H](O)[C@@H]1C(=O)NCc1nn(C)cc1CO m_274552____23522006____24981698____15976708 Michael_acceptors
+COCCSCC(=O)NCc1cc(C(=O)N2CCOC(CF)C2)no1 m_274552____23519324____13186062____25024192 butylene_chains
+NC(=O)c1cnc(NC(=O)c2ccn3ncc(Br)c3c2)s1 s_11____205078____16521436 2-aminothiazoles
+COC(C)CNC(=O)C1=C(F)CN(C(=O)c2nccc(N)n2)CC1 m_274552____23520460____13734100____25028202 Michael_acceptors
