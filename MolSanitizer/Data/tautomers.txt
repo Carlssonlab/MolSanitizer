@@ -2,6 +2,6 @@
 [c:1]1[nX2:2][c:3]([OH:4])[c:5][c:6][c:7]1>>[c:1]1[nH:2][c:3](=[O:4])[c:5][c:6][c:7]1 pyridine-2-ol_to_2-one
 [a:1][NH+0:2][C:3]1=[NX2+0:4]-[C:5]-[C:6]-[NH+0:7]1>>[a:1][N:2]=[C:3]1[N:4][C:5][C:6][N:7]1 endo-clonidine_to_exo
 [a:1][C:2]=[C:3]1[NH+0:4]-[C:5]-[C:6]-[NH+0:7]1>>[a:1][C:2][C:3]1=[N:4][C:5][C:6][N:7]1 exo-naphazoline_to_endo
-[c:1]1[nH][c:3][c:4][c:5](=[O:6])[c:7]1>>[c:1]1[n][c:3][c:4][c:5]([O:6])[c:7]1 4-pyridone_to_4-ol
+[c:1]1[nH][c:3][c:4][c:5](=[O:6])[c:7]1>>[c:1]1[n][c:3][c:4][c:5]([OH:6])[c:7]1 4-pyridone_to_4-ol
 [nX2:1]1[nX2:2][nH][c:4]2[c:5]1[c:6][c:7][c:8][c:9]2>>[n:1]1[nH:2][n][c:4]2[c:5]1[c:6][c:7][c:8][c:9]2 1H-benzotriazole_to_2H
 [cR1:1]1[nX2:2][nH][nX2:4][cR1:5]1>>[c:1]1[nH:2][n][n:4][c:5]1 2H-triazole_to_1H
