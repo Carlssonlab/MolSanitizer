@@ -9,5 +9,5 @@ dependencies:
   - numpy
   - pandas
   - pip
-  - rdkit
+  - rdkit=2024.3.3
   - joblib
