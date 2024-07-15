@@ -1,105 +1,109 @@
 import unittest
 import tempfile
+import os
+
 from pathlib import Path
 from types import SimpleNamespace
 from os import system
 
-from pandas.testing import assert_frame_equal
 import pandas as pd
-import MolSanitizer.parsers as parsers
-import MolSanitizer.filters as filters
 import MolSanitizer.molSanitizer as molSanitizer
 
 class TestMolSanitizer(unittest.TestCase):
+    if os.path.basename(os.getcwd()) == 'test':
+        path = os.path.join(os.getcwd(), 'goldenData')
+    else:
+        path = os.path.join(os.getcwd(), 'test', 'goldenData')
+    
     def test_single_input(self):
         with tempfile.TemporaryDirectory() as temp_dir:
-            args = self.generate_mock_arguments(['goldenData/in_data100.txt'], ['test'], temp_dir)
+            args = self.generate_mock_arguments([f'{self.path}/in_data100.txt'], ['test'], temp_dir)
             molSanitizer.cleanData(args)
-            self.compareFiles(f'{temp_dir}/dummy_output_clean.txt', 'goldenData/out_single_input.txt')
+            self.compareFiles(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_single_input.txt')
     
     def test_multiple_inputs(self):
         with tempfile.TemporaryDirectory() as temp_dir:
-            args = self.generate_mock_arguments(['goldenData/in_data100.txt', 'goldenData/in_stereo.txt'], ['test'], temp_dir)
+            args = self.generate_mock_arguments([f'{self.path}/in_data100.txt', f'{self.path}/in_stereo.txt'], ['test'], temp_dir)
             molSanitizer.cleanData(args)
-            self.compareFiles(f'{temp_dir}/dummy_output_clean.txt', 'goldenData/out_multiple_inputs.txt')
+            self.compareFiles(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_multiple_inputs.txt')
     
     def test_removesalts(self):
         with tempfile.TemporaryDirectory() as temp_dir:
-            args = self.generate_mock_arguments(['goldenData/in_salt.txt'], ['removesalts', 'test'], temp_dir)
+            args = self.generate_mock_arguments([f'{self.path}/in_salt.txt'], ['removesalts', 'test'], temp_dir)
             molSanitizer.cleanData(args)
-            self.compareFiles(f'{temp_dir}/dummy_output_clean.txt', 'goldenData/out_salt_clean.txt')
+            self.compareFiles(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_salt_clean.txt')
 
     def test_tautomers(self):
         with tempfile.TemporaryDirectory() as temp_dir:
-            args = self.generate_mock_arguments(['goldenData/in_tautomers.txt'], ['tautomers', 'test'], temp_dir)
+            args = self.generate_mock_arguments([f'{self.path}/in_tautomers.txt'], ['tautomers', 'test'], temp_dir)
             molSanitizer.cleanData(args)
-            self.compareFiles(f'{temp_dir}/dummy_output_clean.txt', 'goldenData/out_tautomers.txt')
+            self.compareFiles(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_tautomers.txt')
 
     def test_painsfilter(self):
         with tempfile.TemporaryDirectory() as temp_dir:
-            args = self.generate_mock_arguments(['goldenData/in_pains.txt'], ['pains', 'test'], temp_dir)
+            args = self.generate_mock_arguments([f'{self.path}/in_pains.txt'], ['pains', 'test'], temp_dir)
             molSanitizer.cleanData(args)
-            self.compareFiles(f'{temp_dir}/dummy_output_clean.txt', 'goldenData/out_pains.txt')
+            self.compareFiles(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_pains.txt')
 
     def test_unwanted(self):
         with tempfile.TemporaryDirectory() as temp_dir:
-            args = self.generate_mock_arguments(['goldenData/in_unwanted.txt'], ['test'], temp_dir)
+            args = self.generate_mock_arguments([f'{self.path}/in_unwanted.txt'], ['test'], temp_dir)
             # Test all filters work together
             args.unwanted = ['Regular','Special','Optional']
             molSanitizer.cleanData(args)
-            self.compareFiles(f'{temp_dir}/dummy_output_clean.txt', 'goldenData/out_unwanted_all_clean.txt')
-            self.compareFiles(f'{temp_dir}/dummy_output_rejected.txt', 'goldenData/out_unwanted_all_rejected.txt')
+            self.compareFiles(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_unwanted_all_clean.txt')
+            self.compareFiles(f'{temp_dir}/dummy_output_rejected.txt', f'{self.path}/out_unwanted_all_rejected.txt')
          
             args.unwanted = ['Regular','Optional']
             system(f'rm {temp_dir}/*.txt')
             molSanitizer.cleanData(args)
-            self.compareFiles(f'{temp_dir}/dummy_output_clean.txt', 'goldenData/out_unwanted_regular_optional_clean.txt')
-            self.compareFiles(f'{temp_dir}/dummy_output_rejected.txt', 'goldenData/out_unwanted_regular_optional_rejected.txt')
+            self.compareFiles(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_unwanted_regular_optional_clean.txt')
+            self.compareFiles(f'{temp_dir}/dummy_output_rejected.txt', f'{self.path}/out_unwanted_regular_optional_rejected.txt')
 
             # Test if filters works together
             args.unwanted = ['Regular']
             system(f'rm {temp_dir}/*.txt')
             molSanitizer.cleanData(args)
-            self.compareFiles(f'{temp_dir}/dummy_output_clean.txt', 'goldenData/out_unwanted_regular_clean.txt')
-            self.compareFiles(f'{temp_dir}/dummy_output_rejected.txt', 'goldenData/out_unwanted_regular_rejected.txt')
+            self.compareFiles(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_unwanted_regular_clean.txt')
+            self.compareFiles(f'{temp_dir}/dummy_output_rejected.txt', f'{self.path}/out_unwanted_regular_rejected.txt')
 
             args.unwanted = ['Special']
             system(f'rm {temp_dir}/*.txt')
             molSanitizer.cleanData(args)
-            self.compareFiles(f'{temp_dir}/dummy_output_clean.txt', 'goldenData/out_unwanted_special_clean.txt')
-            self.compareFiles(f'{temp_dir}/dummy_output_rejected.txt', 'goldenData/out_unwanted_special_rejected.txt')
+            self.compareFiles(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_unwanted_special_clean.txt')
+            self.compareFiles(f'{temp_dir}/dummy_output_rejected.txt', f'{self.path}/out_unwanted_special_rejected.txt')
 
             args.unwanted = ['Optional']
             system(f'rm {temp_dir}/*.txt')
             molSanitizer.cleanData(args)
-            self.compareFiles(f'{temp_dir}/dummy_output_clean.txt', 'goldenData/out_unwanted_optional_clean.txt')
-            self.compareFiles(f'{temp_dir}/dummy_output_rejected.txt', 'goldenData/out_unwanted_optional_rejected.txt')
+            self.compareFiles(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_unwanted_optional_clean.txt')
+            self.compareFiles(f'{temp_dir}/dummy_output_rejected.txt', f'{self.path}/out_unwanted_optional_rejected.txt')
  
     def test_create_customfile(self):
         with tempfile.TemporaryDirectory() as temp_dir:
-            args = self.generate_mock_arguments(['goldenData/in_unwanted.txt'], ['create_custom', 'test'], temp_dir)
+            args = self.generate_mock_arguments([f'{self.path}/in_unwanted.txt'], ['create_custom', 'test'], temp_dir)
             molSanitizer.generateCustomTemplate(args)
             self.assertTrue(Path(f"{args.prefix}.tsv").exists(), "Output file was not created.")
 
     def test_stereoisomers(self):
         with tempfile.TemporaryDirectory() as temp_dir:
-            args = self.generate_mock_arguments(['goldenData/in_stereo.txt'], ['stereoisomers', 'test'], temp_dir)
+            args = self.generate_mock_arguments([f'{self.path}/in_stereo.txt'], ['stereoisomers', 'test'], temp_dir)
             molSanitizer.cleanData(args)
-            self.compareFiles(f'{temp_dir}/dummy_output_clean.txt', 'goldenData/out_stereo.txt')
+            self.compareFiles(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_stereo.txt')
 
     def test_protonation(self):
         with tempfile.TemporaryDirectory() as temp_dir:
-            args = self.generate_mock_arguments(['goldenData/in_protonation.txt'], ['protonation', 'test'], temp_dir)
+            args = self.generate_mock_arguments([f'{self.path}/in_protonation.txt'], ['protonation', 'test'], temp_dir)
             molSanitizer.cleanData(args)
-            self.compare_relative(f'{temp_dir}/dummy_output_clean.txt', 'goldenData/out_protonation.txt')
+            self.compare_relative(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_protonation.txt')
     
     def test_integrity(self):
         with tempfile.TemporaryDirectory() as temp_dir:
-            args = self.generate_mock_arguments(['goldenData/in_enamine.txt'], ['enamine','lazy', 'test'], temp_dir)
+            args = self.generate_mock_arguments([f'{self.path}/in_enamine.txt'], ['enamine','lazy', 'test'], temp_dir)
             args = molSanitizer.Sanitycheck(args)
             molSanitizer.cleanData(args)
-            self.compare_relative(f'{temp_dir}/dummy_output_clean.txt', 'goldenData/out_enamine_clean.txt')
-            self.compare_relative(f'{temp_dir}/dummy_output_rejected.txt', 'goldenData/out_enamine_rejected.txt')
+            self.compare_relative(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_enamine_clean.txt')
+            self.compare_relative(f'{temp_dir}/dummy_output_rejected.txt', f'{self.path}/out_enamine_rejected.txt')
     
     def compare_relative(self, newfile: str, goldenfile: str):
         # Read the files into dataframes
