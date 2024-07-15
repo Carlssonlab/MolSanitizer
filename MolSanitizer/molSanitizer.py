@@ -32,7 +32,7 @@ def cleanData(args):
 
     for inputFile in args.input_files:
         if args.enamine: 
-            df_input = pd.read_csv(inputFile, sep='\t', names=['smiles', 'ids'], usecols=[0,1], header=None, chunksize=1_000)
+            df_input = pd.read_csv(inputFile, sep='\t', names=['smiles', 'ids'], usecols=[0,1], header=None, chunksize=500_000)
             logger.info(f'Using Enamine format for parsing')
         else: 
             df_input = pd.read_csv(inputFile, sep=r'\s+', names=['smiles', 'ids'], usecols=[0,1], header=None, chunksize=1_000)
