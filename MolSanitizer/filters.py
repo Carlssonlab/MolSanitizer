@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from rdkit import Chem, RDConfig, RDLogger
+from rdkit import Chem, RDLogger
 
 from rdkit.Chem import AllChem
 from rdkit.Chem import SaltRemover
