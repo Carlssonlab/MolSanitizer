@@ -114,7 +114,21 @@ msani -i example.smi --custom templates.tsv
 msani -i example.smi --unwanted all --custom templates.tsv
 ```
 
-## **Option 5: Stereoisomers enumeration**
+## **Option 5: Protonation**
+The protonation stage could be assigned to the molecules using the `--protonation` flag. The program uses SMARTS reactions to iteratively assign the protonation stages to the atoms. The SMARTS reactions could be obtained from [MolSanitizer/Data/ionizations.txt](MolSanitizer/Data/ionizations.txt). If there are multiple possibilities of protonation, the output will be expanded.
+
+```bash
+msani -i example.smi --protonation
+
+# Input:
+# O=C(N1C(C2C(C1)C2O)C(O)=O)CN3CCNCC3 mol4_editted
+
+# Output:
+# O=C([O-])C1C2C(O)C2CN1C(=O)CN1CC[NH2+]CC1 mol4_editted_1
+# O=C([O-])C1C2C(O)C2CN1C(=O)C[NH+]1CCNCC1 mol4_editted_2
+```
+
+## **Option 6: Stereoisomers enumeration**
 Stereoisomers enumeration will be considered for nonspecified chiral centers using the `--stereoisomers` flag. For an entry that contains multiple stereoisomers, its ID would be expanded (Eg. mol8 -> mol8_1 mol8_2).
 
 ```bash
@@ -132,20 +146,6 @@ It is possible to define the maximum number of stereoisomers generated for each 
 
 ```bash
 msani -i example.smi --stereoisomers --max_isomers 30
-```
-
-## **Option 6: Protonation**
-The protonation stage could be assigned to the molecules using the `--protonation` flag. The program uses SMARTS reactions to iteratively assign the protonation stages to the atoms. The SMARTS reactions could be obtained from [MolSanitizer/Data/ionizations.txt](MolSanitizer/Data/ionizations.txt). If there are multiple possibilities of protonation, the output will be expanded.
-
-```bash
-msani -i example.smi --protonation
-
-# Input:
-# O=C(N1C(C2C(C1)C2O)C(O)=O)CN3CCNCC3 mol4_editted
-
-# Output:
-# O=C([O-])C1C2C(O)C2CN1C(=O)CN1CC[NH2+]CC1 mol4_editted_1
-# O=C([O-])C1C2C(O)C2CN1C(=O)C[NH+]1CCNCC1 mol4_editted_2
 ```
 
 # Feedback
