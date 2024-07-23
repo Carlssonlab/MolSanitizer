@@ -1,3 +1,11 @@
+"""
+MolSanitizer.
+"""
+
+__author__ = "Israel Cabeza de Vaca Lopez, Thua-Phong Lam, Szymon Pach"
+__place__ = "Jens Carlsson lab, Uppsala University, Sweden"
+__license__ = "MIT"
+
 import logging
 logger = logging.getLogger('molsani')
 
@@ -62,13 +70,14 @@ def cleanData(args):
             # Unwanted substructures filtering
             if args.unwanted is not None: chunk = filters.unwanted(chunk, rejectedFile, args.unwanted, args.debug) 
             if args.custom is not None: chunk = filters.custom(chunk, rejectedFile, args.custom, args.debug) 
+            
+            # Protonation
+            if args.protonation: chunk = filters.protonation(chunk, args.debug)
 
             # Stereoisomers enumeration
             if args.stereoisomers: chunk = filters.stereoisomers(chunk, args.max_isomers, args.debug)
 
-            # Protonation
-            if args.protonation: chunk = filters.protonation(chunk, args.debug)
-
+           
             #if args.standarizeFilters: chunk = filters.standarizeFilters(chunk)
 
             if not (args.test): print(f"Step {step} took {time.time() - start_time:.2f} seconds to complete.")
