@@ -19,6 +19,7 @@ import sys
 from . import parsers
 from . import loggers
 from . import filters
+from . import smi2db2
 
 from rdkit import Chem
 from rdkit import rdBase
@@ -80,9 +81,11 @@ def cleanData(args):
            
             #if args.standarizeFilters: chunk = filters.standarizeFilters(chunk)
 
-            if not (args.test): print(f"Step {step} took {time.time() - start_time:.2f} seconds to complete.")
             chunk['smiles'] = chunk['mol'].apply(lambda x: Chem.MolToSmiles(x))
             chunk.to_csv(outputFile, index=False, mode='a', columns=['smiles','ids'], header=False, sep=' ')
+
+            if args.db2: smi2db2.gen_conf_chunk(chunk, args.rmsd, args.randomSeed, args.numconfs)
+            if not (args.test): print(f"Step {step} took {time.time() - start_time:.2f} seconds to complete.")
 
 def Sanitycheck(args: dict):
     """Sanity check for the unwanted flag
