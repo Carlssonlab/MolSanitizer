@@ -23,7 +23,9 @@ logger = logging.getLogger('molsani')
 
 
 env = os.environ.copy()
-if os.path.abspath("libs/extralibs-2") not in env['LD_LIBRARY_PATH']:
+if 'LD_LIBRARY_PATH' not in env:
+    env['LD_LIBRARY_PATH'] = os.path.abspath("libs/extralibs-2")
+elif os.path.abspath("libs/extralibs-2") not in env['LD_LIBRARY_PATH']:
     env['LD_LIBRARY_PATH'] += ':' + os.path.abspath("libs/extralibs-2")
 
 def write_to_file(content, file):

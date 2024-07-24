@@ -37,7 +37,7 @@ def parseArguments(args = None):
     parser.add_argument('--create_custom', action='store_true', help='Generate a template for customized substructure filtering')
     parser.add_argument('--stereoisomers', action='store_true', help='Stereoisomers enumeration (only consider unspecified chiral centers)')
     parser.add_argument('--protonation', action='store_true', help='Apply protonation to the structures')
-    parser.add_argument('-db2', '--db2', action='store_true', help='Generate conformers and stored in the DB2 format for DOCK 3.8')
+    parser.add_argument('--db2', action='store_true', help='Generate conformers and stored in the DB2 format for DOCK 3.8')
     #parser.add_argument('--neutralize', action='store_true', help='Neutralize the structures')
     #parser.add_argument('--flavioFilters', action='store_true', help='Filter using Flavio script (For databases based on Greg Landrum)')
     parser.add_argument('--debug', action='store_true', help='Debugging mode')

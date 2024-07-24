@@ -150,7 +150,8 @@ class TestMolSanitizer(unittest.TestCase):
             "custom":None, 
             "prefix":output_prefix, 
             "max_isomers":0,
-            "test": False
+            "test": False,
+            "db2": False
          } 
         for mode in modes: 
             if (mode not in ['unwanted','custom']): args[mode] = True
@@ -160,5 +161,4 @@ class TestMolSanitizer(unittest.TestCase):
     
        
 if __name__ == '__main__':
-    print("""Don't worry about the warning. It is a known issue of rdkit and will be fixed in the next version.""")
-    unittest.main()
+        unittest.main()
