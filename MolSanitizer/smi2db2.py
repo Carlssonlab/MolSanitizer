@@ -17,16 +17,24 @@ import subprocess
 from pathlib import Path
 import numpy as np
 from MolSanitizer.amsol import run_amsol
+from MolSanitizer.db2 import mol2db2
 
 import logging
 logger = logging.getLogger('molsani')
 
+internal_pattern=r'[*;!$([#1])]~[*;!$(*#*)]-&!@[*;!$(*#*)]~[*;!$([#1])]'
+terminal_pattern=r'*~[*;!$(*#*)]-[$(A([#1])([#1])[#1]),$(A(F)(F)F),$(A(Cl)(Cl)Cl),$(A(Br)(Br)Br),$(A(I)(I)I)]~[#1,F,Cl,Br,I,CH3]'
 
-env = os.environ.copy()
-if 'LD_LIBRARY_PATH' not in env:
-    env['LD_LIBRARY_PATH'] = os.path.abspath("libs/extralibs-2")
-elif os.path.abspath("libs/extralibs-2") not in env['LD_LIBRARY_PATH']:
-    env['LD_LIBRARY_PATH'] += ':' + os.path.abspath("libs/extralibs-2")
+def setup_env():
+    env = os.environ.copy()
+    script_dir = Path(__file__).parent
+    extra_libs_path = script_dir / "libs" / "extralibs-2"
+
+    if 'LD_LIBRARY_PATH' in env:
+        env['LD_LIBRARY_PATH'] += f":{script_dir}:{extra_libs_path}"
+    else:
+        env['LD_LIBRARY_PATH'] = f"{script_dir}:{extra_libs_path}"
+    return env
 
 def write_to_file(content, file):
     with open(file, "w") as f:
@@ -80,7 +88,7 @@ def embed_smiles(smiles, name, rmsd=0.25, randomSeed=42, numConfs=50):
     res.AddConformer(conformer, assignId=True) # add it to the conformations list
     res.SetProp("_Name", name)
     netcharge = sum(atom.GetFormalCharge() for atom in res.GetAtoms())
-    return Chem.MolToMolBlock(res), netcharge
+    return res, Chem.MolToMolBlock(res), netcharge
 
 def load_molecule(file_path_mol: str) -> Chem.rdchem.Mol:
     """
@@ -93,7 +101,7 @@ def load_molecule(file_path_mol: str) -> Chem.rdchem.Mol:
 
     # Extract the file extension
     # Convert file_path to a Path object if it's not already one
-    return Chem.MolFromMol2File(file_path_mol, removeHs=False, sanitize=True)
+    return Chem.MolFromMol2File(file_path_mol, removeHs=False, sanitize=False, cleanupSubstructures=True)
 
 def write_to_sdf(mol, filename):
     with Chem.SDWriter(filename+'.sdf') as writer:
@@ -103,10 +111,9 @@ def write_to_sdf(mol, filename):
             writer.write(mol, confId=conf.GetId())
 
 
-def getDihedralMatches(mol):
+def getDihedralMatches(mol, pattern):
     '''return list of atom indices of dihedrals'''
     #this is rdkit's "strict" pattern
-    pattern = r"*~[!$(*#*)&!D1&!$([CH3])&!$(C(F)(F)F)&!$(C(Cl)(Cl)Cl)&!$(C(Br)(Br)Br)&!$(C([CH3])([CH3])[CH3])&!$([CD3](=[N,O,S])-!@[#7,O,S!D1])&!$([#7,O,S!D1]-!@[CD3]=[N,O,S])&!$([CD3](=[N+])-!@[#7!D1])&!$([#7!D1]-!@[CD3]=[N+])]-!@[!$(*#*)&!D1&!$(C(F)(F)F)&!$(C(Cl)(Cl)Cl)&!$([CH3])&!$(C(Br)(Br)Br)&!$(C([CH3])([CH3])[CH3])]~*"
     qmol = Chem.MolFromSmarts(pattern)
     matches = mol.GetSubstructMatches(qmol);
     #these are all sets of 4 atoms, uniquify by middle two
@@ -147,7 +154,7 @@ def check_too_close_nonbonded_atoms(conformer, mol, threshold=1.6):
                     return True
     return False
 
-def genConformer_r(mol, conf, i, matches,  sdwriter, product, original, degree = 60, maxconf = 10000):
+def genConformer_terminal_r(mol, conf, i, matches,  sdwriter, product, original, degree = 60, maxconf = 10000):
     '''recursively enumerate all angles for matches dihedrals.  i is where is
     which dihedral we are enumerating by degree to output conformers to out'''
     if len(product) > maxconf: return product
@@ -158,9 +165,22 @@ def genConformer_r(mol, conf, i, matches,  sdwriter, product, original, degree =
         return product
     else:
         deg = rdMolTransforms.GetDihedralDeg(original,*matches[i])
-        for idx in range(int(360/degree)):
+        for idx in range(int(120/degree)): # 120 is the maximum angle for symmetrical terminal dihedrals
             rdMolTransforms.SetDihedralDeg(mol.GetConformer(conf),*matches[i],value = deg + degree*idx)
-            product = genConformer_r(mol, conf, i+1, matches, sdwriter, product, original, degree, maxconf)
+            product = genConformer_terminal_r(mol, conf, i+1, matches, sdwriter, product, original, degree, maxconf)
+        return product
+    
+def genConformer_internal_r(mol, conf, i, internal_matches, terminal_matches, sdwriter, product, original, degree = 60, maxconf = 10000):
+    '''recursively enumerate all angles for matches dihedrals.  i is where is
+    which dihedral we are enumerating by degree to output conformers to out'''
+    if i >= len(internal_matches): #base case, torsions should be set in conf
+        product = genConformer_terminal_r(mol, conf, 0, terminal_matches, sdwriter, product, original, degree, maxconf)
+        return product
+    else:
+        deg = rdMolTransforms.GetDihedralDeg(original,*internal_matches[i])
+        for idx in range(int(360/degree)):
+            rdMolTransforms.SetDihedralDeg(mol.GetConformer(conf),*internal_matches[i],value = deg + degree*idx)
+            product = genConformer_internal_r(mol, conf, i+1, internal_matches, terminal_matches, sdwriter, product, original, degree, maxconf)
         return product
     
 def convert_file(input_file, output_file, input_format, output_format):
@@ -170,7 +190,7 @@ def convert_file(input_file, output_file, input_format, output_format):
     with open(output_file, "w") as f:
         f.write(converted_data)
 
-def extract_partial_charges(mol2_file, output_file='partialcharges.txt'):
+def extract_partial_charges(mol2_file, output_file='partialcharges.txt', VERBOSE=False):
     charges = []
     with open(mol2_file, 'r') as f:
         atom_section = False
@@ -189,7 +209,7 @@ def extract_partial_charges(mol2_file, output_file='partialcharges.txt'):
         for charge in charges:
             f.write(f"{charge}\n")
     
-    print(f"Partial charges extracted and saved to {output_file}")
+    if VERBOSE: print(f"Partial charges extracted and saved to {output_file}")
 
 def assign_charges_and_convert(sdf_file, charges_file, output_mol2):
     # Read charges
@@ -210,7 +230,6 @@ def assign_charges_and_convert(sdf_file, charges_file, output_mol2):
     with open(output_mol2, 'w') as out_file:
         while True:
             molecule_count += 1
-            mol.G
             # Assign charges
             for i, atom in enumerate(ob.OBMolAtomIter(mol)):
                 if i < len(charges):
@@ -232,32 +251,39 @@ def assign_charges_and_convert(sdf_file, charges_file, output_mol2):
     print(f"Converted and saved {molecule_count} conformations to {output_mol2} with assigned charges")
     return unprocessed_mol2_str
 
-def torsional_scan(name, maxconf = 10000, partial_charges='partialcharges.txt'):
+def torsional_scan(mol, name, maxconf = 10000, partial_charges='partialcharges.txt'):
     extract_partial_charges(f"{name}.mol2", partial_charges)
-    mol = load_molecule(f"{name}.mol2")
-    res = Chem.Mol(mol); res.RemoveAllConformers()
-    #print(Chem.MolToSmiles(mol))
-    rotmatches = getDihedralMatches(mol)
+    res = Chem.Mol(mol); 
+    res.RemoveAllConformers()
+    internal_matches = getDihedralMatches(mol, internal_pattern)
+    terminal_matches = getDihedralMatches(mol, terminal_pattern)
     #print(rotmatches)
     rotated_file = f"{name}_rotated.sdf"
     sdwriter = Chem.SDWriter(rotated_file)
-    product = genConformer_r(mol, conf=0, i=0, matches= rotmatches, sdwriter=sdwriter, product=list(), original=mol.GetConformer(0), degree=60, maxconf=maxconf)
+    product = genConformer_internal_r(mol, conf=0, i=0, internal_matches = internal_matches, terminal_matches = terminal_matches, sdwriter=sdwriter, product=list(), original=mol.GetConformer(0), degree=60, maxconf=maxconf)
     for conf in product:
         res.AddConformer(conf, assignId = True)
     unprocessed_mol2_str = assign_charges_and_convert(rotated_file, partial_charges, f"{name}_rotated.mol2")
-    subprocess.run("rm {rotated_file}", shell=True)
+    subprocess.run(f"rm {rotated_file}", shell=True)
 
     return res, unprocessed_mol2_str
 
-def gen_conf_chunk(df: pd.DataFrame, rmsd = 0.25, randomSeed = 42, numConfs = 10000):
+
+def gen_conf_chunk(df: pd.DataFrame, rmsd = 0.25, randomSeed = 42, numConfs = 10000, VERBOSE = False):
         mol2_data = []
+
+        env = setup_env()
+        db2_all_data = ""
+        if VERBOSE: print(env['LD_LIBRARY_PATH'])
         for idx, row in df.iterrows():
             # Embed smiles into initial conformation
-            mol, netcharge = embed_smiles(row['smiles'], row['ids'], rmsd = rmsd, randomSeed = randomSeed, numConfs = numConfs)
+            if VERBOSE: print("Embedding...")
+            mol, molblock, netcharge = embed_smiles(row['smiles'], row['ids'], rmsd = rmsd, randomSeed = randomSeed, numConfs = numConfs)
             name = row['ids']
-            mol2 = convert(mol, "mol", "mol2")
+            mol2 = convert(molblock, "mol", "mol2")
 
             # Solvation using AMSOL
+            if VERBOSE: print("Solvating...")
             subprocess.run(f"mkdir -p solv/{name}", shell=True)
             write_to_file(mol2, f"solv/{name}/{name}.mol2")
             os.chdir(f"solv/{name}")
@@ -270,13 +296,21 @@ def gen_conf_chunk(df: pd.DataFrame, rmsd = 0.25, randomSeed = 42, numConfs = 10
             os.chdir("../..")
 
             # Torsion scan
+            if VERBOSE: print("Torsional scan...")
             subprocess.run(f"mkdir -p 3d/{name}", shell=True)
             subprocess.run(f"cp solv/{name}/{name}_solv.mol2 3d/{name}/{name}.mol2", shell=True)
             os.chdir(f"3d/{name}")
-            mol, unprocessed_mol2_str = torsional_scan(name, numConfs)
+            torsional_scan(mol ,name, numConfs)
             
             # Torsional filtering
             # We need an rdkit Mol with generated conformers to filter the torsion outs.
             os.chdir("../..")
             # Mol2DB2
-            subprocess.run("mkdir -p db2", shell=True)
+            if VERBOSE: print("Converting to DB2 format...")
+            subprocess.run(f"mkdir -p db2/{name}", shell=True)
+            subprocess.run(f"mv 3d/{name}/{name}_rotated.mol2 db2/{name}/{name}.mol2", shell=True)
+            subprocess.run(f"mv solv/{name}/{name}_solv.solv db2/{name}/{name}.solv", shell=True)
+            os.chdir(f"db2/{name}")
+            db2_data = mol2db2.mol2db2_quick(f"{name}.mol2", f"{name}.solv")
+            write_to_file(db2_data, f"{name}.db2")
+            os.chdir("../..")

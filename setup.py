@@ -22,7 +22,10 @@ setup(name='MolSanitizer',
     license='MIT',
     packages=find_packages(),
     install_requires=[
-        'markdown', 'pandas', 'numpy'
+        'markdown', 
+        'pandas', 
+        'numpy',
+        'rdkit>=2024.3.4'
     ],
     entry_points={
         'console_scripts': ['msani=MolSanitizer.molSanitizer:main'],
