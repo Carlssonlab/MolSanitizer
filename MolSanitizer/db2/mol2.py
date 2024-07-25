@@ -576,7 +576,7 @@ class Mol2(object):
   def deleteBond (self, bondInd):
     '''deletes the bond at index bondInd and adjust the rest of the indexing'''
     nbonds = len(self.bondNum)
-    bondi = bondInd+1;
+    bondi = bondInd+1
     while (bondi < nbonds):
       self.bondNum[bondi] = self.bondNum[bondi]-1
       bondi = bondi+1
@@ -594,7 +594,7 @@ class Mol2(object):
     #print atomInd
     natoms = len(self.atomNum)
     atomn = self.atomNum[atomInd]
-    atomi = atomInd+1;
+    atomi = atomInd+1
     while (atomi < natoms):
       self.atomNum[atomi] = self.atomNum[atomi]-1
       atomi = atomi+1
@@ -732,7 +732,7 @@ def readDockMol2file(mol2fileName, recdes=False, ligdes=False, charge=False, \
   for mol2line in mol2file:
     if mol2line[:17] == "@<TRIPOS>MOLECULE":
       if len(mol2lines)	> 0:
-       	mol2data.append(Mol2(mol2text=mol2lines))
+        mol2data.append(Mol2(mol2text=mol2lines))
       mol2lines	= []
     if mol2line[0] != "#" and len(mol2line) > 1:
       mol2lines.append(mol2line)
