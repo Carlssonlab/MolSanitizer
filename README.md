@@ -7,7 +7,7 @@ MolSannitizer is a package for preparation (remove salts, stereoisomers enumerat
 - [Installation](#installation-conda-environment)
 - [Usage](#usage)
 - [Feedback](#feedback)
-- [Contact](#con)
+- [Contact](#contact)
 
 # Installation (CONDA environment)
 
