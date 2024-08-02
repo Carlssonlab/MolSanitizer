@@ -214,6 +214,28 @@ def count_hydrogens(mol2):
   hs.findTerminalHydrogens(mol2)
   return mol2.hydrogensToRotate
 
+def count_confs_by_H(mol2):
+    """
+    Count the number of combinations when rotating hydrogens.
+
+    Args:
+    entries (list): List of entries containing numbers and non-numbers.
+
+    Returns:
+    int: Total number of combinations.
+    """
+
+    hs = Hydrogens()
+    hs.findTerminalHydrogens(mol2)
+    total_combinations = 1
+    #print(mol2.hydrogenRotAngles)
+    for entry in mol2.hydrogenRotAngles:
+        if entry != '-':
+            numbers = entry.split(',')
+            total_combinations *= (len(numbers)+1)
+    return total_combinations
+
+
 if __name__ == '__main__':
     if len(sys.argv) > 0:
         import mol2

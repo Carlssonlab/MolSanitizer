@@ -7,7 +7,6 @@
     Should try to sample all possible conformations based on dihedral angles sampling based on: https://github.com/dkoes/rdkit-scripts/blob/master/rdallconf.py
 """
 # Author: Thua-Phong Lam, Jens Carlsson lab, Uppsala University
-
 import pandas as pd
 from openbabel import openbabel as ob
 from rdkit import Chem
@@ -17,13 +16,18 @@ import subprocess
 from pathlib import Path
 import numpy as np
 from MolSanitizer.amsol import run_amsol
-from MolSanitizer.db2 import mol2db2
+from MolSanitizer.db2 import mol2db2, hydrogens, mol2
+from MolSanitizer import strain_filter
+import random
 
 import logging
 logger = logging.getLogger('molsani')
 
-internal_pattern=r'[*;!$([#1])]~[*;!$(*#*)]-&!@[*;!$(*#*)]~[*;!$([#1])]'
-terminal_pattern=r'*~[*;!$(*#*)]-[$(A([#1])([#1])[#1]),$(A(F)(F)F),$(A(Cl)(Cl)Cl),$(A(Br)(Br)Br),$(A(I)(I)I)]~[#1,F,Cl,Br,I,CH3]'
+rotatable_pattern=r'[*]~[*;!$(*#*)!$([!#6&X2H])!$([!#6&X3H2])]-&!@[*;!$(*#*)!$([!#6&X2H])!$([!#6&X3H2])]~[*]'
+Torlib = strain_filter.parse_torlib()
+rigid_rule_files = Path(__file__).parent / 'Data' / 'rigid_part_rules.txt'
+rigid_rules = pd.read_csv(rigid_rule_files, header=None, sep ='\s+', names=['SMARTS','label'])
+rigid_rules['mol'] = rigid_rules['SMARTS'].apply(lambda x: Chem.MolFromSmarts(x))
 
 def setup_env():
     env = os.environ.copy()
@@ -45,9 +49,10 @@ def convert(data, inf, otf):
     obMol = ob.OBMol()
     obConversion.SetInAndOutFormats(inf, otf)
     obConversion.ReadString(obMol, data)
+
     return obConversion.WriteString(obMol)
 
-def embed_smiles(smiles, name, rmsd=0.25, randomSeed=42, numConfs=50):
+def embed_smiles(smiles, name, rmsd=0.25, randomSeed=42, numConfs=300):
     """
     Embed SMILES into multiple conformations, minimize using MMFF94s, and return the MOL2 format.
     
@@ -74,7 +79,7 @@ def embed_smiles(smiles, name, rmsd=0.25, randomSeed=42, numConfs=50):
     conf_energies = []
     
     mp = rdForceFieldHelpers.MMFFGetMoleculeProperties(mol_H, mmffVariant="MMFF94s")
-    mp.SetMMFFDielectricConstant(80)
+    mp.SetMMFFDielectricConstant(20) #1 means vacumn, 80 means water, 20 is the compromised value (still arbitrary)
 
     for cid in rdDistGeom.EmbedMultipleConfs(mol_H, numConfs=numConfs, params=params):
         ff = rdForceFieldHelpers.MMFFGetMoleculeForceField(mol_H, mp, confId=cid)
@@ -115,7 +120,7 @@ def getDihedralMatches(mol, pattern):
     '''return list of atom indices of dihedrals'''
     #this is rdkit's "strict" pattern
     qmol = Chem.MolFromSmarts(pattern)
-    matches = mol.GetSubstructMatches(qmol);
+    matches = mol.GetSubstructMatches(qmol)
     #these are all sets of 4 atoms, uniquify by middle two
     uniqmatches = []
     seen = set()
@@ -154,41 +159,53 @@ def check_too_close_nonbonded_atoms(conformer, mol, threshold=1.6):
                     return True
     return False
 
-def genConformer_terminal_r(mol, conf, i, matches,  sdwriter, product, original, degree = 60, maxconf = 10000):
-    '''recursively enumerate all angles for matches dihedrals.  i is where is
-    which dihedral we are enumerating by degree to output conformers to out'''
-    if len(product) > maxconf: return product
-    if i >= len(matches): #base case, torsions should be set in conf
-        if check_too_close_nonbonded_atoms(mol.GetConformer(conf), mol): return product
-        product.append(Chem.Conformer(mol.GetConformer(conf)))
-        sdwriter.write(mol,conf)
-        return product
-    else:
-        deg = rdMolTransforms.GetDihedralDeg(original,*matches[i])
-        for idx in range(int(120/degree)): # 120 is the maximum angle for symmetrical terminal dihedrals
-            rdMolTransforms.SetDihedralDeg(mol.GetConformer(conf),*matches[i],value = deg + degree*idx)
-            product = genConformer_terminal_r(mol, conf, i+1, matches, sdwriter, product, original, degree, maxconf)
-        return product
+def get_neighboring_atoms(mol, atom_index, excluded_indices):
+    """
+    Get the neighboring atom symbols and bond counts of a given atom index in the molecule,
+    excluding the specified indices.
+
+    Args:
+    mol (rdkit.Chem.Mol): The RDKit molecule object.
+    atom_index (int): The index of the atom.
+    excluded_indices (list): List of atom indices to exclude.
+
+    Returns:
+    list: A list of tuples, each containing the neighboring atom symbol and bond count.
+    """
+    atom = mol.GetAtomWithIdx(atom_index)
+    neighbors = [(neighbor.GetSymbol(), neighbor.GetDegree()) for neighbor in atom.GetNeighbors() if neighbor.GetIdx() not in excluded_indices]
+    return neighbors
     
-def genConformer_internal_r(mol, conf, i, internal_matches, terminal_matches, sdwriter, product, original, degree = 60, maxconf = 10000):
-    '''recursively enumerate all angles for matches dihedrals.  i is where is
-    which dihedral we are enumerating by degree to output conformers to out'''
-    if i >= len(internal_matches): #base case, torsions should be set in conf
-        product = genConformer_terminal_r(mol, conf, 0, terminal_matches, sdwriter, product, original, degree, maxconf)
-        return product
-    else:
-        deg = rdMolTransforms.GetDihedralDeg(original,*internal_matches[i])
-        for idx in range(int(360/degree)):
-            rdMolTransforms.SetDihedralDeg(mol.GetConformer(conf),*internal_matches[i],value = deg + degree*idx)
-            product = genConformer_internal_r(mol, conf, i+1, internal_matches, terminal_matches, sdwriter, product, original, degree, maxconf)
-        return product
-    
-def convert_file(input_file, output_file, input_format, output_format):
-    with open(input_file, "r") as f:
-        data = f.read()
-    converted_data = convert(data, input_format, output_format)
-    with open(output_file, "w") as f:
-        f.write(converted_data)
+def is_terminal(mol, atom_indices):
+    """
+    Check if either of the two middle atoms in the dihedral is terminal.
+
+    Args:
+    mol (rdkit.Chem.Mol): The RDKit molecule object.
+    atom_indices (list): List of two middle atom indices defining the dihedral.
+
+    Returns:
+    bool: True if the bond is terminal, False otherwise.
+    """
+    second_atom_neighbors = get_neighboring_atoms(mol, atom_indices[0], atom_indices)
+    third_atom_neighbors = get_neighboring_atoms(mol, atom_indices[1], atom_indices)
+
+    # Get the atom type (symbol) of the neighboring atoms
+    second_terminal = all(bond_count == 1 for _, bond_count in second_atom_neighbors)
+    third_terminal = all(bond_count == 1 for _, bond_count in third_atom_neighbors)
+    return(second_terminal) or (third_terminal)
+
+def is_symmetric(mol, atom_indices):
+    """
+    Check if either of the two middle atoms in the dihedral is terminal."""
+    second_atom_neighbors = get_neighboring_atoms(mol, atom_indices[0], atom_indices)
+    third_atom_neighbors = get_neighboring_atoms(mol, atom_indices[1], atom_indices)
+
+    # Get the atom type (symbol) of the neighboring atoms
+    second_atom_symbols = [symbol for symbol, _ in second_atom_neighbors]
+    third_atom_symbols = [symbol for symbol, _ in third_atom_neighbors]
+    return(len(set(second_atom_symbols))==1) or (len(set(third_atom_symbols))==1)
+   
 
 def extract_partial_charges(mol2_file, output_file='partialcharges.txt', VERBOSE=False):
     charges = []
@@ -211,35 +228,24 @@ def extract_partial_charges(mol2_file, output_file='partialcharges.txt', VERBOSE
     
     if VERBOSE: print(f"Partial charges extracted and saved to {output_file}")
 
-def assign_charges_and_convert(sdf_file, charges_file, output_mol2):
-    # Read charges
-    with open(charges_file, 'r') as f:
-        charges = [float(line.strip()) for line in f]
+def convert_sdf_mol2(sdf_file, output_mol2, VERBOSE: bool = False):
     
     # Set up OpenBabel conversion
     obConversion = ob.OBConversion()
     obConversion.SetInAndOutFormats("sdf", "mol2")
-        
-        # Read all molecules from the SDF file
+    # Read all molecules from the SDF file
     mol = ob.OBMol()
     if not obConversion.ReadFile(mol, sdf_file):
         print(f"Error reading SDF file: {sdf_file}")
         return
-    unprocessed_mol2_str = ""
     molecule_count = 0
     with open(output_mol2, 'w') as out_file:
         while True:
             molecule_count += 1
-            # Assign charges
-            for i, atom in enumerate(ob.OBMolAtomIter(mol)):
-                if i < len(charges):
-                    atom.SetPartialCharge(charges[i])
             mol.SetAutomaticPartialCharge(False)
-            mol.SetPartialChargesPerceived()
-            
+
             # Convert molecule to MOL2 format and get as string
             mol2_str = obConversion.WriteString(mol)
-            unprocessed_mol2_str+=(mol2_str)
             # Write to output file
             out_file.write(mol2_str)
             
@@ -248,44 +254,166 @@ def assign_charges_and_convert(sdf_file, charges_file, output_mol2):
             if not obConversion.Read(mol):
                 break
     
-    print(f"Converted and saved {molecule_count} conformations to {output_mol2} with assigned charges")
-    return unprocessed_mol2_str
+    if VERBOSE: print(f"Converted and saved {molecule_count} conformations to {output_mol2} with assigned charges")
 
-def torsional_scan(mol, name, maxconf = 10000, partial_charges='partialcharges.txt'):
-    extract_partial_charges(f"{name}.mol2", partial_charges)
-    res = Chem.Mol(mol); 
-    res.RemoveAllConformers()
-    internal_matches = getDihedralMatches(mol, internal_pattern)
-    terminal_matches = getDihedralMatches(mol, terminal_pattern)
-    #print(rotmatches)
+
+def count_confs_by_rotbonds(mol):
+    rotatable_bonds = getDihedralMatches(mol, rotatable_pattern)
+    reordered_rot_bonds = [] 
+
+    match_torlib = strain_filter.get_match_dihedral(mol, Torlib)
+
+    # We need to put the terminal rot bonds at the beginning as they dont 
+    # contribute much to the diversity of the conformations
+    for rotatable_bond in rotatable_bonds:
+        if is_terminal(mol, rotatable_bond[1:3]):
+            reordered_rot_bonds.append(rotatable_bond)
+            if is_symmetric(mol, rotatable_bond[1:3]):
+                #Exclude one meaningless angle for symmetric terminal rotatable bonds
+                for rule in match_torlib:
+                    if set(rotatable_bond[1:3]) == set(rule[1][1:3]):
+                        rule[2].pop(-1)
+                        break
+
+    for bond in rotatable_bonds:
+        if bond not in reordered_rot_bonds:
+            reordered_rot_bonds.append(bond)
+    #print(reordered_rot_bonds)
+    #for i in match_torlib: print(i)
+    num_confs = 1
+
+    for bond in reordered_rot_bonds:
+        for rule in match_torlib:
+            if set(bond[1:3]) == set(rule[1][1:3]):
+                num_confs *= (len(rule[2]))
+                break
+    
+    return num_confs, reordered_rot_bonds, match_torlib
+
+def get_random_angle(mean, tolerance):
+    """
+    Generate a random angle value from a Gaussian distribution given the expected mean and standard deviation,
+    and limit it within the specified range. Normalize the result to the [-180, 180] degree range.
+
+    Args:
+    mean (float): The expected mean angle.
+    std_dev (float): The standard deviation.
+    lower_limit (float): The lower limit for the angle.
+    upper_limit (float): The upper limit for the angle.
+    seed (int, optional): The seed for the random number generator.
+
+    Returns:
+    float: A random angle normalized to the [-180, 180] degree range.
+    """
+
+    # Generate a random angle within the specified Gaussian distribution and range limits
+    while True:
+        random_angle = random.gauss(mean, tolerance)
+        if mean-tolerance <= random_angle <= mean+tolerance:
+            break
+
+    # Normalize to the [-180, 180] range
+    normalized_angle = (random_angle + 180) % 360 - 180
+    
+    return normalized_angle
+
+def torsional_scan_rand(mol, conf, i, matches, match_torlib, sdwriter, product, original, numConfs, atom_maps):
+    '''recursively enumerate all angles for matches dihedrals.  i is where is
+    which dihedral we are enumerating by degree to output conformers to out'''
+    if len(product) >= numConfs: return product
+    if i >= len(matches): #base case, torsions should be set in conf
+        if check_too_close_nonbonded_atoms(mol.GetConformer(conf), mol): return product
+        product.append(Chem.Conformer(mol.GetConformer(conf))) 
+        rdMolAlign.AlignMol(mol, original, conf, 0, atomMap=[(i, i) for i in atom_maps])
+        sdwriter.write(mol, conf)
+        return product
+    else:
+        peaks = strain_filter.extract_peaks(match_torlib, matches[i][1:3])
+        dihedral_4_atoms = peaks[0]
+        for (prefered, tolerance) in peaks[1]:
+            rdMolTransforms.SetDihedralDeg(mol.GetConformer(conf),*dihedral_4_atoms,value = get_random_angle(prefered, tolerance))
+            product = torsional_scan_rand(mol, conf, i+1, matches, match_torlib, sdwriter, product, original, numConfs, atom_maps)        
+        return product
+    
+
+def stochastic_sampling(mol, name, reordered_rot_bonds, match_torlib, sdwriter, original, numConfs, atom_maps):
+    product = []
+    max_angles = 0 
+    for rule in match_torlib:
+        max_angles = max(len(rule[2]), max_angles)
+    #visit_matrix = np.zeros((len(reordered_rot_bonds), max_angles))
+    n_transform = len(reordered_rot_bonds)
+    while (len(product)<= numConfs):
+        for idx in range(n_transform):
+            bond_idx = random.randint(0, len(reordered_rot_bonds)-1)
+            bond = reordered_rot_bonds[bond_idx]
+
+            peaks = strain_filter.extract_peaks(match_torlib, bond[1:3])
+            peak_idx = random.randint(0, len(peaks[1])-1)
+            peak = peaks[1][peak_idx]
+
+            #visit_matrix[bond_idx][peak_idx] += 1
+            rdMolTransforms.SetDihedralDeg(mol.GetConformer(0),*bond,value = get_random_angle(peak[0], peak[1]))
+        #TODO: prune by RMSD?
+        if check_too_close_nonbonded_atoms(mol.GetConformer(0), mol): continue
+        rdMolAlign.AlignMol(mol, original, 0, 0, atomMap=[(i, i) for i in atom_maps])
+        product.append(Chem.Conformer(mol.GetConformer(0)))
+        sdwriter.write(mol,confId=0)
+    #print(visit_matrix)
+    return product
+
+def find_rigid_part(mol):
+    '''Find rigid parts of the molecule'''
+    for rule in rigid_rules.itertuples():
+        matches = mol.GetSubstructMatches(rule.mol)
+        if len(matches) > 0:
+            return matches[0]
+    
+
+def choose_sampling_method(mol, name, numConfs, VERBOSE=False):
+    random.seed(42)
+    # Find rigid parts as anchor points for the molecules
+    atom_maps = find_rigid_part(mol)
+    if VERBOSE: print(f'Uses {atom_maps} as rigid part')
+    # Count number of rotatable hydrogens and number of conformations contributed by them
+    mol2_countH = mol2.Mol2(mol2fileName=f"{name}.mol2", nameFileName=None, mol2text=None)
+    num_confs_H = hydrogens.count_confs_by_H(mol2_countH)
+
+    # Divide the number of conformations by that contributed by rotatable hydrogens
+    numConfs = numConfs // num_confs_H 
+    num_confs_by_rotbonds, reordered_rot_bonds, match_torlib = count_confs_by_rotbonds(mol)
+    
+    if VERBOSE: print(num_confs_by_rotbonds, num_confs_H)
     rotated_file = f"{name}_rotated.sdf"
     sdwriter = Chem.SDWriter(rotated_file)
-    product = genConformer_internal_r(mol, conf=0, i=0, internal_matches = internal_matches, terminal_matches = terminal_matches, sdwriter=sdwriter, product=list(), original=mol.GetConformer(0), degree=60, maxconf=maxconf)
-    for conf in product:
-        res.AddConformer(conf, assignId = True)
-    unprocessed_mol2_str = assign_charges_and_convert(rotated_file, partial_charges, f"{name}_rotated.mol2")
-    subprocess.run(f"rm {rotated_file}", shell=True)
+    original_mol = Chem.Mol(mol)
+    if num_confs_by_rotbonds <= numConfs:
+        if VERBOSE: print('Running systematic torsional scan')
+        torsional_scan_rand(mol, conf=0, i=0, matches = reordered_rot_bonds, match_torlib = match_torlib,
+                            sdwriter=sdwriter, product=list(), original=original_mol, numConfs = numConfs, atom_maps = atom_maps)
+    else:
+        if VERBOSE: print('Running stochastic torsional sampling')
+        stochastic_sampling(mol, name, reordered_rot_bonds, match_torlib, sdwriter, original_mol, numConfs, atom_maps)
+    sdwriter.close()
+    convert_sdf_mol2(rotated_file, f"{name}_rotated.mol2", VERBOSE)
+    #subprocess.run(f"rm {rotated_file}", shell=True)
 
-    return res, unprocessed_mol2_str
-
-
-def gen_conf_chunk(df: pd.DataFrame, rmsd = 0.25, randomSeed = 42, numConfs = 10000, VERBOSE = False):
-        mol2_data = []
+def gen_conf_chunk(df: pd.DataFrame, rmsd = 0.25, randomSeed = 42, numConfs = 10000, VERBOSE = False, cleanup=False):
 
         env = setup_env()
-        db2_all_data = ""
         if VERBOSE: print(env['LD_LIBRARY_PATH'])
         for idx, row in df.iterrows():
-            # Embed smiles into initial conformation
+            # Embed smiles into initial conformation 
+            # (300  conformers is inspired from https://pubs.acs.org/doi/abs/10.1021/ci2004658, then we only get the minimal energy one)
             if VERBOSE: print("Embedding...")
-            mol, molblock, netcharge = embed_smiles(row['smiles'], row['ids'], rmsd = rmsd, randomSeed = randomSeed, numConfs = numConfs)
+            mol, molblock, netcharge = embed_smiles(row['smiles'], row['ids'], rmsd = rmsd, randomSeed = randomSeed, numConfs = 300)
             name = row['ids']
-            mol2 = convert(molblock, "mol", "mol2")
+            mol2_block = convert(molblock, "mol", "mol2")
 
             # Solvation using AMSOL
             if VERBOSE: print("Solvating...")
             subprocess.run(f"mkdir -p solv/{name}", shell=True)
-            write_to_file(mol2, f"solv/{name}/{name}.mol2")
+            write_to_file(mol2_block, f"solv/{name}/{name}.mol2")
             os.chdir(f"solv/{name}")
             run_amsol.prepare(f"{name}.mol2", name, netcharge)
             run_amsol.run('temp.in-hex', 'temp.o-hex', env)
@@ -295,22 +423,35 @@ def gen_conf_chunk(df: pd.DataFrame, rmsd = 0.25, randomSeed = 42, numConfs = 10
             subprocess.run(f"mv output.solv {name}_solv.solv", shell=True)
             os.chdir("../..")
 
-            # Torsion scan
-            if VERBOSE: print("Torsional scan...")
+            # 3D generation
+            if VERBOSE: print("3D generation...")
             subprocess.run(f"mkdir -p 3d/{name}", shell=True)
             subprocess.run(f"cp solv/{name}/{name}_solv.mol2 3d/{name}/{name}.mol2", shell=True)
             os.chdir(f"3d/{name}")
-            torsional_scan(mol ,name, numConfs)
-            
-            # Torsional filtering
-            # We need an rdkit Mol with generated conformers to filter the torsion outs.
+
+            choose_sampling_method(mol ,name, numConfs, VERBOSE)
             os.chdir("../..")
+
             # Mol2DB2
             if VERBOSE: print("Converting to DB2 format...")
             subprocess.run(f"mkdir -p db2/{name}", shell=True)
             subprocess.run(f"mv 3d/{name}/{name}_rotated.mol2 db2/{name}/{name}.mol2", shell=True)
             subprocess.run(f"mv solv/{name}/{name}_solv.solv db2/{name}/{name}.solv", shell=True)
             os.chdir(f"db2/{name}")
-            db2_data = mol2db2.mol2db2_quick(f"{name}.mol2", f"{name}.solv")
-            write_to_file(db2_data, f"{name}.db2")
-            os.chdir("../..")
+
+            if not os.path.isfile(f"{name}.mol2") or not os.path.isfile(f"{name}.solv"):
+                logger.error("Not found mol2 files and solv for db2 generation")
+                os.chdir("../..")
+                continue
+            else:
+                try:
+                    db2_data = mol2db2.mol2db2_quick(f"{name}.mol2", f"{name}.solv")
+                    write_to_file(db2_data, f"{name}.db2")
+                    os.chdir("../..")
+                    if cleanup:
+                        subprocess.run(f"rm -rf 3d/{name} solv/{name}", shell=True)
+                except Exception as e:
+                    logger.error(f"Error in converting {name} to DB2 format {e}")
+                    os.chdir("../..")
+                    continue
+                

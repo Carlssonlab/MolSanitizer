@@ -24,7 +24,7 @@ from . import smi2db2
 from rdkit import Chem
 from rdkit import rdBase
 
-def process_chunk(chunk):
+def process_enamine_name(chunk):
     # Split the 'smiles' column by space
     chunk['smiles'] = chunk['smiles'].apply(lambda x: x.split()[0])
     return chunk
@@ -38,54 +38,90 @@ def cleanData(args):
             rejectedFile = f"{args.prefix}_rejected.txt"
             if os.path.exists(outputFile): os.remove(outputFile)
     logger.info(f'Rdkit version: {rdBase.rdkitVersion}')
+    if args.smiles is not None:
+        rejectedFile = f"molsani_rejected.txt"
+        chunk = pd.DataFrame({'smiles': args.smiles, 'ids': range(len(args.smiles))})
+        chunk['ids']=chunk['ids'].astype(str)
+        chunk['mol'] = chunk['smiles'].apply(lambda x: Chem.MolFromSmiles(x))
+        chunk = filters.remove_invalid_SMILES(chunk)
+        # Remove salts
+        if args.removesalts: chunk = filters.removesalts(chunk, args.debug)
 
-    for inputFile in args.input_files:
-        if args.enamine: 
-            df_input = pd.read_csv(inputFile, sep='\t', names=['smiles', 'ids'], usecols=[0,1], header=None, chunksize=500_000)
-            logger.info(f'Using Enamine format for parsing')
-        else: 
-            df_input = pd.read_csv(inputFile, sep=r'\s+', names=['smiles', 'ids'], usecols=[0,1], header=None, chunksize=500_000)
+        # Tautomers enumeration
+        if args.tautomers: chunk = filters.tautomers(chunk, args.debug)
+
+        # PAINS functional groups filtering
+        if args.pains: chunk = filters.pains(chunk, rejectedFile, args.debug) 
+
+        # Unwanted substructures filtering
+        if args.unwanted is not None: chunk = filters.unwanted(chunk, rejectedFile, args.unwanted, args.debug) 
+        if args.custom is not None: chunk = filters.custom(chunk, rejectedFile, args.custom, args.debug) 
         
-        inputFilePath = pathlib.Path(inputFile)
-        logger.info(f'Processing: {inputFile}')
+        # Protonation
+        if args.protonation: chunk = filters.protonation(chunk, args.debug)
 
-        if args.prefix is None:
-            outputFile = inputFilePath.with_name(f"{inputFilePath.stem}_clean{inputFilePath.suffix}")
-            rejectedFile = inputFilePath.with_name(f"{inputFilePath.stem}_rejected{inputFilePath.suffix}")
-            if os.path.exists(outputFile): os.remove(outputFile)
+        # Stereoisomers enumeration
+        if args.stereoisomers: chunk = filters.stereoisomers(chunk, args.max_isomers, args.debug)
 
-        for step, chunk in enumerate(df_input, start=1):
-            if args.enamine: chunk = process_chunk(chunk)
-            chunk['mol'] = chunk['smiles'].apply(lambda x: Chem.MolFromSmiles(x))
+    
+        #if args.standarizeFilters: chunk = filters.standarizeFilters(chunk)
 
-            chunk = filters.remove_invalid_SMILES(chunk)
-            # Remove salts
-            if args.removesalts: chunk = filters.removesalts(chunk, args.debug)
+        chunk['smiles'] = chunk['mol'].apply(lambda x: Chem.MolToSmiles(x))
 
-            # Tautomers enumeration
-            if args.tautomers: chunk = filters.tautomers(chunk, args.debug)
-
-            # PAINS functional groups filtering
-            if args.pains: chunk = filters.pains(chunk, rejectedFile, args.debug) 
-
-            # Unwanted substructures filtering
-            if args.unwanted is not None: chunk = filters.unwanted(chunk, rejectedFile, args.unwanted, args.debug) 
-            if args.custom is not None: chunk = filters.custom(chunk, rejectedFile, args.custom, args.debug) 
+        if args.db2: smi2db2.gen_conf_chunk(chunk, args.rmsd, args.randomSeed, args.numconfs, args.debug)
+        print('Processed SMILES:')
+        for i in range(len(chunk)): print(chunk.iloc[i,0])
+        if not (args.test): print(f"MolSanitizer took {time.time() - start_time:.2f} seconds to complete.")
+    else:
+        for inputFile in args.input_files:
+            if args.enamine: 
+                df_input = pd.read_csv(inputFile, sep='\t', names=['smiles', 'ids'], usecols=[0,1], header=None, chunksize=500_000)
+                logger.info(f'Using Enamine format for parsing')
+            else: 
+                df_input = pd.read_csv(inputFile, sep=r'\s+', names=['smiles', 'ids'], usecols=[0,1], header=None, chunksize=500_000)
             
-            # Protonation
-            if args.protonation: chunk = filters.protonation(chunk, args.debug)
+            inputFilePath = pathlib.Path(inputFile)
+            logger.info(f'Processing: {inputFile}')
 
-            # Stereoisomers enumeration
-            if args.stereoisomers: chunk = filters.stereoisomers(chunk, args.max_isomers, args.debug)
+            if args.prefix is None:
+                outputFile = inputFilePath.with_name(f"{inputFilePath.stem}_clean{inputFilePath.suffix}")
+                rejectedFile = inputFilePath.with_name(f"{inputFilePath.stem}_rejected{inputFilePath.suffix}")
+                if os.path.exists(outputFile): os.remove(outputFile)
 
-           
-            #if args.standarizeFilters: chunk = filters.standarizeFilters(chunk)
+            for step, chunk in enumerate(df_input, start=1):
+                if args.enamine: chunk = process_enamine_name(chunk)
+                chunk['mol'] = chunk['smiles'].apply(lambda x: Chem.MolFromSmiles(x))
 
-            chunk['smiles'] = chunk['mol'].apply(lambda x: Chem.MolToSmiles(x))
-            chunk.to_csv(outputFile, index=False, mode='a', columns=['smiles','ids'], header=False, sep=' ')
+                chunk = filters.remove_invalid_SMILES(chunk)
+                # Remove salts
+                if args.removesalts: chunk = filters.removesalts(chunk, args.debug)
 
-            if args.db2: smi2db2.gen_conf_chunk(chunk, args.rmsd, args.randomSeed, args.numconfs, args.debug)
-            if not (args.test): print(f"Step {step} took {time.time() - start_time:.2f} seconds to complete.")
+                # Tautomers enumeration
+                if args.tautomers: chunk = filters.tautomers(chunk, args.debug)
+
+                # PAINS functional groups filtering
+                if args.pains: chunk = filters.pains(chunk, rejectedFile, args.debug) 
+
+                # Unwanted substructures filtering
+                if args.unwanted is not None: chunk = filters.unwanted(chunk, rejectedFile, args.unwanted, args.debug) 
+                if args.custom is not None: chunk = filters.custom(chunk, rejectedFile, args.custom, args.debug) 
+                
+                if len(chunk) == 0: continue #Check if the chunk is empty after the filters, if so, next chunk
+
+                # Protonation
+                if args.protonation: chunk = filters.protonation(chunk, args.debug)
+
+                # Stereoisomers enumeration
+                if args.stereoisomers: chunk = filters.stereoisomers(chunk, args.max_isomers, args.debug)
+
+            
+                #if args.standarizeFilters: chunk = filters.standarizeFilters(chunk)
+
+                chunk['smiles'] = chunk['mol'].apply(lambda x: Chem.MolToSmiles(x))
+                chunk.to_csv(outputFile, index=False, mode='a', columns=['smiles','ids'], header=False, sep=' ')
+
+                if args.db2: smi2db2.gen_conf_chunk(chunk, args.rmsd, args.randomSeed, args.numconfs, args.debug)
+                if not (args.test): print(f"Step {step} took {time.time() - start_time:.2f} seconds to complete.")
 
 def Sanitycheck(args: dict):
     """Sanity check for the unwanted flag
@@ -131,9 +167,11 @@ def main():
     if args.create_custom: 
         generateCustomTemplate(args)
     else:
-        input_path = pathlib.Path(args.input_files[0])
-        if args.prefix is not None: log_file = f'{args.prefix}.log' 
-        else: log_file = input_path.with_suffix('.log')
+        if args.input_files is not None and args.smiles is None:
+            input_path = pathlib.Path(args.input_files[0])
+            if args.prefix is not None: log_file = f'{args.prefix}.log' 
+            else: log_file = input_path.with_suffix('.log')
+        else: log_file = 'molsani.log'
         loggers.setup_logger(log_file)
         original_command = ' '.join(sys.argv)
         logger.info(f"STARTING MOLSANITIZER")

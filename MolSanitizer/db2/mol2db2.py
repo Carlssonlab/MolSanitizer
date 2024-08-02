@@ -46,7 +46,6 @@ def mol2db2_quick(mol2file, solvfile, clashfile = Path(__file__).parent / 'clash
     print(("dock atom types:", mol2data.atomType))
     print(("dock atom type numbers:", mol2data.dockNum))
     print(("dock color type numbers:", mol2data.colorNum))
-  clashDecider = clash.Clash(options.clashfile)
   hydrogenRotater = hydrogens.Hydrogens(options.hydrogenfile)
   if options.timeit:
     timeReadIn = time.time()
@@ -66,6 +65,8 @@ def mol2db2_quick(mol2file, solvfile, clashfile = Path(__file__).parent / 'clash
   if options.timeit:
     hydTime = time.time()
     print(("time to move hydrogens:", hydTime-timeReadIn))
+  clashDecider = clash.Clash(options.clashfile)
+
   if options.verbose:
     print((len(mol2data.atomXyz), " conformations in input"))
 
@@ -260,13 +261,13 @@ def parserDefaults():
       help="distance tolerance in angstroms, (default: %default)")
   parser.add_option(
       "-l", "--limitset", type="long", action="store", dest="limitset",
-      default=2500000, help="limit on the number of sets, (default: %default)")
+      default=9999999999, help="limit on the number of sets, (default: %default)")
   parser.add_option(
       "--limitconf", type="long", action="store", dest="limitconf",
-      default=200000, help="limit on the number of confs, (default: %default)")
+      default=9999999999, help="limit on the number of confs, (default: %default)")
   parser.add_option(
       "--limitcoord", type="long", action="store", dest="limitcoord",
-      default=1000000, help="limit on the number of coords, (default: %default)")
+      default=9999999999, help="limit on the number of coords, (default: %default)")
   parser.add_option(
       "--maxrecursiondepth", type=int, action="store", dest="maxrecursiondepth",
       default=1, help="Max recursive subdivision steps to take (default: %default)")

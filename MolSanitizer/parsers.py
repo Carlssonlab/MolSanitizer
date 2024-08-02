@@ -26,7 +26,7 @@ def parseArguments(args = None):
     
     # Add the required input files argument
     parser.add_argument('-i', '--input_files', type=str, nargs='+', help='Input files containing chemical structures')
-
+    parser.add_argument('-s', '--smiles', default=None, type=str, nargs='+', help='Input SMILES strings')
     # Add Boolean options
     parser.add_argument('-e', '--enamine', action='store_true', help='Enamine input format (default: False)')
     parser.add_argument('--lazy', action='store_true', help='Implement all the processing and preparation steps (default: False)')
@@ -48,14 +48,14 @@ def parseArguments(args = None):
     parser.add_argument('-pre', '--prefix', default=None, type=str, help='Prefix for the output files. If not provided, the input file name will be used.')
     # Add integer option
     parser.add_argument('--max_isomers', type=int, default=0, help='Maximum number of tautomers to consider (default: 0 = no limit)')
-    parser.add_argument('-nconf', '--numconfs', type=int, default=2000, help='Maximum number of conformers to generate (default: 300)')
+    parser.add_argument('-nconf', '--numconfs', type=int, default=10000, help='Maximum number of conformers to generate (default: 10000)')
     parser.add_argument('-rmsd', '--rmsd', type=float, default=0.25, help='RMSD threshold for pruning conformations (default: 0.25)')
     parser.add_argument('-rs', '--randomSeed', type=int, default=42, help='Random seed for reproducibility (default: 42)')
     # Parse the arguments
     args = parser.parse_args()
-
-    for inFile in args.input_files:
-        if not Path(inFile).is_file():
-            parser.error(f'The input file: {inFile} does not exist.')
+    if args.input_files is None and args.smiles is None:
+        for inFile in args.input_files:
+            if not Path(inFile).is_file():
+                parser.error(f'The input file: {inFile} does not exist.')
 
     return args
