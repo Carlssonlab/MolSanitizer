@@ -66,7 +66,7 @@ The program by default will conduct the preparation and filtering in the order b
 msani -i example.smi --removesalts
 ```
 
-## **Option 2: Tautomers enumeration**
+## **Option 2: Tautomers standardization**
 The tautomers could be generated using a `--tautomers` flag. MolSanitizer uses a two-step approach for enumeration of tautomers. First, the canonical tautomer from the scoring function of rdMolStandardize.TautomerEnumerator was used. Then, the exceptions were corrected using the expert-curated SMARTS rules. The SMARTS rules are readily accessible at [MolSanitizer/Data/tautomers.txt](MolSanitizer/Data/tautomers.txt)
 
 ```bash
