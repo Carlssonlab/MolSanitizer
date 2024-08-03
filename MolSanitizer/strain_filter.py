@@ -7,6 +7,7 @@ import xml.etree.ElementTree as ET
 from rdkit import Chem
 from rdkit.Chem import rdMolTransforms
 from pathlib import Path
+from os import sys
 
 def get_4_atoms_template(pattern):
     pattern_atoms = pattern.GetAtoms()
@@ -38,14 +39,13 @@ def Mol2MolSupplier (file=None,sanitize=False):
         mols.append(m)
     return(mols)
 
-def parse_torlib():
+def parse_torlib(xml_file = "tor_lib_2020.xml"):
     """This function parse the torlib by the specific class to general class GG, 
     and return a list of tuples with the following format:
     (smarts, rdkit object of the smarts, 4_atoms_template, [(prefered, tolerance), ...])
     Returns:
         Torlib: list of tuples
     """
-    xml_file = Path(__file__).parent / 'Data' / 'tor_lib_2020.xml'
     tree = ET.parse(xml_file)
     root = tree.getroot()
     Torlib = []
@@ -70,6 +70,7 @@ def parse_torlib():
                         get_4_atoms_template(pattern),
                         [(((float(angle.get("value")))), float(angle.get("tolerance1"))) for angle in Rule.iter(tag='angle')]))
     return Torlib
+
 
 def get_match_dihedral(mol, Torlib):
     """This function filters the molecule by the torsion rules in the Torlib.
@@ -156,6 +157,7 @@ if __name__ == "__main__":
     Torlib = parse_torlib()
     script, mol2_file = sys.argv
     mols = Mol2MolSupplier(mol2_file)
+    filtered = []
     for mol in mols:
         match = get_match_dihedral(mol, Torlib)
         if check_strain_conformer(mol.GetConformer(), match):

@@ -46,6 +46,7 @@ def mol2db2_quick(mol2file, solvfile, clashfile = Path(__file__).parent / 'clash
     print(("dock atom types:", mol2data.atomType))
     print(("dock atom type numbers:", mol2data.dockNum))
     print(("dock color type numbers:", mol2data.colorNum))
+  clashDecider = clash.Clash(options.clashfile)
   hydrogenRotater = hydrogens.Hydrogens(options.hydrogenfile)
   if options.timeit:
     timeReadIn = time.time()
@@ -65,8 +66,6 @@ def mol2db2_quick(mol2file, solvfile, clashfile = Path(__file__).parent / 'clash
   if options.timeit:
     hydTime = time.time()
     print(("time to move hydrogens:", hydTime-timeReadIn))
-  clashDecider = clash.Clash(options.clashfile)
-
   if options.verbose:
     print((len(mol2data.atomXyz), " conformations in input"))
 
