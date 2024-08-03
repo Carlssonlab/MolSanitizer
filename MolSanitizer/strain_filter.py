@@ -39,7 +39,7 @@ def Mol2MolSupplier (file=None,sanitize=False):
         mols.append(m)
     return(mols)
 
-def parse_torlib(xml_file = "tor_lib_2020.xml"):
+def parse_torlib(xml_file = Path(__file__).parent / 'Data' / 'tor_lib_2020.xml'):
     """This function parse the torlib by the specific class to general class GG, 
     and return a list of tuples with the following format:
     (smarts, rdkit object of the smarts, 4_atoms_template, [(prefered, tolerance), ...])
