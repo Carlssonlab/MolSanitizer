@@ -147,9 +147,7 @@ def filter(mol, match):
 def extract_peaks(match, current_rot_bond):
     for rule in match:
         if set(current_rot_bond) == set(rule[1][1:3]):
-            if current_rot_bond[1] != rule[1][2]:
-                return(rule[1][::-1], [(prefered, tolerance) for prefered, tolerance in rule[2]])
-            else: return(rule[1], [(prefered, tolerance) for prefered, tolerance in rule[2]])
+            return(rule[1], [(prefered, tolerance) for prefered, tolerance in rule[2]])
 
 
 

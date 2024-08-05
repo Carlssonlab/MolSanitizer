@@ -25,7 +25,7 @@ setup(name='MolSanitizer',
         'markdown', 
         'pandas', 
         'numpy',
-        'rdkit>=2024.3.4'
+        'rdkit>=2024.3.5'
     ],
     entry_points={
         'console_scripts': ['msani=MolSanitizer.molSanitizer:main'],

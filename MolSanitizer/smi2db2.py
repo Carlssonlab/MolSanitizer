@@ -257,7 +257,7 @@ def convert_sdf_mol2(sdf_file, output_mol2, VERBOSE: bool = False):
     if VERBOSE: print(f"Converted and saved {molecule_count} conformations to {output_mol2} with assigned charges")
 
 
-def count_confs_by_rotbonds(mol):
+def count_confs_by_rotbonds(mol, VERBOSE=False):
     rotatable_bonds = getDihedralMatches(mol, rotatable_pattern)
     reordered_rot_bonds = [] 
 
@@ -278,8 +278,9 @@ def count_confs_by_rotbonds(mol):
     for bond in rotatable_bonds:
         if bond not in reordered_rot_bonds:
             reordered_rot_bonds.append(bond)
-    #print(reordered_rot_bonds)
-    #for i in match_torlib: print(i)
+    if VERBOSE: 
+        print(reordered_rot_bonds)
+        for i in match_torlib: print(i)
     num_confs = 1
 
     for bond in reordered_rot_bonds:
@@ -381,7 +382,7 @@ def choose_sampling_method(mol, name, numConfs, VERBOSE=False):
 
     # Divide the number of conformations by that contributed by rotatable hydrogens
     numConfs = numConfs // num_confs_H 
-    num_confs_by_rotbonds, reordered_rot_bonds, match_torlib = count_confs_by_rotbonds(mol)
+    num_confs_by_rotbonds, reordered_rot_bonds, match_torlib = count_confs_by_rotbonds(mol, VERBOSE)
     
     if VERBOSE: print(num_confs_by_rotbonds, num_confs_H)
     rotated_file = f"{name}_rotated.sdf"
