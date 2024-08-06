@@ -10,9 +10,19 @@ from pathlib import Path
 from os import sys
 import numpy as np
 
-def get_atoms_template(pattern):
+"""def get_atoms_template(pattern):
     pattern_atoms = pattern.GetAtoms()
     enumerated_indices = [idx for idx, atom in enumerate(pattern_atoms) if atom.GetAtomMapNum() != 0]
+    return enumerated_indices"""
+
+def get_atoms_template(pattern):
+    pattern_atoms = pattern.GetAtoms()
+    enumerated_indices = [-1,-1,-1,-1,-1,-1]
+    for idx, atom in enumerate(pattern_atoms):
+        if atom.GetAtomMapNum() != 0:
+            enumerated_indices[atom.GetAtomMapNum()] = idx
+    enumerated_indices.pop(0)
+    if enumerated_indices[-1] == -1: enumerated_indices.pop()
     return enumerated_indices
 
 def get_atoms_mol(matches, template_map):
@@ -43,9 +53,10 @@ def Mol2MolSupplier (file=None,sanitize=False):
 def parse_torlib(xml_file = Path(__file__).parent / 'Data' / 'modified_tor_lib_2020.xml'):
     """This function parse the torlib by the specific class to general class GG, 
     and return a list of tuples with the following format:
-    (smarts, rdkit object of the smarts, 4_atoms_template, [(prefered, tolerance), ...])
+    (smarts, rdkit object of the smarts, 4_to_5_atoms_template, [(prefered, tolerance), ...])
     Returns:
-        Torlib: list of tuples
+        Torlib: list of tuples with the following format:
+        (smarts, rdkit object of the smarts, 4_to_5_atoms_template, [(prefered, tolerance), ...])
     """
     tree = ET.parse(xml_file)
     root = tree.getroot()

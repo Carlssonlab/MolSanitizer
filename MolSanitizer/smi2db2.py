@@ -289,7 +289,7 @@ def get_random_angle(mean, tolerance):
     # Generate a random angle within the specified Gaussian distribution and range limits
     while True:
         random_angle = random.gauss(mean, tolerance)
-        if mean-tolerance <= random_angle <= mean+tolerance:
+        if mean-tolerance < random_angle < mean+tolerance:
             break
 
     # Normalize to the [-180, 180] range
