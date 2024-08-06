@@ -68,7 +68,7 @@ def cleanData(args):
 
         chunk['smiles'] = chunk['mol'].apply(lambda x: Chem.MolToSmiles(x))
 
-        if args.db2: smi2db2.gen_conf_chunk(chunk, args.rmsd, args.randomSeed, args.numconfs, args.debug)
+        if args.db2: smi2db2.gen_conf_chunk(chunk, args.randomSeed, args.numconfs, args.debug, args.cleanup)
         print('Processed SMILES:')
         for i in range(len(chunk)): print(chunk.iloc[i,0])
         if not (args.test): print(f"MolSanitizer took {time.time() - start_time:.2f} seconds to complete.")
@@ -120,7 +120,7 @@ def cleanData(args):
                 chunk['smiles'] = chunk['mol'].apply(lambda x: Chem.MolToSmiles(x))
                 chunk.to_csv(outputFile, index=False, mode='a', columns=['smiles','ids'], header=False, sep=' ')
 
-                if args.db2: smi2db2.gen_conf_chunk(chunk, args.rmsd, args.randomSeed, args.numconfs, args.debug)
+                if args.db2: smi2db2.gen_conf_chunk(chunk, args.randomSeed, args.numconfs, args.debug, args.cleanup)
                 if not (args.test): print(f"Step {step} took {time.time() - start_time:.2f} seconds to complete.")
 
 def Sanitycheck(args: dict):

@@ -20,6 +20,7 @@ def parseArguments(args = None):
     msani -i example.smi --removesalts --pains --unwanted all --stereoisomers --protonation
     msani -i example.smi --removesalts
     msani -i example.smi --pains --unwanted all --stereoisomers --protonation
+    msani -i example.smi --pains --unwanted all --stereoisomers --protonation --db2
     """
     # Create the argument parser
     parser = argparse.ArgumentParser(description= info, formatter_class=argparse.RawTextHelpFormatter)
@@ -38,6 +39,8 @@ def parseArguments(args = None):
     parser.add_argument('--stereoisomers', action='store_true', help='Stereoisomers enumeration (only consider unspecified chiral centers)')
     parser.add_argument('--protonation', action='store_true', help='Apply protonation to the structures')
     parser.add_argument('--db2', action='store_true', help='Generate conformers and stored in the DB2 format for DOCK 3.8')
+    parser.add_argument('--nocleanup', action='store_false', dest='cleanup', default = True, help='Do not clean up the temporary files (default: False)')
+
     #parser.add_argument('--neutralize', action='store_true', help='Neutralize the structures')
     #parser.add_argument('--flavioFilters', action='store_true', help='Filter using Flavio script (For databases based on Greg Landrum)')
     parser.add_argument('--debug', action='store_true', help='Debugging mode')
@@ -46,11 +49,12 @@ def parseArguments(args = None):
     # Add string option
     parser.add_argument('--custom', default=None, type=str, help='Filter out unwanted substructures using the customized list. To generate an example list, use --create_custom')
     parser.add_argument('-pre', '--prefix', default=None, type=str, help='Prefix for the output files. If not provided, the input file name will be used.')
+
     # Add integer option
-    parser.add_argument('--max_isomers', type=int, default=0, help='Maximum number of tautomers to consider (default: 0 = no limit)')
-    parser.add_argument('-nconf', '--numconfs', type=int, default=10000, help='Maximum number of conformers to generate (default: 10000)')
-    parser.add_argument('-rmsd', '--rmsd', type=float, default=0.25, help='RMSD threshold for pruning conformations (default: 0.25)')
+    parser.add_argument('--max_isomers', type=int, default=0, help='Maximum number of stereoisomers to consider (default: 0 = no limit)')
+    parser.add_argument('-nconf', '--numconfs', type=int, default=2000, help='Maximum number of conformers to generate (default: 2000)')
     parser.add_argument('-rs', '--randomSeed', type=int, default=42, help='Random seed for reproducibility (default: 42)')
+
     # Parse the arguments
     args = parser.parse_args()
     if args.input_files is None and args.smiles is None:

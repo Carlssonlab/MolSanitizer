@@ -52,7 +52,7 @@ def convert(data, inf, otf):
 
     return obConversion.WriteString(obMol)
 
-def embed_smiles(smiles, name, rmsd=0.25, randomSeed=42, numConfs=300):
+def embed_smiles(smiles, name, rmsd=0.5, randomSeed=42, numConfs=300):
     """
     Embed SMILES into multiple conformations, minimize using MMFF94s, and return the MOL2 format.
     
@@ -207,27 +207,6 @@ def is_symmetric(mol, atom_indices):
     return(len(set(second_atom_symbols))==1) or (len(set(third_atom_symbols))==1)
    
 
-def extract_partial_charges(mol2_file, output_file='partialcharges.txt', VERBOSE=False):
-    charges = []
-    with open(mol2_file, 'r') as f:
-        atom_section = False
-        for line in f:
-            if '@<TRIPOS>ATOM' in line:
-                atom_section = True
-                continue
-            if ('@<TRIPOS>' in line) and ('ATOM' not in line) and (atom_section == True):
-                atom_section = False
-                break
-            if atom_section:
-                parts = line.split()
-                if len(parts) >= 9:
-                    charges.append(float(parts[8]))
-    with open(output_file, 'w') as f:
-        for charge in charges:
-            f.write(f"{charge}\n")
-    
-    if VERBOSE: print(f"Partial charges extracted and saved to {output_file}")
-
 def convert_sdf_mol2(sdf_file, output_mol2, VERBOSE: bool = False):
     
     # Set up OpenBabel conversion
@@ -372,7 +351,7 @@ def find_rigid_part(mol):
     
 
 def choose_sampling_method(mol, name, numConfs, VERBOSE=False):
-    random.seed(42)
+   
     # Find rigid parts as anchor points for the molecules
     atom_maps = find_rigid_part(mol)
     if VERBOSE: print(f'Uses {atom_maps} as rigid part')
@@ -399,15 +378,16 @@ def choose_sampling_method(mol, name, numConfs, VERBOSE=False):
     convert_sdf_mol2(rotated_file, f"{name}_rotated.mol2", VERBOSE)
     #subprocess.run(f"rm {rotated_file}", shell=True)
 
-def gen_conf_chunk(df: pd.DataFrame, rmsd = 0.25, randomSeed = 42, numConfs = 10000, VERBOSE = False, cleanup=False):
-
+def gen_conf_chunk(df: pd.DataFrame, randomSeed = 42, numConfs = 10000, VERBOSE = False, cleanup=False):
+    
         env = setup_env()
+        random.seed(randomSeed)
         if VERBOSE: print(env['LD_LIBRARY_PATH'])
         for idx, row in df.iterrows():
             # Embed smiles into initial conformation 
-            # (300  conformers is inspired from https://pubs.acs.org/doi/abs/10.1021/ci2004658, then we only get the minimal energy one)
+            # (300  conformers is inspired from https://pubs.acs.org/doi/abs/10.1021/ci2004658, then we only use the minimal energy one)
             if VERBOSE: print("Embedding...")
-            mol, molblock, netcharge = embed_smiles(row['smiles'], row['ids'], rmsd = rmsd, randomSeed = randomSeed, numConfs = 300)
+            mol, molblock, netcharge = embed_smiles(row['smiles'], row['ids'], randomSeed = randomSeed, numConfs = 300)
             name = row['ids']
             mol2_block = convert(molblock, "mol", "mol2")
 
@@ -447,7 +427,7 @@ def gen_conf_chunk(df: pd.DataFrame, rmsd = 0.25, randomSeed = 42, numConfs = 10
             else:
                 try:
                     db2_data = mol2db2.mol2db2_quick(f"{name}.mol2", f"{name}.solv")
-                    write_to_file(db2_data, f"{name}.db2")
+                    write_to_file(db2_data, f"../{name}.db2")
                     os.chdir("../..")
                     if cleanup:
                         subprocess.run(f"rm -rf 3d/{name} solv/{name}", shell=True)
