@@ -366,6 +366,9 @@ def choose_sampling_method(mol, name, numConfs, VERBOSE=False):
     num_confs_H = hydrogens.count_confs_by_H(mol2_countH)
 
     # Divide the number of conformations by that contributed by rotatable hydrogens
+    # This is a way to mimick the method of the previous approach of UCSF
+    if num_confs_H > 30: num_confs_H = 30
+    elif num_confs_H > 3: num_confs_H = 3
     numConfs = numConfs // num_confs_H 
     num_confs_by_rotbonds, reordered_rot_bonds, match_torlib = count_confs_by_rotbonds(mol, VERBOSE)
     
