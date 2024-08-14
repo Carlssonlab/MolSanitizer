@@ -237,6 +237,17 @@ def convert_sdf_mol2(sdf_file, output_mol2, VERBOSE: bool = False):
 
 
 def count_confs_by_rotbonds(mol, VERBOSE=False):
+    """
+    Count the number of conformations based on rotatable bonds and reorder bonds with terminal
+    atoms at the beginning.
+
+    Args:
+    mol (rdkit.Chem.Mol): The RDKit molecule object.
+    VERBOSE (bool): If True, prints detailed information.
+
+    Returns:
+    tuple: Number of conformations, reordered rotatable bonds, and matched torsion rules.
+    """
     rotatable_bonds = getDihedralMatches(mol, rotatable_pattern)
     reordered_rot_bonds = [] 
 
@@ -248,11 +259,13 @@ def count_confs_by_rotbonds(mol, VERBOSE=False):
         if is_terminal(mol, rotatable_bond[1:3]):
             reordered_rot_bonds.append(rotatable_bond)
             if is_symmetric(mol, rotatable_bond[1:3]):
-                #Exclude one meaningless angle for symmetric terminal rotatable bonds
+                #Exclude meaningless angles for symmetric terminal rotatable bonds (eg. CH3, CF3 only rotate onces)
                 for rule in match_torlib:
                     if set(rotatable_bond[1:3]) == set(rule[1][1:3]):
-                        rule[2].pop(-1)
-                        break
+                        while len(rule[2]) > 2: # rotate these angles by 120 degrees is the same
+                            while (len(rule[2]) >= 2) and ((rule[2][0][0] - rule[2][1][0]) % 120 == 0): rule[2].pop(1)
+                            if len(rule[2]) > 2 : rule[2].pop(-1)
+                            
 
     for bond in rotatable_bonds:
         if bond not in reordered_rot_bonds:
@@ -395,7 +408,7 @@ def gen_conf_chunk(df: pd.DataFrame, randomSeed = 42, numConfs = 10000, VERBOSE 
         for idx, row in df.iterrows():
             # Embed smiles into initial conformation 
             # (300  conformers is inspired from https://pubs.acs.org/doi/abs/10.1021/ci2004658, then we only use the minimal energy one)
-            if VERBOSE: print("Embedding...")
+            if VERBOSE: print("Generating initial 3D conformations...")
             mol, molblock, netcharge = embed_smiles(row['smiles'], row['ids'], randomSeed = randomSeed, numConfs = 300)
             name = row['ids']
             mol2_block = convert(molblock, "mol", "mol2")
