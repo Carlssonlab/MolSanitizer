@@ -93,7 +93,6 @@ def Split_Submit_jobs(args: dict):
     flags = parse_flags_single_job(args)
     global slurm_script
     slurm_script = slurm_script + flags
-    print(slurm_script)
     for file in args.input_files:
         prefix = file.split('.')[0]
         subprocess.run(f"mkdir -p {prefix}", shell=True)

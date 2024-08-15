@@ -96,7 +96,7 @@ def parseArguments_batch(args = None):
 
     # Add string option
     parser.add_argument('--custom', default=None, type=str, help='Filter out unwanted substructures using the customized list')
-    parser.add_argument('-n', '--projectName', default='naiss-2023-3-39', dest='proj_name', type=str, help='Project name for the SLURM script (default: naiss2023-3-39)')
+    parser.add_argument('-n', '--projectName', default='naiss2023-3-39', dest='proj_name', type=str, help='Project name for the SLURM script (default: naiss2023-3-39)')
     
     # Add integer option
     parser.add_argument('-l', '--lines_per_job', dest='lines', type=int, default=1000, help='Number of lines to process per job (default: 1000)')
