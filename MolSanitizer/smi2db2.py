@@ -79,7 +79,7 @@ def embed_smiles(smiles, name, rmsd=0.5, randomSeed=42, numConfs=300):
     conf_energies = []
     
     mp = rdForceFieldHelpers.MMFFGetMoleculeProperties(mol_H, mmffVariant="MMFF94s")
-    mp.SetMMFFDielectricConstant(20) #1 means vacumn, 80 means water, 20 is the compromised value (still arbitrary)
+    mp.SetMMFFDielectricConstant(1) #1 means vacumn, 80 means water, 20 is the compromised value (still arbitrary)
 
     for cid in rdDistGeom.EmbedMultipleConfs(mol_H, numConfs=numConfs, params=params):
         ff = rdForceFieldHelpers.MMFFGetMoleculeForceField(mol_H, mp, confId=cid)
@@ -400,15 +400,19 @@ def choose_sampling_method(mol, name, numConfs, VERBOSE=False):
     convert_sdf_mol2(rotated_file, f"{name}_rotated.mol2", VERBOSE)
     #subprocess.run(f"rm {rotated_file}", shell=True)
 
+def log_error(smiles, name):
+    with open('msani_error.log', 'a') as f:
+        f.write(f"{smiles} \t {name}\n")
+
 def gen_conf_chunk(df: pd.DataFrame, randomSeed = 42, numConfs = 10000, VERBOSE = False, cleanup=False):
-    
+        
         env = setup_env()
         random.seed(randomSeed)
         if VERBOSE: print(env['LD_LIBRARY_PATH'])
         for idx, row in df.iterrows():
             # Embed smiles into initial conformation 
             # (300  conformers is inspired from https://pubs.acs.org/doi/abs/10.1021/ci2004658, then we only use the minimal energy one)
-            if VERBOSE: print("Generating initial 3D conformations...")
+            if VERBOSE: print(f"Handling {row['ids']} \nGenerating initial 3D conformations...")
             mol, molblock, netcharge = embed_smiles(row['smiles'], row['ids'], randomSeed = randomSeed, numConfs = 300)
             name = row['ids']
             mol2_block = convert(molblock, "mol", "mol2")
@@ -421,12 +425,17 @@ def gen_conf_chunk(df: pd.DataFrame, randomSeed = 42, numConfs = 10000, VERBOSE 
             run_amsol.prepare(f"{name}.mol2", name, netcharge)
             run_amsol.run('temp.in-hex', 'temp.o-hex', env)
             run_amsol.run('temp.in-wat', 'temp.o-wat', env)
-            run_amsol.process_output('temp.o-wat', 'temp.o-hex', "temp.mol2", "output")
+            error_signal = run_amsol.process_output('temp.o-wat', 'temp.o-hex', "temp.mol2", "output")#, VERBOSE=VERBOSE)
             subprocess.run(f"cp output.mol2 {name}_solv.mol2", shell=True)
             subprocess.run(f"mv output.solv {name}_solv.solv", shell=True)
             os.chdir("../..")
 
             # 3D generation
+            if error_signal == -1: # AMSOL failed
+                logger.error(f"AMSOL failed for {name}, skipping it")
+                log_error(row['smiles'], name)
+                continue
+
             if VERBOSE: print("3D generation...")
             subprocess.run(f"mkdir -p 3d/{name}", shell=True)
             subprocess.run(f"cp solv/{name}/{name}_solv.mol2 3d/{name}/{name}.mol2", shell=True)
@@ -439,12 +448,12 @@ def gen_conf_chunk(df: pd.DataFrame, randomSeed = 42, numConfs = 10000, VERBOSE 
             if VERBOSE: print("Converting to DB2 format...")
             subprocess.run(f"mkdir -p db2/{name}", shell=True)
             subprocess.run(f"mv 3d/{name}/{name}_rotated.mol2 db2/{name}/{name}.mol2", shell=True)
-            subprocess.run(f"mv solv/{name}/{name}_solv.solv db2/{name}/{name}.solv", shell=True)
+            subprocess.run(f"mv solv/{name}/{name}_solv.solv db2/{name}/{name}.solv", shell=True)    
             os.chdir(f"db2/{name}")
-
             if not os.path.isfile(f"{name}.mol2") or not os.path.isfile(f"{name}.solv"):
-                logger.error("Not found mol2 files and solv for db2 generation")
+                logger.error(f"Not found mol2 files and solv for db2 generation of {name}")
                 os.chdir("../..")
+                log_error(row['smiles'], name)
                 continue
             else:
                 try:
@@ -452,9 +461,10 @@ def gen_conf_chunk(df: pd.DataFrame, randomSeed = 42, numConfs = 10000, VERBOSE 
                     write_to_file(db2_data, f"../{name}.db2")
                     os.chdir("../..")
                     if cleanup:
-                        subprocess.run(f"rm -rf 3d/{name} solv/{name}", shell=True)
+                        subprocess.run(f"rm -rf 3d/{name} solv/{name} db2/{name}", shell=True)
                 except Exception as e:
                     logger.error(f"Error in converting {name} to DB2 format {e}")
                     os.chdir("../..")
+                    log_error(row['smiles'], name)
                     continue
                 
