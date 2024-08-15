@@ -36,7 +36,7 @@ dirs=( $(cat dirlista) )
 TASK_ID=${SLURM_ARRAY_TASK_ID}
 smiles_file=${dirs[$TASK_ID]}
 
-~/.conda/envs/msani/bin/msani  -i $smiles_file'''
+~/.conda/envs/msani/bin/msani -i $smiles_file'''
 
 def parse_flags_single_job(args: dict):
     """Parse the flags for a single job
