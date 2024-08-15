@@ -151,6 +151,7 @@ class TestMolSanitizer(unittest.TestCase):
             "prefix":output_prefix, 
             "max_isomers":0,
             "test": False,
+            "smiles": None,
             "db2": False
          } 
         for mode in modes: 
