@@ -55,6 +55,9 @@
       The four rules involving N_lp in sulfonamides have been adapted to corresponding rules
       (see four begining rules of '[#16:2]!@[#7:3]')
 
+      Oct 15 24
+      The last rule to match the amide bond ([O:1]=[CX3:2]!@[NX3H1:3][!#1:4]) has been adapted
+      to match the amide bond in which the N is N- as well ([O:1]=[CX3:2]!@[NX3H1,NX2&amp;-:3][!#1:4])
 -->
 <library>
  <hierarchyClass id1="G" id2="G" name="GG" smarts="[*:2]!@[*:3]">
@@ -63764,7 +63767,8 @@
      <bin count="167" />
     </histogram2_shifted>
    </torsionRule>
-   <torsionRule smarts="[O:1]=[CX3:2]!@[NX3H1:3][!#1:4]">
+   <torsionRule smarts="[O:1]=[CX3:2]!@[NX3H1,NX2&amp;-:3][!#1:4]">
+   <!--<torsionRule smarts="[O:1]=[CX3:2]!@[NX3H1:3][!#1:4]"> Original rule, to catch the CO-[N-] exceptions -->
     <angleList>
      <angle score="43.96" tolerance1="20" tolerance2="30" value="0" />
    <!--<angle score="1.59" tolerance1="20" tolerance2="30" value="180" />-->  
