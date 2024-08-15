@@ -106,7 +106,9 @@ def cleanData(args):
                 if args.unwanted is not None: chunk = filters.unwanted(chunk, rejectedFile, args.unwanted, args.debug) 
                 if args.custom is not None: chunk = filters.custom(chunk, rejectedFile, args.custom, args.debug) 
                 
-                if len(chunk) == 0: continue #Check if the chunk is empty after the filters, if so, next chunk
+                if len(chunk) == 0: #Check if the chunk is empty after the filters, if so, next chunk
+                    chunk.to_csv(outputFile, index=False, mode='a', columns=['smiles','ids'], header=False, sep=' ')
+                    continue 
 
                 # Protonation
                 if args.protonation: chunk = filters.protonation(chunk, args.debug)

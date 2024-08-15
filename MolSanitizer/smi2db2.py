@@ -315,6 +315,7 @@ def torsional_scan_rand(mol, conf, i, matches, match_torlib, sdwriter, product, 
     which dihedral we are enumerating by degree to output conformers to out'''
     if len(product) >= numConfs: return product
     if i >= len(matches): #base case, torsions should be set in conf
+        #print(check_too_close_nonbonded_atoms(mol.GetConformer(conf), mol))
         if check_too_close_nonbonded_atoms(mol.GetConformer(conf), mol): return product
         product.append(Chem.Conformer(mol.GetConformer(conf))) 
         rdMolAlign.AlignMol(mol, original, conf, 0, atomMap=[(i, i) for i in atom_maps])
@@ -336,7 +337,7 @@ def stochastic_sampling(mol, name, reordered_rot_bonds, match_torlib, sdwriter, 
         max_angles = max(len(rule[2]), max_angles)
     #visit_matrix = np.zeros((len(reordered_rot_bonds), max_angles))
     n_transform = len(reordered_rot_bonds)
-    max_attempts = 1000
+    max_attempts = 100
     attempts = 0
     while (len(product)< numConfs):
         for idx in range(n_transform):
@@ -349,7 +350,7 @@ def stochastic_sampling(mol, name, reordered_rot_bonds, match_torlib, sdwriter, 
             #visit_matrix[bond_idx][peak_idx] += 1
             rdMolTransforms.SetDihedralDeg(mol.GetConformer(0),*peaks[0],value = get_random_angle(peak[0], peak[1]))
         #TODO: prune by RMSD?
-        #TODO: if more than eg. 1000 failed attempts, break 
+        
         if check_too_close_nonbonded_atoms(mol.GetConformer(0), mol): 
             attempts += 1
             if attempts > max_attempts: break
@@ -391,8 +392,14 @@ def choose_sampling_method(mol, name, numConfs, VERBOSE=False):
     original_mol = Chem.Mol(mol)
     if num_confs_by_rotbonds <= numConfs:
         if VERBOSE: print('Running systematic torsional scan')
-        torsional_scan_rand(mol, conf=0, i=0, matches = reordered_rot_bonds, match_torlib = match_torlib,
+        product = torsional_scan_rand(mol, conf=0, i=0, matches = reordered_rot_bonds, match_torlib = match_torlib,
                             sdwriter=sdwriter, product=list(), original=original_mol, numConfs = numConfs, atom_maps = atom_maps)
+        #If the systematic scan is not enough, do stochastic sampling
+        #This part is to prevent the case when only small torsional rotation could prevent the clashes
+        #Only produce 1/3 of the desired conformations is an indicator of clash
+        if len(product) <= num_confs_by_rotbonds // 3: 
+            if VERBOSE: print('Failed for systematic scan, use stochastic method instead')
+            stochastic_sampling(mol, name, reordered_rot_bonds, match_torlib, sdwriter, original_mol, numConfs-len(product), atom_maps) 
     else:
         if VERBOSE: print('Running stochastic torsional sampling')
         stochastic_sampling(mol, name, reordered_rot_bonds, match_torlib, sdwriter, original_mol, numConfs, atom_maps)
