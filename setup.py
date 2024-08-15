@@ -28,7 +28,8 @@ setup(name='MolSanitizer',
         'rdkit>=2024.3.5'
     ],
     entry_points={
-        'console_scripts': ['msani=MolSanitizer.molSanitizer:main'],
+        'console_scripts': ['msani=MolSanitizer.molSanitizer:main',
+                            'msani_batch=MolSanitizer.msani_batch:main'],
     },
     include_package_data=True,
     python_requires='>3.9',
