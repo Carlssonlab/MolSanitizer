@@ -10,11 +10,6 @@ from pathlib import Path
 from os import sys
 import numpy as np
 
-"""def get_atoms_template(pattern):
-    pattern_atoms = pattern.GetAtoms()
-    enumerated_indices = [idx for idx, atom in enumerate(pattern_atoms) if atom.GetAtomMapNum() != 0]
-    return enumerated_indices"""
-
 def get_atoms_template(pattern):
     pattern_atoms = pattern.GetAtoms()
     enumerated_indices = [-1,-1,-1,-1,-1,-1]
