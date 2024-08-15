@@ -153,11 +153,19 @@ def check_too_close_nonbonded_atoms(conformer, mol, threshold=1.6):
         for j in range(i + 1, num_atoms):
             # Check if the atoms are bonded
             if not mol.GetBondBetweenAtoms(i, j):
-                # Calculate the distance between the non-bonded atoms
-                distance = np.linalg.norm(positions[i] - positions[j])
-                if distance < threshold:
-                    return True
+                # Check if they are connected to the same parent atom
+                neighbors_i = mol.GetAtomWithIdx(i).GetNeighbors()
+                neighbors_j = mol.GetAtomWithIdx(j).GetNeighbors()
+                
+                common_parent = any(neighbor.GetIdx() in [n.GetIdx() for n in neighbors_j] for neighbor in neighbors_i)
+                
+                if not common_parent:
+                    # Calculate the distance between the non-bonded atoms
+                    distance = np.linalg.norm(positions[i] - positions[j])
+                    if distance < threshold:
+                        return True
     return False
+
 
 def get_neighboring_atoms(mol, atom_index, excluded_indices):
     """
@@ -387,6 +395,11 @@ def choose_sampling_method(mol, name, numConfs, VERBOSE=False):
     num_confs_by_rotbonds, reordered_rot_bonds, match_torlib = count_confs_by_rotbonds(mol, VERBOSE)
     
     if VERBOSE: print(num_confs_by_rotbonds, num_confs_H)
+
+    if len(reordered_rot_bonds) == 0:
+        if VERBOSE: logger.warning(f"No rotatable bonds found for {name}, use the initial conformation")
+        subprocess.run(f'mv {name}.mol2 {name}_rotated.mol2', shell=True)
+        return
     rotated_file = f"{name}_rotated.sdf"
     sdwriter = Chem.SDWriter(rotated_file)
     original_mol = Chem.Mol(mol)
