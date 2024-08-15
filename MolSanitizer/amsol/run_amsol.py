@@ -177,7 +177,7 @@ def process_amsol_file(file, outputprefix, solvent, VERBOSE=False):
 
     outputfilename = f"{outputprefix}{solvent}.log"
     lines = input_file.readlines()
-
+    
     with open(outputfilename, 'w') as output:
         name = ''
         numatoms = 0
@@ -249,12 +249,12 @@ def diff_amsol71_files(atom_listwat,totwat,atom_listhex,tothex,name,numatom,outp
     N = len(atom_listwat)
     if len(atom_listwat) != len(atom_listhex):
         print("Error: len(atom_listwat) != len(atom_listhex):" + str(len(atom_listwat))+" != "+str(len(atom_listhex)))
-        sys.exit()
+        return -1
 
     if N != numatom:
         print("\n".join(' '.join(l) for l in atom_listwat))
         print("Error: len(atom_listwat) != numatom: " + str(N) +" != "+str(numatom))
-        sys.exit()
+        return -1
 
     fileline = ''## generate string output to write to a file
     if VERBOSE:
@@ -395,7 +395,7 @@ def diff_amsol71_files(atom_listwat,totwat,atom_listhex,tothex,name,numatom,outp
     if VERBOSE:
         print("\n**** The function diff_amsol71_files() was finished. ****\n")
 
-    return
+    return 0
 
 #################################################################################################################
 #################################################################################################################
@@ -415,7 +415,7 @@ def modify_charges_mol2_file(mol2file, atom_list_hex, outputprefix, VERBOSE=Fals
     n = len(atom_list_hex)
     if n != len(mol.atom_list):
        print("Error: n != len(mol.atom_list) : " + str(n) + " !=" + str(len(mol.atom_list)))
-       exit()
+       return -1
 
     
     for i in range(n):
@@ -432,11 +432,11 @@ def modify_charges_mol2_file(mol2file, atom_list_hex, outputprefix, VERBOSE=Fals
         print("**** The function modify_charges_mol2_file() was finished. ****")
         print("")
 
-    return
+    return 0
     
 def process_output(wat_file, hex_file, mol2file, output_prefix, VERBOSE=False):
     atom_list_wat,tot_wat,name_wat,numat_wat = process_amsol_file(wat_file,output_prefix,"wat")
-    atom_list_hex,tot_hex,name_hex,numat_hex = process_amsol_file(hex_file,output_prefix,"hex")
+    atom_list_hex,tot_hex,name_hex,numat_hex = process_amsol_file(hex_file,output_prefix,"hex", VERBOSE = VERBOSE)
     
 
     # tot_wat and tot_hex are lists:
@@ -452,7 +452,7 @@ def process_output(wat_file, hex_file, mol2file, output_prefix, VERBOSE=False):
     #                            Subtotal = "(5)  G-P-CDS(sol) = G-P(sol) + G-CDS(sol) = (2) + (4)             -XX.XXX kcal"
     
 
-
+    error_signal = 0 # 0 means no error -1 means error occured
     if (name_hex != name_wat or numat_hex != numat_wat):
         print("Error: Name or Atom counts do not agree")
     elif VERBOSE:
@@ -465,18 +465,19 @@ def process_output(wat_file, hex_file, mol2file, output_prefix, VERBOSE=False):
         print("")
         print("just before diff_amsol71_files() function")
         print("")
-    diff_amsol71_files(atom_list_wat, tot_wat, atom_list_hex, tot_hex, name_wat, numat_wat, output_prefix)
+    error_signal = diff_amsol71_files(atom_list_wat, tot_wat, atom_list_hex, tot_hex, name_wat, numat_wat, output_prefix)
 
     if VERBOSE:
         print("")
         print("just before modify_charges_mol2_file() function")
         print("")
-    modify_charges_mol2_file(mol2file, atom_list_hex, output_prefix) 
+    if error_signal == 0: modify_charges_mol2_file(mol2file, atom_list_hex, output_prefix) 
 
     if VERBOSE:
         print("")
         print("**** The main program in process_amsol71_mol2.py was finished for ****")
-        print("%s and %s." % (filenamewat, filenamehex))
+        #print("%s and %s." % (filenamewat, filenamehex))
         print("*******************************************************************")
         print("")
     #
+    return error_signal
