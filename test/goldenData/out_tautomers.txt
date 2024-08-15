@@ -5,5 +5,7 @@ c1ccc2c(CC3=NCCN3)cccc2c1 exo-naphazoline
 Oc1ccncc1 4-pyridone
 c1c[nH]nn1 2H-triazole
 c1ccc2n[nH]nc2c1 1H-benzotriazole
-Nc1ncnc2[nH]c(=O)[nH]c12 nothing
-Cn1cc(-c2ccccc2)c(=O)c(-c2cccc(C(F)(F)F)c2)c1 fluridone
+O=C(O)c1nccc(=O)[nH]1 pyrimidine-4-ole
+O=C(O)c1nccc(=O)[nH]1 pyrimidine-4(1H)-one
+O=C1CC(=O)NC(=O)N1 barbiturate_enol
+O=C1C2C3CCC(C3)C2C(=O)N1c1ccccn1 imidazole-2,5-diole

@@ -4,7 +4,7 @@ CC(C)(C)[C@H](N)CC(=O)NCC1CC(=C2CCC2)C1 m_240690____17317754____13654158 cyclic_
 CSCC(C)(NC(=O)CCOC1CC1)C(=O)NC1CCCC1C#N m_274552____23521620____25004494____15977484 aliphatic_nitriles
 CCn1ccc(CCNC(=O)CONC(=O)C=Cc2cnn(C)c2)n1 m_274552____23522728____24973580____15979158 Michael_acceptors
 CCN(CCCNC(=O)C1=CCCCCC1)C(=O)c1ccncn1 m_275592____25038076____14137674____13186740 Michael_acceptors
-Cc1nc(=O)cc(C(=O)N[C@H]2CCCC[C@H]2C(=O)NOCC=CCl)[nH]1 m_274552____23522480____24993440____25023730 hydrazides_hydroxamates
+Cc1nc(C(=O)N[C@H]2CCCC[C@H]2C(=O)NOCC=CCl)cc(=O)[nH]1 m_274552____23522480____24993440____25023730 hydrazides_hydroxamates
 O=C(CC(Cl)Cl)NCc1ccc(C(=O)NCCn2cnnc2)nc1 m_274552____23520988____15963658____25032120 alkyl_halides
 CN(C(=O)CCCCCC#N)C(C)(C)CC(=O)NCc1cc[nH]n1 m_274552____23521678____13730052____15977380 butylene_chains
 C=C(Cl)CCC(=O)NCC(C)(C)NC(=O)c1ccc(O)cn1 m_275592____18896392____15845014____15861690 alkyl_halides_generic

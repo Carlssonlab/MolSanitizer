@@ -51,6 +51,7 @@ class TestMolSanitizer(unittest.TestCase):
             # Test all filters work together
             args.unwanted = ['Regular','Special','Optional']
             molSanitizer.cleanData(args)
+            os.system(f'ls {temp_dir}')
             self.compareFiles(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_unwanted_all_clean.txt')
             self.compareFiles(f'{temp_dir}/dummy_output_rejected.txt', f'{self.path}/out_unwanted_all_rejected.txt')
          
