@@ -248,12 +248,12 @@ def diff_amsol71_files(atom_listwat,totwat,atom_listhex,tothex,name,numatom,outp
 
     N = len(atom_listwat)
     if len(atom_listwat) != len(atom_listhex):
-        print("Error: len(atom_listwat) != len(atom_listhex):" + str(len(atom_listwat))+" != "+str(len(atom_listhex)))
+        if VERBOSE: print("Error: len(atom_listwat) != len(atom_listhex):" + str(len(atom_listwat))+" != "+str(len(atom_listhex)))
         return -1
 
     if N != numatom:
         print("\n".join(' '.join(l) for l in atom_listwat))
-        print("Error: len(atom_listwat) != numatom: " + str(N) +" != "+str(numatom))
+        if VERBOSE: print("Error: len(atom_listwat) != numatom: " + str(N) +" != "+str(numatom))
         return -1
 
     fileline = ''## generate string output to write to a file
@@ -414,7 +414,7 @@ def modify_charges_mol2_file(mol2file, atom_list_hex, outputprefix, VERBOSE=Fals
 
     n = len(atom_list_hex)
     if n != len(mol.atom_list):
-       print("Error: n != len(mol.atom_list) : " + str(n) + " !=" + str(len(mol.atom_list)))
+       if VERBOSE: print("Error: n != len(mol.atom_list) : " + str(n) + " !=" + str(len(mol.atom_list)))
        return -1
 
     
@@ -454,7 +454,7 @@ def process_output(wat_file, hex_file, mol2file, output_prefix, VERBOSE=False):
 
     error_signal = 0 # 0 means no error -1 means error occured
     if (name_hex != name_wat or numat_hex != numat_wat):
-        print("Error: Name or Atom counts do not agree")
+        if VERBOSE: print("Error: Name or Atom counts do not agree")
     elif VERBOSE:
         print("Wat-name      = " + wat_file) 
         print("Wat-atom cout = " + str(numat_wat))
