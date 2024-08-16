@@ -97,12 +97,14 @@ def parseArguments_batch(args = None):
     # Add string option
     parser.add_argument('--custom', default=None, type=str, help='Filter out unwanted substructures using the customized list')
     parser.add_argument('-n', '--projectName', default='naiss2023-3-39', dest='proj_name', type=str, help='Project name for the SLURM script (default: naiss2023-3-39)')
-    
+
     # Add integer option
     parser.add_argument('-l', '--lines_per_job', dest='lines', type=int, default=1000, help='Number of lines to process per job (default: 1000)')
     parser.add_argument('--max_isomers', type=int, default=0, help='Maximum number of stereoisomers to consider (default: 0 = no limit)')
     parser.add_argument('-nconf', '--numconfs', type=int, default=2000, help='Maximum number of conformers to generate (default: 2000)')
     parser.add_argument('-rs', '--randomSeed', type=int, default=42, help='Random seed for reproducibility (default: 42)')
+    parser.add_argument('-t', '--time', type=int, default=24, help='Time limit for the SLURM job in hours (default: 24H)')
+    parser.add_argument('--max_jobs', type=int, default=100, help='Maximum number of jobs to run simultaneously (default: 100)')
 
     # Parse the arguments
     args = parser.parse_args()

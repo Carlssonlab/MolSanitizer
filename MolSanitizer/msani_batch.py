@@ -6,37 +6,31 @@ __author__ = "Israel Cabeza de Vaca Lopez, Thua-Phong Lam, Szymon Pach"
 __place__ = "Jens Carlsson lab, Uppsala University, Sweden"
 __license__ = "MIT"
 
-import logging
-logger = logging.getLogger('molsani')
 
 import pandas as pd
 
-import pathlib
+
 import os
-import time
 import sys
 
 from . import parsers
 import subprocess
 
-from rdkit import Chem
-from rdkit import rdBase
 
 slurm_header = '''#!/bin/bash
 #SBATCH -A PROJECT_NAME
 #SBATCH -n 1
-#SBATCH -J msani_db2
-#SBATCH -t 23:59:59
+#SBATCH -J msani_3d
+#SBATCH -t TIME_LIMIT
 #SBATCH --mail-type=FAIL
-#SBATCH --mem=64G
-# '''
+'''
 
 slurm_script='''
 dirs=( $(cat dirlista) )
 TASK_ID=${SLURM_ARRAY_TASK_ID}
 smiles_file=${dirs[$TASK_ID]}
 
-~/.conda/envs/msani/bin/msani -i $smiles_file'''
+MSANI_PATH -i $smiles_file'''
 
 def parse_flags_single_job(args: dict):
     """Parse the flags for a single job
@@ -58,7 +52,7 @@ def parse_flags_single_job(args: dict):
     if args.protonation: flags += ' --protonation'
     if args.db2: flags += ' --db2'
     if not(args.cleanup): flags += ' --nocleanup'
-    if args.custom is not None: flags += f' --custom {args.custom}'
+    if args.custom is not None: flags += f' --custom ../{args.custom}'
 
     if args.max_isomers != 0: flags += f' --max_isomers {args.max_isomers}'
     if args.numconfs != 2000: flags += f' --numconfs {args.numconfs}'
@@ -74,6 +68,14 @@ def write_single_job_script(slurm_header: str, slurm_script: str):
     Returns:
         None
     """
+    result = subprocess.run(['which', 'msani'], stdout=subprocess.PIPE, text=True)
+
+    # Get the stdout from the result and strip any extra whitespace
+    msani_path = result.stdout.strip()
+
+    print(f"msani_path: {msani_path}")
+    slurm_script = slurm_script.replace('MSANI_PATH', msani_path)
+
     with open('submit_msani.sh', 'w') as f:
         f.write(slurm_header)
         f.write(slurm_script)
@@ -87,21 +89,31 @@ def Split_Submit_jobs(args: dict):
     Returns:
         None
     """
-    # Replace the PROJECT_NAME with the project name for SLURM
+    # Replace the PROJECT_NAME with the project name and time limit for SLURM
     global slurm_header
     slurm_header = slurm_header.replace('PROJECT_NAME', args.proj_name)
+    slurm_header = slurm_header.replace('TIME_LIMIT', f'{args.time}:00:00')
     flags = parse_flags_single_job(args)
     global slurm_script
     slurm_script = slurm_script + flags
+    print(f"\nStarting MolSanitizer in batch mode\n")
+    print(f"Using project name (-p): {args.proj_name}")
+    print(f"Time limit for each job (-t): {args.time} hours")
+    print(f"Maximum number of jobs running parallelly(--max_jobs): {args.max_jobs} jobs")
+    print(f"Number of compounds per job (-l): {args.lines} lines\n")
+
     for file in args.input_files:
         prefix = file.split('.')[0]
+        if os.path.exists(prefix):
+            print(f"Folder {prefix} already exists. Removing...\n")
+            subprocess.run(f"rm -rf {prefix}", shell=True)
         subprocess.run(f"mkdir -p {prefix}", shell=True)
         subprocess.run(f"split -l {args.lines} -d {file} -a 3 {prefix}/in", shell=True)
         os.chdir(prefix)
-        n_jobs = len(os.listdir())
         subprocess.run(f"ls in* > dirlista", shell=True)
-        write_single_job_script(slurm_header, slurm_script)
-        subprocess.run(f"sbatch --array=0-{n_jobs-1}%100 submit_msani.sh", shell=True)
+        n_jobs = sum(1 for line in open('dirlista'))
+        print(f"Submitting {n_jobs} jobs\n")
+        subprocess.run(f"sbatch --array=0-{n_jobs-1}%{args.max_jobs} submit_msani.sh", shell=True)
         os.chdir('..')
         
 def main():
