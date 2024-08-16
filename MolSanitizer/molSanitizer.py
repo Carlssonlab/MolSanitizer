@@ -89,8 +89,10 @@ def cleanData(args):
                 if os.path.exists(outputFile): os.remove(outputFile)
 
             for step, chunk in enumerate(df_input, start=1):
+
                 if args.enamine: chunk = process_enamine_name(chunk)
                 chunk['mol'] = chunk['smiles'].apply(lambda x: Chem.MolFromSmiles(x))
+                chunk['ids']=chunk['ids'].astype(str)
 
                 chunk = filters.remove_invalid_SMILES(chunk)
                 # Remove salts
