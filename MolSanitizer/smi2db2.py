@@ -481,9 +481,9 @@ def log_error(smiles, name):
 def gen_conf_chunk(df: pd.DataFrame, randomSeed = 42, numConfs = 10000, VERBOSE = False, cleanup=False):
         
         env = setup_env()
-        random.seed(randomSeed)
         if VERBOSE: print(env['LD_LIBRARY_PATH'])
         for idx, row in df.iterrows():
+            random.seed(randomSeed)
             # Embed smiles into initial conformation 
             # (300  conformers is inspired from https://pubs.acs.org/doi/abs/10.1021/ci2004658, then we only use the minimal energy one)
             if VERBOSE: print(f"Handling {row['ids']} \nGenerating initial 3D conformations...")
