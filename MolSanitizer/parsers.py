@@ -52,7 +52,7 @@ def parseArguments(args = None):
 
     # Add integer option
     parser.add_argument('--max_isomers', type=int, default=0, help='Maximum number of stereoisomers to consider (default: 0 = no limit)')
-    parser.add_argument('-nconf', '--numconfs', type=int, default=2000, help='Maximum number of conformers to generate (default: 2000)')
+    parser.add_argument('-nconfs', '--numconfs', type=int, default=2000, help='Maximum number of conformers to generate (default: 2000)')
     parser.add_argument('-rs', '--randomSeed', type=int, default=42, help='Random seed for reproducibility (default: 42)')
     parser.add_argument('-rmsd','--rmsd', type=float, default=0.25, help='RMSD threshold for conformer clustering in stochastic sampling (default: 0.25)')
 
