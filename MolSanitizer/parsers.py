@@ -68,8 +68,8 @@ def parseArguments(args = None):
 def parseArguments_batch(args = None):
     info = """MolSanitizer - A package to prepare SMILES databases
     This is a batch version of the MolSanitizer package. 
-    It reads a list of input files, splits the files into chunks of "--lines" and processes parallelly on the HPC.
-    For more information, use msani -h
+    It reads a list of input files, splits the files into chunks of "--lines" and processes them parallelly on the HPC.
+    For more information, use msani_batch -h
 
     Default settings:
     Project name: naiss2023-3-39
