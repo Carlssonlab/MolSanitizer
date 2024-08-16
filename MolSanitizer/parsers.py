@@ -66,15 +66,18 @@ def parseArguments(args = None):
 
 def parseArguments_batch(args = None):
     info = """MolSanitizer - A package to prepare SMILES databases
-    This is a batch version of the MolSanitizer package. It reads a list of input files and processes them in parallel.
+    This is a batch version of the MolSanitizer package. 
+    It reads a list of input files, splits the files into chunks of "--lines" and processes parallelly on the HPC.
+    For more information, use msani -h
 
-    Ex. input file (space or tab-separated file):
-        COCCC(=O)Nc1ncc(s1)Br  CP000000418470
-        C1CC(C(=O)NC1)SCCC=CBr  CP000000432409
-        CC(C)(C)CNC(=O)c1ccsc1Br  CP000001634597
+    Default settings:
+    Project name: naiss2023-3-39
+    Time limit: 24 hours
+    Lines per job: 1000
 
     Ex. run
-    msani_batch -i example.smi --lazy --enamine --db2
+    msani_batch -i example.smi -l 50 --db2
+    msani_batch -i example.smi -l 50 --stereosiomers --protonation --db2 --nocleanup
     """
     # Create the argument parser
     parser = argparse.ArgumentParser(description= info, formatter_class=argparse.RawTextHelpFormatter)

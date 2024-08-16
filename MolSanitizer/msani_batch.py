@@ -73,7 +73,7 @@ def write_single_job_script(slurm_header: str, slurm_script: str):
     # Get the stdout from the result and strip any extra whitespace
     msani_path = result.stdout.strip()
 
-    print(f"msani_path: {msani_path}")
+    #print(f"msani_path: {msani_path}")
     slurm_script = slurm_script.replace('MSANI_PATH', msani_path)
 
     with open('submit_msani.sh', 'w') as f:
