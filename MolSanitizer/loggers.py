@@ -42,9 +42,12 @@ def arguments(args):
     #logger.info(f"Neutralize: {args.neutralize}")
     logger.info(f"Stereoisomers: {args.stereoisomers}")
     logger.info(f"Max stereoisomers: {args.max_isomers}")
-    logger.info(f"Number of conformers: {args.numconfs}")
-    logger.info(f"Generate DB2 files for DOCK 3.8: {args.db2}")
-    logger.info(f"Cleanup: {args.cleanup}")
+    if args.db2:
+        logger.info(f"Generate DB2 files for DOCK 3.8: {args.db2}")
+        logger.info(f"Number of conformers: {args.numconfs}")
+        logger.info(f"Cleanup: {args.cleanup}")
+        logger.info(f"Random seed: {args.randomSeed}")
+        logger.info(f"RMSD threshold: {args.rmsd}")
 
     if args.tautomers:
         smartsFile = Path(__file__).parent / 'Data' / 'tautomers.txt'
