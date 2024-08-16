@@ -318,7 +318,7 @@ def get_random_angle(mean, tolerance):
     
     return normalized_angle
 
-def already_sampled(sampled_mol, current_mol, threshold=0.5):
+def already_sampled(sampled_mol, current_mol, threshold=0.5):    
     """
     Check if the current conformer is already sampled in the product_list.
 
@@ -344,8 +344,25 @@ def already_sampled(sampled_mol, current_mol, threshold=0.5):
     return False
 
 def torsional_scan_rand(mol, conf, i, matches, match_torlib, sdwriter, product, original, numConfs, atom_maps):
-    '''recursively enumerate all angles for matches dihedrals.  i is where is
-    which dihedral we are enumerating by degree to output conformers to out'''
+    '''
+    Recursively enumerates all angles for matching dihedrals.
+    
+    Parameters:
+    - mol: The molecule object.
+    - conf: The conformer object.
+    - i: The index of the dihedral being enumerated.
+    - matches: The list of matching dihedrals.
+    - match_torlib: The torsion library for matching dihedrals.
+    - sdwriter: The SD writer object.
+    - product: The list of conformers.
+    - original: The original molecule object (for alignment).
+    - numConfs: The maximum number of conformers to generate.
+    - atom_maps: The list of atom maps.
+    
+    Returns:
+    - product: The list of conformers.
+    '''
+
     if len(product) >= numConfs: return product
     if i >= len(matches): #base case, torsions should be set in conf
         #print(check_too_close_nonbonded_atoms(mol.GetConformer(conf), mol))
@@ -363,21 +380,34 @@ def torsional_scan_rand(mol, conf, i, matches, match_torlib, sdwriter, product, 
         return product
     
 
-def stochastic_sampling(mol, tolerance_level, reordered_rot_bonds, match_torlib, sdwriter, original, numConfs, atom_maps, max_attempts = 100, product = []):
-    """Using Monte Carlo method to sample the conformational space of the molecule
+def stochastic_sampling(mol, tolerance_level, reordered_rot_bonds, match_torlib, sdwriter, original, numConfs, rmsd, atom_maps, max_attempts = 100, product = []):
+    """
+    Perform stochastic sampling of the conformational space of a molecule using a Monte Carlo method.
+
+    This function generates a specified number of conformers for a given molecule by iteratively modifying
+    its torsional angles according to predefined torsion library rules. The method utilizes a Monte Carlo 
+    approach to explore the conformational space, checking for already sampled or invalid conformers 
+    (e.g., those with non-bonded atoms too close to each other) and aligning the resulting conformers to 
+    a reference structure.
 
     Args:
-        mol (rdkit mol object): The molecule to sample
-        tolerance_level (int): The tolerance level to which the torsional angles are sampled (1: relaxed, 2: acceptable)
-        reordered_rot_bonds (_type_): _description_
-        match_torlib (_type_): _description_
-        sdwriter (Chem.SDWriter): The writer to write the conformers
-        original (_type_): The original conformation (for alignment)
-        numConfs (int): The number of conformations to generate
-        atom_maps (list): The atom mapping between the original and the conformers for alignment of rigid part
+        mol (rdkit.Chem.Mol): The RDKit molecule object to sample.
+        tolerance_level (int): The tolerance level for sampling torsional angles:
+                               1 for relaxed sampling, 2 for more tolerable sampling.
+        reordered_rot_bonds (list): A list of rotatable bonds in the molecule, reordered for processing.
+        match_torlib (list): The torsion library rules that dictate the allowed torsional angles and their probabilities.
+        sdwriter (rdkit.Chem.SDWriter): An SDWriter object to output the generated conformers to an SD file.
+        original (rdkit.Chem.Mol): The original conformation of the molecule used for alignment reference.
+        numConfs (int): The number of unique conformers to generate.
+        rmsd (float): The RMSD threshold for pruning conformers.
+        atom_maps (list of tuples): A list of tuples representing the atom mapping between the original
+                                    conformation and the generated conformers, used for rigid part alignment.
+        max_attempts (int, optional): The maximum number of attempts to find a valid, unique conformer before stopping. 
+                                      Defaults to 100.
+        product (list, optional): A list to store the successfully generated conformers. Defaults to an empty list.
 
     Returns:
-        product: a list of conformers
+        list: A list of RDKit Conformer objects representing the successfully sampled conformers.
     """
     sampled_mol = Chem.Mol(mol)
     sampled_mol.RemoveAllConformers()
@@ -391,7 +421,7 @@ def stochastic_sampling(mol, tolerance_level, reordered_rot_bonds, match_torlib,
     n_transform = len(reordered_rot_bonds)
     
     attempts = 0
-    while (len(product)< numConfs):
+    while (len(product) < numConfs):
         for idx in range(n_transform):
             # Each rotatable bond has equally likely chance to be selected
             bond_idx = random.randint(0, len(reordered_rot_bonds)-1)
@@ -405,10 +435,9 @@ def stochastic_sampling(mol, tolerance_level, reordered_rot_bonds, match_torlib,
             peak = peaks[1][peak_idx]
             #visit_matrix[bond_idx][peak_idx] += 1
             rdMolTransforms.SetDihedralDeg(mol.GetConformer(0),*peaks[0],value = get_random_angle(peak[0], peak[tolerance_level]))
-        #TODO: prune by RMSD?
         
         if check_too_close_nonbonded_atoms(mol.GetConformer(0), mol) or \
-        already_sampled(sampled_mol, mol, 0.01): 
+        already_sampled(sampled_mol, mol, rmsd): 
             attempts += 1
             if attempts > max_attempts: break
             continue
@@ -428,7 +457,7 @@ def find_rigid_part(mol):
             return matches[0]
     
 
-def choose_sampling_method(mol, name, numConfs, VERBOSE=False):
+def choose_sampling_method(mol, name, numConfs, rmsd, VERBOSE=False):
    
     # Find rigid parts as anchor points for the molecules
     atom_maps = find_rigid_part(mol)
@@ -463,13 +492,13 @@ def choose_sampling_method(mol, name, numConfs, VERBOSE=False):
         if len(product) <= num_confs_by_rotbonds // 3: 
             if VERBOSE: print('Failed for systematic scan, use stochastic method instead')
             #second arg = 1 is using the 1st tolerance level (relaxed)
-            product = stochastic_sampling(mol, 1, reordered_rot_bonds, match_torlib, sdwriter, original_mol, numConfs-len(product), atom_maps, 100, product) 
+            product = stochastic_sampling(mol, 1, reordered_rot_bonds, match_torlib, sdwriter, original_mol, numConfs-len(product), rmsd, atom_maps, 100, product) 
             if len(product) <= num_confs_by_rotbonds // 3:
                 if VERBOSE: print('Failed even for stochastic scan, use the 2nd tolerance level')
-                product = stochastic_sampling(mol, 2, reordered_rot_bonds, match_torlib, sdwriter, original_mol, numConfs-len(product), atom_maps, 500, product)
+                product = stochastic_sampling(mol, 2, reordered_rot_bonds, match_torlib, sdwriter, original_mol, numConfs-len(product), rmsd, atom_maps, 500, product)
     else:
         if VERBOSE: print('Running stochastic torsional sampling')
-        product = stochastic_sampling(mol, 1, reordered_rot_bonds, match_torlib, sdwriter, original_mol, numConfs, atom_maps, 100, list())
+        product = stochastic_sampling(mol, 1, reordered_rot_bonds, match_torlib, sdwriter, original_mol, numConfs, rmsd, atom_maps, 100, list())
     sdwriter.close()
     convert_sdf_mol2(rotated_file, f"{name}_rotated.mol2", VERBOSE)
     #subprocess.run(f"rm {rotated_file}", shell=True)
@@ -478,7 +507,7 @@ def log_error(smiles, name):
     with open('msani_error.log', 'a') as f:
         f.write(f"{smiles} \t {name}\n")
 
-def gen_conf_chunk(df: pd.DataFrame, randomSeed = 42, numConfs = 10000, VERBOSE = False, cleanup=False):
+def gen_conf_chunk(df: pd.DataFrame, randomSeed = 42, numConfs = 10000, rmsd = 0.25, VERBOSE = False, cleanup=False):
         
         env = setup_env()
         if VERBOSE: print(env['LD_LIBRARY_PATH'])
@@ -515,7 +544,7 @@ def gen_conf_chunk(df: pd.DataFrame, randomSeed = 42, numConfs = 10000, VERBOSE 
             subprocess.run(f"cp solv/{name}/{name}_solv.mol2 3d/{name}/{name}.mol2", shell=True)
             os.chdir(f"3d/{name}")
 
-            choose_sampling_method(mol ,name, numConfs, VERBOSE)
+            choose_sampling_method(mol, name, numConfs, rmsd, VERBOSE)
             os.chdir("../..")
 
             # Mol2DB2
