@@ -65,7 +65,7 @@ def parse_torlib(xml_file = Path(__file__).parent / 'Data' / 'modified_tor_lib_2
                     Torlib.append((Rule.get("smarts"),
                                 (pattern),
                                 get_atoms_template(pattern),
-                                [(((float(angle.get("value")))), float(angle.get("tolerance1"))) for angle in Rule.iter(tag='angle')]))
+                                [(((float(angle.get("value")))), float(angle.get("tolerance1")), float(angle.get("tolerance2")), float(angle.get("score"))) for angle in Rule.iter(tag='angle')]))
 
     for Rule in root.find("hierarchyClass[@name='GG']").iter("torsionRule"):
         if  "N_lp" in Rule.get("smarts"): 
@@ -75,7 +75,7 @@ def parse_torlib(xml_file = Path(__file__).parent / 'Data' / 'modified_tor_lib_2
             Torlib.append((Rule.get("smarts"),
                         (pattern),
                         get_atoms_template(pattern),
-                        [(((float(angle.get("value")))), float(angle.get("tolerance1"))) for angle in Rule.iter(tag='angle')]))
+                        [(((float(angle.get("value")))), float(angle.get("tolerance1")), float(angle.get("tolerance2")), float(angle.get("score"))) for angle in Rule.iter(tag='angle')]))
     return Torlib
 
 
@@ -259,7 +259,7 @@ def filter(mol, match):
 def extract_peaks(match, current_rot_bond):
     for rule in match:
         if set(current_rot_bond) == set(rule[1][1:3]):
-            return(rule[1], [(prefered, tolerance) for prefered, tolerance in rule[2]])
+            return(rule[1], [(prefered, tolerance1, tolerance2, weight) for prefered, tolerance1, tolerance2, weight in rule[2]])
 
 
 
