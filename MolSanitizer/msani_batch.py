@@ -113,6 +113,7 @@ def Split_Submit_jobs(args: dict):
         subprocess.run(f"ls in* > dirlista", shell=True)
         n_jobs = sum(1 for line in open('dirlista'))
         print(f"Submitting {n_jobs} jobs\n")
+        write_single_job_script(slurm_header, slurm_script)
         subprocess.run(f"sbatch --array=0-{n_jobs-1}%{args.max_jobs} submit_msani.sh", shell=True)
         os.chdir('..')
         
