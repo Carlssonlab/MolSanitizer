@@ -215,7 +215,7 @@ def within_tolerance(angle, center, tolerance):
 def extract_peaks(match, current_rot_bond):
     for rule in match:
         if set(current_rot_bond) == set(rule[1][1:3]):
-            return(rule[1], [(prefered, tolerance) for prefered, tolerance in rule[2]])
+            return(rule[1], [(prefered, tolerance1, tolerance2, weight) for prefered, tolerance1, tolerance2, weight in rule[2]])
 
 def parseArguments(args = None):
     info = """StrainFilter - A filtering tool based on TorLib v3
