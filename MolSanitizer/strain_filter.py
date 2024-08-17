@@ -247,14 +247,19 @@ def write_mol2_file(comments, mol2_block, file_path):
         file.write("\n")
         file.write(mol2_block)
 
-def process_one_mol(current_comments_str, current_mol2_str, prefix, file_path, tol):
+def process_one_mol(current_comments_str, current_mol2_str, prefix, input, tol):
     """    
+    This function processes one molecule by checking if all the dihedral angles are within the tolerance range.
     Args:
+        current_comments_str (str): The comments of the current molecule.
+        current_mol2_str (str): The mol2 block of the current molecule.
+        prefix (str): The prefix for the output files.
+        input (str): The path of the current file.
+        tol (int): The tolerance of the filters.
     """
     mol = Chem.MolFromMol2Block(current_mol2_str, sanitize=True, removeHs=False)
     if mol:
         match = get_match_dihedral(mol, Torlib)
-        for i in match: print(i)
         relaxed_angles = [False for _ in match]
         for rule_id, rule in enumerate(match):
             dihedral = rdMolTransforms.GetDihedralDeg(mol.GetConformer(0), *rule[1])
@@ -264,16 +269,16 @@ def process_one_mol(current_comments_str, current_mol2_str, prefix, file_path, t
                     relaxed_angles[rule_id] = True
                     break
         if all(relaxed_angles) == True:
-            write_mol2_file(current_comments_str, current_mol2_str, f'{prefix}_{file_path}')
+            write_mol2_file(current_comments_str, current_mol2_str, f'{prefix}_{input}')
 
 
-def process_mol2_file(file_path, tol, pre):
+def process_mol2_file(input, tol, pre):
     chunks = []
     current_comments = []
     current_mol2_block = []
     in_molecule_block = False
 
-    with open(file_path, 'r') as file:
+    with open(input, 'r') as file:
         for line in file:
             line = line.rstrip()
 
@@ -282,7 +287,7 @@ def process_mol2_file(file_path, tol, pre):
                     # If we were in a molecule block, this means we are starting a new molecule, so save the previous one
                     current_comments_str = "\n".join(current_comments)
                     current_mol2_str = "\n".join(current_mol2_block)+"\n"
-                    process_one_mol(current_comments_str, current_mol2_str, pre, file_path, tol)
+                    process_one_mol(current_comments_str, current_mol2_str, pre, input, tol)
                     current_comments = []
                     current_mol2_block = []
                     in_molecule_block = False
@@ -300,7 +305,7 @@ def process_mol2_file(file_path, tol, pre):
             current_comments_str = "\n".join(current_comments)
             current_mol2_str = "\n".join(current_mol2_block)+"\n"
             mol = Chem.MolFromMol2Block(current_mol2_str, sanitize=True, removeHs=False)
-            process_one_mol(current_comments_str, current_mol2_str, pre, file_path, tol)
+            process_one_mol(current_comments_str, current_mol2_str, pre, input, tol)
                    
             
     return chunks
