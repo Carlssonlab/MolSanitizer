@@ -2,13 +2,15 @@
 # Author: Thua-Phong Lam, Jens Carlsson Lab, Uppsala University, July 2024
 # This script is used to filter out conformers that do not satisfy the torsion rules in the torlib (last update 2022).
 # This is a part of MolSanitizer project. But could be used as a standalone script.
-# strain_filter.py mol2_file.mol2
+# strain_filter.py -i mol2_file.mol2 -tol 1 -p prefix
 import xml.etree.ElementTree as ET
 from rdkit import Chem
 from rdkit.Chem import rdMolTransforms
 from pathlib import Path
+import os
 from os import sys
 import numpy as np
+import argparse
 
 def get_atoms_template(pattern):
     pattern_atoms = pattern.GetAtoms()
@@ -29,21 +31,6 @@ def get_atoms_mol(matches, template_map):
             filtered_matches.append(filtered_match)
     return filtered_matches
 
-def Mol2MolSupplier (file=None,sanitize=False):
-    mols=[]
-    with open(file, 'r') as f:
-        doc=[line for line in f.readlines()]
-
-    start=[index for (index,p) in enumerate(doc) if '@<TRIPOS>MOLECULE' in p]
-    finish=[index-1 for (index,p) in enumerate(doc) if '@<TRIPOS>MOLECULE' in p]
-    finish.append(len(doc))
-
-    interval=list(zip(start,finish[1:]))
-    for i in interval:
-        block = ",".join(doc[i[0]:i[1]]).replace(',','')
-        m=Chem.MolFromMol2Block(block,sanitize=sanitize)
-        mols.append(m)
-    return(mols)
 
 def parse_torlib(xml_file = Path(__file__).parent / 'Data' / 'modified_tor_lib_2020.xml'):
     """This function parse the torlib by the specific class to general class GG, 
@@ -225,51 +212,105 @@ def within_tolerance(angle, center, tolerance):
     return abs(diff) <= tolerance
 
 
-def check_strain_angle(conf, match, current_rot_bond):
-    # Only consider the angles that is involved in the current rotating bond
-    for rule in match:
-        if set(current_rot_bond) == set(rule[1][1:3]):
-            dihedral = rdMolTransforms.GetDihedralDeg(conf, *rule[1])
-            #print(current_rot_bond, dihedral)
-            for (prefered, tolerance) in rule[2]:
-                if within_tolerance(dihedral, prefered, tolerance):    
-                    return True 
-    return False
-                
-def check_strain_conformer(conf, match):
-    relaxed_conf = False
-    relaxed_angles = [False for _ in match]
-    for rule_id, rule in enumerate(match):
-        dihedral = rdMolTransforms.GetDihedralDeg(conf, *rule[1])
-        for (prefered, tolerance) in rule[2]:
-            if within_tolerance(dihedral, prefered, tolerance):
-                relaxed_angles[rule_id] = True
-                break
-    relaxed_conf = all(relaxed_angles)
-    return relaxed_conf
-
-def filter(mol, match):
-    filtered = Chem.Mol(mol)
-    filtered.RemoveAllConformers()
-    for conf in mol.GetConformers():
-        relaxed_conf = check_strain_conformer(conf, match)
-        if relaxed_conf: filtered.AddConformer(conf, assignId=True)
-    return filtered
-
 def extract_peaks(match, current_rot_bond):
     for rule in match:
         if set(current_rot_bond) == set(rule[1][1:3]):
-            return(rule[1], [(prefered, tolerance1, tolerance2, weight) for prefered, tolerance1, tolerance2, weight in rule[2]])
+            return(rule[1], [(prefered, tolerance) for prefered, tolerance in rule[2]])
+
+def parseArguments(args = None):
+    info = """StrainFilter - A filtering tool based on TorLib v3
+    This tool is used to filter out conformers that do not satisfy the in-house modified TorLib v3.
+    The tool will output the filtered conformers in the mol2 format.
+
+    Ex. run
+    strain_filter.py -i input1.mol2 input2.mol2 -tol 1 -p prefix
+    """
+    # Create the argument parser
+    parser = argparse.ArgumentParser(description= info, formatter_class=argparse.RawTextHelpFormatter)
+    
+    # Add the required input files argument
+    parser.add_argument('-i', '--input_files', type=str, nargs='+', help='Input files containing chemical structures')
+    parser.add_argument('-tol', '--tolerance', default=1, choices=[1, 2], type=int, help='Tolerance of the filters (1: only allow relaxed conformers, 2: also allow tolerable conformers)')
+    parser.add_argument('-p', '--prefix', default='filt', type=str, help='Prefix for the output files')
+
+    # Parse the arguments
+    args = parser.parse_args()
+    for inFile in args.input_files:
+        if not Path(inFile).is_file():
+            parser.error(f'The input file: {inFile} does not exist.')
+
+    return args
+
+def write_mol2_file(comments, mol2_block, file_path):
+    with open(file_path, 'a') as file:
+        file.write(comments + "\n")
+        file.write("\n")
+        file.write(mol2_block)
+
+def process_one_mol(current_comments_str, current_mol2_str, prefix, file_path, tol):
+    """    
+    Args:
+    """
+    mol = Chem.MolFromMol2Block(current_mol2_str, sanitize=True, removeHs=False)
+    if mol:
+        match = get_match_dihedral(mol, Torlib)
+        for i in match: print(i)
+        relaxed_angles = [False for _ in match]
+        for rule_id, rule in enumerate(match):
+            dihedral = rdMolTransforms.GetDihedralDeg(mol.GetConformer(0), *rule[1])
+            for (prefered, tol1, tol2, score) in rule[2]:
+                tolerance = tol1 if tol == 1 else tol2
+                if within_tolerance(dihedral, prefered, tolerance):
+                    relaxed_angles[rule_id] = True
+                    break
+        if all(relaxed_angles) == True:
+            write_mol2_file(current_comments_str, current_mol2_str, f'{prefix}_{file_path}')
 
 
+def process_mol2_file(file_path, tol, pre):
+    chunks = []
+    current_comments = []
+    current_mol2_block = []
+    in_molecule_block = False
+
+    with open(file_path, 'r') as file:
+        for line in file:
+            line = line.rstrip()
+
+            if line.startswith("##########"):
+                if in_molecule_block:
+                    # If we were in a molecule block, this means we are starting a new molecule, so save the previous one
+                    current_comments_str = "\n".join(current_comments)
+                    current_mol2_str = "\n".join(current_mol2_block)+"\n"
+                    process_one_mol(current_comments_str, current_mol2_str, pre, file_path, tol)
+                    current_comments = []
+                    current_mol2_block = []
+                    in_molecule_block = False
+                current_comments.append(line)
+
+            elif line.startswith("@<TRIPOS>MOLECULE"):
+                in_molecule_block = True
+                current_mol2_block.append(line)
+
+            elif in_molecule_block:
+                current_mol2_block.append(line)
+
+        # Add the last molecule block if there is one
+        if current_mol2_block:
+            current_comments_str = "\n".join(current_comments)
+            current_mol2_str = "\n".join(current_mol2_block)+"\n"
+            mol = Chem.MolFromMol2Block(current_mol2_str, sanitize=True, removeHs=False)
+            process_one_mol(current_comments_str, current_mol2_str, pre, file_path, tol)
+                   
+            
+    return chunks
+
+def strain_filter(args):
+    for input_file in args.input_files:
+        if os.path.isfile(args.prefix + "_" + input_file): os.remove(args.prefix + "_" + input_file)
+        process_mol2_file(input_file, args.tolerance, args.prefix)
 
 if __name__ == "__main__":
     Torlib = parse_torlib()
-    script, mol2_file = sys.argv
-    mols = Mol2MolSupplier(mol2_file)
-    filtered = []
-    for mol in mols:
-        match = get_match_dihedral(mol, Torlib)
-        if check_strain_conformer(mol.GetConformer(), match):
-            filtered.append(mol)
-    #Need to rewrite the mol2 readin and writeout    
+    args = parseArguments(sys.argv[1:])
+    strain_filter(args)
