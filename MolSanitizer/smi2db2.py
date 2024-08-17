@@ -337,9 +337,8 @@ def already_sampled(sampled_mol, current_mol, threshold=0.5):
     # Iterate through each conformer in the product list
     for conf_id in range(sampled_no_H.GetNumConformers()):
         # Compute RMSD between current conformer and each conformer in the product_list
-        #sampled_no_H_conf = sampled_no_H.GetConformer(conf_id)
         rmsd = rdMolAlign.GetBestRMS(current_no_H, sampled_no_H, 0, conf_id)
-        if rmsd < threshold:
+        if rmsd <= threshold:
             return True
     return False
 
@@ -570,4 +569,6 @@ def gen_conf_chunk(df: pd.DataFrame, randomSeed = 42, numConfs = 10000, rmsd = 0
                     os.chdir("../..")
                     log_error(row['smiles'], name)
                     continue
-                
+        if cleanup:
+            subprocess.run("find 3d -type d -empty -delete", shell=True)
+            subprocess.run("find solv -type d -empty -delete", shell=True)
