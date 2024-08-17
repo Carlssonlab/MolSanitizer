@@ -304,7 +304,6 @@ def process_mol2_file(input, tol, pre):
         if current_mol2_block:
             current_comments_str = "\n".join(current_comments)
             current_mol2_str = "\n".join(current_mol2_block)+"\n"
-            mol = Chem.MolFromMol2Block(current_mol2_str, sanitize=True, removeHs=False)
             process_one_mol(current_comments_str, current_mol2_str, pre, input, tol)
                    
             
