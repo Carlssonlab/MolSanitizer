@@ -7,6 +7,10 @@
 [K] potassium_salt
 [Ca] calcium_salt
 [Mg] magnesium_salt
+[Mn] manganese
+[Mn+2] manganese_ion
+[Pt] platinum
+[Pt+4] platinum_ion4
 [O] oxide
 [OH-] hydroxide
 [N] azide_ammonia
@@ -14,6 +18,7 @@
 [P](=O)(O)(O)O phosphate
 [P](F)(F)(F)(F)(F)F hexafluorophophate
 [S](=O)(=O)(O)O sulfate
+CS(C)=O dimethylsulfoxide
 [CH3][S](=O)(=O)(O) mesilate
 c1cc([CH3])ccc1[S](=O)(=O)(O) tosilate
 [CH3]C(=O)O acetate
