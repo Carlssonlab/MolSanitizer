@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [unreleased]
+
+### 📚 Documentation
+
+- *(Documentations for the new batch mode of MolSanitizer)* :fire:
+
 ## [docs] - 2024-08-19
 
 ### 📚 Documentation
