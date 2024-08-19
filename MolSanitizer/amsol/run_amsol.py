@@ -133,6 +133,13 @@ def prepare(mol2file, name, netcharge, VERBOSE=False):
     ZmatMOPAC_data = read_ZmatMOPAC("temp.ZmatMOPAC", VERBOSE)
     create_amsol71_inputfile('temp', name, ZmatMOPAC_data, netcharge, VERBOSE)
 
+def check_output_from_amsol71(output_file, VERBOSE=False):
+    with open(output_file, 'r') as f:
+        lines = f.readlines()
+        if lines[-3]=='The submitted job was not completed successfully.\n':
+            return -1
+    return 0
+
 def run(input_file, output_file, env, timeout_seconds=60, VERBOSE=False):
     AMSOLEXE = Path(__file__).parent / "amsol7.1"
     if VERBOSE: 
@@ -144,6 +151,7 @@ def run(input_file, output_file, env, timeout_seconds=60, VERBOSE=False):
     except subprocess.CalledProcessError as e:
         print(f"AMSOL execution failed with return code {e.returncode}")
         print(f"Error output: {e.stderr}")
+    return(check_output_from_amsol71(output_file, VERBOSE))
 
 def is_int(a):
     """Returns true if a can be an integer"""

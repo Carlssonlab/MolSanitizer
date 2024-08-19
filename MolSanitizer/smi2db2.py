@@ -52,7 +52,21 @@ def convert(data, inf, otf):
 
     return obConversion.WriteString(obMol)
 
-def embed_smiles(smiles, name, rmsd=0.5, randomSeed=42, numConfs=300):
+def rmsd_filter(mol, ref_conf, conf_energies, threshold):
+    """https://www.rdkit.org/docs/source/rdkit.Chem.AllChem.html#rdkit.Chem.AllChem.GetConformerRMS"""
+    # we use heavy atoms RMSD; not all atoms (Peter Gedeck's suggestion)
+    mol_noH = Chem.Mol(mol)
+    Chem.RemoveHs(mol_noH)
+    ref_conf_id = ref_conf.GetId()
+    res = []
+    for e, curr_conf in conf_energies:
+        curr_conf_id = curr_conf.GetId()
+        rms = rdMolAlign.GetBestRMS(mol_noH, mol_noH, ref_conf_id, curr_conf_id, numThreads=1) #Use this to avoid the symmetrical problem
+        if rms > threshold:
+            res.append((e, curr_conf))
+    return res
+
+def embed_smiles(smiles, name, rmsd=0.5, randomSeed=42, numConfs=300, VERBOSE=False):
     """
     Embed SMILES into multiple conformations, minimize using MMFF94s, and return the MOL2 format.
     
@@ -89,11 +103,17 @@ def embed_smiles(smiles, name, rmsd=0.5, randomSeed=42, numConfs=300):
         conf_energies.append((energy, conformer))
     
     conf_energies = sorted(conf_energies, key=lambda x: x[0]) # sort by increasing E
-    energy, conformer = conf_energies.pop(0) # get the lowest energy conformer
-    res.AddConformer(conformer, assignId=True) # add it to the conformations list
+
+    while (len(conf_energies) > 0):
+        energy, conformer = conf_energies.pop(0) # get the lowest energy conformer
+        res.AddConformer(conformer, assignId = True) # add it to the conformations list
+        conf_energies = rmsd_filter(mol_H, conformer, conf_energies, rmsd) # remove all conformers that are too similar to it
+
+    
+    if VERBOSE: print(f'{name}: before: {len(mol_H.GetConformers())}, after: {len(res.GetConformers())}')
     res.SetProp("_Name", name)
     netcharge = sum(atom.GetFormalCharge() for atom in res.GetAtoms())
-    return res, Chem.MolToMolBlock(res), netcharge
+    return res, netcharge
 
 def load_molecule(file_path_mol: str) -> Chem.rdchem.Mol:
     """
@@ -512,32 +532,44 @@ def gen_conf_chunk(df: pd.DataFrame, randomSeed = 42, numConfs = 10000, rmsd = 0
         if VERBOSE: print(env['LD_LIBRARY_PATH'])
         for idx, row in df.iterrows():
             random.seed(randomSeed)
+            name = row['ids']
             # Embed smiles into initial conformation 
             # (300  conformers is inspired from https://pubs.acs.org/doi/abs/10.1021/ci2004658, then we only use the minimal energy one)
-            if VERBOSE: print(f"Handling {row['ids']} \nGenerating initial 3D conformations...")
-            mol, molblock, netcharge = embed_smiles(row['smiles'], row['ids'], randomSeed = randomSeed, numConfs = 300)
-            name = row['ids']
-            mol2_block = convert(molblock, "mol", "mol2")
+            if VERBOSE: print(f"Handling {name} \nGenerating initial 3D conformations...")
+            mol, netcharge = embed_smiles(row['smiles'], name, randomSeed = randomSeed, numConfs = 300, VERBOSE=VERBOSE)
 
             # Solvation using AMSOL
             if VERBOSE: print("Solvating...")
             subprocess.run(f"mkdir -p solv/{name}", shell=True)
-            write_to_file(mol2_block, f"solv/{name}/{name}.mol2")
             os.chdir(f"solv/{name}")
-            run_amsol.prepare(f"{name}.mol2", name, netcharge)
-            run_amsol.run('temp.in-hex', 'temp.o-hex', env)
-            run_amsol.run('temp.in-wat', 'temp.o-wat', env)
-            error_signal = run_amsol.process_output('temp.o-wat', 'temp.o-hex', "temp.mol2", "output")#, VERBOSE=VERBOSE)
-            subprocess.run(f"cp output.mol2 {name}_solv.mol2", shell=True)
-            subprocess.run(f"mv output.solv {name}_solv.solv", shell=True)
-            os.chdir("../..")
 
-            # 3D generation
-            if error_signal == -1: # AMSOL failed
+            for conf_id in range(mol.GetNumConformers()):
+                # Idea: try from the energy minimum conformer if AMSOL fails -> next conformer until reach the last
+                if VERBOSE: print(f"Trying conformer: {conf_id}")
+                error_signal = 0
+
+                cp = Chem.Mol(mol, confId=conf_id) #Retrieve the conf_id-th conformer of mol object
+                mol2_block = convert(Chem.MolToMolBlock(cp), "mol", "mol2")
+                write_to_file(mol2_block, f"{name}.mol2")
+
+                run_amsol.prepare(f"{name}.mol2", name, netcharge)
+                error_signal = run_amsol.run('temp.in-hex', 'temp.o-hex', env)
+                if error_signal == -1: continue
+                error_signal = run_amsol.run('temp.in-wat', 'temp.o-wat', env)
+                if error_signal == -1: continue
+                error_signal = run_amsol.process_output('temp.o-wat', 'temp.o-hex', "temp.mol2", "output")#, VERBOSE=VERBOSE)
+                if error_signal == -1: continue
+                break
+            os.chdir("../..")
+            if error_signal == -1 and conf_id+1 == mol.GetNumConformers(): # AMSOL failed
                 logger.error(f"AMSOL failed for {name}, skipping it")
                 log_error(row['smiles'], name)
                 continue
+            subprocess.run(f"cp solv/{name}/output.mol2 solv/{name}/{name}_solv.mol2", shell=True)
+            subprocess.run(f"mv solv/{name}/output.solv solv/{name}/{name}_solv.solv", shell=True)
+            
 
+            # 3D generation
             if VERBOSE: print("3D generation...")
             subprocess.run(f"mkdir -p 3d/{name}", shell=True)
             subprocess.run(f"cp solv/{name}/{name}_solv.mol2 3d/{name}/{name}.mol2", shell=True)
