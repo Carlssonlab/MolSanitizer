@@ -10,6 +10,5 @@ dependencies:
   - pandas
   - pip
   - rdkit>=2024.3.5
-  - joblib
   - openbabel
   - scipy
