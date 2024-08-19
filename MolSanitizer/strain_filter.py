@@ -12,6 +12,7 @@ from os import sys
 import numpy as np
 import argparse
 
+
 def get_atoms_template(pattern):
     pattern_atoms = pattern.GetAtoms()
     enumerated_indices = [-1,-1,-1,-1,-1,-1]
@@ -247,7 +248,7 @@ def write_mol2_file(comments, mol2_block, file_path):
         file.write("\n")
         file.write(mol2_block)
 
-def process_one_mol(current_comments_str, current_mol2_str, prefix, input, tol):
+def process_one_mol(current_comments_str, current_mol2_str, prefix, input, tol, Torlib):
     """    
     This function processes one molecule by checking if all the dihedral angles are within the tolerance range.
     Args:
@@ -256,6 +257,7 @@ def process_one_mol(current_comments_str, current_mol2_str, prefix, input, tol):
         prefix (str): The prefix for the output files.
         input (str): The path of the current file.
         tol (int): The tolerance of the filters.
+        Torlib (list): The list of torsion rules.
     """
     mol = Chem.MolFromMol2Block(current_mol2_str, sanitize=True, removeHs=False)
     if mol:
@@ -272,7 +274,7 @@ def process_one_mol(current_comments_str, current_mol2_str, prefix, input, tol):
             write_mol2_file(current_comments_str, current_mol2_str, f'{prefix}_{input}')
 
 
-def process_mol2_file(input, tol, pre):
+def process_mol2_file(input, tol, pre, Torlib):
     chunks = []
     current_comments = []
     current_mol2_block = []
@@ -287,7 +289,7 @@ def process_mol2_file(input, tol, pre):
                     # If we were in a molecule block, this means we are starting a new molecule, so save the previous one
                     current_comments_str = "\n".join(current_comments)
                     current_mol2_str = "\n".join(current_mol2_block)+"\n"
-                    process_one_mol(current_comments_str, current_mol2_str, pre, input, tol)
+                    process_one_mol(current_comments_str, current_mol2_str, pre, input, tol, Torlib)
                     current_comments = []
                     current_mol2_block = []
                     in_molecule_block = False
@@ -304,17 +306,20 @@ def process_mol2_file(input, tol, pre):
         if current_mol2_block:
             current_comments_str = "\n".join(current_comments)
             current_mol2_str = "\n".join(current_mol2_block)+"\n"
-            process_one_mol(current_comments_str, current_mol2_str, pre, input, tol)
+            process_one_mol(current_comments_str, current_mol2_str, pre, input, tol, Torlib)
                    
             
     return chunks
 
-def strain_filter(args):
+def strain_filter(args, Torlib):
     for input_file in args.input_files:
         if os.path.isfile(args.prefix + "_" + input_file): os.remove(args.prefix + "_" + input_file)
-        process_mol2_file(input_file, args.tolerance, args.prefix)
+        process_mol2_file(input_file, args.tolerance, args.prefix, Torlib)
 
-if __name__ == "__main__":
+def main():
     Torlib = parse_torlib()
     args = parseArguments(sys.argv[1:])
-    strain_filter(args)
+    strain_filter(args, Torlib)
+
+if __name__ == "__main__":
+    main()
