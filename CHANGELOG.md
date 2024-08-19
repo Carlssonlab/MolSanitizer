@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [unreleased]
 
+### 🚀 Features
+
+- *(Strain_filter now has its own standalone script!)* :zap: The strain_filters now can be called by command 'strain -i examples.mol2'
+- *(Strain_filter now has its own standalone script!)* :zap: The strain_filters now can be called by command 'strain -i examples.mol2'
+
+### 🐛 Bug Fixes
+
+- *(Fix an error in strain_filter doesnt have main attribute 'main')* :bug: Reorganizing the main script to the main() function and redefine the scope of the Torlib variable
+
 ### 📚 Documentation
 
 - *(Documentations for the new batch mode of MolSanitizer)* :fire:

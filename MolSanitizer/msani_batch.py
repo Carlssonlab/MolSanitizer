@@ -101,7 +101,7 @@ def Split_Submit_jobs(args: dict):
     print(f"\nStarting MolSanitizer in batch mode\n")
     print(f"Using project name (-p): {args.proj_name}")
     print(f"Time limit for each job (-t): {args.time} hours")
-    print(f"Maximum number of jobs running parallelly(--max_jobs): {args.max_jobs} jobs")
+    print(f"Maximum number of jobs running parallelly (--max_jobs): {args.max_jobs} jobs")
     print(f"Number of compounds per job (-l): {args.lines} lines\n")
 
     for file in args.input_files:
