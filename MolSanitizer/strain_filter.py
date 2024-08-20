@@ -222,9 +222,12 @@ def parseArguments(args = None):
     info = """StrainFilter - A filtering tool based on TorLib v3
     This tool is used to filter out conformers that do not satisfy the in-house modified TorLib v3.
     The tool will output the filtered conformers in the mol2 format.
-
+    By default, the tool will output the satisfied molecules to filt_{input_name}.mol2, 
+    and the strain molecules are saved in strained_{input_name}.mol2.
+    
     Ex. run
-    strain_filter.py -i input1.mol2 input2.mol2 -tol 1 -p prefix
+    strain -i input1.mol2 input2.mol2 -tol 1 
+    strain -i input1.mol2 -tol 2 -p strainfiltered
     """
     # Create the argument parser
     parser = argparse.ArgumentParser(description= info, formatter_class=argparse.RawTextHelpFormatter)
@@ -233,6 +236,7 @@ def parseArguments(args = None):
     parser.add_argument('-i', '--input_files', type=str, nargs='+', help='Input files containing chemical structures')
     parser.add_argument('-tol', '--tolerance', default=1, choices=[1, 2], type=int, help='Tolerance of the filters (1: only allow relaxed conformers, 2: also allow tolerable conformers)')
     parser.add_argument('-p', '--prefix', default='filt', type=str, help='Prefix for the output files')
+    parser.add_argument('-d', '--debug', action='store_true', help='Print debug information')
 
     # Parse the arguments
     args = parser.parse_args()
@@ -248,7 +252,12 @@ def write_mol2_file(comments, mol2_block, file_path):
         file.write("\n")
         file.write(mol2_block)
 
-def process_one_mol(current_comments_str, current_mol2_str, prefix, input, tol, Torlib):
+def log_error(current_comments_str, current_mol2_str):
+    with open('strain_error.log', 'a') as f:
+        f.write(current_comments_str)
+        f.write(current_mol2_str)
+
+def process_one_mol(current_comments_str, current_mol2_str, prefix, input, tol, Torlib, debug):
     """    
     This function processes one molecule by checking if all the dihedral angles are within the tolerance range.
     Args:
@@ -260,7 +269,10 @@ def process_one_mol(current_comments_str, current_mol2_str, prefix, input, tol, 
         Torlib (list): The list of torsion rules.
     """
     mol = Chem.MolFromMol2Block(current_mol2_str, sanitize=True, removeHs=False)
+    name = current_comments_str.split('\n')[0].split()[-1]
+    if debug: print(f'Processing {name}')
     if mol:
+        if debug: print(f"SMILES: {Chem.MolToSmiles(mol)}")
         match = get_match_dihedral(mol, Torlib)
         relaxed_angles = [False for _ in match]
         for rule_id, rule in enumerate(match):
@@ -272,9 +284,13 @@ def process_one_mol(current_comments_str, current_mol2_str, prefix, input, tol, 
                     break
         if all(relaxed_angles) == True:
             write_mol2_file(current_comments_str, current_mol2_str, f'{prefix}_{input}')
+        else:
+            write_mol2_file(current_comments_str, current_mol2_str, f'strained_{input}')
+    else:
+        print(f'Error in converting MOL2 {name} to rdkit mol object, saving to strain_error.log')
+        log_error(current_comments_str, current_mol2_str)
 
-
-def process_mol2_file(input, tol, pre, Torlib):
+def process_mol2_file(input, tol, pre, Torlib, debug = False):
     chunks = []
     current_comments = []
     current_mol2_block = []
@@ -289,7 +305,7 @@ def process_mol2_file(input, tol, pre, Torlib):
                     # If we were in a molecule block, this means we are starting a new molecule, so save the previous one
                     current_comments_str = "\n".join(current_comments)
                     current_mol2_str = "\n".join(current_mol2_block)+"\n"
-                    process_one_mol(current_comments_str, current_mol2_str, pre, input, tol, Torlib)
+                    process_one_mol(current_comments_str, current_mol2_str, pre, input, tol, Torlib, debug)
                     current_comments = []
                     current_mol2_block = []
                     in_molecule_block = False
@@ -306,7 +322,7 @@ def process_mol2_file(input, tol, pre, Torlib):
         if current_mol2_block:
             current_comments_str = "\n".join(current_comments)
             current_mol2_str = "\n".join(current_mol2_block)+"\n"
-            process_one_mol(current_comments_str, current_mol2_str, pre, input, tol, Torlib)
+            process_one_mol(current_comments_str, current_mol2_str, pre, input, tol, Torlib, debug)
                    
             
     return chunks
@@ -314,7 +330,8 @@ def process_mol2_file(input, tol, pre, Torlib):
 def strain_filter(args, Torlib):
     for input_file in args.input_files:
         if os.path.isfile(args.prefix + "_" + input_file): os.remove(args.prefix + "_" + input_file)
-        process_mol2_file(input_file, args.tolerance, args.prefix, Torlib)
+        if os.path.isfile("strain_" + input_file): os.remove("strain_" + input_file)
+        process_mol2_file(input_file, args.tolerance, args.prefix, Torlib, args.debug)
 
 def main():
     Torlib = parse_torlib()
