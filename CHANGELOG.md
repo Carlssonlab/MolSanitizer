@@ -2,11 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
-## [unreleased]
+## [0.0.3] - 2024-08-20
 
 ### 🚀 Features
 
 - *(Added the debug mode for strain_filter; The strained molecules now should be stored in another file.)* :zap: - ([921c6b9](https://github.com/Isra3l/MolSanitizer/commit/921c6b98ff2cbd4bbc3e93e008f8fa60c47f11fe))
+
+## [0.0.2] - 2024-08-19
+
+### 🚀 Features
+
 - *(Strain_filter now has its own standalone script!)* :zap: The strain_filters now can be called by command 'strain -i examples.mol2' - ([60a7958](https://github.com/Isra3l/MolSanitizer/commit/60a795852eb6cea3283528b22d75dfb85f0e8b28))
 - *(Strain_filter now has its own standalone script!)* :zap: The strain_filters now can be called by command 'strain -i examples.mol2' - ([f05bf9b](https://github.com/Isra3l/MolSanitizer/commit/f05bf9b754f0ce49d239e2f258f4284147dcdd73))
 
@@ -17,18 +22,15 @@ All notable changes to this project will be documented in this file.
 
 ### 📚 Documentation
 
+- *(Better documentation for argparsers)* :memo: - ([844e4e3](https://github.com/Isra3l/MolSanitizer/commit/844e4e3b43a65af150b92fa95f4b8116a1e3f0b6))
+- *(Better documentations for argsparser)* - Added more details to the documentation of the argsparser - ([7d81d74](https://github.com/Isra3l/MolSanitizer/commit/7d81d74df808404fd85a7a1862f57a4adfea4de2))
 - *(Documentations for the new batch mode of MolSanitizer)* :fire: - ([abe3cfc](https://github.com/Isra3l/MolSanitizer/commit/abe3cfc707dfb5d7e4e48f299080cf37f6d8c347))
 
 ### 🎨 Styling
 
 - :construction: Fix Typos - ([e400636](https://github.com/Isra3l/MolSanitizer/commit/e400636ea89e660f98c2af31c17c779f0176ce75))
 
-## [docs] - 2024-08-19
-
-### 📚 Documentation
-
-- *(Better documentation for argparsers)* :memo: - ([844e4e3](https://github.com/Isra3l/MolSanitizer/commit/844e4e3b43a65af150b92fa95f4b8116a1e3f0b6))
-- *(Better documentations for argsparser)* - Added more details to the documentation of the argsparser - ([7d81d74](https://github.com/Isra3l/MolSanitizer/commit/7d81d74df808404fd85a7a1862f57a4adfea4de2))
+## [0.0.1] - 2024-08-16
 
 ### Updated
 
