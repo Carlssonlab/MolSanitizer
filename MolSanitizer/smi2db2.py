@@ -56,7 +56,7 @@ def rmsd_filter(mol, ref_conf, conf_energies, threshold):
     """https://www.rdkit.org/docs/source/rdkit.Chem.AllChem.html#rdkit.Chem.AllChem.GetConformerRMS"""
     # we use heavy atoms RMSD; not all atoms (Peter Gedeck's suggestion)
     mol_noH = Chem.Mol(mol)
-    Chem.RemoveHs(mol_noH)
+    mol_noH = Chem.RemoveHs(mol_noH)
     ref_conf_id = ref_conf.GetId()
     res = []
     for e, curr_conf in conf_energies:
