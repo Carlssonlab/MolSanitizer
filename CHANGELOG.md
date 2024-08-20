@@ -8,14 +8,20 @@ All notable changes to this project will be documented in this file.
 
 - *(Strain_filter now has its own standalone script!)* :zap: The strain_filters now can be called by command 'strain -i examples.mol2'
 - *(Strain_filter now has its own standalone script!)* :zap: The strain_filters now can be called by command 'strain -i examples.mol2'
+- *(Added the debug mode for strain_filter; The strained molecules now should be stored in another file.)* :zap:
 
 ### 🐛 Bug Fixes
 
 - *(Fix an error in strain_filter doesnt have main attribute 'main')* :bug: Reorganizing the main script to the main() function and redefine the scope of the Torlib variable
+- *(Now MolSanitizer will try different conformations for desolvation with AMSOL.)* :sparkles:
 
 ### 📚 Documentation
 
 - *(Documentations for the new batch mode of MolSanitizer)* :fire:
+
+### 🎨 Styling
+
+- :construction: Fix Typos
 
 ## [docs] - 2024-08-19
 
