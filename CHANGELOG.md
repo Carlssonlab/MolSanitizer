@@ -8,6 +8,10 @@ All notable changes to this project will be documented in this file.
 
 - *(Added the debug mode for strain_filter; The strained molecules now should be stored in another file.)* :zap: - ([921c6b9](https://github.com/Isra3l/MolSanitizer/commit/921c6b98ff2cbd4bbc3e93e008f8fa60c47f11fe))
 
+### 🐛 Bug Fixes
+
+- *(smi2db2)* :bug: Fix a bug so that rmsd only comparing between heavy_atoms --> boost the performance significantly - ([2ab67b2](https://github.com/Isra3l/MolSanitizer/commit/2ab67b2d4bc3269186fa2d70e55d860822439ff1))
+
 ## [0.0.2] - 2024-08-19
 
 ### 🚀 Features
