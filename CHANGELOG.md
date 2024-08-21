@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [unreleased]
+
+### 🚀 Features
+
+- Adopts the same technique of UCSF for rescaling the number of confs generated - ([01281aa](https://github.com/Isra3l/MolSanitizer/commit/01281aa690dcca0b0e56ac19e83fbd8c3557ed09))
+
+### 🐛 Bug Fixes
+
+- :bug: Remove 5-membered ring as they are not working as expected. Added in CC bond as the last resort in case nothing else to align to. - ([1c9db8d](https://github.com/Isra3l/MolSanitizer/commit/1c9db8d5fd254125b218aa0e97e783476c0c014f))
+
 ## [0.0.4] - 2024-08-21
 
 ### 🚀 Features
