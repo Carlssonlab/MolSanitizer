@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.0.4] - 2024-08-21
+
+### 🚀 Features
+
+- *(smi2db2)* :sparkles: Rigid compounds without any rotatable bonds (or with only 1 conf during rotating rot bonds) will output all the 3D conformations by Rdkit rather than only one like before.  eg. steroids, morphine...🔥 - ([0ff023e](https://github.com/Isra3l/MolSanitizer/commit/0ff023ed4ee262100fc8baa67865dd9346b457a4))
+
+### 🎨 Styling
+
+- :fire: Better logger for errorneous compounds - ([4627645](https://github.com/Isra3l/MolSanitizer/commit/4627645bd555a5b9ae51476762cde4c070003c61))
+
 ## [0.0.3] - 2024-08-20
 
 ### 🚀 Features
