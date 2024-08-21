@@ -255,6 +255,7 @@ def write_mol2_file(comments, mol2_block, file_path):
 def log_error(current_comments_str, current_mol2_str):
     with open('strain_error.log', 'a') as f:
         f.write(current_comments_str)
+        f.write('\n')
         f.write(current_mol2_str)
 
 def process_one_mol(current_comments_str, current_mol2_str, prefix, input, tol, Torlib, debug):
@@ -331,6 +332,7 @@ def strain_filter(args, Torlib):
     for input_file in args.input_files:
         if os.path.isfile(args.prefix + "_" + input_file): os.remove(args.prefix + "_" + input_file)
         if os.path.isfile("strain_" + input_file): os.remove("strain_" + input_file)
+        if os.path.isfile("strain_error.log"): os.remove("strain_error.log")
         process_mol2_file(input_file, args.tolerance, args.prefix, Torlib, args.debug)
 
 def main():
