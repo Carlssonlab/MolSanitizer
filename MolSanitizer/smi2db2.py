@@ -29,6 +29,10 @@ rigid_rule_files = Path(__file__).parent / 'Data' / 'rigid_part_rules.txt'
 rigid_rules = pd.read_csv(rigid_rule_files, header=None, sep ='\s+', names=['SMARTS','label'])
 rigid_rules['mol'] = rigid_rules['SMARTS'].apply(lambda x: Chem.MolFromSmarts(x))
 
+one_conf_rule_files = Path(__file__).parent / 'Data' / 'one_conf_rules.txt'
+one_conf_rules = pd.read_csv(one_conf_rule_files, header=None, sep ='\s+', names=['SMARTS','label'])
+one_conf_rules['mol'] = one_conf_rules['SMARTS'].apply(lambda x: Chem.MolFromSmarts(x))
+
 def setup_env():
     env = os.environ.copy()
     script_dir = Path(__file__).parent
@@ -53,7 +57,9 @@ def convert(data, inf, otf):
     return obConversion.WriteString(obMol)
 
 def rmsd_filter(mol, ref_conf, conf_energies, threshold):
-    """https://www.rdkit.org/docs/source/rdkit.Chem.AllChem.html#rdkit.Chem.AllChem.GetConformerRMS"""
+    """
+    Ref:    https://www.rdkit.org/docs/source/rdkit.Chem.AllChem.html#rdkit.Chem.AllChem.GetConformerRMS
+            https://github.com/UnixJunkie/smi2sdf3d/blob/master/smi2sdf.py"""
     # we use heavy atoms RMSD; not all atoms (Peter Gedeck's suggestion)
     mol_noH = Chem.Mol(mol)
     mol_noH = Chem.RemoveHs(mol_noH)
@@ -66,7 +72,7 @@ def rmsd_filter(mol, ref_conf, conf_energies, threshold):
             res.append((e, curr_conf))
     return res
 
-def embed_smiles(smiles, name, rmsd=0.5, randomSeed=42, numConfs=300, VERBOSE=False):
+def embed_smiles(smiles, name, rmsd=0.25, randomSeed=42, numConfs=300, VERBOSE=False):
     """
     Embed SMILES into multiple conformations, minimize using MMFF94s, and return the MOL2 format.
     
@@ -110,7 +116,7 @@ def embed_smiles(smiles, name, rmsd=0.5, randomSeed=42, numConfs=300, VERBOSE=Fa
         conf_energies = rmsd_filter(mol_H, conformer, conf_energies, rmsd) # remove all conformers that are too similar to it
 
     
-    if VERBOSE: print(f'{name}: before: {len(mol_H.GetConformers())}, after: {len(res.GetConformers())}')
+    if VERBOSE: print(f'\tBefore: {len(mol_H.GetConformers())}, after: {len(res.GetConformers())}')
     res.SetProp("_Name", name)
     netcharge = sum(atom.GetFormalCharge() for atom in res.GetAtoms())
     return res, netcharge
@@ -261,7 +267,7 @@ def convert_sdf_mol2(sdf_file, output_mol2, VERBOSE: bool = False):
             if not obConversion.Read(mol):
                 break
     
-    if VERBOSE: print(f"Converted and saved {molecule_count} conformations to {output_mol2} with assigned charges")
+    if VERBOSE: print(f"\tConverted and saved {molecule_count} conformations to {output_mol2}.")
 
 
 def count_confs_by_rotbonds(mol, VERBOSE=False):
@@ -299,8 +305,8 @@ def count_confs_by_rotbonds(mol, VERBOSE=False):
         if bond not in reordered_rot_bonds:
             reordered_rot_bonds.append(bond)
     if VERBOSE: 
-        print(reordered_rot_bonds)
-        for i in match_torlib: print(i)
+        print(f"\t{reordered_rot_bonds}")
+        for i in match_torlib: print(f"\t{i}")
     num_confs = 1
 
     for bond in reordered_rot_bonds:
@@ -330,7 +336,7 @@ def get_random_angle(mean, tolerance):
     # Generate a random angle within the specified Gaussian distribution and range limits
     while True:
         random_angle = random.gauss(mean, tolerance)
-        if mean-tolerance < random_angle < mean+tolerance:
+        if mean-tolerance < random_angle < mean+tolerance: 
             break
 
     # Normalize to the [-180, 180] range
@@ -468,7 +474,7 @@ def stochastic_sampling(mol, tolerance_level, reordered_rot_bonds, match_torlib,
     #print(visit_matrix)
     return product
 
-def find_rigid_part(mol):
+def find_rigid_part(mol, rigid_rules):
     '''Find rigid parts of the molecule'''
     for rule in rigid_rules.itertuples():
         matches = mol.GetSubstructMatches(rule.mol)
@@ -478,9 +484,6 @@ def find_rigid_part(mol):
 
 def choose_sampling_method(mol, name, numConfs, rmsd, VERBOSE=False):
    
-    # Find rigid parts as anchor points for the molecules
-    atom_maps = find_rigid_part(mol)
-    if VERBOSE: print(f'Uses {atom_maps} as rigid part')
     # Count number of rotatable hydrogens and number of conformations contributed by them
     mol2_countH = mol2.Mol2(mol2fileName=f"{name}.mol2", nameFileName=None, mol2text=None)
     num_confs_H = hydrogens.count_confs_by_H(mol2_countH)
@@ -492,22 +495,36 @@ def choose_sampling_method(mol, name, numConfs, rmsd, VERBOSE=False):
     numConfs = numConfs // num_confs_H 
     num_confs_by_rotbonds, reordered_rot_bonds, match_torlib = count_confs_by_rotbonds(mol, VERBOSE)
     
-    if VERBOSE: print(num_confs_by_rotbonds, num_confs_H)
+    if VERBOSE: print(f"\t{num_confs_by_rotbonds} {num_confs_H}")
 
-    if len(reordered_rot_bonds) == 0:
-        if VERBOSE: logger.warning(f"No rotatable bonds found for {name}, use the initial conformation")
-        subprocess.run(f'mv {name}.mol2 {name}_rotated.mol2', shell=True)
-        return
+    # Create an SD writer object to output the conformers
     rotated_file = f"{name}_rotated.sdf"
     sdwriter = Chem.SDWriter(rotated_file)
     original_mol = Chem.Mol(mol)
+
+    # If no rotatable bonds are found, use the conformations generated by RDKit
+    if len(reordered_rot_bonds) == 0 or num_confs_by_rotbonds == 1:
+        atom_maps = find_rigid_part(mol, one_conf_rules)
+        if VERBOSE: print(f'\tUses {atom_maps} as rigid part')
+        if VERBOSE: logger.warning(f"No rotatable bonds found for {name}, use the conformations from Rdkit")
+        for conf_id in range(mol.GetNumConformers()):
+            rdMolAlign.AlignMol(mol, mol, conf_id, 0, atomMap=[(i, i) for i in atom_maps])
+            sdwriter.write(mol, confId=conf_id)
+        sdwriter.close()
+        convert_sdf_mol2(rotated_file, f"{name}_rotated.mol2", VERBOSE)
+        return 2
+    
+    # Find rigid parts as anchor points for the molecules
+    atom_maps = find_rigid_part(mol, rigid_rules)
+    if VERBOSE: print(f'Uses {atom_maps} as rigid part')
+    
     if num_confs_by_rotbonds <= numConfs:
         if VERBOSE: print('Running systematic torsional scan')
         product = torsional_scan_rand(mol, conf=0, i=0, matches = reordered_rot_bonds, match_torlib = match_torlib,
                             sdwriter=sdwriter, product=list(), original=original_mol, numConfs = numConfs, atom_maps = atom_maps)
-        #If the systematic scan is not enough, do stochastic sampling
-        #This part is to prevent the case when only small torsional rotation could prevent the clashes
-        #Only produce 1/3 of the desired conformations is an indicator of clash
+        #   If the systematic scan is not enough, do stochastic sampling
+        #   This part is to prevent the case when only small torsional rotation could prevent the clashes
+        #   Only produce 1/3 of the desired conformations is an indicator of clashes
         if len(product) <= num_confs_by_rotbonds // 3: 
             if VERBOSE: print('Failed for systematic scan, use stochastic method instead')
             #second arg = 1 is using the 1st tolerance level (relaxed)
@@ -520,7 +537,7 @@ def choose_sampling_method(mol, name, numConfs, rmsd, VERBOSE=False):
         product = stochastic_sampling(mol, 1, reordered_rot_bonds, match_torlib, sdwriter, original_mol, numConfs, rmsd, atom_maps, 100, list())
     sdwriter.close()
     convert_sdf_mol2(rotated_file, f"{name}_rotated.mol2", VERBOSE)
-    #subprocess.run(f"rm {rotated_file}", shell=True)
+    return 0
 
 def log_error(smiles, name):
     with open('msani_error.log', 'a') as f:
@@ -529,14 +546,15 @@ def log_error(smiles, name):
 def gen_conf_chunk(df: pd.DataFrame, randomSeed = 42, numConfs = 10000, rmsd = 0.25, VERBOSE = False, cleanup=False):
         
         env = setup_env()
-        if VERBOSE: print(env['LD_LIBRARY_PATH'])
+        #if VERBOSE: print(env['LD_LIBRARY_PATH'])
         for idx, row in df.iterrows():
             random.seed(randomSeed)
             name = row['ids']
             # Embed smiles into initial conformation 
             # (300  conformers is inspired from https://pubs.acs.org/doi/abs/10.1021/ci2004658, then we only use the minimal energy one)
-            if VERBOSE: print(f"Handling {name} \nGenerating initial 3D conformations...")
-            mol, netcharge = embed_smiles(row['smiles'], name, randomSeed = randomSeed, numConfs = 300, VERBOSE=VERBOSE)
+            if VERBOSE: print(f"\nHandling {name} \nGenerating initial 3D conformations...")
+            mol, netcharge = embed_smiles(row['smiles'], name, rmsd = rmsd, 
+                                          randomSeed = randomSeed, numConfs = 300, VERBOSE=VERBOSE)
 
             # Solvation using AMSOL
             if VERBOSE: print("Solvating...")
@@ -545,7 +563,7 @@ def gen_conf_chunk(df: pd.DataFrame, randomSeed = 42, numConfs = 10000, rmsd = 0
 
             for conf_id in range(mol.GetNumConformers()):
                 # Idea: try from the energy minimum conformer if AMSOL fails -> next conformer until reach the last
-                if VERBOSE: print(f"Trying conformer: {conf_id}")
+                if VERBOSE: print(f"\tTrying conformer: {conf_id}")
                 error_signal = 0
 
                 cp = Chem.Mol(mol, confId=conf_id) #Retrieve the conf_id-th conformer of mol object
@@ -575,7 +593,7 @@ def gen_conf_chunk(df: pd.DataFrame, randomSeed = 42, numConfs = 10000, rmsd = 0
             subprocess.run(f"cp solv/{name}/{name}_solv.mol2 3d/{name}/{name}.mol2", shell=True)
             os.chdir(f"3d/{name}")
 
-            choose_sampling_method(mol, name, numConfs, rmsd, VERBOSE)
+            sampling_signal = choose_sampling_method(mol, name, numConfs, rmsd, VERBOSE)
             os.chdir("../..")
 
             # Mol2DB2
@@ -591,13 +609,19 @@ def gen_conf_chunk(df: pd.DataFrame, randomSeed = 42, numConfs = 10000, rmsd = 0
                 continue
             else:
                 try:
-                    db2_data = mol2db2.mol2db2_quick(f"{name}.mol2", f"{name}.solv")
+                    if sampling_signal == 0:
+                        db2_data = mol2db2.mol2db2_quick(f"{name}.mol2", f"{name}.solv")
+                    elif sampling_signal == 2: 
+                        # As we use different ring conformer from rdkit, we need a wider tolerance for small variations
+                        # in ring-atoms (in previous case, we use exactly the same ring conformer, but not in this case)
+                        db2_data = mol2db2.mol2db2_quick(f"{name}.mol2", f"{name}.solv", disttol=0.05)
+
                     write_to_file(db2_data, f"../{name}.db2")
                     os.chdir("../..")
                     if cleanup:
                         subprocess.run(f"rm -rf 3d/{name} solv/{name} db2/{name}", shell=True)
                 except Exception as e:
-                    logger.error(f"Error in converting {name} to DB2 format {e}")
+                    logger.error(f"Error in converting {name} to DB2 format: {e}")
                     os.chdir("../..")
                     log_error(row['smiles'], name)
                     continue

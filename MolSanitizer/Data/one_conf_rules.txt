@@ -1,0 +1,16 @@
+a1aaaaa1 6_aro
+*1*=**=**1 any_6_ring_with_2_double_bonds_1
+*1*=***=*1 any_6_ring_with_2_double_bonds_2
+*1*=**=**1 any_5_ring_with_1_double_bond
+a1aaaa1 5_aro
+*1****1 any_5_ring
+*1*=**=*1 any_5_ring_with_2_double_bonds
+*1*=***1 any_5_ring_with_1_double_bond
+*1****1 any_5_ring
+*1=**=*1 any_4_ring_with_2_double_bonds
+*1*=**1 any_4_ring_with_1_double_bond
+*1***1 any_4_ring
+*1=**1 any_3_ring_with_double_bond
+*1**1 any_3_ring
+*#!@* any_TB
+*=!@* any_DB

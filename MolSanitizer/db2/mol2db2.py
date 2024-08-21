@@ -18,9 +18,11 @@ from pathlib import Path
 
 from .hierarchy import TooBigError
 
-def mol2db2_quick(mol2file, solvfile, clashfile = Path(__file__).parent / 'clashfile.txt'):
+def mol2db2_quick(mol2file, solvfile, clashfile = Path(__file__).parent / 'clashfile.txt', disttol = 0.001):
   argv = ["-s", solvfile, "-d", clashfile]
   options, args = parserDefaults().parse_args(argv) # get the default options
+  options.tolerance = disttol
+  #options.verbose = True
   if options.timeit:
     timeStart = time.time()
   else:
@@ -93,7 +95,6 @@ def mol2db2_quick(mol2file, solvfile, clashfile = Path(__file__).parent / 'clash
           subgen = hierarchyDataGenerator(newMol2data, depth=depth+1)
           for subhier in subgen:
               yield subhier
-  
   if options.timeit:
     timeHier = time.time()
     print(("time to (start) construction hierarchy (subtotal):", timeHier-hydTime))
