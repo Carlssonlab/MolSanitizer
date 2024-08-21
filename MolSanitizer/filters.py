@@ -303,7 +303,7 @@ def stereoisomers(df: pd.DataFrame, max_isomers = 0, debug = False) -> pd.DataFr
             for i, isomer in enumerate(isomers):
                 product_df.append({
                     'smiles': Chem.MolToSmiles(isomer, isomericSmiles=True),
-                    'ids': row['ids']+'_'+str(i+1),
+                    'ids': row['ids']+'.'+str(i+1),
                     'mol': isomer
                 })
     return pd.DataFrame(product_df)
