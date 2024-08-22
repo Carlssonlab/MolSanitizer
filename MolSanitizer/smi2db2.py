@@ -10,7 +10,7 @@
 import pandas as pd
 from openbabel import openbabel as ob
 from rdkit import Chem
-from rdkit.Chem import rdDistGeom, rdForceFieldHelpers, rdMolTransforms, rdDistGeom, rdMolAlign
+from rdkit.Chem import rdDistGeom, rdForceFieldHelpers, rdMolTransforms, rdDistGeom, rdMolAlign, rdMolDescriptors
 import os
 import subprocess
 from pathlib import Path
@@ -67,12 +67,20 @@ def rmsd_filter(mol, ref_conf, conf_energies, threshold):
     res = []
     for e, curr_conf in conf_energies:
         curr_conf_id = curr_conf.GetId()
-        rms = rdMolAlign.GetBestRMS(mol_noH, mol_noH, ref_conf_id, curr_conf_id, numThreads=1) #Use this to avoid the symmetrical problem
+        rms = rdMolAlign.GetBestRMS(mol_noH, mol_noH, ref_conf_id, curr_conf_id, numThreads=1, maxMatches=10000) #Use this to avoid the symmetrical problem
         if rms > threshold:
             res.append((e, curr_conf))
     return res
 
-def embed_smiles(smiles, name, rmsd=0.25, randomSeed=42, numConfs=300, VERBOSE=False):
+def get_num_confs_for_mol(mol):
+    """
+    Ref:    https://pubs.acs.org/doi/full/10.1021/ci2004658"""
+    rb = rdMolDescriptors.CalcNumRotatableBonds(mol, strict=True)
+    if rb <= 7: return 50
+    elif 8 <= rb <= 12: return 200
+    else: return 300
+    
+def embed_smiles(smiles, name, rmsd=0.25, randomSeed=42, VERBOSE=False):
     """
     Embed SMILES into multiple conformations, minimize using MMFF94s, and return the MOL2 format.
     
@@ -86,12 +94,15 @@ def embed_smiles(smiles, name, rmsd=0.25, randomSeed=42, numConfs=300, VERBOSE=F
     Returns:
     str: The lowest energy conformation in MOL2 format.
     """
+    
     params = rdDistGeom.ETKDGv3()
     params.numThreads = 0  # Use all available threads
     params.pruneRmsThresh = rmsd  # Prune conformations that are too similar
     params.randomSeed = randomSeed # For reproducibility
 
     mol = Chem.MolFromSmiles(smiles)
+    numConfs = get_num_confs_for_mol(mol)
+    #numConfs = 50
     mol_H = Chem.AddHs(mol)
     res = Chem.Mol(mol_H) # res = result molecule with conformations
     res.RemoveAllConformers() # An empty conformer list
@@ -110,13 +121,13 @@ def embed_smiles(smiles, name, rmsd=0.25, randomSeed=42, numConfs=300, VERBOSE=F
     
     conf_energies = sorted(conf_energies, key=lambda x: x[0]) # sort by increasing E
 
-    while (len(conf_energies) > 0):
+    while (res.GetNumConformers() < 10) and (len(conf_energies) > 0): # Attempts to reduce computational power!
         energy, conformer = conf_energies.pop(0) # get the lowest energy conformer
         res.AddConformer(conformer, assignId = True) # add it to the conformations list
         conf_energies = rmsd_filter(mol_H, conformer, conf_energies, rmsd) # remove all conformers that are too similar to it
 
     
-    if VERBOSE: print(f'\tBefore: {len(mol_H.GetConformers())}, after: {len(res.GetConformers())}')
+    if VERBOSE: print(f'\tBefore: {len(mol_H.GetConformers())}, after: {res.GetNumConformers()}')
     res.SetProp("_Name", name)
     netcharge = sum(atom.GetFormalCharge() for atom in res.GetAtoms())
     return res, netcharge
@@ -344,26 +355,27 @@ def get_random_angle(mean, tolerance):
     
     return normalized_angle
 
-def already_sampled(sampled_mol, current_mol, threshold=0.5):    
+def already_sampled(sampled_mol, current_mol, map_alignment, threshold=0.5):    
     """
+    https://greglandrum.github.io/rdkit-blog/posts/2023-03-02-clustering-conformers.html
     Check if the current conformer is already sampled in the product_list.
 
     Parameters:
-    mol (rdkit.Chem.Mol): The RDKit molecule object.
-    product_list (list of rdkit.Chem.rdchem.Conformer): List of conformers to compare against.
-    current_conf (rdkit.Chem.rdchem.Conformer): The current conformer to check.
-    threshold (float): RMSD threshold below which conformers are considered equivalent.
+    sampled_mol (rdkit.Chem.Mol): The molecule with the sampled conformers.
+    current_mol (rdkit.Chem.Mol): The molecule with the current conformer.
+    map_alignment (list): The atom mapping between the original and current conformers.
 
     Returns:
     bool: True if the current conformer is already sampled, False otherwise.
     """
     # Remove hydrogens from the molecule
+    #print(map_alignment)
     sampled_no_H = Chem.RemoveHs(sampled_mol)
     current_no_H = Chem.RemoveHs(current_mol)
     # Iterate through each conformer in the product list
     for conf_id in range(sampled_no_H.GetNumConformers()):
         # Compute RMSD between current conformer and each conformer in the product_list
-        rmsd = rdMolAlign.GetBestRMS(current_no_H, sampled_no_H, 0, conf_id)
+        rmsd = rdMolAlign.GetBestRMS(current_no_H, sampled_no_H, 0, conf_id, maxMatches=1000)
         if rmsd <= threshold:
             return True
     return False
@@ -444,7 +456,7 @@ def stochastic_sampling(mol, tolerance_level, reordered_rot_bonds, match_torlib,
         max_angles = max(len(rule[2]), max_angles)
     #visit_matrix = np.zeros((len(reordered_rot_bonds), max_angles))
     n_transform = len(reordered_rot_bonds)
-    
+    map_alignment = [(i, i) for i in atom_maps]
     attempts = 0
     while (len(product) < numConfs):
         for idx in range(n_transform):
@@ -462,12 +474,12 @@ def stochastic_sampling(mol, tolerance_level, reordered_rot_bonds, match_torlib,
             rdMolTransforms.SetDihedralDeg(mol.GetConformer(0),*peaks[0],value = get_random_angle(peak[0], peak[tolerance_level]))
         
         if check_too_close_nonbonded_atoms(mol.GetConformer(0), mol) or \
-        already_sampled(sampled_mol, mol, rmsd): 
+        already_sampled(sampled_mol, mol, map_alignment, rmsd): 
             attempts += 1
             if attempts > max_attempts: break
             continue
         attempts = 0
-        rdMolAlign.AlignMol(mol, original, 0, 0, atomMap=[(i, i) for i in atom_maps])
+        rdMolAlign.AlignMol(mol, original, 0, 0, atomMap=map_alignment)
         product.append(Chem.Conformer(mol.GetConformer(0)))
         sampled_mol.AddConformer(mol.GetConformer(0), assignId = True)
         sdwriter.write(mol,confId=0)
@@ -555,10 +567,11 @@ def gen_conf_chunk(df: pd.DataFrame, randomSeed = 42, numConfs = 10000, rmsd = 0
             random.seed(randomSeed)
             name = row['ids']
             # Embed smiles into initial conformation 
-            # (300  conformers is inspired from https://pubs.acs.org/doi/abs/10.1021/ci2004658, then we only use the minimal energy one)
+            # (The number of initial confs will be estimated from https://pubs.acs.org/doi/abs/10.1021/ci2004658
+            # then we only use the minimal energy ones)
             if VERBOSE: print(f"\nHandling {name} \nGenerating initial 3D conformations...")
             mol, netcharge = embed_smiles(row['smiles'], name, rmsd = rmsd, 
-                                          randomSeed = randomSeed, numConfs = 300, VERBOSE=VERBOSE)
+                                          randomSeed = randomSeed, VERBOSE=VERBOSE)
 
             # Solvation using AMSOL
             if VERBOSE: print("Solvating...")
