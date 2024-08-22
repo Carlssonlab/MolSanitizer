@@ -293,7 +293,7 @@ def stereoisomers(df: pd.DataFrame, max_isomers = 0, debug = False) -> pd.DataFr
         try:
             isomers = generate_stereoisomers(row['mol'], max_isomers)
         except Exception as e:
-            logger.info(f"Error generating stereoisomers for compound {row['ids']}: {Chem.MolToSmiles(row['mol'])}")
+            logger.error(f"Error generating stereoisomers for compound {row['ids']}: {Chem.MolToSmiles(row['mol'])}")
             isomers = []
             continue
         if (len(isomers) == 1): 
