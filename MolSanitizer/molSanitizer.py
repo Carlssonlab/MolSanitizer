@@ -135,7 +135,7 @@ def cleanData(args):
                     hours, remainder = divmod(elapsed_time, 3600)
                     minutes, seconds = divmod(remainder, 60)
                     if hours != 0: print(f"Step {step} took {int(hours):02}:{int(minutes):02}:{int(seconds):02} hours to complete.")
-                    elif minutes !=0: print(f"Step {step} took {int(minutes):02}:{int(seconds):02} seconds to complete.")
+                    elif minutes !=0: print(f"Step {step} took {int(minutes):02}:{int(seconds):02} minutes to complete.")
                     else: print(f"Step {step} took {elapsed_time:.2f} seconds to complete.")
                     
 
