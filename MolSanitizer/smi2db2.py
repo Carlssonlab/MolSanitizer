@@ -510,7 +510,7 @@ def choose_sampling_method(mol, name, numConfs, rmsd, VERBOSE=False):
     elif num_rotatable_H >= 2: numConfs = numConfs // 3  
     num_confs_by_rotbonds, reordered_rot_bonds, match_torlib = count_confs_by_rotbonds(mol, VERBOSE)
     
-    if VERBOSE: print(f"\t{num_confs_by_rotbonds} {num_confs_H}")
+    if VERBOSE: print(f"\t{num_confs_by_rotbonds} {num_confs_H} {num_rotatable_H} {numConfs}")
 
     # Create an SD writer object to output the conformers
     rotated_file = f"{name}_rotated.sdf"
@@ -544,13 +544,13 @@ def choose_sampling_method(mol, name, numConfs, rmsd, VERBOSE=False):
         if len(product) <= num_confs_by_rotbonds // 3: 
             if VERBOSE: print('Failed for systematic scan, use stochastic method instead')
             #second arg = 1 is using the 1st tolerance level (relaxed)
-            product = stochastic_sampling(mol, 1, reordered_rot_bonds, match_torlib, sdwriter, original_mol, numConfs-len(product), rmsd, atom_maps, 100, product) 
+            product = stochastic_sampling(mol, 1, reordered_rot_bonds, match_torlib, sdwriter, original_mol, numConfs-len(product), rmsd, atom_maps, 250, product) 
             if len(product) <= num_confs_by_rotbonds // 3:
                 if VERBOSE: print('Failed even for stochastic scan, use the 2nd tolerance level')
                 product = stochastic_sampling(mol, 2, reordered_rot_bonds, match_torlib, sdwriter, original_mol, numConfs-len(product), rmsd, atom_maps, 500, product)
     else:
         if VERBOSE: print('Running stochastic torsional sampling')
-        product = stochastic_sampling(mol, 1, reordered_rot_bonds, match_torlib, sdwriter, original_mol, numConfs, rmsd, atom_maps, 100, list())
+        product = stochastic_sampling(mol, 1, reordered_rot_bonds, match_torlib, sdwriter, original_mol, numConfs, rmsd, atom_maps, 250, list())
     sdwriter.close()
     convert_sdf_mol2(rotated_file, f"{name}_rotated.mol2", VERBOSE)
     return 0
