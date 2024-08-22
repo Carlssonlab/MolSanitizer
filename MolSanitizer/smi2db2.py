@@ -407,7 +407,7 @@ def torsional_scan_rand(mol, conf, i, matches, match_torlib, sdwriter, product, 
         #print(check_too_close_nonbonded_atoms(mol.GetConformer(conf), mol))
         if check_too_close_nonbonded_atoms(mol.GetConformer(conf), mol): return product, visited
         product.append(Chem.Conformer(mol.GetConformer(conf))) 
-        visited.append(tuple(visitting.copy()))
+        visited.add(tuple(visitting.copy()))
         rdMolAlign.AlignMol(mol, original, conf, 0, atomMap=[(i, i) for i in atom_maps])
         sdwriter.write(mol, conf)
         return product, visited
