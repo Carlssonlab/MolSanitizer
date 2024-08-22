@@ -71,7 +71,12 @@ def cleanData(args):
         if args.db2: smi2db2.gen_conf_chunk(chunk, args.randomSeed, args.numconfs, args.rmsd, args.debug, args.cleanup)
         print('Processed SMILES:')
         for i in range(len(chunk)): print(chunk.iloc[i,0])
-        if not (args.test): print(f"MolSanitizer took {time.time() - start_time:.2f} seconds to complete.")
+        if not args.test:
+            elapsed_time = time.time() - start_time
+            minutes, seconds = divmod(elapsed_time, 60)
+            if minutes != 0: print(f"MolSanitizer took {int(minutes):02}:{int(seconds):02} minutes to complete.")
+            else: print(f"MolSanitizer took {elapsed_time:.2f} seconds to complete.")
+
     else:
         for inputFile in args.input_files:
             if args.enamine: 
@@ -125,7 +130,14 @@ def cleanData(args):
                 chunk.to_csv(outputFile, index=False, mode='a', columns=['smiles','ids'], header=False, sep=' ')
 
                 if args.db2: smi2db2.gen_conf_chunk(chunk, args.randomSeed, args.numconfs, args.rmsd, args.debug, args.cleanup)
-                if not (args.test): print(f"Step {step} took {time.time() - start_time:.2f} seconds to complete.")
+                if not args.test:
+                    elapsed_time = time.time() - start_time
+                    hours, remainder = divmod(elapsed_time, 3600)
+                    minutes, seconds = divmod(remainder, 60)
+                    if hours != 0: print(f"Step {step} took {int(hours):02}:{int(minutes):02}:{int(seconds):02} hours to complete.")
+                    elif minutes !=0: print(f"Step {step} took {int(minutes):02}:{int(seconds):02} seconds to complete.")
+                    else: print(f"Step {step} took {elapsed_time:.2f} seconds to complete.")
+                    
 
 def Sanitycheck(args: dict):
     """Sanity check for the unwanted flag
