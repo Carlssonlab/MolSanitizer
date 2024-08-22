@@ -4,9 +4,16 @@ All notable changes to this project will be documented in this file.
 
 ## [unreleased]
 
+### ⚡ Performance
+
+- :zap: Improved performance for the stochastic sampling, removed RMSD pruning dependent. - ([302e715](https://github.com/Isra3l/MolSanitizer/commit/302e7158a72527bd08ebb2f5c9b8240579c38bd6))
+
+## [0.0.6] - 2024-08-22
+
 ### 🚀 Features
 
 - Failed stereoisomers-enumerated compounds should now print to the screen to notify the user - ([36846e1](https://github.com/Isra3l/MolSanitizer/commit/36846e13334c7c290a6620aa16a0ec75f27602c0))
+- Changing the default maxAttempts in stochastic sampling for more exhaustive sampling - ([aa88ccf](https://github.com/Isra3l/MolSanitizer/commit/aa88ccfec57bb4dbc8a75d54f317b71168847069))
 
 ### ⚡ Performance
 
@@ -15,6 +22,7 @@ All notable changes to this project will be documented in this file.
 ### 🎨 Styling
 
 - :art: Improved logging of the time of running of each step of MolSanitizer (should now output hours:mins:secs) - ([a3ff715](https://github.com/Isra3l/MolSanitizer/commit/a3ff715dc9ed4b16f84a690d0751e954c74e24a3))
+- Fix typos - ([e51eefc](https://github.com/Isra3l/MolSanitizer/commit/e51eefc47099fe49ccabe0598e260e4cc387de5d))
 
 ## [0.0.5] - 2024-08-21
 
