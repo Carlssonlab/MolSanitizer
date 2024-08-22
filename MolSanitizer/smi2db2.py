@@ -97,12 +97,11 @@ def embed_smiles(smiles, name, rmsd=0.25, randomSeed=42, VERBOSE=False):
     
     params = rdDistGeom.ETKDGv3()
     params.numThreads = 0  # Use all available threads
-    params.pruneRmsThresh = rmsd  # Prune conformations that are too similar
+    params.pruneRmsThresh = 0.5  # Prune conformations that are too similar, not user-definable here
     params.randomSeed = randomSeed # For reproducibility
 
     mol = Chem.MolFromSmiles(smiles)
     numConfs = get_num_confs_for_mol(mol)
-    #numConfs = 50
     mol_H = Chem.AddHs(mol)
     res = Chem.Mol(mol_H) # res = result molecule with conformations
     res.RemoveAllConformers() # An empty conformer list
@@ -355,6 +354,7 @@ def get_random_angle(mean, tolerance):
     
     return normalized_angle
 
+# Deprecated Aug 22, 2024
 def already_sampled(sampled_mol, current_mol, map_alignment, threshold=0.5):    
     """
     https://greglandrum.github.io/rdkit-blog/posts/2023-03-02-clustering-conformers.html
@@ -380,7 +380,8 @@ def already_sampled(sampled_mol, current_mol, map_alignment, threshold=0.5):
             return True
     return False
 
-def torsional_scan_rand(mol, conf, i, matches, match_torlib, sdwriter, product, original, numConfs, atom_maps):
+def torsional_scan_rand(mol, conf, i, matches, match_torlib, sdwriter, product, original,
+                        numConfs, atom_maps, visited, visitting):
     '''
     Recursively enumerates all angles for matching dihedrals.
     
@@ -395,29 +396,33 @@ def torsional_scan_rand(mol, conf, i, matches, match_torlib, sdwriter, product, 
     - original: The original molecule object (for alignment).
     - numConfs: The maximum number of conformers to generate.
     - atom_maps: The list of atom maps.
+    - visited: The set of visited dihedrals.
     
     Returns:
     - product: The list of conformers.
     '''
 
-    if len(product) >= numConfs: return product
+    if len(product) >= numConfs: return product, visited
     if i >= len(matches): #base case, torsions should be set in conf
         #print(check_too_close_nonbonded_atoms(mol.GetConformer(conf), mol))
-        if check_too_close_nonbonded_atoms(mol.GetConformer(conf), mol): return product
+        if check_too_close_nonbonded_atoms(mol.GetConformer(conf), mol): return product, visited
         product.append(Chem.Conformer(mol.GetConformer(conf))) 
+        visited.append(tuple(visitting.copy()))
         rdMolAlign.AlignMol(mol, original, conf, 0, atomMap=[(i, i) for i in atom_maps])
         sdwriter.write(mol, conf)
-        return product
+        return product, visited
     else:
         peaks = strain_filter.extract_peaks(match_torlib, matches[i][1:3])
         dihedral_4_atoms = peaks[0]
-        for (prefered, tolerance, _ , _) in peaks[1]:
+        for peakidx, (prefered, tolerance, _ , _) in enumerate(peaks[1]):
             rdMolTransforms.SetDihedralDeg(mol.GetConformer(conf),*dihedral_4_atoms,value = get_random_angle(prefered, tolerance))
-            product = torsional_scan_rand(mol, conf, i+1, matches, match_torlib, sdwriter, product, original, numConfs, atom_maps)        
-        return product
+            visitting[i] = peakidx
+            product, visited = torsional_scan_rand(mol, conf, i+1, matches, match_torlib, sdwriter, 
+                                                   product, original, numConfs, atom_maps, visited, visitting)        
+        return product, visited
     
 
-def stochastic_sampling(mol, tolerance_level, reordered_rot_bonds, match_torlib, sdwriter, original, numConfs, rmsd, atom_maps, max_attempts = 100, product = []):
+def stochastic_sampling(mol, tolerance_level, reordered_rot_bonds, match_torlib, sdwriter, original, numConfs, rmsd, atom_maps, max_attempts = 100, product = [], visited = set()):
     """
     Perform stochastic sampling of the conformational space of a molecule using a Monte Carlo method.
 
@@ -456,35 +461,40 @@ def stochastic_sampling(mol, tolerance_level, reordered_rot_bonds, match_torlib,
         max_angles = max(len(rule[2]), max_angles)
     #visit_matrix = np.zeros((len(reordered_rot_bonds), max_angles))
     n_transform = len(reordered_rot_bonds)
-    map_alignment = [(i, i) for i in atom_maps]
+    visitting = [0 for _ in range(n_transform)]
     attempts = 0
     while (len(product) < numConfs):
         for idx in range(n_transform):
             # Each rotatable bond has equally likely chance to be selected
             bond_idx = random.randint(0, len(reordered_rot_bonds)-1)
             bond = reordered_rot_bonds[bond_idx]
-
+            
             # Which peak to be selected is based on the weights of the peaks (defined by the "score" in TorLib)
             peaks = strain_filter.extract_peaks(match_torlib, bond[1:3])
             #peak_idx = random.randint(0, len(peaks[1])-1)
             peak_idx = random.choices(range(len(peaks[1])), weights = [peak[3] for peak in peaks[1]], k=1)[0]
             #print(peak_idx)
+            visitting[bond_idx] = peak_idx
             peak = peaks[1][peak_idx]
             #visit_matrix[bond_idx][peak_idx] += 1
             rdMolTransforms.SetDihedralDeg(mol.GetConformer(0),*peaks[0],value = get_random_angle(peak[0], peak[tolerance_level]))
-        
+
         if check_too_close_nonbonded_atoms(mol.GetConformer(0), mol) or \
-        already_sampled(sampled_mol, mol, map_alignment, rmsd): 
+        tuple(visitting) in visited:
+        #already_sampled(sampled_mol, mol, rmsd): 
             attempts += 1
             if attempts > max_attempts: break
             continue
         attempts = 0
-        rdMolAlign.AlignMol(mol, original, 0, 0, atomMap=map_alignment)
+        rdMolAlign.AlignMol(mol, original, 0, 0, atomMap=[(i, i) for i in atom_maps])
+        #print(visitting)
+        visited.add(tuple(visitting.copy()))
         product.append(Chem.Conformer(mol.GetConformer(0)))
         sampled_mol.AddConformer(mol.GetConformer(0), assignId = True)
         sdwriter.write(mol,confId=0)
     #print(visit_matrix)
     return product
+
 
 def find_rigid_part(mol, rigid_rules):
     '''Find rigid parts of the molecule'''
@@ -534,23 +544,30 @@ def choose_sampling_method(mol, name, numConfs, rmsd, VERBOSE=False):
     atom_maps = find_rigid_part(mol, rigid_rules)
     if VERBOSE: print(f'Uses {atom_maps} as rigid part')
     
+    # Initialize the visited and visitting list for the systematic scan
+    visitting = [-1 for _ in range(len(reordered_rot_bonds))]
+
     if num_confs_by_rotbonds <= numConfs:
         if VERBOSE: print('Running systematic torsional scan')
-        product = torsional_scan_rand(mol, conf=0, i=0, matches = reordered_rot_bonds, match_torlib = match_torlib,
-                            sdwriter=sdwriter, product=list(), original=original_mol, numConfs = numConfs, atom_maps = atom_maps)
+        product, visited = torsional_scan_rand(mol, conf=0, i=0, matches = reordered_rot_bonds, match_torlib = match_torlib,
+                                      sdwriter=sdwriter, product=list(), original=original_mol, numConfs = numConfs, 
+                                      atom_maps = atom_maps, visited = set(), visitting = visitting)
         #   If the systematic scan is not enough, do stochastic sampling
         #   This part is to prevent the case when only small torsional rotation could prevent the clashes
         #   Only produce 1/3 of the desired conformations is an indicator of clashes
         if len(product) <= num_confs_by_rotbonds // 3: 
-            if VERBOSE: print('Failed for systematic scan, use stochastic method instead')
+            if VERBOSE: print(f'Failed for systematic scan (generated {len(product)} confs), use stochastic method instead')
             #second arg = 1 is using the 1st tolerance level (relaxed)
-            product = stochastic_sampling(mol, 1, reordered_rot_bonds, match_torlib, sdwriter, original_mol, numConfs-len(product), rmsd, atom_maps, 250, product) 
+            product = stochastic_sampling(mol, 1, reordered_rot_bonds, match_torlib, sdwriter, original_mol,
+                                           num_confs_by_rotbonds, rmsd, atom_maps, 250, product, visited) 
             if len(product) <= num_confs_by_rotbonds // 3:
-                if VERBOSE: print('Failed even for stochastic scan, use the 2nd tolerance level')
-                product = stochastic_sampling(mol, 2, reordered_rot_bonds, match_torlib, sdwriter, original_mol, numConfs-len(product), rmsd, atom_maps, 500, product)
+                if VERBOSE: print(f'Failed even for stochastic scan (generated {len(product)} confs), use the 2nd tolerance level')
+                product = stochastic_sampling(mol, 2, reordered_rot_bonds, match_torlib, sdwriter, original_mol, 
+                                              num_confs_by_rotbonds, rmsd, atom_maps, 500, product, visited)
     else:
         if VERBOSE: print('Running stochastic torsional sampling')
-        product = stochastic_sampling(mol, 1, reordered_rot_bonds, match_torlib, sdwriter, original_mol, numConfs, rmsd, atom_maps, 250, list())
+        product = stochastic_sampling(mol, 1, reordered_rot_bonds, match_torlib, sdwriter, original_mol, numConfs,
+                                       rmsd, atom_maps, 250, list(), set())
     sdwriter.close()
     convert_sdf_mol2(rotated_file, f"{name}_rotated.mol2", VERBOSE)
     return 0
