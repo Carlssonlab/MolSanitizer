@@ -107,13 +107,21 @@ def Split_Submit_jobs(args: dict):
     for file in args.input_files:
         prefix = file.split('.')[0]
         if os.path.exists(prefix):
-            print(f"Folder {prefix} already exists. Removing...\n")
-            subprocess.run(f"rm -rf {prefix}", shell=True)
+            remove_folder = input(f"Folder {prefix} already exists. Do you want to remove it? (y/n): ")
+            if remove_folder.lower() == 'y' or remove_folder.lower() == 'yes':
+                print(f"Removing folder {prefix}...\n")
+                subprocess.run(f"rm -rf {prefix}", shell=True)
+            else:
+                print(f"Exitting MolSanitizer...\n")
         subprocess.run(f"mkdir -p {prefix}", shell=True)
         subprocess.run(f"split -l {args.lines} -d {file} -a 3 {prefix}/in", shell=True)
         os.chdir(prefix)
         subprocess.run(f"ls in* > dirlista", shell=True)
         n_jobs = sum(1 for line in open('dirlista'))
+        if (n_jobs) > 1000:
+            print(f"Too many jobs to submit ({n_jobs}). Please increase the number of lines per job or decrease the number of input files")
+            print(f"Exitting MolSanitizer...")
+            return
         print(f"Submitting {n_jobs} jobs\n")
         write_single_job_script(slurm_header, slurm_script)
         subprocess.run(f"sbatch --array=0-{n_jobs-1}%{args.max_jobs} submit_msani.sh", shell=True)
