@@ -95,7 +95,7 @@ def embed_smiles(smiles, name, rmsd=0.25, randomSeed=42, VERBOSE=False):
     str: The lowest energy conformation in MOL2 format.
     """
     
-    params = rdDistGeom.ETKDGv3()
+    params = rdDistGeom.srETKDGv3()
     params.numThreads = 0  # Use all available threads
     params.pruneRmsThresh = 0.5  # Prune conformations that are too similar, not user-definable here
     params.randomSeed = randomSeed # For reproducibility
@@ -447,6 +447,8 @@ def stochastic_sampling(mol, tolerance_level, reordered_rot_bonds, match_torlib,
         max_attempts (int, optional): The maximum number of attempts to find a valid, unique conformer before stopping. 
                                       Defaults to 100.
         product (list, optional): A list to store the successfully generated conformers. Defaults to an empty list.
+        visited (set, optional): A set to store the visited dihedral angles (especially from the torsional scan) to avoid redundant conformers. 
+                                 Defaults to an empty
 
     Returns:
         list: A list of RDKit Conformer objects representing the successfully sampled conformers.
