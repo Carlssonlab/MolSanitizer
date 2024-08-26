@@ -113,6 +113,7 @@ def Split_Submit_jobs(args: dict):
                 subprocess.run(f"rm -rf {prefix}", shell=True)
             else:
                 print(f"Exitting MolSanitizer...\n")
+                return
         subprocess.run(f"mkdir -p {prefix}", shell=True)
         subprocess.run(f"split -l {args.lines} -d {file} -a 3 {prefix}/in", shell=True)
         os.chdir(prefix)
