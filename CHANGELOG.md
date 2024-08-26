@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [unreleased]
 
+### 🚀 Features
+
+- Msani_batch will now ask the user to confirm to remove the folder before removing it + skip the jobs with more than 1000 subjobs - ([9a6b76c](https://github.com/Isra3l/MolSanitizer/commit/9a6b76c9c52b4534a1dbfc8a168929b6915cbf86))
+- :sparkles: Using srETKDGv3 (small-ring version) to hopefully reduce the failed cases with "boat" conformation of the rings with the previous ETKDGv3 (speciallized for macrocycles) - ([2970f10](https://github.com/Isra3l/MolSanitizer/commit/2970f10515dbf69565183e75660606d27683be44))
+
+### 🐛 Bug Fixes
+
+- :bug: Fix a typo in torsion scan that crash msani - ([4275824](https://github.com/Isra3l/MolSanitizer/commit/4275824384d8567703a5234da77e015561a69e17))
+
 ### ⚡ Performance
 
 - :zap: Improved performance for the stochastic sampling, removed RMSD pruning dependent. - ([302e715](https://github.com/Isra3l/MolSanitizer/commit/302e7158a72527bd08ebb2f5c9b8240579c38bd6))
