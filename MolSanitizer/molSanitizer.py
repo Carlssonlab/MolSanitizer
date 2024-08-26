@@ -66,7 +66,7 @@ def cleanData(args):
     
         #if args.standarizeFilters: chunk = filters.standarizeFilters(chunk)
 
-        chunk['smiles'] = chunk['mol'].apply(lambda x: Chem.MolToSmiles(x))
+        #chunk['smiles'] = chunk['mol'].apply(lambda x: Chem.MolToSmiles(x))
 
         if args.db2: smi2db2.gen_conf_chunk(chunk, args.randomSeed, args.numconfs, args.rmsd, args.debug, args.cleanup)
         print('Processed SMILES:')
@@ -126,7 +126,7 @@ def cleanData(args):
             
                 #if args.standarizeFilters: chunk = filters.standarizeFilters(chunk)
 
-                chunk['smiles'] = chunk['mol'].apply(lambda x: Chem.MolToSmiles(x))
+                #chunk['smiles'] = chunk['mol'].apply(lambda x: Chem.MolToSmiles(x))
                 chunk.to_csv(outputFile, index=False, mode='a', columns=['smiles','ids'], header=False, sep=' ')
 
                 if args.db2: smi2db2.gen_conf_chunk(chunk, args.randomSeed, args.numconfs, args.rmsd, args.debug, args.cleanup)

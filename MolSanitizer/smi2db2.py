@@ -99,9 +99,13 @@ def embed_smiles(smiles, name, rmsd=0.25, randomSeed=42, VERBOSE=False):
     params.numThreads = 0  # Use all available threads
     params.pruneRmsThresh = 0.5  # Prune conformations that are too similar, not user-definable here
     params.randomSeed = randomSeed # For reproducibility
+    #params.useMacrocycleTorsions = True
+    #params.useSmallRingTorsions = True
 
     mol = Chem.MolFromSmiles(smiles)
-    numConfs = get_num_confs_for_mol(mol)
+    numConfs = 300
+    #numConfs = get_num_confs_for_mol(mol)
+    #if VERBOSE: print(f"\tTry with {numConfs} conformations")
     mol_H = Chem.AddHs(mol)
     res = Chem.Mol(mol_H) # res = result molecule with conformations
     res.RemoveAllConformers() # An empty conformer list
@@ -581,6 +585,7 @@ def log_error(smiles, name):
 def gen_conf_chunk(df: pd.DataFrame, randomSeed = 42, numConfs = 10000, rmsd = 0.25, VERBOSE = False, cleanup=False):
         
         env = setup_env()
+        #if VERBOSE: print(df)
         #if VERBOSE: print(env['LD_LIBRARY_PATH'])
         for idx, row in df.iterrows():
             random.seed(randomSeed)
