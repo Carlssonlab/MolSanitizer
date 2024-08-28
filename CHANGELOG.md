@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [unreleased]
+## [0.0.7] - 2024-08-28
 
 ### 🚀 Features
 
@@ -12,6 +12,7 @@ All notable changes to this project will be documented in this file.
 ### 🐛 Bug Fixes
 
 - :bug: Fix a typo in torsion scan that crash msani - ([4275824](https://github.com/Isra3l/MolSanitizer/commit/4275824384d8567703a5234da77e015561a69e17))
+- Fix a bug so that MolSanitizer batch mode still runs although the user asked for not to. - ([b518b03](https://github.com/Isra3l/MolSanitizer/commit/b518b03479b7441ed41b1829e1c3a82849d57d11))
 
 ### ⚡ Performance
 

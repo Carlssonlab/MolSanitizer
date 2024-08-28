@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "MolSanitizer"
+version = "1.0"
+description = "Code to clean SMILES for ML and Docking (protonation, tautomers,...)"
+readme = "README.md"
+authors = [
+    {name = "Israel Cabeza de Vaca Lopez", email = "israel.cabezadevaca@icm.uu.se"},
+    {name = "Thua-Phong Lam", email = "lamthuaphong@gmail.com"},
+    {name = "Szymon Pach", email = "szymon.pach@icm.uu.se"}
+]
+license = {text = "MIT"}
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.11",
+    "Operating System :: POSIX :: Linux",
+    "Topic :: Scientific/Engineering :: Chemistry",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+keywords = ["docking", "drug design"]
+requires-python = ">=3.9"
+dependencies = [
+    "markdown",
+    "pandas",
+    "numpy",
+    "rdkit>=2024.3.5"
+]
+
+[project.urls]
+Homepage = "https://github.com/Isra3l/MolSanitizer.git"
+
+[project.scripts]
+msani = "MolSanitizer.molSanitizer:main"
+msani_batch = "MolSanitizer.msani_batch:main"
+strain = "MolSanitizer.strain_filter:main"
+
+[tool.setuptools]
+packages = ["MolSanitizer"]
+
+
