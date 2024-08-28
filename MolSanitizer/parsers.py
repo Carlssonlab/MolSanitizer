@@ -22,12 +22,18 @@ def parseArguments(args = None):
     msani -i example.smi --pains --unwanted all --stereoisomers --protonation
     msani -i example.smi --pains --unwanted all --stereoisomers --protonation --db2
     """
+
     # Create the argument parser
     parser = argparse.ArgumentParser(description= info, formatter_class=argparse.RawTextHelpFormatter)
     
+    # Create a mutually exclusive group
+    group = parser.add_mutually_exclusive_group(required=True)
+
     # Add the required input files argument
-    parser.add_argument('-i', '--input_files', type=str, nargs='+', help='Input files containing chemical structures')
-    parser.add_argument('-s', '--smiles', default=None, type=str, nargs='+', help='Input SMILES strings')
+    group.add_argument('-i', '--input_files', type=str,  default=None, nargs='+', help='Input files containing chemical structures')
+    group.add_argument('-s', '--smiles', default=None, type=str, nargs='+', help='Input SMILES strings')
+    group.add_argument('--create_custom', action='store_true', help='Generate a template for customized substructure filtering')
+    
     # Add Boolean options
     parser.add_argument('-e', '--enamine', action='store_true', help='Enamine input format (default: False)')
     parser.add_argument('--lazy', action='store_true', help='Implement all the processing and preparation steps (default: False)')
@@ -35,7 +41,7 @@ def parseArguments(args = None):
     parser.add_argument('--tautomers', action='store_true', help='Tautomers enumeration (default: False)')
     parser.add_argument('--pains', action='store_true', help='Remove PAINS violations from the structures (default: False)')
     parser.add_argument('--unwanted', choices=['all', 'regular', 'special', 'optional'], default=None, nargs='*', help='Filter out unwanted substructures using the default list')
-    parser.add_argument('--create_custom', action='store_true', help='Generate a template for customized substructure filtering')
+    
     parser.add_argument('--stereoisomers', action='store_true', help='Stereoisomers enumeration (only consider unspecified chiral centers) (default: False)')
     parser.add_argument('--protonation', action='store_true', help='Apply protonation to the structures (default: False)')
     parser.add_argument('--db2', action='store_true', help='Generate conformers and stored in the DB2 format for DOCK 3.8 (default: False)')
@@ -58,7 +64,8 @@ def parseArguments(args = None):
 
     # Parse the arguments
     args = parser.parse_args()
-    if args.input_files is not None and args.smiles is None:
+
+    if args.input_files is not None:
         for inFile in args.input_files:
             if not Path(inFile).is_file():
                 parser.error(f'The input file: {inFile} does not exist.')
