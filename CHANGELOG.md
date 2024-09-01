@@ -2,10 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.0.7] - 2024-08-28
+## [0.0.7] - 2024-09-01
 
 ### 🚀 Features
 
+- *(install)* Added toml file and fixed null arguments - ([61c1380](https://github.com/Isra3l/MolSanitizer/commit/61c138077348b74af345a29aa34ef87613ce357f))
 - Msani_batch will now ask the user to confirm to remove the folder before removing it + skip the jobs with more than 1000 subjobs - ([9a6b76c](https://github.com/Isra3l/MolSanitizer/commit/9a6b76c9c52b4534a1dbfc8a168929b6915cbf86))
 - :sparkles: Using srETKDGv3 (small-ring version) to hopefully reduce the failed cases with "boat" conformation of the rings with the previous ETKDGv3 (speciallized for macrocycles) - ([2970f10](https://github.com/Isra3l/MolSanitizer/commit/2970f10515dbf69565183e75660606d27683be44))
 
