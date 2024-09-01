@@ -53,7 +53,7 @@ def parse_torlib(xml_file = Path(__file__).parent / 'Data' / 'modified_tor_lib_2
                     Torlib.append((Rule.get("smarts"),
                                 (pattern),
                                 get_atoms_template(pattern),
-                                [(((float(angle.get("value")))), float(angle.get("tolerance1")), float(angle.get("tolerance2")), round(float(angle.get("score")), 2)) for angle in Rule.iter(tag='angle')]))
+                                [(((float(angle.get("value")))), float(angle.get("tolerance1")), float(angle.get("tolerance2")), round(float(angle.get("score"))+0.05, 2)) for angle in Rule.iter(tag='angle')]))
 
     for Rule in root.find("hierarchyClass[@name='GG']").iter("torsionRule"):
         if  "N_lp" in Rule.get("smarts"): 
@@ -63,7 +63,7 @@ def parse_torlib(xml_file = Path(__file__).parent / 'Data' / 'modified_tor_lib_2
             Torlib.append((Rule.get("smarts"),
                         (pattern),
                         get_atoms_template(pattern),
-                        [(((float(angle.get("value")))), float(angle.get("tolerance1")), float(angle.get("tolerance2")), round(float(angle.get("score")), 2)) for angle in Rule.iter(tag='angle')]))
+                        [(((float(angle.get("value")))), float(angle.get("tolerance1")), float(angle.get("tolerance2")), round(float(angle.get("score"))+0.05, 2)) for angle in Rule.iter(tag='angle')]))
     return Torlib
 
 
