@@ -11,13 +11,13 @@ import pandas as pd
 from openbabel import openbabel as ob
 from rdkit import Chem
 from rdkit.Chem import rdDistGeom, rdForceFieldHelpers, rdMolTransforms, rdDistGeom, rdMolAlign, rdMolDescriptors
-import os
+import os, glob
 import subprocess
 from pathlib import Path
 import numpy as np
 from MolSanitizer.amsol import run_amsol
 from MolSanitizer.db2 import mol2db2, hydrogens, mol2
-from MolSanitizer import strain_filter
+from MolSanitizer import strain_filter, smi2db2_utils
 import random
 
 import logging
@@ -499,7 +499,7 @@ def stochastic_sampling(mol, tolerance_level, reordered_rot_bonds, match_torlib,
         sampled_mol.AddConformer(mol.GetConformer(0), assignId = True)
         sdwriter.write(mol,confId=0)
     #print(visit_matrix)
-    return product
+    return product, visited
 
 
 def find_rigid_part(mol, rigid_rules):
@@ -564,15 +564,15 @@ def choose_sampling_method(mol, name, numConfs, rmsd, VERBOSE=False):
         if len(product) <= num_confs_by_rotbonds // 3: 
             if VERBOSE: print(f'Failed for systematic scan (generated {len(product)} confs), use stochastic method instead')
             #second arg = 1 is using the 1st tolerance level (relaxed)
-            product = stochastic_sampling(mol, 1, reordered_rot_bonds, match_torlib, sdwriter, original_mol,
+            product, visited = stochastic_sampling(mol, 1, reordered_rot_bonds, match_torlib, sdwriter, original_mol,
                                            num_confs_by_rotbonds, rmsd, atom_maps, 250, product, visited) 
             if len(product) <= num_confs_by_rotbonds // 3:
                 if VERBOSE: print(f'Failed even for stochastic scan (generated {len(product)} confs), use the 2nd tolerance level')
-                product = stochastic_sampling(mol, 2, reordered_rot_bonds, match_torlib, sdwriter, original_mol, 
+                product, visited = stochastic_sampling(mol, 2, reordered_rot_bonds, match_torlib, sdwriter, original_mol, 
                                               num_confs_by_rotbonds, rmsd, atom_maps, 500, product, visited)
     else:
         if VERBOSE: print('Running stochastic torsional sampling')
-        product = stochastic_sampling(mol, 1, reordered_rot_bonds, match_torlib, sdwriter, original_mol, numConfs,
+        product, visited = stochastic_sampling(mol, 1, reordered_rot_bonds, match_torlib, sdwriter, original_mol, numConfs,
                                        rmsd, atom_maps, 250, list(), set())
     sdwriter.close()
     convert_sdf_mol2(rotated_file, f"{name}_rotated.mol2", VERBOSE)
@@ -658,6 +658,232 @@ def gen_conf_chunk(df: pd.DataFrame, randomSeed = 42, numConfs = 10000, rmsd = 0
                         db2_data = mol2db2.mol2db2_quick(f"{name}.mol2", f"{name}.solv", disttol=0.05)
 
                     write_to_file(db2_data, f"../{name}.db2")
+                    os.chdir("../..")
+                    if cleanup:
+                        subprocess.run(f"rm -rf 3d/{name} solv/{name} db2/{name}", shell=True)
+                except Exception as e:
+                    logger.error(f"Error in converting {name} to DB2 format: {e}")
+                    os.chdir("../..")
+                    log_error(row['smiles'], name)
+                    continue
+        if cleanup:
+            subprocess.run("find 3d -type d -empty -delete", shell=True)
+            subprocess.run("find solv -type d -empty -delete", shell=True)
+
+def embed_smiles_ver2(smiles, name, rmsd=0.25, randomSeed=42, VERBOSE=False):
+    params = rdDistGeom.srETKDGv3()
+    params.numThreads = 0  # Use all available threads
+    params.pruneRmsThresh = 0.35  # Prune conformations that are too similar, not user-definable here
+    params.randomSeed = 42 # For reproducibility
+    params.useRandomCoords = True
+    mol = Chem.MolFromSmiles(smiles)
+    numConfs = 300
+    mol_H = Chem.AddHs(mol)
+    mol_H.SetProp("_Name", name)
+    amsol_mol = Chem.Mol(mol_H) 
+    amsol_mol.RemoveAllConformers() # An empty conformer list
+
+    conf_energies = []
+    # We need to match every 6-membered aliphatic ring to filter out non-chair confs
+    matches_6_member_aliphatic = smi2db2_utils.find_6_member_aliphatic(mol_H)
+    num_chairs = 0
+
+    mp = rdForceFieldHelpers.MMFFGetMoleculeProperties(mol_H, mmffVariant="MMFF94s")
+    mp.SetMMFFDielectricConstant(1) #1 means vacumn, 80 means water, 20 is the compromised value (still arbitrary)
+
+    for cid in rdDistGeom.EmbedMultipleConfs(mol_H, numConfs=numConfs, params=params):
+        ff = rdForceFieldHelpers.MMFFGetMoleculeForceField(mol_H, mp, confId=cid)
+        ff.Minimize()
+        chair = matches_6_member_aliphatic and smi2db2_utils.chair_like(mol_H, cid, matches_6_member_aliphatic)
+        if chair:
+            num_chairs += 1
+        energy = ff.CalcEnergy()
+        conformer = mol_H.GetConformer(cid)
+        conf_energies.append((energy, conformer, chair))
+    
+    conf_energies = sorted(conf_energies, key=lambda x: x[0])  # sort by increasing energy
+    
+    # Keep only chair conformations if any are found, otherwise keep all 
+    if num_chairs > 0:
+        conf_energies = [entry for entry in conf_energies if entry[2]]
+    
+    # Keep maximum 10 conformers for trying AMSOL
+    for idx in range(min(10, len(conf_energies))): amsol_mol.AddConformer(conf_energies[idx][1], assignId = True)
+    if VERBOSE: print(f"\tamsol_mol contains: {amsol_mol.GetNumConformers()}")
+
+    # Find non-planar ring systems
+    non_planar_rings = smi2db2_utils.find_non_planar_rings(mol_H)
+    if VERBOSE: print(f"\tNon-planar rings: {non_planar_rings}")
+
+    rigid_scaffolds = [] # List of Rdkit Mol objects with various ring and sulfoxide/sulfonamide conformations
+
+    sulfo_matches = smi2db2_utils.find_sulfonamide_like_scaffolds(mol_H)
+    if VERBOSE and sulfo_matches: print(f"\tSulfonamide-like matches: {sulfo_matches}")
+    
+    # If found any: classify the embeddings from rdkit into different regioisomers
+    if sulfo_matches:
+        combi_regioisomers = {}
+        for energy, conf, _ in conf_energies:
+            current_combi = [0 for _ in sulfo_matches]
+            for idx, (a,b,c,d,e) in enumerate(sulfo_matches):
+                dihedral = rdMolTransforms.GetDihedralDeg(conf, d, b, c, e)
+                if dihedral < 0: current_combi[idx] = -1 
+                else: current_combi[idx] = 1
+            if tuple(current_combi) in combi_regioisomers: combi_regioisomers[tuple(current_combi)].append((energy, conf, _))
+            else : combi_regioisomers[tuple(current_combi)] = [(energy, conf, _)]
+
+
+
+        if VERBOSE: print(combi_regioisomers)
+        for mol_idx in combi_regioisomers.keys(): 
+            # mol_idx is the current regioisomer, eg. R1-N-R2 and R2-N-R1 are different regioisomers
+            rigid_scaffolds.append(Chem.Mol(mol_H))
+            rigid_scaffolds[-1].RemoveAllConformers()
+            while (len(combi_regioisomers[mol_idx]) > 0): 
+                energy, conformer, _ = combi_regioisomers[mol_idx].pop(0) 
+                rigid_scaffolds[-1].AddConformer(conformer, assignId = True) 
+                combi_regioisomers[mol_idx] = smi2db2_utils.ring_conf_clusters(conformer, combi_regioisomers[mol_idx], non_planar_rings, tolerance=20)
+            if VERBOSE: print(rigid_scaffolds[-1].GetNumConformers())
+    else: 
+        if VERBOSE: print("\tNo sulfonamide-like scaffolds found")
+        while (len(conf_energies) > 0): 
+            energy, conformer, _ = conf_energies.pop(0) 
+            rigid_scaffolds.append(Chem.Mol(mol_H))
+            rigid_scaffolds[-1].RemoveAllConformers()
+            rigid_scaffolds[-1].AddConformer(conformer, assignId = True)
+            conf_energies = smi2db2_utils.ring_conf_clusters(current_conf=conformer, remaining_confs=conf_energies,
+                                                             non_planar_rings=non_planar_rings, tolerance=20)
+        if VERBOSE: print(f'\tBefore: {len(mol_H.GetConformers())}, after: {len(rigid_scaffolds)}')
+
+    netcharge = sum(atom.GetFormalCharge() for atom in mol_H.GetAtoms())
+
+    return amsol_mol, netcharge, rigid_scaffolds
+
+def choose_sampling_method_ver2(rigid_scaffolds, name, numConfs, rmsd, VERBOSE=False):
+   
+    # Count number of rotatable hydrogens and number of conformations contributed by them
+    mol2_countH = mol2.Mol2(mol2fileName=f"{name}.mol2", nameFileName=None, mol2text=None)
+    num_confs_H = hydrogens.count_confs_by_H(mol2_countH)
+    num_rotatable_H = mol2_countH.hydrogensToRotate
+
+    # Divide the number of conformations by that contributed by rotatable hydrogens
+    # This adopts the same strategy from previous DB2 pipeline from UCSF
+    if num_rotatable_H >= 6:  
+        logger.warning(f"{name} has too many rotatable hydrogens, will reduce by 60")
+        numConfs = numConfs // 60
+    elif num_rotatable_H >= 4: numConfs = numConfs // 30
+    elif num_rotatable_H >= 2: numConfs = numConfs // 3  
+    num_confs_by_rotbonds, reordered_rot_bonds, match_torlib = count_confs_by_rotbonds(rigid_scaffolds[0], VERBOSE)
+    
+    if VERBOSE: print(f"\t{num_confs_by_rotbonds} {num_confs_H} {num_rotatable_H} {numConfs}")
+
+    if (len(reordered_rot_bonds) == 0 or num_confs_by_rotbonds == 1):
+        for idx, mol in enumerate(rigid_scaffolds):
+            rotated_file = f"{name}_mol{idx}_rotated"
+            sdf_file = f"{rotated_file}.sdf"
+            mol2_file = f"{rotated_file}.mol2"
+            with Chem.SDWriter(sdf_file) as sdwriter: sdwriter.write(mol)
+            convert_sdf_mol2(sdf_file, mol2_file, VERBOSE)
+        return 2
+    
+    #Reuse this multiple times, regardless of the flexibility of the scaffold, so better put it outside the loop
+    atom_maps = find_rigid_part(rigid_scaffolds[0], rigid_rules) 
+    if VERBOSE: print(f'Uses {atom_maps} as rigid part')
+
+    for idx, mol in enumerate(rigid_scaffolds):
+        if VERBOSE: print(f"\tHanding rigid scaffold {idx+1}/{len(rigid_scaffolds)}")
+        original_mol = Chem.Mol(mol)
+        num_confs_by_rotbonds, reordered_rot_bonds, match_torlib = count_confs_by_rotbonds(mol, VERBOSE)
+
+        # Initialize the visited and visitting list for the systematic scan
+        #visitting = [-1 for _ in range(len(reordered_rot_bonds))]
+        if VERBOSE: print('Running stochastic torsional sampling')
+        rotated_file = f"{name}_mol{idx}_rotated"
+        sdf_file = f"{rotated_file}.sdf"
+        mol2_file = f"{rotated_file}.mol2"
+        sdwriter = Chem.SDWriter(sdf_file)
+        product, visited = stochastic_sampling(mol, 1, reordered_rot_bonds, match_torlib, sdwriter, original_mol, numConfs,
+                                       rmsd, atom_maps, 250, list(), visited=set())
+        if len(product) <= num_confs_by_rotbonds // 3: 
+            if VERBOSE: print(f'Failed for stochastic scan (generated {len(product)} confs), use the 2nd tolerance level')
+            product, visited = stochastic_sampling(mol, 2, reordered_rot_bonds, match_torlib, sdwriter, original_mol, 
+                                          numConfs, rmsd, atom_maps, 500, list(), visited)
+        convert_sdf_mol2(sdf_file, mol2_file, VERBOSE)
+    return 0
+
+
+def gen_conf_chunk_ver2(df: pd.DataFrame, randomSeed = 42, numConfs = 10000, rmsd = 0.25, VERBOSE = False, cleanup=False):
+        
+        env = setup_env()
+        #if VERBOSE: print(df)
+        #if VERBOSE: print(env['LD_LIBRARY_PATH'])
+        for idx, row in df.iterrows():
+            random.seed(randomSeed)
+            name = row['ids']
+            # Embed smiles into initial conformation 
+            # (The number of initial confs will be estimated from https://pubs.acs.org/doi/abs/10.1021/ci2004658
+            # then we only use the minimal energy ones)
+            if VERBOSE: print(f"\nHandling {name} \nGenerating initial 3D conformations...")
+            amsol_mol, netcharge, rigid_scaffolds = embed_smiles_ver2(row['smiles'], name, rmsd = rmsd, 
+                                          randomSeed = randomSeed, VERBOSE=VERBOSE)
+
+            # Solvation using AMSOL
+            if VERBOSE: print("Solvating...")
+            subprocess.run(f"mkdir -p solv/{name}", shell=True)
+            os.chdir(f"solv/{name}")
+
+            for conf_id in range(amsol_mol.GetNumConformers()):
+                # Idea: try from the energy minimum conformer if AMSOL fails -> next conformer until reach the last
+                if VERBOSE: print(f"\tTrying conformer: {conf_id}")
+                error_signal = 0
+
+                cp = Chem.Mol(amsol_mol, confId=conf_id) #Retrieve the conf_id-th conformer of mol object
+                mol2_block = convert(Chem.MolToMolBlock(cp), "mol", "mol2")
+                write_to_file(mol2_block, f"{name}.mol2")
+
+                run_amsol.prepare(f"{name}.mol2", name, netcharge)
+                error_signal = run_amsol.run('temp.in-hex', 'temp.o-hex', env)
+                if error_signal == -1: continue
+                error_signal = run_amsol.run('temp.in-wat', 'temp.o-wat', env)
+                if error_signal == -1: continue
+                error_signal = run_amsol.process_output('temp.o-wat', 'temp.o-hex', "temp.mol2", "output")#, VERBOSE=VERBOSE)
+                if error_signal == -1: continue
+                break
+            os.chdir("../..")
+            if error_signal == -1 and conf_id+1 == amsol_mol.GetNumConformers(): # AMSOL failed
+                logger.error(f"AMSOL failed for {name}, skipping it")
+                log_error(row['smiles'], name)
+                continue
+            subprocess.run(f"cp solv/{name}/output.mol2 solv/{name}/{name}_solv.mol2", shell=True)
+            subprocess.run(f"mv solv/{name}/output.solv solv/{name}/{name}_solv.solv", shell=True)
+            
+
+            # 3D generation
+            if VERBOSE: print("3D generation...")
+            subprocess.run(f"mkdir -p 3d/{name}", shell=True)
+            subprocess.run(f"cp solv/{name}/{name}_solv.mol2 3d/{name}/{name}.mol2", shell=True)
+            os.chdir(f"3d/{name}")
+            sampling_signal = choose_sampling_method_ver2(rigid_scaffolds, name, numConfs, rmsd, VERBOSE)
+            os.chdir("../..")
+
+            # Mol2DB2
+            if VERBOSE: print("Converting to DB2 format...")
+            subprocess.run(f"mkdir -p db2/{name}", shell=True)
+            subprocess.run(f"mv solv/{name}/{name}_solv.solv db2/{name}/{name}.solv", shell=True)    
+            smi2db2_utils.move_and_rename_mol2_files(name, len(rigid_scaffolds), VERBOSE)
+            os.chdir(f"db2/{name}")
+            if not any(glob.glob(f"{name}_mol*.mol2")) or not os.path.isfile(f"{name}.solv"):
+                logger.error(f"Not found any mol2 files or solv for db2 generation of {name}")
+                os.chdir("../..")
+                log_error(row['smiles'], name)
+                continue
+            else:
+                try:
+                    db2_data_all = ""
+                    for idx in range(len(rigid_scaffolds)):
+                        db2_data = mol2db2.mol2db2_quick(f"{name}_mol{idx}.mol2", f"{name}.solv")
+                        db2_data_all += db2_data
+                    write_to_file(db2_data_all, f"../{name}.db2")
                     os.chdir("../..")
                     if cleanup:
                         subprocess.run(f"rm -rf 3d/{name} solv/{name} db2/{name}", shell=True)
