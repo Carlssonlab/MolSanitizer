@@ -52,6 +52,7 @@ def parse_flags_single_job(args: dict):
     if args.protonation: flags += ' --protonation'
     if args.db2: flags += ' --db2'
     if not(args.cleanup): flags += ' --nocleanup'
+    if args.debug: frags += ' --debug'
     if args.custom is not None: flags += f' --custom ../{args.custom}'
 
     if args.max_isomers != 0: flags += f' --max_isomers {args.max_isomers}'

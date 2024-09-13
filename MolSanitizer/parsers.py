@@ -104,6 +104,7 @@ def parseArguments_batch(args = None):
     parser.add_argument('--protonation', action='store_true', help='Apply protonation to the structures (default: False)')
     parser.add_argument('--db2', action='store_true', help='Generate conformers and stored in the DB2 format for DOCK 3.8 (default: False)')
     parser.add_argument('--nocleanup', action='store_false', dest='cleanup', default = True, help='Do not clean up the temporary files (default: False)')
+    parser.add_argument('--debug', action='store_true', help='Debugging mode')
 
     # Add string option
     parser.add_argument('--custom', default=None, type=str, help='Filter out unwanted substructures using the customized list')
