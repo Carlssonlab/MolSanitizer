@@ -8,6 +8,7 @@
 """
 # Author: Thua-Phong Lam, Jens Carlsson lab, Uppsala University
 import pandas as pd
+import itertools
 from openbabel import openbabel as ob
 from rdkit import Chem
 from rdkit.Chem import rdDistGeom, rdForceFieldHelpers, rdMolTransforms, rdDistGeom, rdMolAlign, rdMolDescriptors
@@ -755,7 +756,7 @@ def embed_smiles_ver2(smiles, name, rmsd=0.25, randomSeed=42, VERBOSE=False):
 
     # Sort conformers by energy
     conf_ring_descriptors_df.sort_values('Energy', inplace=True)
-
+    
     # Keep the top 10 conformers for further processing (e.g., AMSOL)
     for idx in range(min(10, len(conf_ring_descriptors_df))):
         amsol_mol.AddConformer(conf_ring_descriptors_df.iloc[idx, 0], assignId=True)
@@ -825,7 +826,6 @@ def stochastic_sampling_v2(mol, tolerance_level, match_torlib, sdwriter, origina
     keys = list(unvisited.keys())
     weights = list(unvisited.values())
     bonded_pairs, same_parent_pairs = precompute_bonded_and_same_parent_pairs(mol)
-    conformer = mol.GetConformer(0)
     while (len(product) < numConfs) and len(unvisited) > 0:
         choice = random.choices(keys, weights=weights, k=1)[0]
         for idx, (_, bond, _) in enumerate(match_torlib):
@@ -851,6 +851,106 @@ def stochastic_sampling_v2(mol, tolerance_level, match_torlib, sdwriter, origina
     #print(visit_matrix)
     return product, unvisited
 
+def stochastic_sampling_v3(mol, tolerance_level, match_torlib, sdwriter, original, numConfs, total_possible_solutions, atom_maps, max_attempts=100, product=0, unvisited = None, visited=None):
+    """
+    Perform stochastic sampling of the conformational space of a molecule using a hybrid approach.
+    It switches between a visited matrix approach for large solution spaces and an unvisited set approach for smaller spaces.
+
+    This function generates conformers of a molecule and prunes conformers that are either too close in terms of atomic distances or have already been visited (i.e., previously generated conformers). The method of tracking unvisited or visited conformations depends on the size of the search space relative to the number of allowed conformers.
+
+    Args:
+        mol (rdkit.Chem.Mol): The molecule for which to generate conformers.
+        tolerance_level (int): The index in the torsion library specifying the tolerance for angle deviations.
+        match_torlib (list): List of tuples containing torsion matching information for dihedral angles.
+        sdwriter (rdkit.Chem.SDWriter): Writer object to output generated conformers to an SDF file.
+        original (rdkit.Chem.Mol): The reference molecule to align the generated conformers to.
+        numConfs (int): The maximum number of conformers to generate.
+        total_possible_solutions (int): The total number of possible dihedral combinations (solution space).
+        atom_maps (list): List of atom indices to use for alignment when generating conformers.
+        max_attempts (int, optional): Maximum number of attempts to generate a valid conformer. Defaults to 100.
+        product (int, optional): Number of conformers generated so far. Defaults to 0.
+        unvisited (list or None, optional): List of unvisited conformer combinations. Defaults to None. Used when the solution space is smaller than twice the maximum allowed conformers.
+        visited (set or None, optional): Set of visited conformers. Defaults to None. Used when the solution space is larger than twice the maximum allowed conformers.
+
+    Returns:
+        tuple: (product, visited, unvisited) - 
+            - `product`: Number of generated conformers.
+            - `visited`: Set of visited conformations if the large-space approach is used.
+            - `unvisited`: List of unvisited conformer combinations if the small-space approach is used.
+    
+    Logic:
+    - If the total number of possible conformers exceeds twice the maximum allowed conformers (`total_possible_solutions > 2 * numConfs`), a **visited matrix approach** is used. This method randomly samples from the search space and tracks visited conformers to avoid generating duplicates.
+    - If the total number of possible conformers is smaller or equal to twice the maximum allowed conformers, an **unvisited set approach** is used. This method randomly selects from a set of all unvisited combinations and generates conformers until the desired number is reached or all possibilities are exhausted.
+
+    """
+    
+    bonded_pairs, same_parent_pairs = precompute_bonded_and_same_parent_pairs(mol)
+    # Condition to switch between visited matrix and unvisited set approaches
+    if total_possible_solutions > 2 * numConfs:
+        # Use visited matrix approach for large spaces
+        n_transform = len(match_torlib)  # Number of rotatable bonds
+        visitting = [0 for _ in range(n_transform)]
+        attempts = 0
+        if visited is None: visited = set()
+
+        while product < numConfs:
+            for idx in range(n_transform):
+                bond_idx = random.randint(0, len(match_torlib) - 1)
+                bond = match_torlib[bond_idx]
+                peaks = bond[2]  # Extract peaks
+                peak_idx = random.choices(range(len(peaks)), weights=[peak[3] for peak in peaks], k=1)[0]
+                visitting[bond_idx] = peak_idx
+                peak = peaks[peak_idx]
+                rdMolTransforms.SetDihedralDeg(mol.GetConformer(0), *bond[1], value=get_random_angle(peak[0], peak[tolerance_level]))
+
+            # Check if the conformation is valid and not already visited
+            if check_too_close_nonbonded_atoms(mol.GetConformer(0), mol, bonded_pairs, same_parent_pairs)\
+            or tuple(visitting) in visited:
+                attempts += 1
+                if attempts > max_attempts:
+                    break
+                continue
+            
+            attempts = 0
+            rdMolAlign.AlignMol(mol, original, 0, 0, atomMap=[(i, i) for i in atom_maps])
+            visited.add(tuple(visitting.copy()))
+            product+=1
+            sdwriter.write(mol, confId=0)
+
+    else:
+        # Use unvisited set approach for smaller spaces
+        if unvisited is None:
+            combination_ranges = [range(len(peaks)) for _, _, peaks in match_torlib]
+            unvisited = list(itertools.product(*combination_ranges))
+
+        attempts = 0
+        while product < numConfs and len(unvisited) > 0:
+            # Select a random combination from the unvisited set
+            # As the number of possible solutions <= allowance, we don't need to prioritize any combination
+            #print(unvisited)
+            #print(unvisited.dtype)
+            choice = random.choice(unvisited)
+
+            # Set the dihedrals based on the chosen combination
+            for idx, (_, bond, _) in enumerate(match_torlib):
+                peak = match_torlib[idx][2][choice[idx]]
+                value = get_random_angle(peak[0], peak[tolerance_level])
+                rdMolTransforms.SetDihedralDeg(mol.GetConformer(0), *bond, value=value)
+
+            # If atoms are too close or if we already visited this conformation
+            if check_too_close_nonbonded_atoms(mol.GetConformer(0), mol, bonded_pairs, same_parent_pairs):
+                attempts += 1
+                if attempts > max_attempts:
+                    break
+                continue
+
+            unvisited.remove(choice)  # Remove the chosen combination from the unvisited set
+            attempts = 0
+            rdMolAlign.AlignMol(mol, original, 0, 0, atomMap=[(i, i) for i in atom_maps])
+            product+=1            
+            sdwriter.write(mol, confId=0)
+
+    return product, visited, unvisited
 
 def choose_sampling_method_ver2(rigid_scaffolds, name, numConfs, rmsd, sulfo_matches, VERBOSE=False):
    
@@ -887,7 +987,7 @@ def choose_sampling_method_ver2(rigid_scaffolds, name, numConfs, rmsd, sulfo_mat
         if VERBOSE: print(f"\tHandling rigid scaffold {idx+1}/{len(rigid_scaffolds)}")
         original_mol = Chem.Mol(mol)
         # Only remap the match_torlib when sulfo_matches is found
-        if sulfo_matches: num_confs_by_rotbonds, rot_bonds, match_torlib = count_confs_by_rotbonds(mol, VERBOSE)
+        if sulfo_matches: num_confs_by_rotbonds, match_torlib = count_confs_by_rotbonds(mol, VERBOSE)
 
         # Initialize the visited and visitting list for the systematic scan
         #visitting = [-1 for _ in range(len(reordered_rot_bonds))]
@@ -896,17 +996,17 @@ def choose_sampling_method_ver2(rigid_scaffolds, name, numConfs, rmsd, sulfo_mat
         sdf_file = f"{rotated_file}.sdf"
         mol2_file = f"{rotated_file}.mol2"
         sdwriter = Chem.SDWriter(sdf_file)
-        product, unvisited = stochastic_sampling_v2(mol, 1, match_torlib, sdwriter, original_mol, numConfs,
-                                       rmsd, atom_maps, 250, list(), unvisited=defaultdict(float))
+        product, visited, unvisited = stochastic_sampling_v3(mol, 1, match_torlib, sdwriter, original_mol, 
+                                      numConfs, num_confs_by_rotbonds, atom_maps, 250, 0, visited = None, unvisited=None)
         #product, visited = stochastic_sampling(mol, 2, reordered_rot_bonds, match_torlib, sdwriter, original_mol, 
         #                                  numConfs, rmsd, atom_maps, 500, list(), set())
-        if len(product) < min(numConfs, num_confs_by_rotbonds // 3): 
-            if VERBOSE: print(f'Failed for stochastic scan (generated {len(product)} confs), use the 2nd tolerance level')
-            product, unvisited = stochastic_sampling_v2(mol, 2, match_torlib, sdwriter, original_mol, 
-                                          numConfs, rmsd, atom_maps, 500, product, unvisited)
+        if product < min(numConfs, num_confs_by_rotbonds // 3): 
+            if VERBOSE: print(f'Failed for stochastic scan (generated {product} confs), use the 2nd tolerance level')
+            product, visited, unvisited = stochastic_sampling_v3(mol, 2, match_torlib, sdwriter, original_mol, 
+                                          numConfs, num_confs_by_rotbonds, atom_maps, 500, 0, visited = visited, unvisited = unvisited)
             #product, visited = stochastic_sampling(mol, 2, reordered_rot_bonds, match_torlib, sdwriter, original_mol, 
             #                              numConfs, rmsd, atom_maps, 500, product, visited)
-        if len(product) == 0: sdwriter.write(mol)
+        if product == 0: sdwriter.write(mol)
         sdwriter.close()
         convert_sdf_mol2(sdf_file, mol2_file, VERBOSE)
         
