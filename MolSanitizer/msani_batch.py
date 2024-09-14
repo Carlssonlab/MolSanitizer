@@ -52,7 +52,7 @@ def parse_flags_single_job(args: dict):
     if args.protonation: flags += ' --protonation'
     if args.db2: flags += ' --db2'
     if not(args.cleanup): flags += ' --nocleanup'
-    if args.debug: frags += ' --debug'
+    if args.debug: flags += ' --debug'
     if args.timing: flags += ' --timing'
     if args.custom is not None: flags += f' --custom ../{args.custom}'
 
