@@ -20,6 +20,7 @@ from MolSanitizer.amsol import run_amsol
 from MolSanitizer.db2 import mol2db2, hydrogens, mol2
 from MolSanitizer import strain_filter, smi2db2_utils
 import random
+import time
 
 import logging
 logger = logging.getLogger('molsani')
@@ -912,12 +913,17 @@ def choose_sampling_method_ver2(rigid_scaffolds, name, numConfs, rmsd, sulfo_mat
     return 0
 
 
-def gen_conf_chunk_ver2(df: pd.DataFrame, randomSeed = 42, numConfs = 10000, rmsd = 0.25, VERBOSE = False, cleanup=False):
-        
+def gen_conf_chunk_ver2(df: pd.DataFrame, args):
+        randomSeed, numConfs, rmsd, VERBOSE, cleanup = args.randomSeed, args.numconfs, args.rmsd, args.debug, args.cleanup 
         env = setup_env()
+        if args.timing: 
+            if not(os.path.exists('msani_timing.csv')): 
+                with open('msani_timing.csv', 'w') as f: f.write('Name, Initial embedding, AMSOL, Torsional sampling, Mol2DB2\n')
+            logging_time = ""
         #if VERBOSE: print(df)
         #if VERBOSE: print(env['LD_LIBRARY_PATH'])
         for idx, row in df.iterrows():
+            if args.timing: start = time.time()
             random.seed(randomSeed)
             name = row['ids']
             # Embed smiles into initial conformation 
@@ -926,12 +932,13 @@ def gen_conf_chunk_ver2(df: pd.DataFrame, randomSeed = 42, numConfs = 10000, rms
             if VERBOSE: print(f"\nHandling {name} \nGenerating initial 3D conformations...")
             amsol_mol, netcharge, rigid_scaffolds, sulfo_matches = embed_smiles_ver2(row['smiles'], name, rmsd = rmsd, 
                                           randomSeed = randomSeed, VERBOSE=VERBOSE)
+            if args.timing: embed_time = time.time()
 
             # Solvation using AMSOL
             if VERBOSE: print("Solvating...")
             subprocess.run(f"mkdir -p solv/{name}", shell=True)
             os.chdir(f"solv/{name}")
-
+            
             for conf_id in range(amsol_mol.GetNumConformers()):
                 # Idea: try from the energy minimum conformer if AMSOL fails -> next conformer until reach the last
                 if VERBOSE: print(f"\tTrying conformer: {conf_id}")
@@ -956,7 +963,7 @@ def gen_conf_chunk_ver2(df: pd.DataFrame, randomSeed = 42, numConfs = 10000, rms
                 continue
             subprocess.run(f"cp solv/{name}/output.mol2 solv/{name}/{name}_solv.mol2", shell=True)
             subprocess.run(f"mv solv/{name}/output.solv solv/{name}/{name}_solv.solv", shell=True)
-            
+            if args.timing: amsol_time = time.time()
 
             # 3D generation
             if VERBOSE: print("3D generation...")
@@ -965,6 +972,7 @@ def gen_conf_chunk_ver2(df: pd.DataFrame, randomSeed = 42, numConfs = 10000, rms
             os.chdir(f"3d/{name}")
             sampling_signal = choose_sampling_method_ver2(rigid_scaffolds, name, numConfs, rmsd, sulfo_matches, VERBOSE)
             os.chdir("../..")
+            if args.timing: sampling_time = time.time()
 
             # Mol2DB2
             if VERBOSE: print("Converting to DB2 format...")
@@ -992,6 +1000,13 @@ def gen_conf_chunk_ver2(df: pd.DataFrame, randomSeed = 42, numConfs = 10000, rms
                     os.chdir("../..")
                     log_error(row['smiles'], name)
                     continue
+            if args.timing: 
+                mol2db2_time = time.time()
+                logging_time += f'{name}, {embed_time-start}, {amsol_time-embed_time}, {sampling_time-amsol_time}, {mol2db2_time-sampling_time} \n'
+
         if cleanup:
             subprocess.run("find 3d -type d -empty -delete", shell=True)
             subprocess.run("find solv -type d -empty -delete", shell=True)
+        if args.timing:
+            with open('msani_timing.csv', 'a') as f:
+                f.write(logging_time)
