@@ -1,0 +1,322 @@
+<!-- SmallRing Conformation Library v1.0
+Curated from literature and small molecule crystal structures from CSD and PDB
+Update upto 8-membered rings (cyclooctane)
+
+Authors: Thua-Phong Lam, Szymon Pach.
+Place: Jens Carlsson's Lab, Uppsala University, Sweden.
+Date: 2024-09-14
+-->
+
+<library>
+  <ring name="planar-aro-5-member">
+    <smarts smarts="a1aaaa1"/>
+    <dihedral_sets>
+      <set dihedral="'0', '0', '0', '0', '0'" value="1"/>
+    </dihedral_sets>
+  </ring>
+  <ring name="planar-aro-6-member">
+    <smarts smarts="a1aaaaa1"/>
+    <dihedral_sets>
+      <set dihedral="'0', '0', '0', '0', '0', '0'" value="1"/>
+    </dihedral_sets>
+  </ring>
+  <ring name="planar-aro-7-member">
+    <smarts smarts="a1aaaaaa1"/>
+    <dihedral_sets>
+      <set dihedral="'0', '0', '0', '0', '0', '0', '0'" value="1"/>
+    </dihedral_sets>
+  </ring>
+  <ring name="planar-4-member">
+    <smarts smarts="*1~[*^2]~[*^2]~*~1"/>
+    <dihedral_sets>
+      <set dihedral="'0', '0', '0', '0'" value="1"/>
+    </dihedral_sets>
+  </ring>
+  <ring name="planar-5-member">
+    <smarts smarts="*1~[A^2;!$(O(a)[A^3])]~[*^2]~[*^2]~*1"/>
+    <dihedral_sets>
+      <set dihedral="'0', '0', '0', '0', '0'" value="1"/>
+    </dihedral_sets>
+  </ring>
+  <ring name="planar-6-member">
+    <smarts smarts="**1~[A^2;!$(O(a)[A^3])]~[*^2]~[*^2]~[*^2]~*~1 "/>
+    <dihedral_sets>
+      <set dihedral="'0', '0', '0', '0', '0', '0'" value="1"/>
+    </dihedral_sets>
+  </ring>
+  <ring name="planar-cyclohexa-1,4-dien">
+    <smarts smarts="[*:1]1=,:[*:2]-[A;!$(N-*=*):3]-[*:4]=,:[*:5]-[A;!$(N-*=*):6]-1"/>
+    <dihedral_sets>
+      <set dihedral="'0', '0', '0', '0', '0', '0'" value="1"/>
+    </dihedral_sets>
+  </ring>
+  <ring name="cyclobutane">
+    <note note=""/>
+    <smarts smarts="[A;!$(N-*=*)]1-[A;!$(N-*=*)]-[A;!$(N-*=*)]-[A;!$(N-*=*)]-1"/>
+    <ref ref=""/>
+    <dihedral_sets>
+      <set dihedral="'20', '-20', '20', '-20'" value="1"/>
+      <set dihedral="'-20', '20', '-20', '20'" value="2"/>
+    </dihedral_sets>
+  </ring>
+  <ring name="5-membered lactam/lactone">
+    <note note=""/>
+    <smarts smarts="[C;$(C=O):1]1-[N,O:2]-[A:3]-[A:4]-[A:5]-1"/>
+    <ref ref=""/>
+    <dihedral_sets>
+      <set dihedral="'-20', '20', '-20', '20', '0'" value="1"/>
+      <set dihedral="'20', '-20', '20', '-20', '0'" value="2"/>
+    </dihedral_sets>
+  </ring>
+  <ring name="cyclopentene">
+    <note note="(should we only care about -C3(!H)- substructure?"/>
+    <smarts smarts="[*:1]1=,:[*:2]-[A:3]-[A:4]-[A:5]-1"/>
+    <ref ref="https://doi.org/10.1016/0166-1280(83)80021-9"/>
+    <dihedral_sets>
+      <set dihedral="'-20', '20', '-20', '20', '0'" value="1"/>
+      <set dihedral="'20', '-20', '20', '-20', '0'" value="2"/>
+    </dihedral_sets>
+  </ring>
+  <ring name="cyclopentane">
+    <note note=""/>
+    <smarts smarts="[A;!$(N-*=*)]1-[A;!$(N-*=*)]-[A;!$(N-*=*)]-[A;!$(N-*=*)]-[A;!$(N-*=*)]-1"/>
+    <ref ref="https://doi.org/10.1016/0166-1280(83)80021-9"/>
+    <dihedral_sets>
+      <set dihedral="'0', '-25', '40', '-40', '25'" value="1"/>
+      <set dihedral="'-25', '40', '-40', '25', '0'" value="2"/>
+      <set dihedral="'40', '-40', '25', '0', '-25'" value="3"/>
+      <set dihedral="'-40', '25', '0', '-25', '40'" value="4"/>
+      <set dihedral="'25', '0', '-25', '40', '-40'" value="5"/>
+      <set dihedral="'0', '25', '-40', '40', '-25'" value="6"/>
+      <set dihedral="'25', '-40', '40', '-25', '0'" value="7"/>
+      <set dihedral="'-40', '40', '-25', '0', '25'" value="8"/>
+      <set dihedral="'40', '-25', '0', '25', '-40'" value="9"/>
+      <set dihedral="'-25', '0', '25', '-40', '40'" value="10"/>
+    </dihedral_sets>
+  </ring>
+  <ring name="cyclohexa-1,3-diene - like (fwd)">
+    <note note="lactam, lactone which adopts double bond"/>
+    <smarts smarts="[C;$(C=O):1]1-[N,O:2]-[*:3]=,:[*:4]-[A;!$(N-*=*):5]-[A;!$(N-*=*):6]-1"/>
+    <ref ref=""/>
+    <dihedral_sets>
+      <set dihedral="'10', '0', '-20', '35', '-35', '0'" value="1"/>
+      <set dihedral="'-10', '0', '20', '-35', '35', '0'" value="2"/>
+    </dihedral_sets>
+  </ring>
+  <ring name="cyclohexa-1,3-diene - like (bwd)">
+    <note note="lactam, lactone which adopts double bond"/>
+    <smarts smarts="[N,O:1]1-[C;$(C=O):2]-[*:3]=,:[*:4]-[A;!$(N-*=*):5]-[A;!$(N-*=*):6]-1"/>
+    <ref ref=""/>
+    <dihedral_sets>
+      <set dihedral="'10', '0', '-20', '35', '-35', '0'" value="1"/>
+      <set dihedral="'-10', '0', '20', '-35', '35', '0'" value="2"/>
+    </dihedral_sets>
+  </ring>
+  <ring name="cyclohexa-1,3-diene">
+    <note note=""/>
+    <smarts smarts="[*:1]1=,:[*:2]-[*:3]=,:[*:4]-[A;!$(N-*=*):5]-[A;!$(N-*=*):6]-1"/>
+    <ref ref="https://doi.org/10.1016/0022-2860(81)85056-9"/>
+    <dihedral_sets>
+      <set dihedral="'10', '0', '-20', '35', '-35', '0'" value="1"/>
+      <set dihedral="'-10', '0', '20', '-35', '35', '0'" value="2"/>
+    </dihedral_sets>
+  </ring>
+  <ring name="sulfamide/sulfate - 6 member">
+    <note note="Prefer chair, just like cyclohexane"/>
+    <smarts smarts="[S;$(S(=O)(=O)):1]1-[N,O:2]-[A:3]-[A:4]-[A:5]-[N,O:6]-1"/>
+    <ref ref=""/>
+    <dihedral_sets>
+      <set dihedral="'60', '-60', '60', '-60', '60', '-60'" value="1"/>
+      <set dihedral="'-60', '60', '-60', '60', '-60', '60'" value="2"/>
+    </dihedral_sets>
+  </ring>
+  <ring name="carbamide/carbonate - 6 member">
+    <note note="(N/O)-(C=O)-(N/O), check HIV Pro Inh- ter. ureas"/>
+    <smarts smarts="[C;$(C=O):1]1-[N,O:2]-[A:3]-[A:4]-[A:5]-[N,O:6]-1"/>
+    <ref ref=""/>
+    <dihedral_sets>
+      <set dihedral="'-30', '60', '-60', '30', '0', '0'" value="1"/>
+      <set dihedral="'30', '-60', '60', '-30', '0', '0'" value="2"/>
+    </dihedral_sets>
+  </ring>
+  <ring name="cyclohexene-like">
+    <note note="lactam/lactone"/>
+    <smarts smarts="[C;$(C=O):1]1-[N,O:2]-[A:3]-[A:4]-[A:5]-[A:6]-1"/>
+    <ref ref=""/>
+    <dihedral_sets>
+      <set dihedral="'15', '-30', '45', '-60', '45', '-30'" value="1"/>
+      <set dihedral="'-15', '30', '-45', '60', '-45', '30'" value="2"/>
+    </dihedral_sets>
+  </ring>
+  <ring name="cyclohexene">
+    <note note=""/>
+    <smarts smarts="[*:1]1=,:[*:2]-[A;!$(N-*=*):3]-[A;!$(N-*=*):4]-[A;!$(N-*=*):5]-[A;!$(N-*=*):6]-1"/>
+    <ref ref="https://doi.org/10.1016/0022-2860(68)87035-8"/>
+    <dihedral_sets>
+      <set dihedral="'-15', '45', '-60', '45', '-15', '0'" value="1"/>
+      <set dihedral="'15', '-45', '60', '-45', '15', '0'" value="2"/>
+    </dihedral_sets>
+  </ring>
+  <ring name="cyclohexane">
+    <note note=""/>
+    <smarts smarts="[A;!$(N-*=*)]1-[A;!$(N-*=*)]-[A;!$(N-*=*)]-[A;!$(N-*=*)]-[A;!$(N-*=*)]-[A;!$(N-*=*)]-1"/>
+    <ref ref=""/>
+    <dihedral_sets>
+      <set dihedral="'60', '-60', '60', '-60', '60', '-60'" value="1"/>
+      <set dihedral="'-60', '60', '-60', '60', '-60', '60'" value="2"/>
+    </dihedral_sets>
+  </ring>
+  <ring name="cycloheptatriene">
+    <note note="prefered boat form, not planar"/>
+    <smarts smarts="[*:1]1=,:[*:2]-[*:3]=,:[*:4]-[*:5]=,:[*:6]-[A:7]-1"/>
+    <ref ref="https://doi.org/10.1016/0166-1280(82)80039-0"/>
+    <dihedral_sets>
+      <set dihedral="'30', '0', '-30', '0', '45', '-45', '0'" value="1"/>
+      <set dihedral="'-30', '0', '30', '0', '-45', '45', '0'" value="2"/>
+    </dihedral_sets>
+  </ring>
+  <ring name="cyclohepta-1,3-diene-like (fwd)">
+    <note note="lactam/lactone which adopts a double bond - forward"/>
+    <smarts smarts="[C;$(C=O):1]1-[N,O:2]-[*:3]=,:[*:4]-[A;!$(N-*=*):5]-[A;!$(N-*=*):6]-[A;!$(N-*=*):7]-1"/>
+    <ref ref=""/>
+    <dihedral_sets>
+      <set dihedral="'0', '0', '30', '-70', '70', '-30', '0'" value="1"/>
+      <set dihedral="'0', '0', '-30', '70', '-70', '30', '0'" value="2"/>
+    </dihedral_sets>
+  </ring>
+  <ring name="cyclohepta-1,3-diene-like (bwd)">
+    <note note="lactam/lactone which adopts a double bond - backward"/>
+    <smarts smarts="[N,O:1]1-[C;$(C=O):2]-[*:3]=,:[*:4]-[A;!$(N-*=*):5]-[A;!$(N-*=*):6]-[A;!$(N-*=*):7]-1"/>
+    <ref ref=""/>
+    <dihedral_sets>
+      <set dihedral="'0', '0', '30', '-70', '70', '-30', '0'" value="1"/>
+      <set dihedral="'0', '0', '-30', '70', '-70', '30', '0'" value="2"/>
+    </dihedral_sets>
+  </ring>
+  <ring name="cyclohepta-1,3-diene">
+    <note note=""/>
+    <smarts smarts="[*:1]1=,:[*:2]-[*:3]=,:[*:4]-[A;!$(N-*=*):5]-[A;!$(N-*=*):6]-[A;!$(N-*=*):7]-1"/>
+    <ref ref="https://doi.org/10.1016/0166-1280(82)80039-0"/>
+    <dihedral_sets>
+      <set dihedral="'0', '0', '30', '-70', '70', '-30', '0'" value="1"/>
+      <set dihedral="'0', '0', '-30', '70', '-70', '30', '0'" value="2"/>
+    </dihedral_sets>
+  </ring>
+  <ring name="cyclohepta-1,4-diene">
+    <note note=""/>
+    <smarts smarts="[*:1]1=,:[*:2]-[A;!$(N-*=*):3]-[*:4]=,:[*:5]-[A;!$(N-*=*):6]-[A;!$(N-*=*):7]-1"/>
+    <ref ref="https://doi.org/10.1016/0166-1280(82)80039-0"/>
+    <dihedral_sets>
+      <set dihedral="'20', '-20', '0', '40', '-55', '40', '0'" value="1"/>
+      <set dihedral="'-20', '20', '0', '40', '-55', '40', '0'" value="2"/>
+      <set dihedral="'20', '-20', '0', '-40', '55', '-40', '0'" value="3"/>
+      <set dihedral="'-20', '20', '0', '-40', '55', '-40', '0'" value="4"/>
+    </dihedral_sets>
+  </ring>
+  <ring name="sulfamide/sulfate - 7 member">
+    <note note="Twisted chair"/>
+    <smarts smarts="[S;$(S(=O)(=O)):1]1-[N,O:2]-[A:3]-[A:4]-[A:5]-[A:6]-[N,O:7]-1"/>
+    <ref ref=""/>
+    <dihedral_sets>
+      <set dihedral="'-70', '90', '-40', '-40', '90', '-70', '55'" value="1"/>
+      <set dihedral="'90', '-40', '-40', '90', '-70', '55', '-70'" value="2"/>
+      <set dihedral="'-40', '-40', '90', '-70', '55', '-70', '90'" value="3"/>
+      <set dihedral="'-40', '90', '-70', '55', '-70', '90', '-40'" value="4"/>
+      <set dihedral="'90', '-70', '55', '-70', '90', '-40', '-40'" value="5"/>
+      <set dihedral="'-70', '55', '-70', '90', '-40', '-40', '90'" value="6"/>
+      <set dihedral="'55', '-70', '90', '-40', '-40', '90', '-70'" value="7"/>
+      <set dihedral="'70', '-90', '40', '40', '-90', '70', '-55'" value="8"/>
+      <set dihedral="'-90', '40', '40', '-90', '70', '-55', '70'" value="9"/>
+      <set dihedral="'40', '40', '-90', '70', '-55', '70', '-90'" value="10"/>
+      <set dihedral="'40', '-90', '70', '-55', '70', '-90', '40'" value="11"/>
+      <set dihedral="'-90', '70', '-55', '70', '-90', '40', '40'" value="12"/>
+      <set dihedral="'70', '-55', '70', '-90', '40', '40', '-90'" value="13"/>
+      <set dihedral="'-55', '70', '-90', '40', '40', '-90', '70'" value="14"/>
+    </dihedral_sets>
+  </ring>
+  <ring name="carbamide/carbonate - 7 member">
+    <note note="Twisted chair"/>
+    <smarts smarts="[C;$(C=O):1]1-[N,O:2]-[A:3]-[A:4]-[A:5]-[A:6]-[N,O:7]-1"/>
+    <ref ref=""/>
+    <dihedral_sets>
+      <set dihedral="'90', '-70', '55', '-70', '90', '-40', '-40'" value="1"/>
+      <set dihedral="'-90', '70', '-55', '70', '-90', '40', '40'" value="2"/>
+    </dihedral_sets>
+  </ring>
+  <ring name="cycloheptene-like">
+    <note note="lactam/lactone -&gt; chair"/>
+    <smarts smarts="[C;$(C=O):1]1-[N,O:2]-[A:3]-[A:4]-[A:5]-[A:6]-[A:7]-1"/>
+    <ref ref=""/>
+    <dihedral_sets>
+      <set dihedral="'60', '-70', '70', '-70', '70', '-60', '0'" value="1"/>
+      <set dihedral="'-60', '70', '-70', '70', '-70', '60', '0'" value="2"/>
+    </dihedral_sets>
+  </ring>
+  <ring name="cycloheptene">
+    <note note="Chair"/>
+    <smarts smarts="[*:1]1=,:[*:2]-[A;!$(N-*=*):3]-[A;!$(N-*=*):4]-[A;!$(N-*=*):5]-[A;!$(N-*=*):6]-[A;!$(N-*=*):7]-1"/>
+    <ref ref="https://doi.org/10.1016/0022-2860(68)87035-8"/>
+    <dihedral_sets>
+      <set dihedral="'60', '-70', '70', '-70', '70', '-60', '0'" value="1"/>
+      <set dihedral="'-60', '70', '-70', '70', '-70', '60', '0'" value="2"/>
+    </dihedral_sets>
+  </ring>
+  <ring name="cycloheptane">
+    <note note="Twisted chair;  chair"/>
+    <smarts smarts="[A;!$(N-*=*)]1-[A;!$(N-*=*)]-[A;!$(N-*=*)]-[A;!$(N-*=*)]-[A;!$(N-*=*)]-[A;!$(N-*=*)]-[A;!$(N-*=*)]-1"/>
+    <ref ref="https://doi.org/10.1021/ja00451a005"/>
+    <dihedral_sets>
+      <set dihedral="'-70', '90', '-40', '-40', '90', '-70', '55'" value="1"/>
+      <set dihedral="'90', '-40', '-40', '90', '-70', '55', '-70'" value="2"/>
+      <set dihedral="'-40', '-40', '90', '-70', '55', '-70', '90'" value="3"/>
+      <set dihedral="'-40', '90', '-70', '55', '-70', '90', '-40'" value="4"/>
+      <set dihedral="'90', '-70', '55', '-70', '90', '-40', '-40'" value="5"/>
+      <set dihedral="'-70', '55', '-70', '90', '-40', '-40', '90'" value="6"/>
+      <set dihedral="'55', '-70', '90', '-40', '-40', '90', '-70'" value="7"/>
+      <set dihedral="'70', '-90', '40', '40', '-90', '70', '-55'" value="8"/>
+      <set dihedral="'-90', '40', '40', '-90', '70', '-55', '70'" value="9"/>
+      <set dihedral="'40', '40', '-90', '70', '-55', '70', '-90'" value="10"/>
+      <set dihedral="'40', '-90', '70', '-55', '70', '-90', '40'" value="11"/>
+      <set dihedral="'-90', '70', '-55', '70', '-90', '40', '40'" value="12"/>
+      <set dihedral="'70', '-55', '70', '-90', '40', '40', '-90'" value="13"/>
+      <set dihedral="'-55', '70', '-90', '40', '40', '-90', '70'" value="14"/>
+      <set dihedral="'0', '65', '-80', '65', '-65', '80', '-65'" value="15"/>
+      <set dihedral="'65', '-80', '65', '-65', '80', '-65', '0'" value="16"/>
+      <set dihedral="'-80', '65', '-65', '80', '-65', '0', '65'" value="17"/>
+      <set dihedral="'65', '-65', '80', '-65', '0', '65', '-80'" value="18"/>
+      <set dihedral="'-65', '80', '-65', '0', '65', '-80', '65'" value="19"/>
+      <set dihedral="'80', '-65', '0', '65', '-80', '65', '-65'" value="20"/>
+      <set dihedral="'-65', '0', '65', '-80', '65', '-65', '80'" value="21"/>
+      <set dihedral="'0', '-65', '80', '-65', '65', '-80', '65'" value="22"/>
+      <set dihedral="'-65', '80', '-65', '65', '-80', '65', '0'" value="23"/>
+      <set dihedral="'80', '-65', '65', '-80', '65', '0', '-65'" value="24"/>
+      <set dihedral="'-65', '65', '-80', '65', '0', '-65', '80'" value="25"/>
+      <set dihedral="'65', '-80', '65', '0', '-65', '80', '-65'" value="26"/>
+      <set dihedral="'-80', '65', '0', '-65', '80', '-65', '65'" value="27"/>
+      <set dihedral="'65', '0', '-65', '80', '-65', '65', '-80'" value="28"/>
+    </dihedral_sets>
+  </ring>
+  <ring name="cyclooctane">
+    <note note="Currently only consider boat-chair"/>
+    <smarts smarts="[A;!$(N-*=*)]1-[A;!$(N-*=*)]-[A;!$(N-*=*)]-[A;!$(N-*=*)]-[A;!$(N-*=*)]-[A;!$(N-*=*)]-[A;!$(N-*=*)]-[A;!$(N-*=*)]-1"/>
+    <ref ref="https://doi.org/10.1021/j150617a013"/>
+    <dihedral_sets>
+      <set dihedral="'-65', '-45', '100', '-65', '65', '-100', '45', '65'" value="1"/>
+      <set dihedral="'-45', '100', '-65', '65', '-100', '45', '65', '-65'" value="2"/>
+      <set dihedral="'100', '-65', '65', '-100', '45', '65', '-65', '-45'" value="3"/>
+      <set dihedral="'-65', '65', '-100', '45', '65', '-65', '-45', '100'" value="4"/>
+      <set dihedral="'65', '-100', '45', '65', '-65', '-45', '100', '-65 '" value="5"/>
+      <set dihedral="'-100', '45', '65', '-65', '-45', '100', '-65', '65'" value="6"/>
+      <set dihedral="'45', '65', '-65', '-45', '100', '-65', '65', '-100 '" value="7"/>
+      <set dihedral="'65', '-65', '-45', '100', '-65', '65', '-100', '45'" value="8"/>
+      <set dihedral="'65', '45', '-100', '65', '-65', '100', '-45', '-65'" value="9"/>
+      <set dihedral="'45', '-100', '65', '-65', '100', '-45', '-65', '65'" value="10"/>
+      <set dihedral="'-100', '65', '-65', '100', '-45', '-65', '65', '45'" value="11"/>
+      <set dihedral="'65', '-65', '100', '-45', '-65', '65', '45', '-100'" value="12"/>
+      <set dihedral="'-65', '100', '-45', '-65', '65', '45', '-100', '65'" value="13"/>
+      <set dihedral="'100', '-45', '-65', '65', '45', '-100', '65', '-65'" value="14"/>
+      <set dihedral="'-45', '-65', '65', '45', '-100', '65', '-65', '100'" value="15"/>
+      <set dihedral="'-65', '65', '45', '-100', '65', '-65', '100', '-45'" value="16"/>
+    </dihedral_sets>
+  </ring>
+</library>
