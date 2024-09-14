@@ -19,8 +19,8 @@ from pathlib import Path
 from .hierarchy import TooBigError
 
 def mol2db2_quick(mol2file, solvfile, clashfile = Path(__file__).parent / 'clashfile.txt', disttol = 0.001):
-  argv = ["-s", solvfile, "-d", clashfile]
-  #argv = ["-s", solvfile, "-z"] #Added norotateh (-z) here
+  #argv = ["-s", solvfile, "-d", clashfile]
+  argv = ["-s", solvfile, "-z"] #Added norotateh (-z) here
   options, args = parserDefaults().parse_args(argv) # get the default options
   options.tolerance = disttol
   #options.verbose = True

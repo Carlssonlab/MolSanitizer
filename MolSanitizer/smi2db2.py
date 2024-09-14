@@ -26,7 +26,9 @@ import time
 import logging
 logger = logging.getLogger('molsani')
 
-rotatable_pattern=r'[*]~[*;!$(*#*)!$([!#6&X2H])!$([!#6&X3H2])]-&!@[*;!$(*#*)!$([!#6&X2H])!$([!#6&X3H2])]~[*]'
+#rotatable_pattern=r'[*]~[*;!$(*#*)!$([!#6&X2H])!$([!#6&X3H2])]-&!@[*;!$(*#*)!$([!#6&X2H])!$([!#6&X3H2])]~[*]'
+rotatable_pattern=r'[*]~[*;!$(*#*)]-&!@[*;!$(*#*)]~[*]'
+
 Torlib = strain_filter.parse_torlib()
 rigid_rule_files = Path(__file__).parent / 'Data' / 'rigid_part_rules.txt'
 rigid_rules = pd.read_csv(rigid_rule_files, header=None, sep ='\s+', names=['SMARTS','label'])
@@ -293,7 +295,7 @@ def is_symmetric(mol, atom_indices):
     # Get the atom type (symbol) of the neighboring atoms
     second_atom_symbols = [symbol for symbol, _ in second_atom_neighbors]
     third_atom_symbols = [symbol for symbol, _ in third_atom_neighbors]
-    return(len(set(second_atom_symbols))==1) or (len(set(third_atom_symbols))==1)
+    return(len(set(second_atom_symbols))==1 and len(second_atom_neighbors)==3) or (len(set(third_atom_symbols))==1 and len(third_atom_neighbors)==3)
    
 
 def convert_sdf_mol2(sdf_file, output_mol2, VERBOSE: bool = False):
@@ -961,11 +963,12 @@ def choose_sampling_method_ver2(rigid_scaffolds, name, numConfs, rmsd, sulfo_mat
 
     # Divide the number of conformations by that contributed by rotatable hydrogens
     # This adopts the same strategy from previous DB2 pipeline from UCSF
-    if num_rotatable_H >= 6:  
+    """if num_rotatable_H >= 6:  
         logger.warning(f"{name} has too many rotatable hydrogens, will reduce by 60")
         numConfs = numConfs // 60
     elif num_rotatable_H >= 4: numConfs = numConfs // 30
-    elif num_rotatable_H >= 2: numConfs = numConfs // 3  
+    elif num_rotatable_H >= 2: numConfs = numConfs // 3  """
+    numConfs = 2000
     num_confs_by_rotbonds, match_torlib = count_confs_by_rotbonds(rigid_scaffolds[0], VERBOSE)
     
     if VERBOSE: print(f"\t{num_confs_by_rotbonds} {num_confs_H} {num_rotatable_H} {numConfs}")
@@ -1003,7 +1006,7 @@ def choose_sampling_method_ver2(rigid_scaffolds, name, numConfs, rmsd, sulfo_mat
         if product < min(numConfs, num_confs_by_rotbonds // 3): 
             if VERBOSE: print(f'Failed for stochastic scan (generated {product} confs), use the 2nd tolerance level')
             product, visited, unvisited = stochastic_sampling_v3(mol, 2, match_torlib, sdwriter, original_mol, 
-                                          numConfs, num_confs_by_rotbonds, atom_maps, 500, 0, visited = visited, unvisited = unvisited)
+                                          numConfs, num_confs_by_rotbonds, atom_maps, 500, product, visited = visited, unvisited = unvisited)
             #product, visited = stochastic_sampling(mol, 2, reordered_rot_bonds, match_torlib, sdwriter, original_mol, 
             #                              numConfs, rmsd, atom_maps, 500, product, visited)
         if product == 0: sdwriter.write(mol)
