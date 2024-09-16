@@ -1,0 +1,11 @@
+While handling omegacsd_HEJTAR, found no good conformation of ring: cyclohexane0
+While handling omegacsd_JUBGES, found no good conformation of ring: cyclohepta-1,4-diene0
+While handling omegacsd_KIHWED, found no good conformation of ring: cyclohexene0
+While handling omegacsd_LERKAU, found no good conformation of ring: cyclohepta-1,3-diene-like (bwd)0
+While handling omegacsd_MLDPHE10, found no good conformation of ring: cyclohexene-like0
+While handling omegacsd_VAMCUH, found no good conformation of ring: cyclohexene0
+While handling 1hq2, found no good conformation of ring: cyclohexa-1,3-diene0
+While handling omegapdb_1utt, found no good conformation of ring: cyclohexene-like0
+While handling 1w1p, found no good conformation of ring: cyclohexene-like0
+While handling omegapdb_1xge, found no good conformation of ring: carbamide/carbonate - 6 member0
+While handling 1xoz, found no good conformation of ring: cyclohexene-like1
