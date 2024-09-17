@@ -1,4 +1,4 @@
-name: msani_dev
+name: msani
 
 channels:
   - conda-forge
