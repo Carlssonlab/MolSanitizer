@@ -68,7 +68,7 @@ def cleanData(args):
 
         #chunk['smiles'] = chunk['mol'].apply(lambda x: Chem.MolToSmiles(x))
 
-        if args.db2: smi2db2.gen_conf_chunk(chunk, args.randomSeed, args.numconfs, args.rmsd, args.debug, args.cleanup)
+        if args.db2: smi2db2.gen_conf_chunk_ver2(chunk, args)
         print('Processed SMILES:')
         for i in range(len(chunk)): print(chunk.iloc[i,0])
         if not args.test:
@@ -129,7 +129,7 @@ def cleanData(args):
                 #chunk['smiles'] = chunk['mol'].apply(lambda x: Chem.MolToSmiles(x))
                 chunk.to_csv(outputFile, index=False, mode='a', columns=['smiles','ids'], header=False, sep=' ')
 
-                if args.db2: smi2db2.gen_conf_chunk(chunk, args.randomSeed, args.numconfs, args.rmsd, args.debug, args.cleanup)
+                if args.db2: smi2db2.gen_conf_chunk_ver2(chunk, args)
                 if not args.test:
                     elapsed_time = time.time() - start_time
                     hours, remainder = divmod(elapsed_time, 3600)

@@ -53,7 +53,7 @@ def parse_torlib(xml_file = Path(__file__).parent / 'Data' / 'modified_tor_lib_2
                     Torlib.append((Rule.get("smarts"),
                                 (pattern),
                                 get_atoms_template(pattern),
-                                [(((float(angle.get("value")))), float(angle.get("tolerance1")), float(angle.get("tolerance2")), round(float(angle.get("score")), 2)) for angle in Rule.iter(tag='angle')]))
+                                [(((float(angle.get("value")))), float(angle.get("tolerance1")), float(angle.get("tolerance2")), round(float(angle.get("score"))+0.05, 2)) for angle in Rule.iter(tag='angle')]))
 
     for Rule in root.find("hierarchyClass[@name='GG']").iter("torsionRule"):
         if  "N_lp" in Rule.get("smarts"): 
@@ -63,9 +63,39 @@ def parse_torlib(xml_file = Path(__file__).parent / 'Data' / 'modified_tor_lib_2
             Torlib.append((Rule.get("smarts"),
                         (pattern),
                         get_atoms_template(pattern),
-                        [(((float(angle.get("value")))), float(angle.get("tolerance1")), float(angle.get("tolerance2")), round(float(angle.get("score")), 2)) for angle in Rule.iter(tag='angle')]))
+                        [(((float(angle.get("value")))), float(angle.get("tolerance1")), float(angle.get("tolerance2")), round(float(angle.get("score"))+0.05, 2)) for angle in Rule.iter(tag='angle')]))
     return Torlib
 
+
+def parse_dihedral_set(dihedral_str):
+    # Remove leading/trailing quotes and split by commas
+    dihedral_list = dihedral_str.replace("'", "").split(', ')
+    return [int(x) for x in dihedral_list]
+
+def parse_sr_confs_library(xml_file =Path(__file__).parent /'Data/sr_confs.xml'):
+    """
+    Parse the XML file containing the SR conformer library and extract the data.
+    """
+    tree = ET.parse(xml_file)
+    root = tree.getroot()
+    planar = []
+    non_planar = []
+    for ring in root.findall('ring'):
+        name = ring.get('name')  # Extract the ring name
+        smarts = ring.find('smarts').get('smarts')  # Extract the smarts string
+        mol = Chem.MolFromSmarts(smarts)  # Create RDKit molecule from smarts
+        
+        dihedral_sets = []
+        for dihedral_set in ring.find('dihedral_sets').findall('set'):
+            dihedral_str = dihedral_set.get('dihedral')  # Extract dihedral string
+            dihedral_list = parse_dihedral_set(dihedral_str)  # Parse dihedral to list of ints
+            #value = int(dihedral_set.get('value'))  # Extract the value
+            dihedral_sets.append(tuple(dihedral_list))
+        
+        # Append the tuple of extracted data
+        if 'planar' in name: planar.append((name, smarts, mol, dihedral_sets))
+        else: non_planar.append((name, smarts, mol, dihedral_sets))
+    return planar, non_planar
 
 def normalize_degree(degree):
     """Normalize the degree to the range [-180, 180]."""

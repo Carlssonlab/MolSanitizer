@@ -46,6 +46,7 @@ def parseArguments(args = None):
     parser.add_argument('--protonation', action='store_true', help='Apply protonation to the structures (default: False)')
     parser.add_argument('--db2', action='store_true', help='Generate conformers and stored in the DB2 format for DOCK 3.8 (default: False)')
     parser.add_argument('--nocleanup', action='store_false', dest='cleanup', default = True, help='Do not clean up the temporary files (default: False)')
+    parser.add_argument('--timing', action='store_true', help='Time the process')
 
     #parser.add_argument('--neutralize', action='store_true', help='Neutralize the structures')
     #parser.add_argument('--flavioFilters', action='store_true', help='Filter using Flavio script (For databases based on Greg Landrum)')
@@ -102,8 +103,10 @@ def parseArguments_batch(args = None):
     parser.add_argument('--unwanted', choices=['all', 'regular', 'special', 'optional'], default=None, nargs='*', help='Filter out unwanted substructures using the default list (default: None)')
     parser.add_argument('--stereoisomers', action='store_true', help='Stereoisomers enumeration (only consider unspecified chiral centers) (default: False)')
     parser.add_argument('--protonation', action='store_true', help='Apply protonation to the structures (default: False)')
-    parser.add_argument('--db2', action='store_true', help='Generate conformers and stored in the DB2 format for DOCK 3.8 (default: False)')
+    parser.add_argument('-db2', '--db2', action='store_true', help='Generate conformers and stored in the DB2 format for DOCK 3.8 (default: False)')
     parser.add_argument('--nocleanup', action='store_false', dest='cleanup', default = True, help='Do not clean up the temporary files (default: False)')
+    parser.add_argument('--debug', action='store_true', help='Debugging mode')
+    parser.add_argument('--timing', action='store_true', help='Time the process')
 
     # Add string option
     parser.add_argument('--custom', default=None, type=str, help='Filter out unwanted substructures using the customized list')
