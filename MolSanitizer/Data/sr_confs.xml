@@ -103,6 +103,17 @@ Date: 2024-09-14
       <set dihedral="'-10', '0', '20', '-35', '35', '0'" value="2"/>
     </dihedral_sets>
   </ring>
+
+  <ring name="thioxanthene-like">
+    <note note="Could be regarded as cyclohexa-1-4-diene with the two double bonds being aromatic bonds. Boat-like"/>
+    <smarts smarts="[*:1]1:[*:2]-[A:3]-[*:4]:[*:5]-[A:6]-1"/>
+    <ref ref="https://doi.org/10.1107/S056774086900598X"/>
+    <dihedral_sets>
+      <set dihedral="'-20', '20', '0', '-20', '20', '0'" value="1"/>
+      <set dihedral="'20', '-20', '0', '20', '-20', '0'" value="2"/>
+    </dihedral_sets>
+  </ring>
+
   <ring name="sulfamide/sulfate - 6 member">
     <note note="Prefer chair, just like cyclohexane"/>
     <smarts smarts="[S;$(S(=O)(=O)):1]1-[N,O:2]-[A:3]-[A:4]-[A:5]-[N,O:6]-1"/>
