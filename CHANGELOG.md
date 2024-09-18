@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [unreleased]
 
+### 🚜 Refactor
+
+- Remove unused files in the repository - ([744f694](https://github.com/Isra3l/MolSanitizer/commit/744f694c98720177145d3d3edeeefa29d729a7ae))
+- Remove unused parameters (rmsd) - ([19bbd40](https://github.com/Isra3l/MolSanitizer/commit/19bbd4067fdd2ba918d7534c9eabacef23e9d00d))
+
+## [0.1.0] - 2024-09-17
+
 ### 🚀 Features
 
 - First effort to embed multiple ring conformations and cover multiple regioisomers of sulfonamide-like structures - ([afd59b1](https://github.com/Isra3l/MolSanitizer/commit/afd59b1294846c3346f77c0684d6a769a36075e1))
@@ -20,10 +27,6 @@ All notable changes to this project will be documented in this file.
 ### 🐛 Bug Fixes
 
 - Removed meaningless rules, updated timing and catch an exception where no good conformations could be found (fused-ring systems) - ([d73bc8e](https://github.com/Isra3l/MolSanitizer/commit/d73bc8e3559175e3daa7130e53e54c6b80f7678e))
-
-### 🚜 Refactor
-
-- Remove unused files in the repository - ([744f694](https://github.com/Isra3l/MolSanitizer/commit/744f694c98720177145d3d3edeeefa29d729a7ae))
 
 ## [0.0.7] - 2024-09-01
 
