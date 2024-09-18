@@ -9,6 +9,10 @@ All notable changes to this project will be documented in this file.
 - Remove unused files in the repository - ([744f694](https://github.com/Isra3l/MolSanitizer/commit/744f694c98720177145d3d3edeeefa29d729a7ae))
 - Remove unused parameters (rmsd) - ([19bbd40](https://github.com/Isra3l/MolSanitizer/commit/19bbd4067fdd2ba918d7534c9eabacef23e9d00d))
 
+### 📚 Documentation
+
+- Update README to match the method implemented in smi2db2 - ([36270e6](https://github.com/Isra3l/MolSanitizer/commit/36270e61267e56bebb452c2231817d676cfead1a))
+
 ## [0.1.0] - 2024-09-17
 
 ### 🚀 Features
