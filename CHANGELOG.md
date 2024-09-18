@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.0] - 2024-09-17
+
+### 🚀 Features
+
+- First effort to embed multiple ring conformations and cover multiple regioisomers of sulfonamide-like structures - ([afd59b1](https://github.com/Isra3l/MolSanitizer/commit/afd59b1294846c3346f77c0684d6a769a36075e1))
+- Added an epsilon values so that angle scores at 0 can still have the possibility to sample - ([6afbc63](https://github.com/Isra3l/MolSanitizer/commit/6afbc638f73949e1cff8a9c2cff36a37c51eba4c))
+- Added the debug mode for testing on large scale - ([7b304e9](https://github.com/Isra3l/MolSanitizer/commit/7b304e9bebf885c46f5f2158e75ae0df6947aaa3))
+- Now supports upto 8-membered ring as rigid part in smi2db2 part - ([de62a99](https://github.com/Isra3l/MolSanitizer/commit/de62a9940b30ba6d0e0770aee225ba3271933e7d))
+- Small-ring Torlib updated! Msani should now produce up to 10 (and favorable) rigid scaffolds based on the new SR-Torlib! - ([fcad867](https://github.com/Isra3l/MolSanitizer/commit/fcad86777f0ef5bb3dc18c42d9723b88e96279e0))
+- :sparkles: Small-ring Torlib updated! Msani should now produce up to 10 (and favorable) rigid scaffolds based on the new SR-Torlib! - ([e33139e](https://github.com/Isra3l/MolSanitizer/commit/e33139e1f5223c8a84c037b7cf252a621588b132))
+- Added timing feature for mol2db2 workflow - ([e38916e](https://github.com/Isra3l/MolSanitizer/commit/e38916e5175263aa58123ff6703a4246baa73d3c))
+- :zap: Boost the performance of stochastic sampling by switching between the two modes, based on the relationship between number of possible conformations and number of allowed conformations. - ([a4e7a57](https://github.com/Isra3l/MolSanitizer/commit/a4e7a57dcb828759d54c4178f044c15b1151f91b))
+- Try to implement rotating hydrogen within stochastic sampling to increase diversity and speed up the mol2db2 process - ([4c6d05a](https://github.com/Isra3l/MolSanitizer/commit/4c6d05a3a5237f6cf85dbc7fcf66c1b4d454b42f))
+- Updated new rules and merged the SMARTS - ([217b61c](https://github.com/Isra3l/MolSanitizer/commit/217b61cd2d65fbe1f3e8589c1d5f7c52208b7dc2))
+
+### 🐛 Bug Fixes
+
+- Removed meaningless rules, updated timing and catch an exception where no good conformations could be found (fused-ring systems) - ([d73bc8e](https://github.com/Isra3l/MolSanitizer/commit/d73bc8e3559175e3daa7130e53e54c6b80f7678e))
+
 ## [0.0.7] - 2024-09-01
 
 ### 🚀 Features
