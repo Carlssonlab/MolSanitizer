@@ -59,7 +59,6 @@ def parse_flags_single_job(args: dict):
     if args.max_isomers != 0: flags += f' --max_isomers {args.max_isomers}'
     if args.numconfs != 2000: flags += f' --numconfs {args.numconfs}'
     if args.randomSeed != 42: flags += f' --randomSeed {args.randomSeed}'
-    if args.rmsd != 0.25: flags += f' --rmsd {args.rmsd}'
 
     return flags
 def write_single_job_script(slurm_header: str, slurm_script: str):

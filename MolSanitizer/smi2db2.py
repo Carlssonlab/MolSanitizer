@@ -708,7 +708,7 @@ def gen_conf_chunk(df: pd.DataFrame, randomSeed = 42, numConfs = 10000, rmsd = 0
             subprocess.run("find 3d -type d -empty -delete", shell=True)
             subprocess.run("find solv -type d -empty -delete", shell=True)
 
-def embed_smiles_ver2(smiles, name, rmsd=0.25, randomSeed=42, VERBOSE=False):
+def embed_smiles_ver2(smiles, name, randomSeed=42, VERBOSE=False):
     mol = Chem.MolFromSmiles(smiles)
     mol_H = Chem.AddHs(mol)
     mol_H.SetProp("_Name", name)
@@ -735,7 +735,7 @@ def embed_smiles_ver2(smiles, name, rmsd=0.25, randomSeed=42, VERBOSE=False):
     params = rdDistGeom.srETKDGv3()
     params.numThreads = 0  # Use all available threads
     params.pruneRmsThresh = 0.35  # Prune conformations that are too similar, not user-definable here
-    params.randomSeed = 42 # For reproducibility
+    params.randomSeed = randomSeed # For reproducibility
     params.useRandomCoords = True
     
 
@@ -1030,7 +1030,7 @@ def choose_sampling_method_ver2(rigid_scaffolds, name, numConfs, rmsd, sulfo_mat
 
 
 def gen_conf_chunk_ver2(df: pd.DataFrame, args):
-        randomSeed, numConfs, rmsd, VERBOSE, cleanup = args.randomSeed, args.numconfs, args.rmsd, args.debug, args.cleanup 
+        randomSeed, numConfs, VERBOSE, cleanup = args.randomSeed, args.numconfs, args.debug, args.cleanup 
         env = setup_env()
         if args.timing: 
             if not(os.path.exists('msani_timing.csv')): 
@@ -1046,7 +1046,7 @@ def gen_conf_chunk_ver2(df: pd.DataFrame, args):
             # (The number of initial confs will be estimated from https://pubs.acs.org/doi/abs/10.1021/ci2004658
             # then we only use the minimal energy ones)
             if VERBOSE: print(f"\nHandling {name} \nGenerating initial 3D conformations...")
-            amsol_mol, netcharge, rigid_scaffolds, sulfo_matches = embed_smiles_ver2(row['smiles'], name, rmsd = rmsd, 
+            amsol_mol, netcharge, rigid_scaffolds, sulfo_matches = embed_smiles_ver2(row['smiles'], name, 
                                           randomSeed = randomSeed, VERBOSE=VERBOSE)
             if args.timing: embed_time = time.time()
 
@@ -1086,7 +1086,7 @@ def gen_conf_chunk_ver2(df: pd.DataFrame, args):
             subprocess.run(f"mkdir -p 3d/{name}", shell=True)
             subprocess.run(f"cp solv/{name}/{name}_solv.mol2 3d/{name}/{name}.mol2", shell=True)
             os.chdir(f"3d/{name}")
-            sampling_signal = choose_sampling_method_ver2(rigid_scaffolds, name, numConfs, rmsd, sulfo_matches, VERBOSE)
+            sampling_signal = choose_sampling_method_ver2(rigid_scaffolds, name, numConfs, sulfo_matches, VERBOSE)
             os.chdir("../..")
             if args.timing: sampling_time = time.time()
 
