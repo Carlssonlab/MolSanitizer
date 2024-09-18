@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.1.0] - 2024-09-17
+## [unreleased]
 
 ### 🚀 Features
 
@@ -20,6 +20,10 @@ All notable changes to this project will be documented in this file.
 ### 🐛 Bug Fixes
 
 - Removed meaningless rules, updated timing and catch an exception where no good conformations could be found (fused-ring systems) - ([d73bc8e](https://github.com/Isra3l/MolSanitizer/commit/d73bc8e3559175e3daa7130e53e54c6b80f7678e))
+
+### 🚜 Refactor
+
+- Remove unused files in the repository - ([744f694](https://github.com/Isra3l/MolSanitizer/commit/744f694c98720177145d3d3edeeefa29d729a7ae))
 
 ## [0.0.7] - 2024-09-01
 
