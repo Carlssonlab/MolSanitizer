@@ -714,6 +714,7 @@ def embed_smiles_ver2(smiles, name, randomSeed=42, VERBOSE=False):
     mol_H.SetProp("_Name", name)
     amsol_mol = Chem.Mol(mol_H) 
     empty_mol = Chem.Mol(mol_H)
+    num_ring_confs = 1
 
     ssr = [set(ring) for ring in Chem.GetSymmSSSR(mol_H)]
     planar_rings, non_planar_rings = smi2db2_utils.get_flexible_ring(mol_H, ssr, planar_lib, non_planar_lib)
@@ -727,6 +728,9 @@ def embed_smiles_ver2(smiles, name, randomSeed=42, VERBOSE=False):
         if non_planar_rings:
             print('\t Found non_planar rings:')
             for ring in non_planar_rings: print(f'\t {ring[0]} {ring[1]}')
+        if flippable_Ns: 
+            print('\tFound flippable N structures')
+            for match in flippable_Ns: print(f'\t {match}')
         if sulfo_matches: 
             print('\tFound sulfonamide-like structures')
             for match in sulfo_matches: print(f'\t {match}')
@@ -787,7 +791,7 @@ def embed_smiles_ver2(smiles, name, randomSeed=42, VERBOSE=False):
         for sulfo_match in conf_ring_descriptors_df['sulfo_descriptors'].unique():
             temp_list = conf_ring_descriptors_df[conf_ring_descriptors_df['sulfo_descriptors'] == sulfo_match].values.tolist()
             num_confs_per_regioisomers = 0
-            while num_confs_per_regioisomers < 10 and temp_list:
+            while num_confs_per_regioisomers < num_ring_confs and temp_list:
                 lowest_energy_entry = temp_list.pop(0)
                 conformer, current_descriptors = lowest_energy_entry[0], lowest_energy_entry[2:-1]
                 scaffold = Chem.Mol(empty_mol)
@@ -800,7 +804,7 @@ def embed_smiles_ver2(smiles, name, randomSeed=42, VERBOSE=False):
 
     else:
         temp_list = conf_ring_descriptors_df.values.tolist()
-        while len(rigid_scaffolds) < 10 and temp_list:
+        while len(rigid_scaffolds) < num_ring_confs and temp_list:
             lowest_energy_entry = temp_list.pop(0)
             conformer, current_descriptors = lowest_energy_entry[0], lowest_energy_entry[2:-1]
             scaffold = Chem.Mol(empty_mol)
