@@ -13,10 +13,6 @@ sulfonamide_like_substructure = Chem.MolFromSmarts("[*:1][S;$(S(=*)=*):2]-!@[N&+
 aliphatic_nitrogen_substructure = Chem.MolFromSmarts("[A:1]@[N&+0;!$(N-*=*):2](@[A:3])!@[*,#1:4]")
 
 
-def find_sulfonamide_like_scaffolds(mol_H: Mol):
-    """Find all Sulfonamide-like scaffolds (S(O2)-N(R1)R2 or (S(O)(N)-N(R1)(R2))."""
-    return mol_H.GetSubstructMatches(sulfonamide_like_substructure)
-
 def find_flipped_nitrogen(mol_H: Mol):
     return mol_H.GetSubstructMatches(aliphatic_nitrogen_substructure)
 
@@ -161,10 +157,9 @@ def identical_substituents(mol, idx2, idx3, idx4, idx5):
     # Get paths using DFS
     path4 = get_dfs_path(mol, idx4, forbidden_idxs)
     path5 = get_dfs_path(mol, idx5, forbidden_idxs)
-
     # Generate SMILES for the paths
-    smiles4 = Chem.MolFragmentToSmiles(mol, atomsToUse=path4)
-    smiles5 = Chem.MolFragmentToSmiles(mol, atomsToUse=path5)
+    smiles4 = Chem.MolFragmentToSmiles(mol, atomsToUse=path4, rootedAtAtom=idx4)
+    smiles5 = Chem.MolFragmentToSmiles(mol, atomsToUse=path5, rootedAtAtom=idx5)
 
     # Compare the SMILES strings
     return smiles4 == smiles5
@@ -172,6 +167,7 @@ def identical_substituents(mol, idx2, idx3, idx4, idx5):
 def find_sulfonamide_like_scaffolds(mol_H: Mol):
     """Find all Sulfonamide-like scaffolds (S(O2)-N(R1)R2 or (S(O)(N)-N(R1)(R2))."""
     preliminary_sulfonamide = mol_H.GetSubstructMatches(sulfonamide_like_substructure)
+    print(preliminary_sulfonamide)
     matches_sulfonamide = []
     for (a, b, c, d, e) in preliminary_sulfonamide:
         if identical_substituents(mol_H, b, c, d, e): continue
