@@ -743,7 +743,7 @@ def embed_smiles_ver2(smiles, name, randomSeed=42, VERBOSE=False):
     params.useRandomCoords = True
     
 
-    if sulfo_matches or non_planar_rings or flippable_Ns: numConfs = 100
+    if sulfo_matches or non_planar_rings or flippable_Ns: numConfs = 300
     else: numConfs = 10
 
 
