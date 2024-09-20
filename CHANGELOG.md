@@ -9,6 +9,10 @@ All notable changes to this project will be documented in this file.
 - Trial of using smaller num_confs_ring (1 instead of 10) - ([725f2ff](https://github.com/Isra3l/MolSanitizer/commit/725f2ffe659213e45c1488fa95b0f24a4db20f08))
 - Trial of using smaller initial embedding to speed up the process - ([85cf8e1](https://github.com/Isra3l/MolSanitizer/commit/85cf8e1e8a7c722e94f78d214fe022b93c5aa9c7))
 
+### 🐛 Bug Fixes
+
+- Fix an error that find_sulfonamide not function as expected - ([1818ea7](https://github.com/Isra3l/MolSanitizer/commit/1818ea71c6b8856d0603f125c5860639d09886ab))
+
 ### 🚜 Refactor
 
 - Remove unused files in the repository - ([744f694](https://github.com/Isra3l/MolSanitizer/commit/744f694c98720177145d3d3edeeefa29d729a7ae))
