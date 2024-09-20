@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file.
 ### 🚀 Features
 
 - Trial of using smaller num_confs_ring (1 instead of 10) - ([725f2ff](https://github.com/Isra3l/MolSanitizer/commit/725f2ffe659213e45c1488fa95b0f24a4db20f08))
+- Trial of using smaller initial embedding to speed up the process - ([85cf8e1](https://github.com/Isra3l/MolSanitizer/commit/85cf8e1e8a7c722e94f78d214fe022b93c5aa9c7))
 
 ### 🚜 Refactor
 
