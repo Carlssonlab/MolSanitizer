@@ -22,6 +22,10 @@ All notable changes to this project will be documented in this file.
 
 - Update README to match the method implemented in smi2db2 - ([36270e6](https://github.com/Isra3l/MolSanitizer/commit/36270e61267e56bebb452c2231817d676cfead1a))
 
+### ◀️ Revert
+
+- Revert back to 300 initial conformations for better performance - ([31fabcb](https://github.com/Isra3l/MolSanitizer/commit/31fabcb4e8f238f691c27a2cd518e653e37fb85f))
+
 ## [0.1.0] - 2024-09-17
 
 ### 🚀 Features
