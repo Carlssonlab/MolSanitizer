@@ -541,11 +541,32 @@ def stochastic_sampling(mol, tolerance_level, reordered_rot_bonds, match_torlib,
 
 
 def find_rigid_part(mol, rigid_rules):
-    '''Find rigid parts of the molecule'''
-    for rule in rigid_rules.itertuples():
-        matches = mol.GetSubstructMatches(rule.mol)
-        if len(matches) > 0:
-            return matches[0]
+    '''Find fused ring system of the molecule as the rigid part, 
+    if none, use the hierarchical rules in rigid_part_rules.txt'''
+    ssr = [set(ring) for ring in Chem.GetSymmSSSR(mol)]
+    rigid_part = []
+    rule_label = None
+    while ssr:
+        fused_set = ssr.pop(0)
+        fused = True
+        while fused:
+            fused = False
+            for other_ring in ssr:
+                if fused_set.intersection(other_ring):
+                    fused_set.update(other_ring)
+                    ssr.remove(other_ring)
+                    fused = True
+        rigid_part.append(fused_set)
+    
+    rigid_part = sorted(rigid_part, key = lambda x: len(x), reverse = True)
+    if len(rigid_part) == 0: 
+        for rule in rigid_rules.itertuples():
+            matches = mol.GetSubstructMatches(rule.mol)
+            if len(matches) > 0:
+                rigid_part = [matches[0]]
+                rule_label = rule.label
+                break
+    return rigid_part, rule_label
     
 
 def choose_sampling_method(mol, name, numConfs, rmsd, VERBOSE=False):
@@ -575,7 +596,7 @@ def choose_sampling_method(mol, name, numConfs, rmsd, VERBOSE=False):
     # "." in name is a flag to indicate that the SMILES has been stereoisomerically expanded --> no need to use RDKit conformations
     if (len(reordered_rot_bonds) == 0 or num_confs_by_rotbonds == 1) and ('.' not in name):
         #atom_maps = find_rigid_part(mol, one_conf_rules)
-        if VERBOSE: print(f'\tUses {atom_maps} as rigid part')
+        if VERBOSE: print(f'\tFound {atom_maps} as rigid parts')
         if VERBOSE: logger.warning(f"No rotatable bonds found for {name}, use the conformations from Rdkit")
         for conf_id in range(mol.GetNumConformers()):
             rdMolAlign.AlignMol(mol, mol, conf_id, 0, atomMap=[(i, i) for i in atom_maps])
@@ -586,7 +607,7 @@ def choose_sampling_method(mol, name, numConfs, rmsd, VERBOSE=False):
     
     # Find rigid parts as anchor points for the molecules
     atom_maps = find_rigid_part(mol, rigid_rules)
-    if VERBOSE: print(f'Uses {atom_maps} as rigid part')
+    if VERBOSE: print(f'Found {atom_maps} as rigid parts')
     
     # Initialize the visited and visitting list for the systematic scan
     visitting = [-1 for _ in range(len(reordered_rot_bonds))]
@@ -743,7 +764,7 @@ def embed_smiles_ver2(smiles, name, randomSeed=42, VERBOSE=False):
     params.useRandomCoords = True
     
 
-    if sulfo_matches or non_planar_rings or flippable_Ns: numConfs = 300
+    if sulfo_matches or non_planar_rings or flippable_Ns: numConfs = 200
     else: numConfs = 10
 
 
@@ -870,7 +891,7 @@ def stochastic_sampling_v2(mol, tolerance_level, match_torlib, sdwriter, origina
     #print(visit_matrix)
     return product, unvisited
 
-def stochastic_sampling_v3(mol, tolerance_level, match_torlib, sdwriter, original, numConfs, total_possible_solutions, atom_maps, max_attempts=100, product=0, unvisited = None, visited=None):
+def stochastic_sampling_v3(mol, tolerance_level, match_torlib, sdwriters, original, numConfs, total_possible_solutions, atom_maps, max_attempts=100, product=0, unvisited = None, visited=None):
     """
     Perform stochastic sampling of the conformational space of a molecule using a hybrid approach.
     It switches between a visited matrix approach for large solution spaces and an unvisited set approach for smaller spaces.
@@ -931,10 +952,11 @@ def stochastic_sampling_v3(mol, tolerance_level, match_torlib, sdwriter, origina
                 continue
             
             attempts = 0
-            rdMolAlign.AlignMol(mol, original, 0, 0, atomMap=[(i, i) for i in atom_maps])
             visited.add(tuple(visitting.copy()))
             product+=1
-            sdwriter.write(mol, confId=0)
+            for sdwriter, sdf_file, mol2_file, atom_map in sdwriters:
+                rdMolAlign.AlignMol(mol, original, 0, 0, atomMap=atom_map)
+                sdwriter.write(mol, confId=0)
 
     else:
         # Use unvisited set approach for smaller spaces
@@ -965,19 +987,19 @@ def stochastic_sampling_v3(mol, tolerance_level, match_torlib, sdwriter, origina
 
             unvisited.remove(choice)  # Remove the chosen combination from the unvisited set
             attempts = 0
-            rdMolAlign.AlignMol(mol, original, 0, 0, atomMap=[(i, i) for i in atom_maps])
-            product+=1            
-            sdwriter.write(mol, confId=0)
-
+            product+=1                        
+            for sdwriter, sdf_file, mol2_file, atom_map in sdwriters:
+                rdMolAlign.AlignMol(mol, original, 0, 0, atomMap=atom_map)
+                sdwriter.write(mol, confId=0)
     return product, visited, unvisited
 
-def choose_sampling_method_ver2(rigid_scaffolds, name, numConfs, rmsd, sulfo_matches, VERBOSE=False):
+def choose_sampling_method_ver2(rigid_scaffolds, name, numConfs, sulfo_matches, VERBOSE=False):
    
     # Count number of rotatable hydrogens and number of conformations contributed by them
-    mol2_countH = mol2.Mol2(mol2fileName=f"{name}.mol2", nameFileName=None, mol2text=None)
+    """mol2_countH = mol2.Mol2(mol2fileName=f"{name}.mol2", nameFileName=None, mol2text=None)
     num_confs_H = hydrogens.count_confs_by_H(mol2_countH)
     num_rotatable_H = mol2_countH.hydrogensToRotate
-
+    """
     # Divide the number of conformations by that contributed by rotatable hydrogens
     # This adopts the same strategy from previous DB2 pipeline from UCSF
     """if num_rotatable_H >= 6:  
@@ -988,49 +1010,67 @@ def choose_sampling_method_ver2(rigid_scaffolds, name, numConfs, rmsd, sulfo_mat
 
     num_confs_by_rotbonds, match_torlib = count_confs_by_rotbonds(rigid_scaffolds[0], VERBOSE)
     
-    if VERBOSE: print(f"\t{num_confs_by_rotbonds} {num_confs_H} {num_rotatable_H} {numConfs}")
+    #if VERBOSE: print(f"\t{num_confs_by_rotbonds} {num_confs_H} {num_rotatable_H} {numConfs}")
+    if VERBOSE: print(f"\t{num_confs_by_rotbonds}")
 
+    #Reuse this multiple times, regardless of the flexibility of the scaffold, so better put it outside the loop
+    atom_maps, label_map = find_rigid_part(rigid_scaffolds[0], rigid_rules) 
+    if VERBOSE: 
+        if label_map: 
+            print(f'Found {atom_maps} ({label_map}) as a rigid part')
+        else:
+            print(f'Found {atom_maps} (rings) as rigid parts')
+    
     if (len(match_torlib) == 0 or num_confs_by_rotbonds == 1):
         for idx, mol in enumerate(rigid_scaffolds):
-            rotated_file = f"{name}_mol{idx}_rotated"
+            rotated_file = f"{name}_mol{idx}_align0"
             sdf_file = f"{rotated_file}.sdf"
             mol2_file = f"{rotated_file}.mol2"
             with Chem.SDWriter(sdf_file) as sdwriter: sdwriter.write(mol)
             convert_sdf_mol2(sdf_file, mol2_file, VERBOSE)
-        return 2
+        return 0
     
-    #Reuse this multiple times, regardless of the flexibility of the scaffold, so better put it outside the loop
-    atom_maps = find_rigid_part(rigid_scaffolds[0], rigid_rules) 
-    if VERBOSE: print(f'Uses {atom_maps} as rigid part')
 
     for idx, mol in enumerate(rigid_scaffolds):
         if VERBOSE: print(f"\tHandling rigid scaffold {idx+1}/{len(rigid_scaffolds)}")
         original_mol = Chem.Mol(mol)
         # Only remap the match_torlib when sulfo_matches is found
         if sulfo_matches: num_confs_by_rotbonds, match_torlib = count_confs_by_rotbonds(mol, VERBOSE)
+        sdwriters = []
+        for align_copy, atom_map in enumerate(atom_maps):
+            rotated_file = f"{name}_mol{idx}_align{align_copy}"
+            sdf_file = f"{rotated_file}.sdf"
+            mol2_file = f"{rotated_file}.mol2"
+            sdwriter = Chem.SDWriter(sdf_file)
+            sdwriters.append((sdwriter, sdf_file, mol2_file, [(i,i) for i in atom_map]))
 
         # Initialize the visited and visitting list for the systematic scan
         #visitting = [-1 for _ in range(len(reordered_rot_bonds))]
         if VERBOSE: print('Running stochastic torsional sampling')
-        rotated_file = f"{name}_mol{idx}_rotated"
-        sdf_file = f"{rotated_file}.sdf"
-        mol2_file = f"{rotated_file}.mol2"
-        sdwriter = Chem.SDWriter(sdf_file)
-        product, visited, unvisited = stochastic_sampling_v3(mol, 1, match_torlib, sdwriter, original_mol, 
+        
+        product, visited, unvisited = stochastic_sampling_v3(mol, 1, match_torlib, sdwriters, original_mol, 
                                       numConfs, num_confs_by_rotbonds, atom_maps, 250, 0, visited = None, unvisited=None)
         #product, visited = stochastic_sampling(mol, 2, reordered_rot_bonds, match_torlib, sdwriter, original_mol, 
         #                                  numConfs, rmsd, atom_maps, 500, list(), set())
-        if product < min(numConfs, num_confs_by_rotbonds // 3): 
+        if product < min(numConfs, num_confs_by_rotbonds) // 3: 
             if VERBOSE: print(f'Failed for stochastic scan (generated {product} confs), use the 2nd tolerance level')
-            product, visited, unvisited = stochastic_sampling_v3(mol, 2, match_torlib, sdwriter, original_mol, 
+            product, visited, unvisited = stochastic_sampling_v3(mol, 2, match_torlib, sdwriters, original_mol, 
                                           numConfs, num_confs_by_rotbonds, atom_maps, 500, product, visited = visited, unvisited = unvisited)
             #product, visited = stochastic_sampling(mol, 2, reordered_rot_bonds, match_torlib, sdwriter, original_mol, 
             #                              numConfs, rmsd, atom_maps, 500, product, visited)
-        if product == 0: sdwriter.write(mol)
-        sdwriter.close()
-        convert_sdf_mol2(sdf_file, mol2_file, VERBOSE)
-        
-    return 0
+        if product == 0: 
+            rotated_file = f"{name}_mol{idx}_align0"
+            sdf_file = f"{rotated_file}.sdf"
+            mol2_file = f"{rotated_file}.mol2"
+            with Chem.SDWriter(sdf_file) as sdwriter: sdwriter.write(mol)
+            convert_sdf_mol2(sdf_file, mol2_file, VERBOSE)
+            continue
+    
+        for sdwriter, sdf_file, mol2_file, atom_map in sdwriters:
+            sdwriter.close()
+            convert_sdf_mol2(sdf_file, mol2_file, VERBOSE)
+            
+    return len(sdwriters)
 
 
 def gen_conf_chunk_ver2(df: pd.DataFrame, args):
@@ -1090,7 +1130,7 @@ def gen_conf_chunk_ver2(df: pd.DataFrame, args):
             subprocess.run(f"mkdir -p 3d/{name}", shell=True)
             subprocess.run(f"cp solv/{name}/{name}_solv.mol2 3d/{name}/{name}.mol2", shell=True)
             os.chdir(f"3d/{name}")
-            sampling_signal = choose_sampling_method_ver2(rigid_scaffolds, name, numConfs, sulfo_matches, VERBOSE)
+            numPossibleRigidAlignments = choose_sampling_method_ver2(rigid_scaffolds, name, numConfs, sulfo_matches, VERBOSE)
             os.chdir("../..")
             if args.timing: sampling_time = time.time()
 
@@ -1098,7 +1138,7 @@ def gen_conf_chunk_ver2(df: pd.DataFrame, args):
             if VERBOSE: print("Converting to DB2 format...")
             subprocess.run(f"mkdir -p db2/{name}", shell=True)
             subprocess.run(f"mv solv/{name}/{name}_solv.solv db2/{name}/{name}.solv", shell=True)    
-            smi2db2_utils.move_and_rename_mol2_files(name, len(rigid_scaffolds), VERBOSE)
+            smi2db2_utils.move_and_rename_mol2_files(name, len(rigid_scaffolds), numPossibleRigidAlignments, VERBOSE)
             os.chdir(f"db2/{name}")
             if not any(glob.glob(f"{name}_mol*.mol2")) or not os.path.isfile(f"{name}.solv"):
                 logger.error(f"Not found any mol2 files or solv for db2 generation of {name}")
@@ -1109,8 +1149,9 @@ def gen_conf_chunk_ver2(df: pd.DataFrame, args):
                 try:
                     db2_data_all = ""
                     for idx in range(len(rigid_scaffolds)):
-                        db2_data = mol2db2.mol2db2_quick(f"{name}_mol{idx}.mol2", f"{name}.solv")
-                        db2_data_all += db2_data
+                        for rigid_alignment in range(numPossibleRigidAlignments):
+                            db2_data = mol2db2.mol2db2_quick(f"{name}_mol{idx}_align{rigid_alignment}.mol2", f"{name}.solv")
+                            db2_data_all += db2_data
                     write_to_file(db2_data_all, f"../{name}.db2")
                     os.chdir("../..")
                     if cleanup:
