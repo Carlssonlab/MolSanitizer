@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [unreleased - most recent changes come first]
 
+### 🚜 Refactor
+
+- Refactor the script a little bit. Change rigid_part_rules so at least three atoms are matched. - ([e060c5a](https://github.com/Isra3l/MolSanitizer/commit/e060c5aef3bae4e3bb2e259eba901d4232a25ebb))
+
+## [0.1.1] - 2024-09-22
+
 ### 🚀 Features
 
 - The msani_batch now allows setting up default settings using a yaml file (batch_configurations.yaml). - ([b2badad](https://github.com/Isra3l/MolSanitizer/commit/b2badad1efad59673e41e9a9ee714824653a712d))
