@@ -1,7 +1,8 @@
 import argparse
 
-import pandas as pd
+import os
 from pathlib import Path
+import yaml
 
 import logging
 logger = logging.getLogger('molsani')
@@ -72,16 +73,25 @@ def parseArguments(args = None):
 
     return args
 
+
 def parseArguments_batch(args = None):
-    info = """MolSanitizer - A package to prepare SMILES databases
+    with open(os.path.join(os.path.dirname(__file__), 'batch_configurations.yaml')) as confFile:
+            batch_configurations = yaml.full_load(confFile)
+    slurm_account = batch_configurations['SLURM_ACCOUNT']
+    time_limit = batch_configurations['TIME_LIMIT']
+    lines_per_job = batch_configurations['LINES_PER_JOB']
+    max_jobs = batch_configurations['MAX_JOBS']
+
+    info = f"""MolSanitizer - A package to prepare SMILES databases
     This is a batch version of the MolSanitizer package. 
-    It reads a list of input files, splits the files into chunks of "--lines" and processes them parallelly on the HPC.
+    It reads a list of input files, splits the files into chunks of "--lines_per_job" and processes them parallelly on the HPC.
     For more information, use msani_batch -h
 
-    Default settings:
-    Project name: naiss2023-3-39
-    Time limit: 24 hours
-    Lines per job: 1000
+    Default settings (modifiable in batch_configurations.yaml):
+    Project name: {slurm_account}
+    Time limit: {time_limit} hour(s)
+    Number of compounds per job: {lines_per_job} 
+    Maximum jobs at the same time: {max_jobs} job(s)
 
     Ex. run
     msani_batch -i example.smi -l 50 --db2
@@ -109,15 +119,15 @@ def parseArguments_batch(args = None):
 
     # Add string option
     parser.add_argument('--custom', default=None, type=str, help='Filter out unwanted substructures using the customized list')
-    parser.add_argument('-n', '--projectName', default='naiss2023-3-39', dest='proj_name', type=str, help='Project name for the SLURM script (default: naiss2023-3-39)')
+    parser.add_argument('-n', '--projectName', default=slurm_account, dest='proj_name', type=str, help=f'Project name for the SLURM script (default: {slurm_account})')
 
     # Add integer option
-    parser.add_argument('-l', '--lines_per_job', dest='lines', type=int, default=1000, help='Number of lines to process per job (default: 1000)')
+    parser.add_argument('-l', '--lines_per_job', dest='lines', type=int, default=lines_per_job, help=f'Number of lines to process per job (default: {lines_per_job})')
     parser.add_argument('--max_isomers', type=int, default=0, help='Maximum number of stereoisomers to consider (default: 0 = no limit)')
     parser.add_argument('-nconfs', '--numconfs', type=int, default=2000, help='Maximum number of conformers to generate (default: 2000)')
     parser.add_argument('-rs', '--randomSeed', type=int, default=42, help='Random seed for reproducibility (default: 42)')
-    parser.add_argument('-t', '--time', type=int, default=24, help='Time limit for the SLURM job in hours (default: 24)')
-    parser.add_argument('--max_jobs', type=int, default=100, help='Maximum number of jobs to run simultaneously (default: 100)')
+    parser.add_argument('-t', '--time', type=int, default=time_limit, help=f'Time limit for the SLURM job in hours (default: {time_limit})')
+    parser.add_argument('--max_jobs', type=int, default=max_jobs, help=f'Maximum number of jobs to run simultaneously (default: {max_jobs})')
 
     # Parse the arguments
     args = parser.parse_args()

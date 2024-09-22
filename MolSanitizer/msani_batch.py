@@ -7,11 +7,11 @@ __place__ = "Jens Carlsson lab, Uppsala University, Sweden"
 __license__ = "MIT"
 
 
-import pandas as pd
 
 
 import os
 import sys
+import time
 
 from . import parsers
 import subprocess
@@ -105,6 +105,10 @@ def Split_Submit_jobs(args: dict):
     print(f"Maximum number of jobs running parallelly (--max_jobs): {args.max_jobs} jobs")
     print(f"Number of compounds per job (-l): {args.lines} lines\n")
 
+    # Wait for 5 seconds before proceeding
+    print("Waiting 5 seconds to review the configurations...")
+    time.sleep(5)
+    
     for file in args.input_files:
         prefix = file.split('.')[0]
         if os.path.exists(prefix):
