@@ -6,7 +6,7 @@
 [*;$(*=*)]-!@*#!@*-!@[*;$(*=*)] conjugated_TB-DB
 [*;$(*#*)]-!@*=!@*-!@[*;$(*#*)] conjugated_DB-TB
 [*;$(*=*)]-!@*=!@*-!@[*;$(*=*)] conjugated_DB-DB
-*#!@* any_TB
-*=!@* any_DB
+**#!@* any_TB
+**=!@* any_DB
 [A&X4](~A)(~A)(~A)~A any_tert-A
 [A&X4](~A)(~A)~A any_iso-A

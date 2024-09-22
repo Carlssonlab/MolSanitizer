@@ -56,7 +56,7 @@ def move_and_rename_mol2_files(name: str, num_rigid_scaffolds: int, numPossibleR
             
             # Move and rename the file
             shutil.move(src_file, dest_file)
-            if VERBOSE: print(f"Moved and renamed: {src_file} -> {dest_file}")
+            if VERBOSE: print(f"\t Moved and renamed: {src_file} -> {dest_file}")
 
 def normalize_scores(peaks):
     """Normalize the scores for each peak in a list of peaks."""
@@ -168,7 +168,6 @@ def identical_substituents(mol, idx2, idx3, idx4, idx5):
 def find_sulfonamide_like_scaffolds(mol_H: Mol):
     """Find all Sulfonamide-like scaffolds (S(O2)-N(R1)R2 or (S(O)(N)-N(R1)(R2))."""
     preliminary_sulfonamide = mol_H.GetSubstructMatches(sulfonamide_like_substructure)
-    print(preliminary_sulfonamide)
     matches_sulfonamide = []
     for (a, b, c, d, e) in preliminary_sulfonamide:
         if identical_substituents(mol_H, b, c, d, e): continue
@@ -222,3 +221,6 @@ def remove_unfavorable_confs(conf_ring_descriptors_df: pd.DataFrame, name: str)-
     for column in conf_ring_descriptors_df.columns[2:-2]:
         conf_ring_descriptors_df = conf_ring_descriptors_df[conf_ring_descriptors_df[column] != -1]
     return conf_ring_descriptors_df
+
+def get_sdf_mol2_filename(name: str, rigid_scaffold_idx: int, align_copy: int):
+    return f"{name}_mol{rigid_scaffold_idx}_align{align_copy}.sdf", f"{name}_mol{rigid_scaffold_idx}_align{align_copy}.mol2"

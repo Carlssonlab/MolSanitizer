@@ -838,59 +838,6 @@ def embed_smiles_ver2(smiles, name, randomSeed=42, VERBOSE=False):
 
     return amsol_mol, netcharge, rigid_scaffolds, sulfo_matches
 
-def stochastic_sampling_v2(mol, tolerance_level, match_torlib, sdwriter, original, numConfs, rmsd, atom_maps, max_attempts = 100, product = [], unvisited = defaultdict(float)):
-    """
-    Perform stochastic sampling of the conformational space of a molecule using a Monte Carlo method.
-
-    Args:
-        mol (rdkit.Chem.Mol): The molecule for which to generate conformers.
-        tolerance_level (int): The index in the torsion library specifying the tolerance for angle deviations.
-        reordered_rot_bonds (list): List of rotational bonds in the molecule.
-        match_torlib (list): List of tuples containing torsion matching information.
-        sdwriter (rdkit.Chem.SDWriter): Writer object to output conformers.
-        original (rdkit.Chem.Mol): The reference molecule to align the conformers to.
-        numConfs (int): Number of conformers to generate.
-        rmsd (float): Root Mean Square Deviation used to prune conformers.
-        atom_maps (list): List of atom indices to use for alignment.
-        max_attempts (int, optional): Maximum number of attempts to generate a valid conformer. Defaults to 100.
-        product (list, optional): List to store generated conformers. Defaults to an empty list.
-        unvisited (dict, optional): Dictionary to track unvisited conformational states. Defaults to None.
-
-    Returns:
-        tuple: (product, unvisited) - A tuple containing the list of generated conformers and the updated unvisited dictionary.
- 
-    """
-    if len(unvisited) == 0: unvisited = smi2db2_utils.generate_combinations(match_torlib)
-
-    attempts = 0
-    keys = list(unvisited.keys())
-    weights = list(unvisited.values())
-    bonded_pairs, same_parent_pairs = precompute_bonded_and_same_parent_pairs(mol)
-    while (len(product) < numConfs) and len(unvisited) > 0:
-        choice = random.choices(keys, weights=weights, k=1)[0]
-        for idx, (_, bond, _) in enumerate(match_torlib):
-            peak = match_torlib[idx][2][choice[idx]]
-            value = get_random_angle(peak[0], peak[tolerance_level])
-            rdMolTransforms.SetDihedralDeg(mol.GetConformer(0), *bond, value = value)
-
-        if check_too_close_nonbonded_atoms(mol.GetConformer(0), mol, bonded_pairs, same_parent_pairs):
-            attempts += 1
-            if attempts > max_attempts: break
-            continue
-        attempts = 0
-        rdMolAlign.AlignMol(mol, original, 0, 0, atomMap=[(i, i) for i in atom_maps])
-        #print(visitting)
-        unvisited.pop(choice)
-
-        # Update the keys and weights for random.choices only after popping
-        keys = list(unvisited.keys())
-        weights = list(unvisited.values())
-
-        product.append(Chem.Conformer(mol.GetConformer(0)))
-        sdwriter.write(mol,confId=0)
-    #print(visit_matrix)
-    return product, unvisited
-
 def stochastic_sampling_v3(mol, tolerance_level, match_torlib, sdwriters, original, numConfs, total_possible_solutions, atom_maps, max_attempts=100, product=0, unvisited = None, visited=None):
     """
     Perform stochastic sampling of the conformational space of a molecule using a hybrid approach.
@@ -1013,19 +960,15 @@ def choose_sampling_method_ver2(rigid_scaffolds, name, numConfs, sulfo_matches, 
     #if VERBOSE: print(f"\t{num_confs_by_rotbonds} {num_confs_H} {num_rotatable_H} {numConfs}")
     if VERBOSE: print(f"\t{num_confs_by_rotbonds}")
 
-    #Reuse this multiple times, regardless of the flexibility of the scaffold, so better put it outside the loop
-    atom_maps, label_map = find_rigid_part(rigid_scaffolds[0], rigid_rules) 
-    if VERBOSE: 
-        if label_map: 
-            print(f'Found {atom_maps} ({label_map}) as a rigid part')
-        else:
-            print(f'Found {atom_maps} (rings) as rigid parts')
-    
+    # Find the rigid part only once outside the loop to save processing time
+    atom_maps, label_map = find_rigid_part(rigid_scaffolds[0], rigid_rules)
+    if VERBOSE:
+        rigid_info = f'Found {atom_maps} ({label_map}) as a rigid part' if label_map else f'Found {atom_maps} (rings) as rigid parts'
+        print(rigid_info)
+
     if (len(match_torlib) == 0 or num_confs_by_rotbonds == 1):
         for idx, mol in enumerate(rigid_scaffolds):
-            rotated_file = f"{name}_mol{idx}_align0"
-            sdf_file = f"{rotated_file}.sdf"
-            mol2_file = f"{rotated_file}.mol2"
+            sdf_file, mol2_file = smi2db2_utils.get_sdf_mol2_filename(name, idx, 0)
             with Chem.SDWriter(sdf_file) as sdwriter: sdwriter.write(mol)
             convert_sdf_mol2(sdf_file, mol2_file, VERBOSE)
         return 0
@@ -1038,9 +981,7 @@ def choose_sampling_method_ver2(rigid_scaffolds, name, numConfs, sulfo_matches, 
         if sulfo_matches: num_confs_by_rotbonds, match_torlib = count_confs_by_rotbonds(mol, VERBOSE)
         sdwriters = []
         for align_copy, atom_map in enumerate(atom_maps):
-            rotated_file = f"{name}_mol{idx}_align{align_copy}"
-            sdf_file = f"{rotated_file}.sdf"
-            mol2_file = f"{rotated_file}.mol2"
+            sdf_file, mol2_file = smi2db2_utils.get_sdf_mol2_filename(name, idx, align_copy)
             sdwriter = Chem.SDWriter(sdf_file)
             sdwriters.append((sdwriter, sdf_file, mol2_file, [(i,i) for i in atom_map]))
 
@@ -1050,18 +991,14 @@ def choose_sampling_method_ver2(rigid_scaffolds, name, numConfs, sulfo_matches, 
         
         product, visited, unvisited = stochastic_sampling_v3(mol, 1, match_torlib, sdwriters, original_mol, 
                                       numConfs, num_confs_by_rotbonds, atom_maps, 250, 0, visited = None, unvisited=None)
-        #product, visited = stochastic_sampling(mol, 2, reordered_rot_bonds, match_torlib, sdwriter, original_mol, 
-        #                                  numConfs, rmsd, atom_maps, 500, list(), set())
+
         if product < min(numConfs, num_confs_by_rotbonds) // 3: 
             if VERBOSE: print(f'Failed for stochastic scan (generated {product} confs), use the 2nd tolerance level')
             product, visited, unvisited = stochastic_sampling_v3(mol, 2, match_torlib, sdwriters, original_mol, 
                                           numConfs, num_confs_by_rotbonds, atom_maps, 500, product, visited = visited, unvisited = unvisited)
-            #product, visited = stochastic_sampling(mol, 2, reordered_rot_bonds, match_torlib, sdwriter, original_mol, 
-            #                              numConfs, rmsd, atom_maps, 500, product, visited)
+
         if product == 0: 
-            rotated_file = f"{name}_mol{idx}_align0"
-            sdf_file = f"{rotated_file}.sdf"
-            mol2_file = f"{rotated_file}.mol2"
+            sdf_file, mol2_file = smi2db2_utils.get_sdf_mol2_filename(name, idx, 0)
             with Chem.SDWriter(sdf_file) as sdwriter: sdwriter.write(mol)
             convert_sdf_mol2(sdf_file, mol2_file, VERBOSE)
             continue
