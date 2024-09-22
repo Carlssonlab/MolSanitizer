@@ -26,6 +26,7 @@ All notable changes to this project will be documented in this file.
 - Trial of using smaller num_confs_ring (1 instead of 10) - ([725f2ff](https://github.com/phonglam3103/MolSanitizer/commit/725f2ffe659213e45c1488fa95b0f24a4db20f08))
 - Trial of using smaller initial embedding to speed up the process - ([85cf8e1](https://github.com/phonglam3103/MolSanitizer/commit/85cf8e1e8a7c722e94f78d214fe022b93c5aa9c7))
 - Trial of using different alignment references and trial of 200 initial conformations - ([ba4b8a1](https://github.com/phonglam3103/MolSanitizer/commit/ba4b8a120fec799572e4fff6ec2c84aadc375fa2))
+- Set initial embeddings to 100 to save time and computational cost - ([6e1a8b2](https://github.com/phonglam3103/MolSanitizer/commit/6e1a8b234c7bb9ff689d9760d63817ce489c00be))
 
 ### 🐛 Bug Fixes
 
