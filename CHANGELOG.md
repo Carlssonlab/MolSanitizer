@@ -2,15 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
-## [unreleased]
+## [unreleased - most recent changes come first]
 
 ### 🚀 Features
 
-- Trial of using smaller num_confs_ring (1 instead of 10) - ([725f2ff](https://github.com/Isra3l/MolSanitizer/commit/725f2ffe659213e45c1488fa95b0f24a4db20f08))
-- Trial of using smaller initial embedding to speed up the process - ([85cf8e1](https://github.com/Isra3l/MolSanitizer/commit/85cf8e1e8a7c722e94f78d214fe022b93c5aa9c7))
-- Trial of using different alignment references and trial of 200 initial conformations - ([ba4b8a1](https://github.com/Isra3l/MolSanitizer/commit/ba4b8a120fec799572e4fff6ec2c84aadc375fa2))
-- Set initial embeddings to 100 to save time and computational cost - ([6e1a8b2](https://github.com/Isra3l/MolSanitizer/commit/6e1a8b234c7bb9ff689d9760d63817ce489c00be))
 - The msani_batch now allows setting up default settings using a yaml file (batch_configurations.yaml). - ([b2badad](https://github.com/Isra3l/MolSanitizer/commit/b2badad1efad59673e41e9a9ee714824653a712d))
+- Set initial embeddings to 100 to save time and computational cost - ([6e1a8b2](https://github.com/Isra3l/MolSanitizer/commit/6e1a8b234c7bb9ff689d9760d63817ce489c00be))
+- Trial of using different alignment references and trial of 200 initial conformations - ([ba4b8a1](https://github.com/Isra3l/MolSanitizer/commit/ba4b8a120fec799572e4fff6ec2c84aadc375fa2))
+- Trial of using smaller initial embedding to speed up the process - ([85cf8e1](https://github.com/Isra3l/MolSanitizer/commit/85cf8e1e8a7c722e94f78d214fe022b93c5aa9c7))
+- Trial of using smaller num_confs_ring (1 instead of 10) - ([725f2ff](https://github.com/Isra3l/MolSanitizer/commit/725f2ffe659213e45c1488fa95b0f24a4db20f08))
 
 ### 🐛 Bug Fixes
 
@@ -18,8 +18,8 @@ All notable changes to this project will be documented in this file.
 
 ### 🚜 Refactor
 
-- Remove unused files in the repository - ([744f694](https://github.com/Isra3l/MolSanitizer/commit/744f694c98720177145d3d3edeeefa29d729a7ae))
 - Remove unused parameters (rmsd) - ([19bbd40](https://github.com/Isra3l/MolSanitizer/commit/19bbd4067fdd2ba918d7534c9eabacef23e9d00d))
+- Remove unused files in the repository - ([744f694](https://github.com/Isra3l/MolSanitizer/commit/744f694c98720177145d3d3edeeefa29d729a7ae))
 
 ### 📚 Documentation
 
@@ -33,16 +33,16 @@ All notable changes to this project will be documented in this file.
 
 ### 🚀 Features
 
-- First effort to embed multiple ring conformations and cover multiple regioisomers of sulfonamide-like structures - ([afd59b1](https://github.com/Isra3l/MolSanitizer/commit/afd59b1294846c3346f77c0684d6a769a36075e1))
-- Added an epsilon values so that angle scores at 0 can still have the possibility to sample - ([6afbc63](https://github.com/Isra3l/MolSanitizer/commit/6afbc638f73949e1cff8a9c2cff36a37c51eba4c))
-- Added the debug mode for testing on large scale - ([7b304e9](https://github.com/Isra3l/MolSanitizer/commit/7b304e9bebf885c46f5f2158e75ae0df6947aaa3))
-- Now supports upto 8-membered ring as rigid part in smi2db2 part - ([de62a99](https://github.com/Isra3l/MolSanitizer/commit/de62a9940b30ba6d0e0770aee225ba3271933e7d))
-- Small-ring Torlib updated! Msani should now produce up to 10 (and favorable) rigid scaffolds based on the new SR-Torlib! - ([fcad867](https://github.com/Isra3l/MolSanitizer/commit/fcad86777f0ef5bb3dc18c42d9723b88e96279e0))
-- :sparkles: Small-ring Torlib updated! Msani should now produce up to 10 (and favorable) rigid scaffolds based on the new SR-Torlib! - ([e33139e](https://github.com/Isra3l/MolSanitizer/commit/e33139e1f5223c8a84c037b7cf252a621588b132))
-- Added timing feature for mol2db2 workflow - ([e38916e](https://github.com/Isra3l/MolSanitizer/commit/e38916e5175263aa58123ff6703a4246baa73d3c))
-- :zap: Boost the performance of stochastic sampling by switching between the two modes, based on the relationship between number of possible conformations and number of allowed conformations. - ([a4e7a57](https://github.com/Isra3l/MolSanitizer/commit/a4e7a57dcb828759d54c4178f044c15b1151f91b))
-- Try to implement rotating hydrogen within stochastic sampling to increase diversity and speed up the mol2db2 process - ([4c6d05a](https://github.com/Isra3l/MolSanitizer/commit/4c6d05a3a5237f6cf85dbc7fcf66c1b4d454b42f))
 - Updated new rules and merged the SMARTS - ([217b61c](https://github.com/Isra3l/MolSanitizer/commit/217b61cd2d65fbe1f3e8589c1d5f7c52208b7dc2))
+- Try to implement rotating hydrogen within stochastic sampling to increase diversity and speed up the mol2db2 process - ([4c6d05a](https://github.com/Isra3l/MolSanitizer/commit/4c6d05a3a5237f6cf85dbc7fcf66c1b4d454b42f))
+- :zap: Boost the performance of stochastic sampling by switching between the two modes, based on the relationship between number of possible conformations and number of allowed conformations. - ([a4e7a57](https://github.com/Isra3l/MolSanitizer/commit/a4e7a57dcb828759d54c4178f044c15b1151f91b))
+- Added timing feature for mol2db2 workflow - ([e38916e](https://github.com/Isra3l/MolSanitizer/commit/e38916e5175263aa58123ff6703a4246baa73d3c))
+- :sparkles: Small-ring Torlib updated! Msani should now produce up to 10 (and favorable) rigid scaffolds based on the new SR-Torlib! - ([e33139e](https://github.com/Isra3l/MolSanitizer/commit/e33139e1f5223c8a84c037b7cf252a621588b132))
+- Small-ring Torlib updated! Msani should now produce up to 10 (and favorable) rigid scaffolds based on the new SR-Torlib! - ([fcad867](https://github.com/Isra3l/MolSanitizer/commit/fcad86777f0ef5bb3dc18c42d9723b88e96279e0))
+- Now supports upto 8-membered ring as rigid part in smi2db2 part - ([de62a99](https://github.com/Isra3l/MolSanitizer/commit/de62a9940b30ba6d0e0770aee225ba3271933e7d))
+- Added the debug mode for testing on large scale - ([7b304e9](https://github.com/Isra3l/MolSanitizer/commit/7b304e9bebf885c46f5f2158e75ae0df6947aaa3))
+- Added an epsilon values so that angle scores at 0 can still have the possibility to sample - ([6afbc63](https://github.com/Isra3l/MolSanitizer/commit/6afbc638f73949e1cff8a9c2cff36a37c51eba4c))
+- First effort to embed multiple ring conformations and cover multiple regioisomers of sulfonamide-like structures - ([afd59b1](https://github.com/Isra3l/MolSanitizer/commit/afd59b1294846c3346f77c0684d6a769a36075e1))
 
 ### 🐛 Bug Fixes
 
@@ -53,13 +53,13 @@ All notable changes to this project will be documented in this file.
 ### 🚀 Features
 
 - *(install)* Added toml file and fixed null arguments - ([61c1380](https://github.com/Isra3l/MolSanitizer/commit/61c138077348b74af345a29aa34ef87613ce357f))
-- Msani_batch will now ask the user to confirm to remove the folder before removing it + skip the jobs with more than 1000 subjobs - ([9a6b76c](https://github.com/Isra3l/MolSanitizer/commit/9a6b76c9c52b4534a1dbfc8a168929b6915cbf86))
 - :sparkles: Using srETKDGv3 (small-ring version) to hopefully reduce the failed cases with "boat" conformation of the rings with the previous ETKDGv3 (speciallized for macrocycles) - ([2970f10](https://github.com/Isra3l/MolSanitizer/commit/2970f10515dbf69565183e75660606d27683be44))
+- Msani_batch will now ask the user to confirm to remove the folder before removing it + skip the jobs with more than 1000 subjobs - ([9a6b76c](https://github.com/Isra3l/MolSanitizer/commit/9a6b76c9c52b4534a1dbfc8a168929b6915cbf86))
 
 ### 🐛 Bug Fixes
 
-- :bug: Fix a typo in torsion scan that crash msani - ([4275824](https://github.com/Isra3l/MolSanitizer/commit/4275824384d8567703a5234da77e015561a69e17))
 - Fix a bug so that MolSanitizer batch mode still runs although the user asked for not to. - ([b518b03](https://github.com/Isra3l/MolSanitizer/commit/b518b03479b7441ed41b1829e1c3a82849d57d11))
+- :bug: Fix a typo in torsion scan that crash msani - ([4275824](https://github.com/Isra3l/MolSanitizer/commit/4275824384d8567703a5234da77e015561a69e17))
 
 ### ⚡ Performance
 
@@ -69,8 +69,8 @@ All notable changes to this project will be documented in this file.
 
 ### 🚀 Features
 
-- Failed stereoisomers-enumerated compounds should now print to the screen to notify the user - ([36846e1](https://github.com/Isra3l/MolSanitizer/commit/36846e13334c7c290a6620aa16a0ec75f27602c0))
 - Changing the default maxAttempts in stochastic sampling for more exhaustive sampling - ([aa88ccf](https://github.com/Isra3l/MolSanitizer/commit/aa88ccfec57bb4dbc8a75d54f317b71168847069))
+- Failed stereoisomers-enumerated compounds should now print to the screen to notify the user - ([36846e1](https://github.com/Isra3l/MolSanitizer/commit/36846e13334c7c290a6620aa16a0ec75f27602c0))
 
 ### ⚡ Performance
 
@@ -78,8 +78,8 @@ All notable changes to this project will be documented in this file.
 
 ### 🎨 Styling
 
-- :art: Improved logging of the time of running of each step of MolSanitizer (should now output hours:mins:secs) - ([a3ff715](https://github.com/Isra3l/MolSanitizer/commit/a3ff715dc9ed4b16f84a690d0751e954c74e24a3))
 - Fix typos - ([e51eefc](https://github.com/Isra3l/MolSanitizer/commit/e51eefc47099fe49ccabe0598e260e4cc387de5d))
+- :art: Improved logging of the time of running of each step of MolSanitizer (should now output hours:mins:secs) - ([a3ff715](https://github.com/Isra3l/MolSanitizer/commit/a3ff715dc9ed4b16f84a690d0751e954c74e24a3))
 
 ## [0.0.5] - 2024-08-21
 
@@ -115,8 +115,8 @@ All notable changes to this project will be documented in this file.
 
 ### 🚀 Features
 
-- *(Strain_filter now has its own standalone script!)* :zap: The strain_filters now can be called by command 'strain -i examples.mol2' - ([60a7958](https://github.com/Isra3l/MolSanitizer/commit/60a795852eb6cea3283528b22d75dfb85f0e8b28))
 - *(Strain_filter now has its own standalone script!)* :zap: The strain_filters now can be called by command 'strain -i examples.mol2' - ([f05bf9b](https://github.com/Isra3l/MolSanitizer/commit/f05bf9b754f0ce49d239e2f258f4284147dcdd73))
+- *(Strain_filter now has its own standalone script!)* :zap: The strain_filters now can be called by command 'strain -i examples.mol2' - ([60a7958](https://github.com/Isra3l/MolSanitizer/commit/60a795852eb6cea3283528b22d75dfb85f0e8b28))
 
 ### 🐛 Bug Fixes
 
