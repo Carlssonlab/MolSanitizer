@@ -41,21 +41,22 @@ def ring_conf_clusters(current_conf_ring_descriptors, remaining_confs):
             clusters.append(remaining_conf)
     return clusters
 
-def move_and_rename_mol2_files(name: str, num_rigid_scaffolds: int, VERBOSE = False):
+def move_and_rename_mol2_files(name: str, num_rigid_scaffolds: int, numPossibleRigidAlignments: int, VERBOSE = False):
     # Loop over the range of scaffold indices
     for i in range(num_rigid_scaffolds):
-        # Define the source file path for the current scaffold index
-        src_file = f"3d/{name}/{name}_mol{i}_rotated.mol2"
-        
-        # Define the new file path and destination
-        dest_file = src_file.replace('_rotated.mol2', '.mol2').replace('3d', 'db2')
-        
-        # Ensure the destination directory exists
-        os.makedirs(os.path.dirname(dest_file), exist_ok=True)
-        
-        # Move and rename the file
-        shutil.move(src_file, dest_file)
-        if VERBOSE: print(f"Moved and renamed: {src_file} -> {dest_file}")
+        for j in range(numPossibleRigidAlignments):
+            # Define the source file path for the current scaffold index
+            src_file = f"3d/{name}/{name}_mol{i}_align{j}.mol2"
+            
+            # Define the new file path and destination
+            dest_file = src_file.replace('3d', 'db2')
+            
+            # Ensure the destination directory exists
+            os.makedirs(os.path.dirname(dest_file), exist_ok=True)
+            
+            # Move and rename the file
+            shutil.move(src_file, dest_file)
+            if VERBOSE: print(f"Moved and renamed: {src_file} -> {dest_file}")
 
 def normalize_scores(peaks):
     """Normalize the scores for each peak in a list of peaks."""
