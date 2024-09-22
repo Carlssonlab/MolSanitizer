@@ -27,6 +27,7 @@ All notable changes to this project will be documented in this file.
 - Trial of using smaller initial embedding to speed up the process - ([85cf8e1](https://github.com/phonglam3103/MolSanitizer/commit/85cf8e1e8a7c722e94f78d214fe022b93c5aa9c7))
 - Trial of using different alignment references and trial of 200 initial conformations - ([ba4b8a1](https://github.com/phonglam3103/MolSanitizer/commit/ba4b8a120fec799572e4fff6ec2c84aadc375fa2))
 - Set initial embeddings to 100 to save time and computational cost - ([6e1a8b2](https://github.com/phonglam3103/MolSanitizer/commit/6e1a8b234c7bb9ff689d9760d63817ce489c00be))
+- The msani_batch now allows setting up default settings using a yaml file (batch_configurations.yaml). - ([b2badad](https://github.com/phonglam3103/MolSanitizer/commit/b2badad1efad59673e41e9a9ee714824653a712d))
 
 ### 🐛 Bug Fixes
 
