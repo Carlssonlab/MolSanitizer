@@ -607,7 +607,7 @@ def choose_sampling_method(mol, name, numConfs, rmsd, VERBOSE=False):
     
     # Find rigid parts as anchor points for the molecules
     atom_maps = find_rigid_part(mol, rigid_rules)
-    if VERBOSE: print(f'Found {atom_maps} as rigid parts')
+    if VERBOSE: print(f'\tFound {atom_maps} as rigid parts')
     
     # Initialize the visited and visitting list for the systematic scan
     visitting = [-1 for _ in range(len(reordered_rot_bonds))]
@@ -958,12 +958,12 @@ def choose_sampling_method_ver2(rigid_scaffolds, name, numConfs, sulfo_matches, 
     num_confs_by_rotbonds, match_torlib = count_confs_by_rotbonds(rigid_scaffolds[0], VERBOSE)
     
     #if VERBOSE: print(f"\t{num_confs_by_rotbonds} {num_confs_H} {num_rotatable_H} {numConfs}")
-    if VERBOSE: print(f"\t{num_confs_by_rotbonds}")
+    if VERBOSE: print(f"\tTheory: {num_confs_by_rotbonds} possible conformations")
 
     # Find the rigid part only once outside the loop to save processing time
     atom_maps, label_map = find_rigid_part(rigid_scaffolds[0], rigid_rules)
     if VERBOSE:
-        rigid_info = f'Found {atom_maps} ({label_map}) as a rigid part' if label_map else f'Found {atom_maps} (rings) as rigid parts'
+        rigid_info = f'\tFound {atom_maps} ({label_map}) as a rigid part' if label_map else f'\tFound {atom_maps} (rings) as rigid parts'
         print(rigid_info)
 
     if (len(match_torlib) == 0 or num_confs_by_rotbonds == 1):
@@ -971,11 +971,11 @@ def choose_sampling_method_ver2(rigid_scaffolds, name, numConfs, sulfo_matches, 
             sdf_file, mol2_file = smi2db2_utils.get_sdf_mol2_filename(name, idx, 0)
             with Chem.SDWriter(sdf_file) as sdwriter: sdwriter.write(mol)
             convert_sdf_mol2(sdf_file, mol2_file, VERBOSE)
-        return 0
+        return 1
     
 
     for idx, mol in enumerate(rigid_scaffolds):
-        if VERBOSE: print(f"\tHandling rigid scaffold {idx+1}/{len(rigid_scaffolds)}")
+        if VERBOSE: print(f"\tHandling ring/sulfonamide conformation {idx+1}/{len(rigid_scaffolds)}")
         original_mol = Chem.Mol(mol)
         # Only remap the match_torlib when sulfo_matches is found
         if sulfo_matches: num_confs_by_rotbonds, match_torlib = count_confs_by_rotbonds(mol, VERBOSE)
@@ -987,7 +987,7 @@ def choose_sampling_method_ver2(rigid_scaffolds, name, numConfs, sulfo_matches, 
 
         # Initialize the visited and visitting list for the systematic scan
         #visitting = [-1 for _ in range(len(reordered_rot_bonds))]
-        if VERBOSE: print('Running stochastic torsional sampling')
+        if VERBOSE: print('\tRunning stochastic torsional sampling')
         
         product, visited, unvisited = stochastic_sampling_v3(mol, 1, match_torlib, sdwriters, original_mol, 
                                       numConfs, num_confs_by_rotbonds, atom_maps, 250, 0, visited = None, unvisited=None)

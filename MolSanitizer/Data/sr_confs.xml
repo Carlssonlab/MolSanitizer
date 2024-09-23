@@ -109,8 +109,8 @@ Date: 2024-09-14
     <smarts smarts="[*:1]1:[*:2]-[A:3]-[*:4]:[*:5]-[A:6]-1"/>
     <ref ref="https://doi.org/10.1107/S056774086900598X"/>
     <dihedral_sets>
-      <set dihedral="'-20', '20', '0', '-20', '20', '0'" value="1"/>
-      <set dihedral="'20', '-20', '0', '20', '-20', '0'" value="2"/>
+      <set dihedral="'-30', '30', '0', '-30', '30', '0'" value="1"/>
+      <set dihedral="'30', '-30', '0', '30', '-30', '0'" value="2"/>
     </dihedral_sets>
   </ring>
 

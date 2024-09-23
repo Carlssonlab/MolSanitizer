@@ -56,7 +56,7 @@ def move_and_rename_mol2_files(name: str, num_rigid_scaffolds: int, numPossibleR
             
             # Move and rename the file
             shutil.move(src_file, dest_file)
-            if VERBOSE: print(f"\t Moved and renamed: {src_file} -> {dest_file}")
+            if VERBOSE: print(f"\tMoved and renamed: {src_file} -> {dest_file}")
 
 def normalize_scores(peaks):
     """Normalize the scores for each peak in a list of peaks."""
