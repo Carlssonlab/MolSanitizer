@@ -12,7 +12,7 @@ import itertools
 from openbabel import openbabel as ob
 from rdkit import Chem
 from rdkit.Chem import rdDistGeom, rdForceFieldHelpers, rdMolTransforms, rdDistGeom, rdMolAlign, rdMolDescriptors
-import os, glob
+import os, glob, shutil
 import subprocess
 from pathlib import Path
 from collections import defaultdict
@@ -1059,8 +1059,8 @@ def gen_conf_chunk_ver2(df: pd.DataFrame, args):
 
             # 3D generation
             if VERBOSE: print("3D generation...")
-            subprocess.run(f"mkdir -p 3d/{name}", shell=True)
-            subprocess.run(f"cp solv/{name}/{name}_solv.mol2 3d/{name}/{name}.mol2", shell=True)
+            os.makedirs(f"3d/{name}", exist_ok=True)
+            shutil.copy2(os.path.join("solv", name, f"{name}_solv.mol2"), os.path.join("3d", name, f"{name}.mol2"))
             os.chdir(f"3d/{name}")
             numPossibleRigidAlignments = choose_sampling_method_ver2(rigid_scaffolds, name, numConfs, sulfo_matches, VERBOSE)
             os.chdir("../..")
@@ -1068,8 +1068,8 @@ def gen_conf_chunk_ver2(df: pd.DataFrame, args):
 
             # Mol2DB2
             if VERBOSE: print("Converting to DB2 format...")
-            subprocess.run(f"mkdir -p db2/{name}", shell=True)
-            subprocess.run(f"mv solv/{name}/{name}_solv.solv db2/{name}/{name}.solv", shell=True)    
+            os.makedirs(f"db2/{name}", exist_ok=True)
+            shutil.move(os.path.join("solv", name, f"{name}_solv.solv"), os.path.join("db2", name, f"{name}.solv"))
             smi2db2_utils.move_and_rename_mol2_files(name, len(rigid_scaffolds), numPossibleRigidAlignments, VERBOSE)
             os.chdir(f"db2/{name}")
             if not any(glob.glob(f"{name}_mol*.mol2")) or not os.path.isfile(f"{name}.solv"):
