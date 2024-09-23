@@ -11,6 +11,7 @@ All notable changes to this project will be documented in this file.
 
 ### 🚜 Refactor
 
+- Make the script more pythonic, to avoid the speed inconsistent between subprocess and os/shutil of python. - ([db778dd](https://github.com/Isra3l/MolSanitizer/commit/db778dd4ca7ab6fd75c488e14640eadc1c2cae6a))
 - Rewrite the main script (molSanitizer.py) to increase readability and better timing logging. - ([225590d](https://github.com/Isra3l/MolSanitizer/commit/225590da8d4a62f2b05366e077f935e60cc5f7ef))
 - Refactor the script a little bit. Change rigid_part_rules so at least three atoms are matched. - ([e060c5a](https://github.com/Isra3l/MolSanitizer/commit/e060c5aef3bae4e3bb2e259eba901d4232a25ebb))
 
