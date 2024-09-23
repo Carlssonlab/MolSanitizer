@@ -29,115 +29,125 @@ def process_enamine_name(chunk):
     chunk['smiles'] = chunk['smiles'].apply(lambda x: x.split()[0])
     return chunk
 
-def cleanData(args):
+def apply_filters(chunk, args, rejected_file):
+    chunk = filters.remove_invalid_SMILES(chunk)
 
+    if args.removesalts:
+        chunk = filters.removesalts(chunk, args.debug)
+    if args.tautomers:
+        chunk = filters.tautomers(chunk, args.debug)
+    if args.pains:
+        chunk = filters.pains(chunk, rejected_file, args.debug)
+    if args.unwanted:
+        chunk = filters.unwanted(chunk, rejected_file, args.unwanted, args.debug)
+    if args.custom:
+        chunk = filters.custom(chunk, rejected_file, args.custom, args.debug)
+    if args.protonation:
+        chunk = filters.protonation(chunk, args.debug)
+    if args.stereoisomers:
+        chunk = filters.stereoisomers(chunk, args.max_isomers, args.debug)
+
+    return chunk
+
+def log_step_time(elapsed_time, step):
+    hours, remainder = divmod(elapsed_time, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    if hours != 0:
+        print(f"Step {step} took {int(hours):02}:{int(minutes):02}:{int(seconds):02} hours to complete.")
+    elif minutes != 0:
+        print(f"Step {step} took {int(minutes):02}:{int(seconds):02} minutes to complete.")
+    else:
+        print(f"Step {step} took {elapsed_time:.2f} seconds to complete.")
+
+def log_execution_time(start_time, is_test):
+    if not is_test:
+        elapsed_time = time.time() - start_time
+        minutes, seconds = divmod(elapsed_time, 60)
+        if minutes != 0:
+            print(f"MolSanitizer took {int(minutes):02}:{int(seconds):02} minutes to complete.")
+        else:
+            print(f"MolSanitizer took {elapsed_time:.2f} seconds to complete.")
+
+def get_output_files(args, input_file_path):
+    if args.prefix:
+        output_file = f"{args.prefix}_clean.txt"
+        rejected_file = f"{args.prefix}_rejected.txt"
+    else:
+        output_file = input_file_path.with_name(f"{input_file_path.stem}_clean{input_file_path.suffix}")
+        rejected_file = input_file_path.with_name(f"{input_file_path.stem}_rejected{input_file_path.suffix}")
+
+    if os.path.exists(output_file):
+        os.remove(output_file)
+
+    return output_file, rejected_file
+
+def read_input_file(input_file, is_enamine):
+    if is_enamine:
+        logger.info('Using Enamine format for parsing')
+        return pd.read_csv(input_file, sep='\t', names=['smiles', 'ids'], usecols=[0, 1], header=None, chunksize=500_000)
+    else:
+        return pd.read_csv(input_file, sep=r'\s+', names=['smiles', 'ids'], usecols=[0, 1], header=None, chunksize=500_000)
+
+def process_files(args, start_time: int):
+    for input_file in args.input_files:
+        input_file_path = pathlib.Path(input_file)
+        logger.info(f'Processing: {input_file}')
+
+        output_file, rejected_file = get_output_files(args, input_file_path)
+
+        df_input = read_input_file(input_file, args.enamine)
+
+        for step, chunk in enumerate(df_input, start=1):
+            if args.enamine:
+                chunk = process_enamine_name(chunk)
+            
+            chunk['mol'] = chunk['smiles'].apply(Chem.MolFromSmiles)
+            chunk['ids'] = chunk['ids'].astype(str)
+
+            chunk = apply_filters(chunk, args, rejected_file)
+
+            if not chunk.empty:
+                chunk.to_csv(output_file, index=False, mode='a', columns=['smiles', 'ids'], header=False, sep=' ')
+
+            if args.db2:
+                smi2db2.gen_conf_chunk_ver2(chunk, args)
+
+            if not args.test:
+                if step == 1: time_step1 = time.time()-start_time
+                if step == 2:
+                    log_step_time(time_step1, 1)
+                    log_step_time(time.time()-start_time, 2)
+                elif step > 2:
+                    log_step_time(time.time()-start_time, step)
+                start_time = time.time()
+
+def process_smiles(args):
+    rejected_file = "msani_rejected.txt"
+    chunk = pd.DataFrame({'smiles': args.smiles, 'ids': range(len(args.smiles))})
+    chunk['ids'] = chunk['ids'].astype(str)
+    chunk['mol'] = chunk['smiles'].apply(Chem.MolFromSmiles)
+    
+    chunk = apply_filters(chunk, args, rejected_file)
+
+    if args.db2:
+        smi2db2.gen_conf_chunk_ver2(chunk, args)
+    
+    print('Processed SMILES:')
+    for i, row in chunk.iterrows():
+        print(row['smiles'])
+
+def clean_data(args):
     start_time = time.time()
 
-    if args.prefix is not None:
-            outputFile = f"{args.prefix}_clean.txt"
-            rejectedFile = f"{args.prefix}_rejected.txt"
-            if os.path.exists(outputFile): os.remove(outputFile)
-    logger.info(f'Rdkit version: {rdBase.rdkitVersion}')
-    if args.smiles is not None:
-        rejectedFile = f"molsani_rejected.txt"
-        chunk = pd.DataFrame({'smiles': args.smiles, 'ids': range(len(args.smiles))})
-        chunk['ids']=chunk['ids'].astype(str)
-        chunk['mol'] = chunk['smiles'].apply(lambda x: Chem.MolFromSmiles(x))
-        chunk = filters.remove_invalid_SMILES(chunk)
-        # Remove salts
-        if args.removesalts: chunk = filters.removesalts(chunk, args.debug)
+    logger.info(f'RDKit version: {rdBase.rdkitVersion}')
 
-        # Tautomers enumeration
-        if args.tautomers: chunk = filters.tautomers(chunk, args.debug)
-
-        # PAINS functional groups filtering
-        if args.pains: chunk = filters.pains(chunk, rejectedFile, args.debug) 
-
-        # Unwanted substructures filtering
-        if args.unwanted is not None: chunk = filters.unwanted(chunk, rejectedFile, args.unwanted, args.debug) 
-        if args.custom is not None: chunk = filters.custom(chunk, rejectedFile, args.custom, args.debug) 
-        
-        # Protonation
-        if args.protonation: chunk = filters.protonation(chunk, args.debug)
-
-        # Stereoisomers enumeration
-        if args.stereoisomers: chunk = filters.stereoisomers(chunk, args.max_isomers, args.debug)
-
-    
-        #if args.standarizeFilters: chunk = filters.standarizeFilters(chunk)
-
-        #chunk['smiles'] = chunk['mol'].apply(lambda x: Chem.MolToSmiles(x))
-
-        if args.db2: smi2db2.gen_conf_chunk_ver2(chunk, args)
-        print('Processed SMILES:')
-        for i in range(len(chunk)): print(chunk.iloc[i,0])
-        if not args.test:
-            elapsed_time = time.time() - start_time
-            minutes, seconds = divmod(elapsed_time, 60)
-            if minutes != 0: print(f"MolSanitizer took {int(minutes):02}:{int(seconds):02} minutes to complete.")
-            else: print(f"MolSanitizer took {elapsed_time:.2f} seconds to complete.")
-
+    if args.smiles:
+        process_smiles(args)
     else:
-        for inputFile in args.input_files:
-            if args.enamine: 
-                df_input = pd.read_csv(inputFile, sep='\t', names=['smiles', 'ids'], usecols=[0,1], header=None, chunksize=500_000)
-                logger.info(f'Using Enamine format for parsing')
-            else: 
-                df_input = pd.read_csv(inputFile, sep=r'\s+', names=['smiles', 'ids'], usecols=[0,1], header=None, chunksize=500_000)
-            
-            inputFilePath = pathlib.Path(inputFile)
-            logger.info(f'Processing: {inputFile}')
+        process_files(args, start_time)
 
-            if args.prefix is None:
-                outputFile = inputFilePath.with_name(f"{inputFilePath.stem}_clean{inputFilePath.suffix}")
-                rejectedFile = inputFilePath.with_name(f"{inputFilePath.stem}_rejected{inputFilePath.suffix}")
-                if os.path.exists(outputFile): os.remove(outputFile)
+    log_execution_time(start_time, args.test)
 
-            for step, chunk in enumerate(df_input, start=1):
-
-                if args.enamine: chunk = process_enamine_name(chunk)
-                chunk['mol'] = chunk['smiles'].apply(lambda x: Chem.MolFromSmiles(x))
-                chunk['ids']=chunk['ids'].astype(str)
-
-                chunk = filters.remove_invalid_SMILES(chunk)
-                # Remove salts
-                if args.removesalts: chunk = filters.removesalts(chunk, args.debug)
-
-                # Tautomers enumeration
-                if args.tautomers: chunk = filters.tautomers(chunk, args.debug)
-
-                # PAINS functional groups filtering
-                if args.pains: chunk = filters.pains(chunk, rejectedFile, args.debug) 
-
-                # Unwanted substructures filtering
-                if args.unwanted is not None: chunk = filters.unwanted(chunk, rejectedFile, args.unwanted, args.debug) 
-                if args.custom is not None: chunk = filters.custom(chunk, rejectedFile, args.custom, args.debug) 
-                
-                if len(chunk) == 0: #Check if the chunk is empty after the filters, if so, next chunk
-                    chunk.to_csv(outputFile, index=False, mode='a', columns=['smiles','ids'], header=False, sep=' ')
-                    continue 
-
-                # Protonation
-                if args.protonation: chunk = filters.protonation(chunk, args.debug)
-
-                # Stereoisomers enumeration
-                if args.stereoisomers: chunk = filters.stereoisomers(chunk, args.max_isomers, args.debug)
-
-            
-                #if args.standarizeFilters: chunk = filters.standarizeFilters(chunk)
-
-                #chunk['smiles'] = chunk['mol'].apply(lambda x: Chem.MolToSmiles(x))
-                chunk.to_csv(outputFile, index=False, mode='a', columns=['smiles','ids'], header=False, sep=' ')
-
-                if args.db2: smi2db2.gen_conf_chunk_ver2(chunk, args)
-                if not args.test:
-                    elapsed_time = time.time() - start_time
-                    hours, remainder = divmod(elapsed_time, 3600)
-                    minutes, seconds = divmod(remainder, 60)
-                    if hours != 0: print(f"Step {step} took {int(hours):02}:{int(minutes):02}:{int(seconds):02} hours to complete.")
-                    elif minutes !=0: print(f"Step {step} took {int(minutes):02}:{int(seconds):02} minutes to complete.")
-                    else: print(f"Step {step} took {elapsed_time:.2f} seconds to complete.")
-                    
 
 def Sanitycheck(args: dict):
     """Sanity check for the unwanted flag
@@ -193,7 +203,7 @@ def main():
         logger.info(f"STARTING MOLSANITIZER")
         logger.info(f"Input: {original_command}")    
         loggers.arguments(args)
-        cleanData(args)
+        clean_data(args)
 
 
 
