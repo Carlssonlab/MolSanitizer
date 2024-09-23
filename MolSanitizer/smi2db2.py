@@ -992,18 +992,13 @@ def choose_sampling_method_ver2(rigid_scaffolds, name, numConfs, sulfo_matches, 
         product, visited, unvisited = stochastic_sampling_v3(mol, 1, match_torlib, sdwriters, original_mol, 
                                       numConfs, num_confs_by_rotbonds, atom_maps, 250, 0, visited = None, unvisited=None)
 
-        if product < min(numConfs, num_confs_by_rotbonds) // 3: 
+        if product <= min(numConfs, num_confs_by_rotbonds) // 3: 
             if VERBOSE: print(f'Failed for stochastic scan (generated {product} confs), use the 2nd tolerance level')
             product, visited, unvisited = stochastic_sampling_v3(mol, 2, match_torlib, sdwriters, original_mol, 
                                           numConfs, num_confs_by_rotbonds, atom_maps, 500, product, visited = visited, unvisited = unvisited)
-
-        if product == 0: 
-            sdf_file, mol2_file = smi2db2_utils.get_sdf_mol2_filename(name, idx, 0)
-            with Chem.SDWriter(sdf_file) as sdwriter: sdwriter.write(mol)
-            convert_sdf_mol2(sdf_file, mol2_file, VERBOSE)
-            continue
     
         for sdwriter, sdf_file, mol2_file, atom_map in sdwriters:
+            if product == 0: sdwriter.write(mol)
             sdwriter.close()
             convert_sdf_mol2(sdf_file, mol2_file, VERBOSE)
             
