@@ -4,8 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [unreleased - most recent changes come first]
 
+### 🐛 Bug Fixes
+
+- Fix a bug that make the molecules without any rotatable bonds failed to generate DB2 files. - ([4b0d04b](https://github.com/Isra3l/MolSanitizer/commit/4b0d04b56ef7b87a7c799688dcc0201655c15d2f))
+
 ### 🚜 Refactor
 
+- Rewrite the main script (molSanitizer.py) to increase readability and better timing logging. - ([225590d](https://github.com/Isra3l/MolSanitizer/commit/225590da8d4a62f2b05366e077f935e60cc5f7ef))
 - Refactor the script a little bit. Change rigid_part_rules so at least three atoms are matched. - ([e060c5a](https://github.com/Isra3l/MolSanitizer/commit/e060c5aef3bae4e3bb2e259eba901d4232a25ebb))
 
 ## [0.1.1] - 2024-09-22
