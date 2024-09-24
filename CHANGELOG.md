@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### 🐛 Bug Fixes
 
+- Failed initial embedding should not crash the whole session. - ([66c818b](https://github.com/Isra3l/MolSanitizer/commit/66c818b88c7479d5e55d2ee20fada5cee9c03b02))
 - Fix another bug so that the compounds with no Torlib-satisfied conformation should output at least one conformation (from rdkit). - ([d71ff37](https://github.com/Isra3l/MolSanitizer/commit/d71ff37cb3e94234edefbcdfc1f9d1786811b6a1))
 - Fix a bug that make the molecules without any rotatable bonds failed to generate DB2 files. - ([4b0d04b](https://github.com/Isra3l/MolSanitizer/commit/4b0d04b56ef7b87a7c799688dcc0201655c15d2f))
 
