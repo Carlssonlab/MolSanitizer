@@ -730,69 +730,68 @@ def gen_conf_chunk(df: pd.DataFrame, randomSeed = 42, numConfs = 10000, rmsd = 0
             subprocess.run("find solv -type d -empty -delete", shell=True)
 
 def embed_smiles_ver2(smiles, name, randomSeed=42, VERBOSE=False):
-    smiles_variations = [smiles] + [random_smiles for random_smiles in \
-                                    Chem.MolToRandomSmilesVect(Chem.MolFromSmiles(smiles), 
-                                    numSmiles=4, randomSeed=randomSeed) if random_smiles != smiles]
+    mol_H = Chem.AddHs(Chem.MolFromSmiles(smiles))
+    amsol_mol = Chem.Mol(mol_H)
+    empty_mol = Chem.Mol(mol_H)
+
     params = rdDistGeom.srETKDGv3()
     params.numThreads = 0  # Use all available threads
     params.pruneRmsThresh = 0.35  # Prune conformations that are too similar, not user-definable here
     params.randomSeed = randomSeed # For reproducibility
     params.useRandomCoords = True
+    num_ring_confs = 1
 
-    for trial_id, smiles_variation in enumerate(smiles_variations):
-        if trial_id > 0: 
-            # In case where srETKDGv3 failed in embedding the molecule, 
-            # we have to use the macrocyclic version.
-            params = rdDistGeom.ETKDGv3()
-            params.numThreads = 0  # Use all available threads
-            params.pruneRmsThresh = 0.35  # Prune conformations that are too similar, not user-definable here
-            params.randomSeed = randomSeed # For reproducibility
-            params.useRandomCoords = True
-        try:
-            mol = Chem.MolFromSmiles(smiles_variation)
-            mol_H = Chem.AddHs(mol)
-            mol_H.SetProp("_Name", name)
-            amsol_mol = Chem.Mol(mol_H) 
-            empty_mol = Chem.Mol(mol_H)
-            num_ring_confs = 1
+    ssr = [set(ring) for ring in Chem.GetSymmSSSR(mol_H)]
+    planar_rings, non_planar_rings = smi2db2_utils.get_flexible_ring(mol_H, ssr, planar_lib, non_planar_lib)
+    sulfo_matches = smi2db2_utils.find_sulfonamide_like_scaffolds(mol_H)
+    flippable_Ns = smi2db2_utils.find_flipped_nitrogen(mol_H)
 
-            ssr = [set(ring) for ring in Chem.GetSymmSSSR(mol_H)]
-            planar_rings, non_planar_rings = smi2db2_utils.get_flexible_ring(mol_H, ssr, planar_lib, non_planar_lib)
-            sulfo_matches = smi2db2_utils.find_sulfonamide_like_scaffolds(mol_H)
-            flippable_Ns = smi2db2_utils.find_flipped_nitrogen(mol_H)
+    if VERBOSE:
+        if planar_rings:
+            print('\t Found planar rings:')
+            print(f'\t{planar_rings}')
+        if non_planar_rings:
+            print('\t Found non_planar rings:')
+            for ring in non_planar_rings: print(f'\t {ring[0]} {ring[1]}')
+        if flippable_Ns: 
+            print('\tFound flippable N structures')
+            for match in flippable_Ns: print(f'\t {match}')
+        if sulfo_matches: 
+            print('\tFound sulfonamide-like structures')
+            for match in sulfo_matches: print(f'\t {match}')
 
-            if VERBOSE:
-                if planar_rings:
-                    print('\t Found planar rings:')
-                    print(f'\t{planar_rings}')
-                if non_planar_rings:
-                    print('\t Found non_planar rings:')
-                    for ring in non_planar_rings: print(f'\t {ring[0]} {ring[1]}')
-                if flippable_Ns: 
-                    print('\tFound flippable N structures')
-                    for match in flippable_Ns: print(f'\t {match}')
-                if sulfo_matches: 
-                    print('\tFound sulfonamide-like structures')
-                    for match in sulfo_matches: print(f'\t {match}')
-
-                if sulfo_matches or non_planar_rings or flippable_Ns: numConfs = 100
-                else: numConfs = 10
+    if sulfo_matches or non_planar_rings or flippable_Ns: numConfs = 100
+    else: numConfs = 10
 
 
-            mp = rdForceFieldHelpers.MMFFGetMoleculeProperties(mol_H, mmffVariant="MMFF94s")
-            mp.SetMMFFDielectricConstant(1) #1 means vacumn, 80 means water, 20 is the compromised value (still arbitrary)
-            conf_ring_descriptors_df = pd.DataFrame()
-            for cid in rdDistGeom.EmbedMultipleConfs(mol_H, numConfs=numConfs, params=params):
-                ff = rdForceFieldHelpers.MMFFGetMoleculeForceField(mol_H, mp, confId=cid)
-                ff.Minimize()
-                conformer = mol_H.GetConformer(cid)
-                energy = ff.CalcEnergy()
-                conf_ring_descriptors_df = smi2db2_utils.classify_confs(conformer, energy, non_planar_rings, flippable_Ns, sulfo_matches, conf_ring_descriptors_df)
+    mp = rdForceFieldHelpers.MMFFGetMoleculeProperties(mol_H, mmffVariant="MMFF94s")
+    mp.SetMMFFDielectricConstant(1) #1 means vacumn, 80 means water, 20 is the compromised value (still arbitrary)
+    conf_ring_descriptors_df = pd.DataFrame()
+    try:
+        for cid in rdDistGeom.EmbedMultipleConfs(mol_H, numConfs=numConfs, params=params):
+            ff = rdForceFieldHelpers.MMFFGetMoleculeForceField(mol_H, mp, confId=cid)
+            ff.Minimize()
+            conformer = mol_H.GetConformer(cid)
+            energy = ff.CalcEnergy()
+            conf_ring_descriptors_df = smi2db2_utils.classify_confs(conformer, energy, non_planar_rings, flippable_Ns, sulfo_matches, conf_ring_descriptors_df)
+    except: pass
 
-            if len(conf_ring_descriptors_df)>0: break
-            # Sort conformers by energy
-        except Exception as e:
-            continue
+    if len(conf_ring_descriptors_df) == 0:
+        # In case where srETKDGv3 failed in embedding the molecule, 
+        # we have to use the macrocyclic version.
+        params = rdDistGeom.ETKDGv3()
+        params.numThreads = 0  # Use all available threads
+        params.pruneRmsThresh = 0.35  # Prune conformations that are too similar, not user-definable here
+        params.randomSeed = randomSeed # For reproducibility
+        params.useRandomCoords = True
+        for cid in rdDistGeom.EmbedMultipleConfs(mol_H, numConfs=numConfs, params=params):
+            ff = rdForceFieldHelpers.MMFFGetMoleculeForceField(mol_H, mp, confId=cid)
+            ff.Minimize()
+            conformer = mol_H.GetConformer(cid)
+            energy = ff.CalcEnergy()
+            conf_ring_descriptors_df = smi2db2_utils.classify_confs(conformer, energy, non_planar_rings, flippable_Ns, sulfo_matches, conf_ring_descriptors_df)
+
+
     conf_ring_descriptors_df.sort_values('Energy', inplace=True)
     # Keep a reservoir as the lowest energy possible conformer in case no confor
     reservoir = conf_ring_descriptors_df.iloc[0, 0]
@@ -1034,7 +1033,8 @@ def gen_conf_chunk_ver2(df: pd.DataFrame, args):
             # Embed smiles into initial conformation 
             # (The number of initial confs will be estimated from https://pubs.acs.org/doi/abs/10.1021/ci2004658
             # then we only use the minimal energy ones)
-            if VERBOSE: print(f"\nHandling {name} \nGenerating initial 3D conformations...")
+            print(f"Handling {name}")
+            if VERBOSE: print("Generating initial 3D conformations...")
             try:
                 amsol_mol, netcharge, rigid_scaffolds, sulfo_matches = embed_smiles_ver2(row['smiles'], name, 
                                           randomSeed = randomSeed, VERBOSE=VERBOSE)
