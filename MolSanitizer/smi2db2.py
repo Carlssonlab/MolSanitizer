@@ -731,6 +731,7 @@ def gen_conf_chunk(df: pd.DataFrame, randomSeed = 42, numConfs = 10000, rmsd = 0
 
 def embed_smiles_ver2(smiles, name, randomSeed=42, VERBOSE=False):
     mol_H = Chem.AddHs(Chem.MolFromSmiles(smiles))
+    mol_H.SetProp("_Name", name)
     amsol_mol = Chem.Mol(mol_H)
     empty_mol = Chem.Mol(mol_H)
 
