@@ -29,7 +29,7 @@ class Clash(object):
   #                  ("min", 1, 0, "O", "O", 2.0),
   #                  ("min", 1, 0, "*", "*", 0.95)]
   #  rulesDefault = [("min", 2, 1, "*", "*", 1.70)]
-  rulesDefault = [("min", 2, 1, "H", "H", 1.70)]   # only H-H!!
+  rulesDefault = [("min", 2, 1, "H", "H", 1.60)]   # only H-H!!
 
   def __init__(self, parameterFileName=None):
     '''constructs from defaults or reads from file'''

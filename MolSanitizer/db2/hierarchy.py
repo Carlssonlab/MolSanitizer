@@ -524,9 +524,9 @@ class Hierarchy(object):
     #  self.brokenSets.extend([aSet for aSet in range(nconformations)])
     #  return
 
-    for aSet in range(nconformations):
+    """for aSet in range(nconformations):
       if clashDecider.decideDistanceRules(mol2data, mol2data.atomXyz[aSet]):
-        self.brokenSets.append(aSet)
+        self.brokenSets.append(aSet)"""
 
   def _initClusters(self, clusters):
     '''initializes or reinitializes the clusters of conformations'''
