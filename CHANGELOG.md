@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [unreleased - most recent changes come first]
 
+### 🚀 Features
+
+- Msani not use the reset terminal hydrogen of mol2db2 anymore. - ([f4d2d6e](https://github.com/Isra3l/MolSanitizer/commit/f4d2d6ec6b870f6a24fe4960c3622d983151de04))
+
 ### 🐛 Bug Fixes
 
 - The enumerated stereoisomers in the db2 part should also be output to the _clean.smi file. - ([1c12e74](https://github.com/Isra3l/MolSanitizer/commit/1c12e749b211869ca2b91267adde3906884e6251))
