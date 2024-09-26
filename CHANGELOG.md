@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [unreleased - most recent changes come first]
+
+### 🚜 Refactor
+
+- Remove unused codes - ([8437f18](https://github.com/Isra3l/MolSanitizer/commit/8437f18d4afe59d018dc6b7d7a04f7e659898a1b))
+
 ## [0.1.2] - 2024-09-26
 
 ### 🚀 Features
