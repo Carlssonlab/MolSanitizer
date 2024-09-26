@@ -1,6 +1,6 @@
 # MolSanitizer - A package to prepare SMILES databases
 
-MolSannitizer is a package for preparation (remove salts, stereoisomers enumeration, protonation, ...) and filtering undesirable substructures (PAINS, reactive functional groups, ...) for drug discovery projects.
+MolSanitizer is a package for preparation (remove salts, stereoisomers enumeration, protonation, ...) and filtering undesirable substructures (PAINS, reactive functional groups, ...) for drug discovery projects.
 
 # Table of Contents
 
@@ -40,7 +40,7 @@ c1c(c([nH]n1)C(=O)NCC2(CC2)N)Br  CP000001647414
 ## **Overview**
 The pipeline contains six preparation and/or filtering steps, which could be used simultaneously to prepare the database:
 
-This is an example of a lazy pipeline that use all the preparation and processing steps:
+This is an example of a lazy pipeline that uses all the preparation and processing steps:
 
 ```bash
 msani -i example.smi --enamine --lazy # For enamine format
@@ -168,11 +168,12 @@ MolSanitizer now supports the batch mode `msani_batch`, which allows handling bi
 The additional flags supported by `msani_batch` so far:
 
 ```
--n, --projectName           The account which will be charged by the SLURM cluster for running tasks (default: naiss2023-3-39)
--l, --lines_per_job         Number of lines to process per job (default: 1000)
--t, --time                  Time limit in hours for each SLURM job (default: 24)
+-n, --projectName           The account that will be charged by the SLURM cluster for running tasks (default: naiss2023-3-39)
+-l, --lines_per_job         Number of lines to process per job (default: 50)
+-t, --time                  Time limit in hours for each SLURM job (default: 2)
 --max_jobs                  Maximum number of jobs to run simultaneously (default: 100)
 ```
+The default values of these additional flags could be modified in [MolSanitizer/batch_configurations.yaml](MolSanitizer/batch_configurations.yaml).
 
 Usage:
 ```
