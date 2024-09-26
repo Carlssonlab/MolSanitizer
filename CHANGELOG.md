@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### 🐛 Bug Fixes
 
+- The enumerated stereoisomers in the db2 part should also be output to the _clean.smi file. - ([1c12e74](https://github.com/Isra3l/MolSanitizer/commit/1c12e749b211869ca2b91267adde3906884e6251))
 - Disable the default clash checking of mol2db2 program, which could make DOCK skips the potential conformations (msani already checked in the torsional sampling part). - ([09553b3](https://github.com/Isra3l/MolSanitizer/commit/09553b388f5567f22461360383aa1cbd96af55e3))
 - Unspecified stereocenters now will be enumerated automatically before undergoing conformational embedding. - ([e04b6d6](https://github.com/Isra3l/MolSanitizer/commit/e04b6d6ff08692ad7c1f31d9fce1899531c81ac5))
 - Fix a bug that generated compounds not containing the name - ([8618524](https://github.com/Isra3l/MolSanitizer/commit/86185246b4c3ba090ab5e6d08bdc0153a4a6b1de))
