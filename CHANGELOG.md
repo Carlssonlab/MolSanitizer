@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### 🐛 Bug Fixes
 
+- Disable the default clash checking of mol2db2 program, which could make DOCK skips the potential conformations (msani already checked in the torsional sampling part). - ([09553b3](https://github.com/Isra3l/MolSanitizer/commit/09553b388f5567f22461360383aa1cbd96af55e3))
 - Unspecified stereocenters now will be enumerated automatically before undergoing conformational embedding. - ([e04b6d6](https://github.com/Isra3l/MolSanitizer/commit/e04b6d6ff08692ad7c1f31d9fce1899531c81ac5))
 - Fix a bug that generated compounds not containing the name - ([8618524](https://github.com/Isra3l/MolSanitizer/commit/86185246b4c3ba090ab5e6d08bdc0153a4a6b1de))
 - Try to fix the weird behavior of SLURM where all the entries failed (worked with flag --debug) - ([069cf1f](https://github.com/Isra3l/MolSanitizer/commit/069cf1f50736163512f3c4b2777d7595b8cab1a0))
