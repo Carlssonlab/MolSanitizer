@@ -106,13 +106,14 @@ def process_files(args, start_time: int):
 
             chunk = apply_filters(chunk, args, rejected_file)
 
-            if not chunk.empty:
-                chunk.to_csv(output_file, index=False, mode='a', columns=['smiles', 'ids'], header=False, sep=' ')
 
             if args.db2:
                 if not(args.stereoisomers): # We need to enumerate unspecifed stereoisomers
                     chunk = filters.stereoisomers(chunk, args.max_isomers, args.debug)
                 smi2db2.gen_conf_chunk_ver2(chunk, args)
+           
+            if not chunk.empty:
+                chunk.to_csv(output_file, index=False, mode='a', columns=['smiles', 'ids'], header=False, sep=' ')
 
             if not args.test:
                 if step == 1: time_step1 = time.time()-start_time
