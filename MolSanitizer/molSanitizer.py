@@ -110,6 +110,8 @@ def process_files(args, start_time: int):
                 chunk.to_csv(output_file, index=False, mode='a', columns=['smiles', 'ids'], header=False, sep=' ')
 
             if args.db2:
+                if not(args.stereoisomers): # We need to enumerate unspecifed stereoisomers
+                    chunk = filters.stereoisomers(chunk, args.max_isomers, args.debug)
                 smi2db2.gen_conf_chunk_ver2(chunk, args)
 
             if not args.test:
@@ -130,6 +132,8 @@ def process_smiles(args):
     chunk = apply_filters(chunk, args, rejected_file)
 
     if args.db2:
+        if not(args.stereoisomers): # We need to enumerate unspecifed stereoisomers
+            chunk = filters.stereoisomers(chunk, args.max_isomers, args.debug)
         smi2db2.gen_conf_chunk_ver2(chunk, args)
     
     print('Processed SMILES:')
