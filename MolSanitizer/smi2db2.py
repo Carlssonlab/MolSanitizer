@@ -954,20 +954,9 @@ def stochastic_sampling_v3(mol, tolerance_level, match_torlib, sdwriters, origin
     return product, visited, unvisited
 
 def choose_sampling_method_ver2(rigid_scaffolds, name, numConfs, sulfo_matches, VERBOSE=False):
-   
-    # Count number of rotatable hydrogens and number of conformations contributed by them
-    """mol2_countH = mol2.Mol2(mol2fileName=f"{name}.mol2", nameFileName=None, mol2text=None)
-    num_confs_H = hydrogens.count_confs_by_H(mol2_countH)
-    num_rotatable_H = mol2_countH.hydrogensToRotate
     """
-    # Divide the number of conformations by that contributed by rotatable hydrogens
-    # This adopts the same strategy from previous DB2 pipeline from UCSF
-    """if num_rotatable_H >= 6:  
-        logger.warning(f"{name} has too many rotatable hydrogens, will reduce by 60")
-        numConfs = numConfs // 60
-    elif num_rotatable_H >= 4: numConfs = numConfs // 30
-    elif num_rotatable_H >= 2: numConfs = numConfs // 3  """
-
+    
+    """
     num_confs_by_rotbonds, match_torlib = count_confs_by_rotbonds(rigid_scaffolds[0], VERBOSE)
     
     #if VERBOSE: print(f"\t{num_confs_by_rotbonds} {num_confs_H} {num_rotatable_H} {numConfs}")
@@ -998,8 +987,6 @@ def choose_sampling_method_ver2(rigid_scaffolds, name, numConfs, sulfo_matches, 
             sdwriter = Chem.SDWriter(sdf_file)
             sdwriters.append((sdwriter, sdf_file, mol2_file, [(i,i) for i in atom_map]))
 
-        # Initialize the visited and visitting list for the systematic scan
-        #visitting = [-1 for _ in range(len(reordered_rot_bonds))]
         if VERBOSE: print('\tRunning stochastic torsional sampling')
         
         product, visited, unvisited = stochastic_sampling_v3(mol, 1, match_torlib, sdwriters, original_mol, 
@@ -1025,8 +1012,6 @@ def gen_conf_chunk_ver2(df: pd.DataFrame, args):
             if not(os.path.exists('msani_timing.csv')): 
                 with open('msani_timing.csv', 'w') as f: f.write('Name, Initial embedding, AMSOL, Torsional sampling, Mol2DB2, Total\n')
             logging_time = ""
-        #if VERBOSE: print(df)
-        #if VERBOSE: print(env['LD_LIBRARY_PATH'])
         for idx, row in df.iterrows():
             if args.timing: start = time.time()
             random.seed(randomSeed)
