@@ -205,7 +205,7 @@ def main():
         else: log_file = 'molsani.log'
         loggers.setup_logger(log_file)
         original_command = ' '.join(sys.argv)
-        logger.info(f"STARTING MOLSANITIZER")
+        logger.info(f"*******  STARTING MOLSANITIZER  *******")
         logger.info(f"Input: {original_command}")    
         loggers.arguments(args)
         clean_data(args)

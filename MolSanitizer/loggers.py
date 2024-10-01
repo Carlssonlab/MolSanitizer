@@ -47,6 +47,7 @@ def arguments(args):
         logger.info(f"Number of conformers: {args.numconfs}")
         logger.info(f"Cleanup: {args.cleanup}")
         logger.info(f"Random seed: {args.randomSeed}")
+        logger.info(f"Energy window: {args.energywindow}")
 
     if args.tautomers:
         smartsFile = Path(__file__).parent / 'Data' / 'tautomers.txt'

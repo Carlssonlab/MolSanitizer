@@ -55,7 +55,7 @@ def parse_flags_single_job(args: dict):
     if args.debug: flags += ' --debug'
     if args.timing: flags += ' --timing'
     if args.custom is not None: flags += f' --custom ../{args.custom}'
-
+    if args.energywindow != 12: flags += f' --energywindow {args.energywindow}'
     if args.max_isomers != 0: flags += f' --max_isomers {args.max_isomers}'
     if args.numconfs != 2000: flags += f' --numconfs {args.numconfs}'
     if args.randomSeed != 42: flags += f' --randomSeed {args.randomSeed}'
