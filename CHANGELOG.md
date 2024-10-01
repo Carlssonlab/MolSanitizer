@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### 🚀 Features
 
+- New cleanup mechanism so one job should not interfere other parallel jobs (on SLURM system). - ([fbfe34a](https://github.com/Isra3l/MolSanitizer/commit/fbfe34ab2c92a4d3d3b0f124c11a2498ccaca66f))
 - Implementation of energy calculation for conformers and use energywindow to remove unfavorable conformers. - ([6fc4242](https://github.com/Isra3l/MolSanitizer/commit/6fc4242d83293dd18ba4456bc05a7526f4da6a7a))
 - Added the new parameter: energywindow to avoid unreasonable conformations - ([658d08c](https://github.com/Isra3l/MolSanitizer/commit/658d08ce81b9f8d25c530b6063bffb3d0f8388ad))
 
