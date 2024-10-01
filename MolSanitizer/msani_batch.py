@@ -32,6 +32,24 @@ smiles_file=${dirs[$TASK_ID]}
 
 MSANI_PATH -i $smiles_file'''
 
+cleanup_script ="""
+# Get the number of tasks with the name msani_3d from the user's squeue
+task_count=$(squeue -u $(whoami) | grep -c 'msani_3d')
+echo "$task_count remaining jobs in the queue."
+# If the count is equal to 1 (last job in the array), perform the cleanup
+if [ "$task_count" -eq 1 ]; then
+    echo "Proceeding with cleanup..."
+
+    # Find and delete empty directories in the 3d directory
+    find 3d -type d -empty -delete
+
+    # Find and delete empty directories in the solv directory
+    find solv -type d -empty -delete
+
+    echo "Cleanup complete."
+fi
+"""
+
 def parse_flags_single_job(args: dict):
     """Parse the flags for a single job
 
@@ -99,6 +117,8 @@ def Split_Submit_jobs(args: dict):
     flags = parse_flags_single_job(args)
     global slurm_script
     slurm_script = slurm_script + flags
+    if args.db2 and args.cleanup: slurm_script = slurm_script + cleanup_script
+    
     print(f"\nStarting MolSanitizer in batch mode\n")
     print(f"Using project name (-p): {args.proj_name}")
     print(f"Time limit for each job (-t): {args.time} hours")

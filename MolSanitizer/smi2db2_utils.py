@@ -15,25 +15,6 @@ sulfonamide_like_substructure = Chem.MolFromSmarts("[*:1][S;$(S(=*)=*):2]-!@[N&+
 aliphatic_nitrogen_substructure = Chem.MolFromSmarts("[A:1]@[N&+0;!$(N-*=*):2](@[A:3])!@[*,#1:4]")
 
 
-cleanup_script ="""
-#!/bin/bash
-
-# Get the number of tasks with the name msani_3d from the user's squeue
-task_count=$(squeue -u $(whoami) | grep -c 'msani_3d')
-
-# If the count is equal to 1 (last job in the array), perform the cleanup
-if [ "$task_count" -eq 1 ]; then
-    echo "Proceeding with cleanup..."
-
-    # Find and delete empty directories in the 3d directory
-    find 3d -type d -empty -delete
-
-    # Find and delete empty directories in the solv directory
-    find solv -type d -empty -delete
-
-    echo "Cleanup complete."
-fi
-"""
 
 def find_flipped_nitrogen(mol_H: Mol):
     return mol_H.GetSubstructMatches(aliphatic_nitrogen_substructure)
