@@ -84,7 +84,12 @@ def tautomerize_step1(mol, params):
         RO Mol: Canonical tautomeric form of the input molecule.
     """
     te = rdMolStandardize.TautomerEnumerator(params) 
-    canonical_tautomer = te.Canonicalize(mol)
+    
+    try:
+        canonical_tautomer = te.Canonicalize(mol)
+    except: # If tautomerization fails, return the input molecule
+        logger.info(f"Error tautomerizing molecule: {Chem.MolToSmiles(mol)}")
+        canonical_tautomer = mol
     return canonical_tautomer
     
 def tautomers(df: pd.DataFrame, debug = False) -> pd.DataFrame:
@@ -294,8 +299,7 @@ def stereoisomers(df: pd.DataFrame, max_isomers = 0, debug = False) -> pd.DataFr
             isomers = generate_stereoisomers(row['mol'], max_isomers)
         except Exception as e:
             logger.error(f"Error generating stereoisomers for compound {row['ids']}: {Chem.MolToSmiles(row['mol'])}")
-            isomers = []
-            continue
+            isomers = [row['mol']]
         if (len(isomers) == 1): 
             product_df.append(
                 {'smiles': row['smiles'], 'ids': row['ids'],'mol': row['mol']})
