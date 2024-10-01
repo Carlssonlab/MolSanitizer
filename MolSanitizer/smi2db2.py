@@ -824,6 +824,7 @@ def embed_smiles_ver2(smiles, name, randomSeed=42, VERBOSE=False):
     if sulfo_matches:
         for sulfo_match in conf_ring_descriptors_df['sulfo_descriptors'].unique():
             temp_list = conf_ring_descriptors_df[conf_ring_descriptors_df['sulfo_descriptors'] == sulfo_match].values.tolist()
+            initial_len = len(temp_list)
             num_confs_per_regioisomers = 0
             while num_confs_per_regioisomers < num_ring_confs and temp_list:
                 lowest_energy_entry = temp_list.pop(0)
@@ -833,7 +834,7 @@ def embed_smiles_ver2(smiles, name, randomSeed=42, VERBOSE=False):
                 rigid_scaffolds.append(Chem.Mol(scaffold, conf_id))
                 num_confs_per_regioisomers += 1
                 temp_list = smi2db2_utils.ring_conf_clusters(current_descriptors, temp_list)
-            if VERBOSE: print(f'\tBefore: {len(temp_list)}, after: {conf_id+1}')
+            if VERBOSE: print(f'\tBefore: {initial_len}, after: {conf_id+1}')
 
 
     else:
@@ -1004,9 +1005,161 @@ def choose_sampling_method_ver2(rigid_scaffolds, name, numConfs, sulfo_matches, 
             
     return len(sdwriters)
 
+def stochastic_sampling_v4(mol, tolerance_level, match_torlib, numConfs, total_possible_solutions, max_attempts=100, product=list(), unvisited = None, visited=None):
+    """
+    Perform stochastic sampling of the conformational space of a molecule.
+
+    Args:
+        mol: The molecule for which to generate conformers.
+        tolerance_level: Specifies the tolerance level for dihedral angles.
+        match_torlib: List of torsion matches (rotatable bonds).
+        numConfs: Maximum number of conformers to generate.
+        total_possible_solutions: The total number of possible dihedral combinations.
+        max_attempts: Maximum number of attempts to generate a valid conformer.
+        product: List of conformers and their energies.
+        unvisited: List of unvisited conformer combinations.
+        visited: Set of visited conformers.
+
+    Returns:
+        product: List of generated conformers and their energies.
+        visited: Updated set of visited conformers.
+        unvisited: Updated list of unvisited conformer combinations.
+    """
+    # Initialize the force field using MMFF94s
+    mp = rdForceFieldHelpers.MMFFGetMoleculeProperties(mol, mmffVariant="MMFF94s")
+
+    bonded_pairs, same_parent_pairs = precompute_bonded_and_same_parent_pairs(mol)
+    # Condition to switch between visited matrix and unvisited set approaches
+    if total_possible_solutions > 2 * numConfs:
+        # Use visited matrix approach for large spaces
+        n_transform = len(match_torlib)  # Number of rotatable bonds
+        visitting = [0 for _ in range(n_transform)]
+        attempts = 0
+        if visited is None: visited = set()
+
+        while len(product) < numConfs:
+            for idx in range(n_transform):
+                bond_idx = random.randint(0, len(match_torlib) - 1)
+                bond = match_torlib[bond_idx]
+                peaks = bond[2]  # Extract peaks
+                peak_idx = random.choices(range(len(peaks)), weights=[peak[3] for peak in peaks], k=1)[0]
+                visitting[bond_idx] = peak_idx
+                peak = peaks[peak_idx]
+                rdMolTransforms.SetDihedralDeg(mol.GetConformer(0), *bond[1], value=get_random_angle(peak[0], peak[tolerance_level]))
+
+            # Check if the conformation is valid and not already visited
+            if check_too_close_nonbonded_atoms(mol.GetConformer(0), mol, bonded_pairs, same_parent_pairs)\
+            or tuple(visitting) in visited:
+                attempts += 1
+                if attempts > max_attempts:
+                    break
+                continue
+            
+            attempts = 0
+            visited.add(tuple(visitting.copy()))
+            ff = rdForceFieldHelpers.MMFFGetMoleculeForceField(mol, mp, confId=0)
+            product.append((Chem.Conformer(mol.GetConformer(0)), ff.CalcEnergy()))
+
+    else:
+        # Use unvisited set approach for smaller spaces
+        if unvisited is None:
+            combination_ranges = [range(len(peaks)) for _, _, peaks in match_torlib]
+            unvisited = list(itertools.product(*combination_ranges))
+
+        attempts = 0
+        while len(product) < numConfs and len(unvisited) > 0:
+            choice = random.choice(unvisited)
+
+            # Set the dihedrals based on the chosen combination
+            for idx, (_, bond, _) in enumerate(match_torlib):
+                peak = match_torlib[idx][2][choice[idx]]
+                value = get_random_angle(peak[0], peak[tolerance_level])
+                rdMolTransforms.SetDihedralDeg(mol.GetConformer(0), *bond, value=value)
+
+            # If atoms are too close or if we already visited this conformation
+            if check_too_close_nonbonded_atoms(mol.GetConformer(0), mol, bonded_pairs, same_parent_pairs):
+                attempts += 1
+                if attempts > max_attempts:
+                    break
+                continue
+
+            unvisited.remove(choice)  # Remove the chosen combination from the unvisited set
+            attempts = 0
+            ff = rdForceFieldHelpers.MMFFGetMoleculeForceField(mol, mp, confId=0)
+            product.append((Chem.Conformer(mol.GetConformer(0)), ff.CalcEnergy()))
+    return product, visited, unvisited
+
+def choose_sampling_method_ver3(rigid_scaffolds, name, numConfs, sulfo_matches, energywindow, VERBOSE=False):
+    """
+    
+    """
+    num_confs_by_rotbonds, match_torlib = count_confs_by_rotbonds(rigid_scaffolds[0], VERBOSE)
+    
+    #if VERBOSE: print(f"\t{num_confs_by_rotbonds} {num_confs_H} {num_rotatable_H} {numConfs}")
+    if VERBOSE: print(f"\tTheory: {num_confs_by_rotbonds} possible conformations")
+
+    # Find the rigid part only once outside the loop to save processing time
+    atom_maps, label_map = find_rigid_part(rigid_scaffolds[0], rigid_rules)
+    if VERBOSE:
+        rigid_info = f'\tFound {atom_maps} ({label_map}) as a rigid part' if label_map else f'\tFound {atom_maps} (rings) as rigid parts'
+        print(rigid_info)
+
+    if (len(match_torlib) == 0 or num_confs_by_rotbonds == 1):
+        for idx, mol in enumerate(rigid_scaffolds):
+            sdf_file, mol2_file = smi2db2_utils.get_sdf_mol2_filename(name, idx, 0)
+            with Chem.SDWriter(sdf_file) as sdwriter: sdwriter.write(mol)
+            convert_sdf_mol2(sdf_file, mol2_file, VERBOSE)
+        return 1
+    
+
+    for idx, mol in enumerate(rigid_scaffolds):
+        if VERBOSE: print(f"\tHandling ring/sulfonamide conformation {idx+1}/{len(rigid_scaffolds)}")
+        original_mol = Chem.Mol(mol)
+        # Only remap the match_torlib when sulfo_matches is found
+        if sulfo_matches: num_confs_by_rotbonds, match_torlib = count_confs_by_rotbonds(mol, VERBOSE)
+ 
+        if VERBOSE: print('\tRunning stochastic torsional sampling')
+        
+        product, visited, unvisited = stochastic_sampling_v4(mol, 1, match_torlib, numConfs, num_confs_by_rotbonds, 250, list(), visited = None, unvisited=None)
+
+        if len(product) <= min(numConfs, num_confs_by_rotbonds) // 3: 
+            if VERBOSE: print(f'Failed for stochastic scan (generated {product} confs), use the 2nd tolerance level')
+            product, visited, unvisited = stochastic_sampling_v4(mol, 2, match_torlib, numConfs, num_confs_by_rotbonds, 500, product, visited = visited, unvisited = unvisited)
+
+        if len(product) == 0:
+            # A backup when no conformer is found for given tolerance levels and SMILES
+            for align_copy, atom_map in enumerate(atom_maps):
+                sdf_file, mol2_file = smi2db2_utils.get_sdf_mol2_filename(name, idx, align_copy)
+                with Chem.SDWriter(sdf_file) as sdwriter: sdwriter.write(mol)
+                convert_sdf_mol2(sdf_file, mol2_file, VERBOSE)
+            continue
+
+        product.sort(key=lambda x: x[1]) #Sort by energy
+        before_energy = len(product)
+        min_energy = product[0][1]
+        result_mol = Chem.Mol(mol)
+        result_mol.RemoveAllConformers()
+        product = [x[0] for x in product if x[1] - min_energy <= energywindow]
+
+        #TODO: RMSD clustering if bad
+
+        for conf in product:
+            result_mol.AddConformer(conf, assignId=True)
+        if VERBOSE: print(f"\tEnergy filter: {before_energy} -> {len(product)}")
+
+        for align_copy, atom_map in enumerate(atom_maps):
+            sdf_file, mol2_file = smi2db2_utils.get_sdf_mol2_filename(name, idx, align_copy)
+            with Chem.SDWriter(sdf_file) as sdwriter:
+                for conf_id in range(result_mol.GetNumConformers()):
+                    rdMolAlign.AlignMol(result_mol, original_mol, conf_id, 0, atomMap=[(i,i) for i in atom_map])
+                    sdwriter.write(result_mol, confId=conf_id)
+            convert_sdf_mol2(sdf_file, mol2_file, VERBOSE)
+            
+    return len(atom_maps)
+
 
 def gen_conf_chunk_ver2(df: pd.DataFrame, args):
-        randomSeed, numConfs, VERBOSE, cleanup = args.randomSeed, args.numconfs, args.debug, args.cleanup 
+        randomSeed, numConfs, VERBOSE, cleanup, energywindow = args.randomSeed, args.numconfs, args.debug, args.cleanup, args.energywindow 
         env = setup_env()
         if args.timing: 
             if not(os.path.exists('msani_timing.csv')): 
@@ -1066,7 +1219,7 @@ def gen_conf_chunk_ver2(df: pd.DataFrame, args):
             os.makedirs(f"3d/{name}", exist_ok=True)
             shutil.copy2(os.path.join("solv", name, f"{name}_solv.mol2"), os.path.join("3d", name, f"{name}.mol2"))
             os.chdir(f"3d/{name}")
-            numPossibleRigidAlignments = choose_sampling_method_ver2(rigid_scaffolds, name, numConfs, sulfo_matches, VERBOSE)
+            numPossibleRigidAlignments = choose_sampling_method_ver3(rigid_scaffolds, name, numConfs, sulfo_matches, energywindow, VERBOSE)
             os.chdir("../..")
             if args.timing: sampling_time = time.time()
 
