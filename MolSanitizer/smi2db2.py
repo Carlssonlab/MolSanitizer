@@ -994,7 +994,7 @@ def choose_sampling_method_ver2(rigid_scaffolds, name, numConfs, sulfo_matches, 
                                       numConfs, num_confs_by_rotbonds, atom_maps, 250, 0, visited = None, unvisited=None)
 
         if product <= min(numConfs, num_confs_by_rotbonds) // 3: 
-            if VERBOSE: print(f'Failed for stochastic scan (generated {product} confs), use the 2nd tolerance level')
+            if VERBOSE: print(f'Failed for stochastic scan (generated {len(product)} confs), use the 2nd tolerance level')
             product, visited, unvisited = stochastic_sampling_v3(mol, 2, match_torlib, sdwriters, original_mol, 
                                           numConfs, num_confs_by_rotbonds, atom_maps, 500, product, visited = visited, unvisited = unvisited)
     
@@ -1255,8 +1255,11 @@ def gen_conf_chunk_ver2(df: pd.DataFrame, args):
                 logging_time += f'{name}, {embed_time-start}, {amsol_time-embed_time}, {sampling_time-amsol_time}, {mol2db2_time-sampling_time}, {mol2db2_time-start} \n'
 
         if cleanup:
-            subprocess.run("find 3d -type d -empty -delete", shell=True)
-            subprocess.run("find solv -type d -empty -delete", shell=True)
+            if smi2db2_utils.is_slurm_available():
+                subprocess.run(smi2db2_utils.cleanup_script, shell=True, executable="/bin/bash")
+            else:
+                smi2db2_utils.remove_empty_directories("3d")
+                smi2db2_utils.remove_empty_directories("solv")
         if args.timing:
             with open('msani_timing.csv', 'a') as f:
                 f.write(logging_time)

@@ -7,11 +7,33 @@ import itertools
 from collections import defaultdict
 import numpy as np
 import pandas as pd
+from pathlib import Path
+
 
 six_membered_aliphatic_substructure = Chem.MolFromSmarts("[A;!$(N-*=*)]1-[A;!$(N-*=*)]-[A;!$(N-*=*)]-[A;!$(N-*=*)]-[A;!$(N-*=*)]-[A;!$(N-*=*)]-1")
 sulfonamide_like_substructure = Chem.MolFromSmarts("[*:1][S;$(S(=*)=*):2]-!@[N&+0;!$([NH2]):3](-[*,#1:4])-[*,#1:5]")
 aliphatic_nitrogen_substructure = Chem.MolFromSmarts("[A:1]@[N&+0;!$(N-*=*):2](@[A:3])!@[*,#1:4]")
 
+
+cleanup_script ="""
+#!/bin/bash
+
+# Get the number of tasks with the name msani_3d from the user's squeue
+task_count=$(squeue -u $(whoami) | grep -c 'msani_3d')
+
+# If the count is equal to 1 (last job in the array), perform the cleanup
+if [ "$task_count" -eq 1 ]; then
+    echo "Proceeding with cleanup..."
+
+    # Find and delete empty directories in the 3d directory
+    find 3d -type d -empty -delete
+
+    # Find and delete empty directories in the solv directory
+    find solv -type d -empty -delete
+
+    echo "Cleanup complete."
+fi
+"""
 
 def find_flipped_nitrogen(mol_H: Mol):
     return mol_H.GetSubstructMatches(aliphatic_nitrogen_substructure)
@@ -224,3 +246,28 @@ def remove_unfavorable_confs(conf_ring_descriptors_df: pd.DataFrame, name: str)-
 
 def get_sdf_mol2_filename(name: str, rigid_scaffold_idx: int, align_copy: int):
     return f"{name}_mol{rigid_scaffold_idx}_align{align_copy}.sdf", f"{name}_mol{rigid_scaffold_idx}_align{align_copy}.mol2"
+
+def is_slurm_available():
+    # Check for SLURM environment variables
+    slurm_env_vars = ['SLURM_JOB_ID', 'SLURM_JOB_NAME', 'SLURM_SUBMIT_DIR']
+    if any(var in os.environ for var in slurm_env_vars):
+        return True
+
+    # Check if the 'squeue' command is available
+    if shutil.which('squeue') is not None:
+        return True
+
+    return False
+
+def remove_empty_directories(directory):
+    """
+    Recursively remove all empty directories in the given directory.
+    """
+    # Traverse the directory tree from the bottom up to ensure that subdirectories are deleted before their parents
+    for root, dirs, _ in os.walk(directory, topdown=False):
+        for dir_name in dirs:
+            dir_path = Path(root) / dir_name
+            # Check if the directory is empty
+            if not any(dir_path.iterdir()):
+                print(f"Deleting empty directory: {dir_path}")
+                dir_path.rmdir()
