@@ -965,6 +965,7 @@ def choose_sampling_method_ver2(rigid_scaffolds, name, numConfs, sulfo_matches, 
 
     # Find the rigid part only once outside the loop to save processing time
     atom_maps, label_map = find_rigid_part(rigid_scaffolds[0], rigid_rules)
+    
     if VERBOSE:
         rigid_info = f'\tFound {atom_maps} ({label_map}) as a rigid part' if label_map else f'\tFound {atom_maps} (rings) as rigid parts'
         print(rigid_info)
@@ -1100,6 +1101,10 @@ def choose_sampling_method_ver3(rigid_scaffolds, name, numConfs, sulfo_matches, 
 
     # Find the rigid part only once outside the loop to save processing time
     atom_maps, label_map = find_rigid_part(rigid_scaffolds[0], rigid_rules)
+
+    # Molecules which don't have rings are not of interest --> only sample limitedly.
+    if label_map is not None: numConfs = 30
+
     if VERBOSE:
         rigid_info = f'\tFound {atom_maps} ({label_map}) as a rigid part' if label_map else f'\tFound {atom_maps} (rings) as rigid parts'
         print(rigid_info)
