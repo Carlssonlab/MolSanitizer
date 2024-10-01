@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### 🚀 Features
 
+- Reduced sampling for non-ring-containing molecules to mimic the behavior of DB2Pipeline. - ([5c55c43](https://github.com/Isra3l/MolSanitizer/commit/5c55c433eb48cbbc77781758785105d727fef08a))
 - New cleanup mechanism updated - ([727c5b6](https://github.com/Isra3l/MolSanitizer/commit/727c5b6c60c530da062b784a35e122f042417b82))
 - New cleanup mechanism so one job should not interfere other parallel jobs (on SLURM system). - ([fbfe34a](https://github.com/Isra3l/MolSanitizer/commit/fbfe34ab2c92a4d3d3b0f124c11a2498ccaca66f))
 - Implementation of energy calculation for conformers and use energywindow to remove unfavorable conformers. - ([6fc4242](https://github.com/Isra3l/MolSanitizer/commit/6fc4242d83293dd18ba4456bc05a7526f4da6a7a))
