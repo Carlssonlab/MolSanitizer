@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [unreleased - most recent changes come first]
 
+### 🚀 Features
+
+- Implementation of energy calculation for conformers and use energywindow to remove unfavorable conformers. - ([6fc4242](https://github.com/Isra3l/MolSanitizer/commit/6fc4242d83293dd18ba4456bc05a7526f4da6a7a))
+- Added the new parameter: energywindow to avoid unreasonable conformations - ([658d08c](https://github.com/Isra3l/MolSanitizer/commit/658d08ce81b9f8d25c530b6063bffb3d0f8388ad))
+
 ### 🚜 Refactor
 
 - Remove unused codes - ([8437f18](https://github.com/Isra3l/MolSanitizer/commit/8437f18d4afe59d018dc6b7d7a04f7e659898a1b))
