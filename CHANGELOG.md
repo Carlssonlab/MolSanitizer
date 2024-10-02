@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### 🚀 Features
 
+- New alignment rules for non-ring compounds - ([c2376ac](https://github.com/Isra3l/MolSanitizer/commit/c2376acd3eb9c75e01787fa9d70c352c660e4907))
 - Reduced sampling for non-ring-containing molecules to mimic the behavior of DB2Pipeline. - ([5c55c43](https://github.com/Isra3l/MolSanitizer/commit/5c55c433eb48cbbc77781758785105d727fef08a))
 - New cleanup mechanism updated - ([727c5b6](https://github.com/Isra3l/MolSanitizer/commit/727c5b6c60c530da062b784a35e122f042417b82))
 - New cleanup mechanism so one job should not interfere other parallel jobs (on SLURM system). - ([fbfe34a](https://github.com/Isra3l/MolSanitizer/commit/fbfe34ab2c92a4d3d3b0f124c11a2498ccaca66f))
