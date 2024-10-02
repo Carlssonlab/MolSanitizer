@@ -1,12 +1,2 @@
-*-!@C(=O)-!@N amide
-*-!@C(=O)-!@O ester
-*-!@S(=O)-!@N sulfonamide
-*-!@S(=O)-!@O sulfonate
-[*;$(*#*)]-!@*#!@*-!@[*;$(*#*)] conjugated_TB-TB
-[*;$(*=*)]-!@*#!@*-!@[*;$(*=*)] conjugated_TB-DB
-[*;$(*#*)]-!@*=!@*-!@[*;$(*#*)] conjugated_DB-TB
-[*;$(*=*)]-!@*=!@*-!@[*;$(*=*)] conjugated_DB-DB
-**#!@* any_TB
-**=!@* any_DB
-[A&X4](~A)(~A)(~A)~A any_tert-A
-[A&X4](~A)(~A)~A any_iso-A
+[C:1]-!@[C:2] Two_random_C
+[C:1]-!@[*;!#1:2] One_C_with_nonH
