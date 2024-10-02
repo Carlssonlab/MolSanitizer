@@ -125,11 +125,11 @@ def tautomers(df: pd.DataFrame, debug = False) -> pd.DataFrame:
             updated_df.append(
                 {'smiles': updates[0], 'ids': row['ids'],'mol': Chem.MolFromSmiles(updates[0])})
         else:
+            if len(updates) >= 10: two_digits = True
             for i, update in enumerate(updates):
-                print(update)
                 updated_df.append({
                     'smiles': update,
-                    'ids': row['ids']+'_'+str(i+1),
+                    'ids': row['ids']+'_'+ (f"{i+1:02}" if two_digits else f"{i+1}"),
                     'mol': Chem.MolFromSmiles(update)
                 })
     return pd.DataFrame(updated_df)
@@ -304,10 +304,11 @@ def stereoisomers(df: pd.DataFrame, max_isomers = 0, debug = False) -> pd.DataFr
             product_df.append(
                 {'smiles': row['smiles'], 'ids': row['ids'],'mol': row['mol']})
         else:
+            if len(isomers) >= 10: two_digits = True
             for i, isomer in enumerate(isomers):
                 product_df.append({
                     'smiles': Chem.MolToSmiles(isomer, isomericSmiles=True),
-                    'ids': row['ids']+'.'+str(i+1),
+                    'ids': row['ids']+'.'+ (f"{i+1:02}" if  two_digits else f"{i+1}"),
                     'mol': isomer
                 })
     return pd.DataFrame(product_df)
