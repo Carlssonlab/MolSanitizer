@@ -1,8 +1,8 @@
 """
-MolSanitizer.
+MolSanitizer in the batch mode.
 """
 
-__author__ = "Israel Cabeza de Vaca Lopez, Thua-Phong Lam, Szymon Pach"
+__author__ = "Thua-Phong Lam, Israel Cabeza de Vaca Lopez, Szymon Pach"
 __place__ = "Jens Carlsson lab, Uppsala University, Sweden"
 __license__ = "MIT"
 
@@ -12,6 +12,7 @@ __license__ = "MIT"
 import os
 import sys
 import time
+import math
 
 from . import parsers
 import subprocess
@@ -49,6 +50,10 @@ if [ "$task_count" -eq 1 ]; then
     echo "Cleanup complete."
 fi
 """
+
+def count_lines_bash(file_path):
+    result = subprocess.run(['wc', '-l', file_path], stdout=subprocess.PIPE)
+    return int(result.stdout.split()[0])
 
 def parse_flags_single_job(args: dict):
     """Parse the flags for a single job
@@ -125,12 +130,27 @@ def Split_Submit_jobs(args: dict):
     print(f"Maximum number of jobs running parallelly (--max_jobs): {args.max_jobs} jobs")
     print(f"Number of compounds per job (-l): {args.lines} lines\n")
 
+    n_jobs = 0
+    for file in args.input_files:
+        if not os.path.exists(file):
+            print(f"File {file} does not exist. Please check the path and try again.")
+            print(f"Exitting MolSanitizer...")
+            return
+        line_count = count_lines_bash(file)
+        n_jobs += math.ceil(line_count/args.line)
+    print(f"Total number of jobs to submit: {n_jobs}\n")
+    if n_jobs > 1000:
+        print(f"Too many jobs to submit ({n_jobs}). Please increase the number of lines per job or decrease the number of input files")
+        print(f"Exitting MolSanitizer...")
+        return
+
     # Wait for 5 seconds before proceeding
     print("Waiting 5 seconds to review the configurations...")
     time.sleep(5)
     
     for file in args.input_files:
         prefix = file.split('.')[0]
+        suffix = file.split('.')[-1]
         if os.path.exists(prefix):
             remove_folder = input(f"Folder {prefix} already exists. Do you want to remove it? (y/n): ")
             if remove_folder.lower() == 'y' or remove_folder.lower() == 'yes':
@@ -140,14 +160,10 @@ def Split_Submit_jobs(args: dict):
                 print(f"Exitting MolSanitizer...\n")
                 return
         subprocess.run(f"mkdir -p {prefix}", shell=True)
-        subprocess.run(f"split -l {args.lines} -d {file} -a 3 {prefix}/in", shell=True)
+        subprocess.run(f"split -l {args.line} -d -a 3 --additional-suffix={suffix} {file} {prefix}/in", shell=True)
         os.chdir(prefix)
         subprocess.run(f"ls in* > dirlista", shell=True)
         n_jobs = sum(1 for line in open('dirlista'))
-        if (n_jobs) > 1000:
-            print(f"Too many jobs to submit ({n_jobs}). Please increase the number of lines per job or decrease the number of input files")
-            print(f"Exitting MolSanitizer...")
-            return
         print(f"Submitting {n_jobs} jobs\n")
         write_single_job_script(slurm_header, slurm_script)
         subprocess.run(f"sbatch --array=0-{n_jobs-1}%{args.max_jobs} submit_msani.sh", shell=True)

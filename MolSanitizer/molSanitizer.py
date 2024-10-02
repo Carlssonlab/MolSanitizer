@@ -2,7 +2,7 @@
 MolSanitizer.
 """
 
-__author__ = "Israel Cabeza de Vaca Lopez, Thua-Phong Lam, Szymon Pach"
+__author__ = "Thua-Phong Lam, Israel Cabeza de Vaca Lopez, Szymon Pach"
 __place__ = "Jens Carlsson lab, Uppsala University, Sweden"
 __license__ = "MIT"
 
