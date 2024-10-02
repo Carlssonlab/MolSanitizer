@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### 🚀 Features
 
+- Only commit CHANGELOG.md when CHANGELOG.md contains differences. - ([5f87498](https://github.com/Isra3l/MolSanitizer/commit/5f87498b2854b657766719a6a18162ad4ea97acd))
 - New msani_batch interface, showing the user how many jobs prior to submission. - ([fcd9755](https://github.com/Isra3l/MolSanitizer/commit/fcd9755fc37a971785091defa73232fd3171a2d6))
 - :bug: Update new stereoisomers and tautomers expansion name patterns. - ([239b92a](https://github.com/Isra3l/MolSanitizer/commit/239b92aecf9f2146c151e0dab0d4ec0b9ec48133))
 - New alignment rules for non-ring compounds - ([c2376ac](https://github.com/Isra3l/MolSanitizer/commit/c2376acd3eb9c75e01787fa9d70c352c660e4907))
@@ -17,6 +18,7 @@ All notable changes to this project will be documented in this file.
 
 ### 🐛 Bug Fixes
 
+- Fix a bug in stereoisomers expansion - ([8f530c1](https://github.com/Isra3l/MolSanitizer/commit/8f530c1ee8bea97589514c48d1c077874805a863))
 - Compounds that fail to tautomerize should not interrupt the whole msani for now. If error in generating stereoisomers or tautomers occurs, the smiles should be kept as input rather than skipping it in the earlier version. - ([e17a0a1](https://github.com/Isra3l/MolSanitizer/commit/e17a0a13189a3c17fcf0faf3000fd932e46dfc75))
 
 ### 🚜 Refactor
