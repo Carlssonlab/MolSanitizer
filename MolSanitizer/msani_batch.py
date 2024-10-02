@@ -137,7 +137,7 @@ def Split_Submit_jobs(args: dict):
             print(f"Exitting MolSanitizer...")
             return
         line_count = count_lines_bash(file)
-        n_jobs += math.ceil(line_count/args.line)
+        n_jobs += math.ceil(line_count/args.lines)
     print(f"Total number of jobs to submit: {n_jobs}\n")
     if n_jobs > 1000:
         print(f"Too many jobs to submit ({n_jobs}). Please increase the number of lines per job or decrease the number of input files")
