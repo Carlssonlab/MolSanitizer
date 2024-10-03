@@ -19,6 +19,7 @@ All notable changes to this project will be documented in this file.
 
 ### 🐛 Bug Fixes
 
+- New cleanup mechanism, which should now cleanup even with parallel jobs of different array_id being running simultaneously. - ([0bb2bc9](https://github.com/Isra3l/MolSanitizer/commit/0bb2bc9896907c3903425d11238429cdabd3fe68))
 - Fix a bug in stereoisomers expansion - ([8f530c1](https://github.com/Isra3l/MolSanitizer/commit/8f530c1ee8bea97589514c48d1c077874805a863))
 - Compounds that fail to tautomerize should not interrupt the whole msani for now. If error in generating stereoisomers or tautomers occurs, the smiles should be kept as input rather than skipping it in the earlier version. - ([e17a0a1](https://github.com/Isra3l/MolSanitizer/commit/e17a0a13189a3c17fcf0faf3000fd932e46dfc75))
 
