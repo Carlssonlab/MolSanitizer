@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### 🚀 Features
 
+- :bug: New cleanup mechanism for sessions not running in a SLURM job. - ([2ae700a](https://github.com/Isra3l/MolSanitizer/commit/2ae700a19d9141e15b9371f77a4fb8418ba5b6cf))
 - Only commit CHANGELOG.md when CHANGELOG.md contains differences. - ([5f87498](https://github.com/Isra3l/MolSanitizer/commit/5f87498b2854b657766719a6a18162ad4ea97acd))
 - New msani_batch interface, showing the user how many jobs prior to submission. - ([fcd9755](https://github.com/Isra3l/MolSanitizer/commit/fcd9755fc37a971785091defa73232fd3171a2d6))
 - :bug: Update new stereoisomers and tautomers expansion name patterns. - ([239b92a](https://github.com/Isra3l/MolSanitizer/commit/239b92aecf9f2146c151e0dab0d4ec0b9ec48133))
