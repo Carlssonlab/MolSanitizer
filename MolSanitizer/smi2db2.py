@@ -1260,7 +1260,7 @@ def gen_conf_chunk_ver2(df: pd.DataFrame, args):
             logging_time += f'{name}, {embed_time-start}, {amsol_time-embed_time}, {sampling_time-amsol_time}, {mol2db2_time-sampling_time}, {mol2db2_time-start} \n'
 
     if cleanup:
-        if not(smi2db2_utils.is_slurm_available()):
+        if not(smi2db2_utils.is_slurm_job()):
             # Remove empty directories if not running on SLURM
             smi2db2_utils.remove_empty_directories("3d")
             smi2db2_utils.remove_empty_directories("solv")

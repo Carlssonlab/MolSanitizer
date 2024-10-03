@@ -228,17 +228,9 @@ def remove_unfavorable_confs(conf_ring_descriptors_df: pd.DataFrame, name: str)-
 def get_sdf_mol2_filename(name: str, rigid_scaffold_idx: int, align_copy: int):
     return f"{name}_mol{rigid_scaffold_idx}_align{align_copy}.sdf", f"{name}_mol{rigid_scaffold_idx}_align{align_copy}.mol2"
 
-def is_slurm_available():
-    # Check for SLURM environment variables
-    slurm_env_vars = ['SLURM_JOB_ID', 'SLURM_JOB_NAME', 'SLURM_SUBMIT_DIR']
-    if any(var in os.environ for var in slurm_env_vars):
-        return True
-
-    # Check if the 'squeue' command is available
-    if shutil.which('squeue') is not None:
-        return True
-
-    return False
+def is_slurm_job():
+    # Check if SLURM_JOB_ID is present in environment variables
+    return 'SLURM_JOB_ID' in os.environ
 
 def remove_empty_directories(directory):
     """
