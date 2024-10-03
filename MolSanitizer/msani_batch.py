@@ -30,12 +30,12 @@ slurm_script='''
 dirs=( $(cat dirlista) )
 TASK_ID=${SLURM_ARRAY_TASK_ID}
 smiles_file=${dirs[$TASK_ID]}
-
+ARRAY_ID=${SLURM_ARRAY_JOB_ID}
 MSANI_PATH -i $smiles_file'''
 
 cleanup_script ="""
 # Get the number of tasks with the name msani_3d from the user's squeue
-task_count=$(squeue -u $(whoami) | grep -c 'msani_3d')
+task_count=$(squeue -u $(whoami) | grep -c "$ARRAY_ID")
 echo "$task_count remaining jobs in the queue."
 # If the count is equal to 1 (last job in the array), perform the cleanup
 if [ "$task_count" -eq 1 ]; then
