@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### 🚀 Features
 
+- MolSanitizer now will skip generating DB2 file if the file already exist. - ([52d7a40](https://github.com/Isra3l/MolSanitizer/commit/52d7a4044d03276993b1e6061309f110d09606d4))
 - Warn the user if not all the stereoisomers are written out. - ([1e56118](https://github.com/Isra3l/MolSanitizer/commit/1e561180b912a98af541163c07af701a011aea2e))
 - New default values of energywindow=15 and max_isomers=32 (max stereoisomers to be enumerated) - ([d901665](https://github.com/Isra3l/MolSanitizer/commit/d901665b804bfb5e7fd0842b08731e7f6e483c38))
 - :bug: New cleanup mechanism for sessions not running in a SLURM job. - ([2ae700a](https://github.com/Isra3l/MolSanitizer/commit/2ae700a19d9141e15b9371f77a4fb8418ba5b6cf))
