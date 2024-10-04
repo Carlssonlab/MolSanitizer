@@ -279,7 +279,7 @@ def generate_stereoisomers(mol, max_isomers=0):
     return isomers
 
 
-def stereoisomers(df: pd.DataFrame, max_isomers = 0, debug = False) -> pd.DataFrame:
+def stereoisomers(df: pd.DataFrame, max_isomers = 32, debug = False) -> pd.DataFrame:
     """
     Generate stereoisomers for molecules in the 'mol' column and expand the DataFrame.
     
@@ -296,7 +296,7 @@ def stereoisomers(df: pd.DataFrame, max_isomers = 0, debug = False) -> pd.DataFr
     product_df = []
     for _, row in df.iterrows():
         try:
-            isomers = generate_stereoisomers(row['mol'], max_isomers)
+            isomers = generate_stereoisomers(row['mol'], max_isomers=0)
         except Exception as e:
             logger.error(f"Error generating stereoisomers for compound {row['ids']}: {Chem.MolToSmiles(row['mol'])}")
             isomers = [row['mol']]
@@ -304,6 +304,9 @@ def stereoisomers(df: pd.DataFrame, max_isomers = 0, debug = False) -> pd.DataFr
             product_df.append(
                 {'smiles': row['smiles'], 'ids': row['ids'],'mol': row['mol']})
         else:
+            if len(isomers) > max_isomers: 
+                logger.warning(f"{row['ids']}: Not all the stereoisomers are written out (capped at {max_isomers}/{len(isomers)}).")
+                isomers=isomers[:max_isomers]
             two_digits = len(isomers) >= 10
             for i, isomer in enumerate(isomers):
                 product_df.append({
