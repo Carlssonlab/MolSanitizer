@@ -1177,6 +1177,9 @@ def gen_conf_chunk_ver2(df: pd.DataFrame, args):
         # Embed smiles into initial conformation 
         # (The number of initial confs will be estimated from https://pubs.acs.org/doi/abs/10.1021/ci2004658
         # then we only use the minimal energy ones)
+        if os.path.exists(f"db2/{name}/{name}.db2"):
+            print(f"Skipping {name} as it already exists")
+            continue
         print(f"Handling {name}")
         if VERBOSE: print("Generating initial 3D conformations...")
         try:
