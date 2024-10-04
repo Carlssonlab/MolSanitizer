@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### 🚀 Features
 
+- New default values of energywindow=15 and max_isomers=32 (max stereoisomers to be enumerated) - ([d901665](https://github.com/Isra3l/MolSanitizer/commit/d901665b804bfb5e7fd0842b08731e7f6e483c38))
 - :bug: New cleanup mechanism for sessions not running in a SLURM job. - ([2ae700a](https://github.com/Isra3l/MolSanitizer/commit/2ae700a19d9141e15b9371f77a4fb8418ba5b6cf))
 - Only commit CHANGELOG.md when CHANGELOG.md contains differences. - ([5f87498](https://github.com/Isra3l/MolSanitizer/commit/5f87498b2854b657766719a6a18162ad4ea97acd))
 - New msani_batch interface, showing the user how many jobs prior to submission. - ([fcd9755](https://github.com/Isra3l/MolSanitizer/commit/fcd9755fc37a971785091defa73232fd3171a2d6))
