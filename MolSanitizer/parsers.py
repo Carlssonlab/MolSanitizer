@@ -63,12 +63,12 @@ def parseArguments(args = None):
     parser.add_argument('-pre', '--prefix', default=None, type=str, help='Prefix for the output files. If not provided, the input file name will be used.')
 
     # Add integer option
-    parser.add_argument('--max_isomers', type=int, default=0, help='Maximum number of stereoisomers to consider (default: 0 = no limit)')
+    parser.add_argument('--max_isomers', type=int, default=32, help='Maximum number of stereoisomers to consider (default: 32 = 5 stereocenters)')
     parser.add_argument('-nconfs', '--numconfs', type=int, default=2000, help='Maximum number of conformers to generate (default: 2000)')
     parser.add_argument('-rs', '--randomSeed', type=int, default=42, help='Random seed for reproducibility (default: 42)')
 
     # Add float options
-    parser.add_argument('-w','--energywindow', type=float, default=12, help='Energy window for sampling the conformations (default: 12 (kcal/mol))')
+    parser.add_argument('-w','--energywindow', type=float, default=15, help='Energy window for sampling the conformations (default: 12 (kcal/mol))')
 
     # Parse the arguments
     args = parser.parse_args()
@@ -130,14 +130,14 @@ def parseArguments_batch(args = None):
 
     # Add integer option
     parser.add_argument('-l', '--lines_per_job', dest='lines', type=int, default=lines_per_job, help=f'Number of lines to process per job (default: {lines_per_job})')
-    parser.add_argument('--max_isomers', type=int, default=0, help='Maximum number of stereoisomers to consider (default: 0 = no limit)')
+    parser.add_argument('--max_isomers', type=int, default=32, help='Maximum number of stereoisomers to consider (default: 32 = 5 stereocenters)')
     parser.add_argument('-nconfs', '--numconfs', type=int, default=2000, help='Maximum number of conformers to generate (default: 2000)')
     parser.add_argument('-rs', '--randomSeed', type=int, default=42, help='Random seed for reproducibility (default: 42)')
     parser.add_argument('-t', '--time', type=int, default=time_limit, help=f'Time limit for the SLURM job in hours (default: {time_limit})')
     parser.add_argument('--max_jobs', type=int, default=max_jobs, help=f'Maximum number of jobs to run simultaneously (default: {max_jobs})')
 
     # Add float options
-    parser.add_argument('-w','--energywindow', type=float, default=12, help='Energy window for sampling the conformations (default: 12 (kcal/mol))')
+    parser.add_argument('-w','--energywindow', type=float, default=15, help='Energy window for sampling the conformations (default: 12 (kcal/mol))')
 
     # Parse the arguments
     args = parser.parse_args()
