@@ -1128,7 +1128,7 @@ def choose_sampling_method_ver3(rigid_scaffolds, name, numConfs, sulfo_matches, 
         product, visited, unvisited = stochastic_sampling_v4(mol, 1, match_torlib, numConfs, num_confs_by_rotbonds, 250, list(), visited = None, unvisited=None)
 
         if len(product) <= min(numConfs, num_confs_by_rotbonds) // 3: 
-            if VERBOSE: print(f'Failed for stochastic scan (generated {product} confs), use the 2nd tolerance level')
+            if VERBOSE: print(f'Failed for stochastic scan (generated {len(product)} confs), use the 2nd tolerance level')
             product, visited, unvisited = stochastic_sampling_v4(mol, 2, match_torlib, numConfs, num_confs_by_rotbonds, 500, product, visited = visited, unvisited = unvisited)
 
         if len(product) == 0:
