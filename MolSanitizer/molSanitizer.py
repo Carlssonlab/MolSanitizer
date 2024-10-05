@@ -5,6 +5,7 @@ MolSanitizer.
 __author__ = "Thua-Phong Lam, Israel Cabeza de Vaca Lopez, Szymon Pach"
 __place__ = "Jens Carlsson lab, Uppsala University, Sweden"
 __license__ = "MIT"
+__version__ = "0.1.3"
 
 import logging
 logger = logging.getLogger('molsani')
