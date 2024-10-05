@@ -304,7 +304,7 @@ def stereoisomers(df: pd.DataFrame, max_isomers = 32, debug = False) -> pd.DataF
             product_df.append(
                 {'smiles': row['smiles'], 'ids': row['ids'],'mol': row['mol']})
         else:
-            if len(isomers) > max_isomers: 
+            if max_isomers > 0 and len(isomers) > max_isomers: 
                 logger.warning(f"{row['ids']}: Not all the stereoisomers are written out (capped at {max_isomers}/{len(isomers)}).")
                 isomers=isomers[:max_isomers]
             two_digits = len(isomers) >= 10
