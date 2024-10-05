@@ -27,7 +27,7 @@ dependencies = [
     "markdown",
     "pandas",
     "numpy",
-    "rdkit>=2024.3.5"
+    "rdkit>=2024.09.1"
 ]
 
 [project.urls]
