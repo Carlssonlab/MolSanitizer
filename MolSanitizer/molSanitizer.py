@@ -144,9 +144,14 @@ def process_smiles(args):
 
 def clean_data(args):
     start_time = time.time()
-
-    logger.info(f'RDKit version: {rdBase.rdkitVersion}')
-
+    rdkit_version = rdBase.rdkitVersion
+    logger.info(f'RDKit version: {rdkit_version}')
+    if rdkit_version != '2024.09.1':
+        print('\n########################################################')
+        print('RDKit version 2024.09.1 is recommended for MolSanitizer.')
+        print("Use 'conda install rdkit==2024.9.1' to avoid potential issues.")
+        print('########################################################\n')
+        
     if args.smiles:
         process_smiles(args)
     else:

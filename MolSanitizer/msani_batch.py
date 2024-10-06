@@ -16,7 +16,7 @@ import math
 
 from . import parsers
 import subprocess
-
+from rdkit import rdBase
 
 slurm_header = '''#!/bin/bash
 #SBATCH -A PROJECT_NAME
@@ -172,9 +172,14 @@ def Split_Submit_jobs(args: dict):
 def main():
 
     args = parsers.parseArguments_batch(sys.argv[1:])
+    rdkit_version = rdBase.rdkitVersion
+    if rdkit_version != '2024.09.1':
+        print('\n###########################################################')
+        print('RDKit version 2024.09.1 is recommended for MolSanitizer.')
+        print("Use 'conda install rdkit==2024.9.1' to avoid potential issues.")
+        print('##############################################################\n')
+        time.sleep(2)
     Split_Submit_jobs(args)
-
-
 
 
 if __name__=="__main__":
