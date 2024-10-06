@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [unreleased - most recent changes come first]
+
+### 🚀 Features
+
+- MolSanitizer now suggests the user to update rdkit to avoid known errors with stereoisomers and tautomers. - ([63750b3](https://github.com/Isra3l/MolSanitizer/commit/63750b3d52f3b12ac3a85f44ec7c1bfae015f2ae))
+
 ## [0.1.3] - 2024-10-05
 
 ### 🚀 Features
