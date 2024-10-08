@@ -1187,7 +1187,7 @@ def gen_conf_chunk_ver2(df: pd.DataFrame, args):
         if args.timing: start = time.time()
         random.seed(randomSeed)
         name = row['ids']
-        if os.path.exists(f"db2/{name}/{name}.db2"):
+        if os.path.exists(f"db2/{name}.db2"):
             print(f"Skipping {name} as it already exists")
             continue
         logger.info(f"Handling {name}")
@@ -1219,6 +1219,8 @@ def gen_conf_chunk_ver2(df: pd.DataFrame, args):
         # Retrieve result from queue
         if not queue.empty():
             amsol_mol, netcharge, rigid_scaffolds, sulfo_matches, error = queue.get()
+            amsol_mol.SetProp("_Name", name) #By somehow this implementation loses the _Name props
+            for rigid_scaffold in rigid_scaffolds: rigid_scaffold.SetProp("_Name", name)
             if error:
                 logger.error(f"Error in generating initial conformation for {name}, skipping it: {error}")
                 log_error(row['smiles'], name)
@@ -1230,12 +1232,11 @@ def gen_conf_chunk_ver2(df: pd.DataFrame, args):
 
 
         if args.timing: embed_time = time.time()
-
+        
         # Solvation using AMSOL
         if VERBOSE: print("Solvating...")
         os.makedirs(f"solv/{name}", exist_ok=True)
         os.chdir(f"solv/{name}")
-        
         for conf_id in range(amsol_mol.GetNumConformers()):
             # Idea: try from the energy minimum conformer if AMSOL fails -> next conformer until reach the last
             if VERBOSE: print(f"\tTrying conformer: {conf_id}")
