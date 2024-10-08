@@ -22,6 +22,8 @@ from MolSanitizer.db2 import mol2db2, hydrogens, mol2
 from MolSanitizer import strain_filter, smi2db2_utils
 import random
 import time
+import multiprocessing
+
 
 import logging
 logger = logging.getLogger('molsani')
@@ -780,6 +782,7 @@ def embed_smiles_ver2(smiles, name, randomSeed=42, VERBOSE=False):
     if len(conf_ring_descriptors_df) == 0:
         # In case where srETKDGv3 failed in embedding the molecule, 
         # we have to use the macrocyclic version.
+        logger.warning(f"srETKDGv3 failed for {name}, using macrocyclic version")
         params = rdDistGeom.ETKDGv3()
         params.numThreads = 0  # Use all available threads
         params.pruneRmsThresh = 0.35  # Prune conformations that are too similar, not user-definable here
@@ -851,6 +854,16 @@ def embed_smiles_ver2(smiles, name, randomSeed=42, VERBOSE=False):
     netcharge = sum(atom.GetFormalCharge() for atom in mol_H.GetAtoms())
 
     return amsol_mol, netcharge, rigid_scaffolds, sulfo_matches
+
+# Function to generate initial 3D conformations with multiprocessing queue
+def generate_conformation(queue, smiles, name, randomSeed, VERBOSE):
+    if VERBOSE:
+        print("Generating initial 3D conformations...")
+    try:
+        amsol_mol, netcharge, rigid_scaffolds, sulfo_matches = embed_smiles_ver2(smiles, name, randomSeed=randomSeed, VERBOSE=VERBOSE)
+        queue.put((amsol_mol, netcharge, rigid_scaffolds, sulfo_matches, None))
+    except Exception as e:
+        queue.put((None, None, None, None, str(e)))
 
 def stochastic_sampling_v3(mol, tolerance_level, match_torlib, sdwriters, original, numConfs, total_possible_solutions, atom_maps, max_attempts=100, product=0, unvisited = None, visited=None):
     """
@@ -1177,9 +1190,9 @@ def gen_conf_chunk_ver2(df: pd.DataFrame, args):
         if os.path.exists(f"db2/{name}/{name}.db2"):
             print(f"Skipping {name} as it already exists")
             continue
-        print(f"Handling {name}")
+        logger.info(f"Handling {name}")
 
-        # Embed smiles into initial conformation using RDKit        
+        """# Embed smiles into initial conformation using RDKit        
         if VERBOSE: print("Generating initial 3D conformations...")
         try:
             amsol_mol, netcharge, rigid_scaffolds, sulfo_matches = embed_smiles_ver2(row['smiles'], name, 
@@ -1187,7 +1200,35 @@ def gen_conf_chunk_ver2(df: pd.DataFrame, args):
         except Exception as e:
                 logger.error(f"Error in generating initial conformation for {name}, skipping it {e}")
                 log_error(row['smiles'], name)
+                continue"""
+        
+        # Embed smiles into initial conformation using RDKit with a timeout
+        queue = multiprocessing.Queue()
+        process = multiprocessing.Process(target=generate_conformation, args=(queue, row['smiles'], name, randomSeed, VERBOSE))
+        process.start()
+        process.join(timeout=240)  # 4 minutes timeout
+
+        # Check if process is still alive (meaning it exceeded timeout)
+        if process.is_alive():
+            logger.error(f"Timeout occurred while generating conformation for {name}, skipping it.")
+            process.terminate()
+            process.join()
+            log_error(row['smiles'], name)
+            continue
+
+        # Retrieve result from queue
+        if not queue.empty():
+            amsol_mol, netcharge, rigid_scaffolds, sulfo_matches, error = queue.get()
+            if error:
+                logger.error(f"Error in generating initial conformation for {name}, skipping it: {error}")
+                log_error(row['smiles'], name)
                 continue
+        else:
+            logger.error(f"Unknown error in generating initial conformation for {name}, skipping it.")
+            log_error(row['smiles'], name)
+            continue
+
+
         if args.timing: embed_time = time.time()
 
         # Solvation using AMSOL
