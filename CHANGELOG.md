@@ -9,6 +9,10 @@ All notable changes to this project will be documented in this file.
 - Msani now only allows up to 4 minutes in the initial embedding stage. This is to avoid compounds that take too long for embedding that are likely because of the error in the SMILES level. - ([7c66150](https://github.com/Isra3l/MolSanitizer/commit/7c6615084d948b6e2f2e362e8fc7d421ba7c2fdc))
 - MolSanitizer now suggests the user to update rdkit to avoid known errors with stereoisomers and tautomers. - ([63750b3](https://github.com/Isra3l/MolSanitizer/commit/63750b3d52f3b12ac3a85f44ec7c1bfae015f2ae))
 
+### 🐛 Bug Fixes
+
+- Fix a bug that the DB2 file loses the information about the input names -> make all the DB2 files have the same name as ***** - ([755d696](https://github.com/Isra3l/MolSanitizer/commit/755d69641b1eb5df29a70b9d569e3b3a9c3f94d1))
+
 ## [0.1.3] - 2024-10-05
 
 ### 🚀 Features
