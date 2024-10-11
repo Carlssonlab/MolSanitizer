@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### 🚀 Features
 
+- Msani now supports the multithreading for stereoisomers enumeration and set the time out for this process for each entry to 1 minute only. - ([d5d4c9e](https://github.com/Isra3l/MolSanitizer/commit/d5d4c9e7957ec31b386204894ef91d7b81285943))
 - Msani now only allows up to 4 minutes in the initial embedding stage. This is to avoid compounds that take too long for embedding that are likely because of the error in the SMILES level. - ([7c66150](https://github.com/Isra3l/MolSanitizer/commit/7c6615084d948b6e2f2e362e8fc7d421ba7c2fdc))
 - MolSanitizer now suggests the user to update rdkit to avoid known errors with stereoisomers and tautomers. - ([63750b3](https://github.com/Isra3l/MolSanitizer/commit/63750b3d52f3b12ac3a85f44ec7c1bfae015f2ae))
 
