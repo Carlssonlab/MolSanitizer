@@ -46,7 +46,7 @@ def apply_filters(chunk, args, rejected_file):
     if args.protonation:
         chunk = filters.protonation(chunk, args.debug)
     if args.stereoisomers:
-        chunk = filters.stereoisomers(chunk, args.max_isomers, args.debug)
+        chunk = filters.stereoisomers(chunk, args.max_isomers, args.numcores, args.debug)
 
     return chunk
 
@@ -106,16 +106,14 @@ def process_files(args, start_time: int):
             chunk['ids'] = chunk['ids'].astype(str)
 
             chunk = apply_filters(chunk, args, rejected_file)
-
-
-            if args.db2:
-                if not(args.stereoisomers): # We need to enumerate unspecifed stereoisomers
-                    chunk = filters.stereoisomers(chunk, args.max_isomers, args.debug)
-                smi2db2.gen_conf_chunk_ver2(chunk, args)
-           
+            
             if not chunk.empty:
                 chunk.to_csv(output_file, index=False, mode='a', columns=['smiles', 'ids'], header=False, sep=' ')
 
+
+            if args.db2:
+                smi2db2.gen_conf_chunk_ver2(chunk, args)
+                       
             if not args.test:
                 if step == 1: time_step1 = time.time()-start_time
                 if step == 2:
@@ -134,8 +132,6 @@ def process_smiles(args):
     chunk = apply_filters(chunk, args, rejected_file)
 
     if args.db2:
-        if not(args.stereoisomers): # We need to enumerate unspecifed stereoisomers
-            chunk = filters.stereoisomers(chunk, args.max_isomers, args.debug)
         smi2db2.gen_conf_chunk_ver2(chunk, args)
     
     print('Processed SMILES:')
@@ -181,6 +177,10 @@ def Sanitycheck(args: dict):
         if not args.unwanted: args.unwanted=['regular']
         if 'all' in args.unwanted: args.unwanted=['regular','special','optional']
         args.unwanted=[word.title() for word in args.unwanted]
+    if args.db2:
+        # Always enumerate stereoisomers for before generating DB2 files
+        # Maximum number of stereoisomers is set to in parser
+        args.stereoisomers = True
     return args
 
 def generateCustomTemplate(args):

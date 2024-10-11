@@ -31,7 +31,7 @@ dirs=( $(cat dirlista) )
 TASK_ID=${SLURM_ARRAY_TASK_ID}
 smiles_file=${dirs[$TASK_ID]}
 ARRAY_ID=${SLURM_ARRAY_JOB_ID}
-MSANI_PATH -i $smiles_file'''
+MSANI_PATH -i $smiles_file -j 2'''
 
 cleanup_script ="""
 # Get the number of tasks with the name msani_3d from the user's squeue

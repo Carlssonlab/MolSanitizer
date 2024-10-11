@@ -9,7 +9,8 @@ from rdkit.Chem import SaltRemover
 from rdkit.Chem.MolStandardize import rdMolStandardize
 from rdkit.Chem.FilterCatalog import FilterCatalog, FilterCatalogParams
 from rdkit.Chem.EnumerateStereoisomers import EnumerateStereoisomers, StereoEnumerationOptions
-
+import multiprocessing as mp
+from functools import partial
 import logging
 logger = logging.getLogger('molsani')
 RDLogger.DisableLog('rdApp.*') # To disable error messages with kekulizing tautomers from RDKit
@@ -279,42 +280,74 @@ def generate_stereoisomers(mol, max_isomers=0):
     return isomers
 
 
-def stereoisomers(df: pd.DataFrame, max_isomers = 32, debug = False) -> pd.DataFrame:
-    """
-    Generate stereoisomers for molecules in the 'mol' column and expand the DataFrame.
-    
-    Ref: https://www.rdkit.org/new_docs/source/rdkit.Chem.EnumerateStereoisomers.html
+def process_molecule_stereoisomer(row_data, max_isomers=32):
+    mol = Chem.MolFromSmiles(row_data['smiles'])
+    try:
+        isomers = generate_stereoisomers(mol, max_isomers=max_isomers)
+    except Exception as e:
+        logger.error(f"Error generating stereoisomers for compound {row_data['ids']}: {row_data['smiles']}")
+        isomers = [mol]
+    centers = Chem.FindMolChiralCenters(mol, includeUnassigned=True)
+    unassigned = [idx for idx, tag in centers if tag == '?']
+    num_possible_isomers = 2 ** len(unassigned)
+    result = []
+    if len(isomers) == 1:
+        result.append({'smiles': row_data['smiles'], 'ids': row_data['ids'], 'mol': Chem.MolToSmiles(isomers[0])})
+    else:
+        if max_isomers > 0 and num_possible_isomers > max_isomers:
+            logger.warning(f"{row_data['ids']}: Not all the stereoisomers are written out (capped at {max_isomers}/{num_possible_isomers}).")
+            isomers = isomers[:max_isomers]
+        two_digits = len(isomers) >= 10
+        for i, isomer in enumerate(isomers):
+            result.append({
+                'smiles': Chem.MolToSmiles(isomer, isomericSmiles=True),
+                'ids': row_data['ids'] + '.' + (f"{i+1:02}" if two_digits else f"{i+1}"),
+                'mol': Chem.MolToSmiles(isomer)
+            })
+    return result
 
+def stereoisomers(df: pd.DataFrame, max_isomers=32, n_processes=4, debug=False) -> pd.DataFrame:
+    """
+    Generate stereoisomers for molecules in the 'smiles' column and expand the DataFrame using multiprocessing.
+    
     Args:
-    df (pd.DataFrame): DataFrame with a 'mol' column containing RDKit molecule objects.
+    df (pd.DataFrame): DataFrame with 'smiles' and 'ids' columns.
     max_isomers (int): Maximum number of stereoisomers to generate for each molecule.
+    n_processes (int): Number of processes to use. Default is 4.
+    debug (bool): Enable debug messages.
     
     Returns:
     pd.DataFrame: Expanded DataFrame with each stereoisomer as a separate row.
     """
-    # TODO: Log of how many stereoisomers for each compounds?
-    product_df = []
-    for _, row in df.iterrows():
-        try:
-            isomers = generate_stereoisomers(row['mol'], max_isomers=0)
-        except Exception as e:
-            logger.error(f"Error generating stereoisomers for compound {row['ids']}: {Chem.MolToSmiles(row['mol'])}")
-            isomers = [row['mol']]
-        if (len(isomers) == 1): 
-            product_df.append(
-                {'smiles': row['smiles'], 'ids': row['ids'],'mol': row['mol']})
-        else:
-            if max_isomers > 0 and len(isomers) > max_isomers: 
-                logger.warning(f"{row['ids']}: Not all the stereoisomers are written out (capped at {max_isomers}/{len(isomers)}).")
-                isomers=isomers[:max_isomers]
-            two_digits = len(isomers) >= 10
-            for i, isomer in enumerate(isomers):
-                product_df.append({
-                    'smiles': Chem.MolToSmiles(isomer, isomericSmiles=True),
-                    'ids': row['ids']+'.'+ (f"{i+1:02}" if  two_digits else f"{i+1}"),
-                    'mol': isomer
+    # Partial function to fix max_isomers as an argument
+    process_func = partial(process_molecule_stereoisomer, max_isomers=max_isomers)
+    results = []
+
+    with mp.Pool(processes=n_processes) as pool:
+        # Submit all tasks to the pool in parallel, keeping track of the rows for error handling
+        async_results = [(row, pool.apply_async(process_func, (row,))) for _, row in df.iterrows()]
+
+        # Collect results as they complete
+        for row_data, async_result in async_results:
+            try:
+                chunk_result = async_result.get(timeout=60)
+                results.extend(chunk_result)
+            except mp.TimeoutError:
+                logger.warning(f"Timeout occurred for compound {row_data['ids']}. Using original molecule.")
+                results.append({
+                    'smiles': row_data['smiles'],
+                    'ids': row_data['ids'],
+                    'mol': row_data['smiles']
                 })
-    return pd.DataFrame(product_df)
+            except Exception as e:
+                logger.error(f"Error processing compound {row_data['ids']}: {str(e)}. Using original molecule.")
+                results.append({
+                    'smiles': row_data['smiles'],
+                    'ids': row_data['ids'],
+                    'mol': row_data['smiles']
+                })
+
+    return pd.DataFrame(results)
    
 
 # Function to read SMARTS reactions from a file
