@@ -1,10 +1,10 @@
 # Configuration file for MolSanitizer batch mode
 # LINE_PER_JOB: Number of compounds per job
-# TIME_LIMIT: Time limit for each job in hours (default: 1 hour)
+# TIME_LIMIT: Time limit for each job in hours (default: 3 hour)
 # MAX_JOBS: Maximum number of jobs running at the same time
 
 SLURM_ACCOUNT: 'naiss2023-3-39'
 LINES_PER_JOB: 50
-TIME_LIMIT: 2
-MAX_JOBS: 100
+TIME_LIMIT: 3
+MAX_JOBS: 500
 
