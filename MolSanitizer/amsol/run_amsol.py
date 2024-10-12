@@ -148,9 +148,11 @@ def run(input_file, output_file, env, timeout_seconds=60, VERBOSE=False):
         subprocess.run([f"{AMSOLEXE} < {input_file} > {output_file}"], env=env, shell=True, text=True, timeout=timeout_seconds)
     except subprocess.TimeoutExpired:
         print(f"AMSOL execution timed out after {timeout_seconds} seconds")
+        return -1
     except subprocess.CalledProcessError as e:
         print(f"AMSOL execution failed with return code {e.returncode}")
         print(f"Error output: {e.stderr}")
+        return -1
     return(check_output_from_amsol71(output_file, VERBOSE))
 
 def is_int(a):
