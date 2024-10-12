@@ -131,7 +131,8 @@ def process_smiles(args):
     
     chunk = apply_filters(chunk, args, rejected_file)
 
-    if args.db2:
+    if args.db2: 
+        if os.path.exists('db2/0.db2'): os.remove('db2/0.db2') # 0 is the default name
         smi2db2.gen_conf_chunk_ver2(chunk, args)
     
     print('Processed SMILES:')
@@ -211,10 +212,11 @@ def main():
         else: log_file = 'molsani.log'
         loggers.setup_logger(log_file)
         original_command = ' '.join(sys.argv)
-        logger.info(f"*******  STARTING MOLSANITIZER  *******")
+        logger.info(f"#######  STARTING MOLSANITIZER  #######")
         logger.info(f"Input: {original_command}")    
         loggers.arguments(args)
         clean_data(args)
+        logger.info(f"*******  MOLSANITIZER FINISHED *******")
 
 
 
