@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### 🚀 Features
 
+- New mechanism of running AMSOL to avoid shell piping issues. - ([78f2176](https://github.com/Isra3l/MolSanitizer/commit/78f2176fd9c3c715ac9a6864a8a0ebbc0a55ce5c))
 - New mechanism of calculating maximum possible stereoisomers based on unassigned chiral centers - ([142a3f6](https://github.com/Isra3l/MolSanitizer/commit/142a3f6ff7ab51e25455a069aaba6e7d8566d7ca))
 - New cleanup method to support non-SLURM jobs - ([c89e127](https://github.com/Isra3l/MolSanitizer/commit/c89e127a5b301ce12c90311cf281b2aa82af86dd))
 - Msani now supports the multithreading for stereoisomers enumeration and set the time out for this process for each entry to 1 minute only. - ([d5d4c9e](https://github.com/Isra3l/MolSanitizer/commit/d5d4c9e7957ec31b386204894ef91d7b81285943))
