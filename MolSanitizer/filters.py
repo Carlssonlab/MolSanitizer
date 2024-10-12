@@ -292,7 +292,7 @@ def process_molecule_stereoisomer(row_data, max_isomers=32):
     num_possible_isomers = 2 ** len(unassigned)
     result = []
     if len(isomers) == 1:
-        result.append({'smiles': row_data['smiles'], 'ids': row_data['ids'], 'mol': Chem.MolToSmiles(isomers[0])})
+        result.append({'smiles': Chem.MolToSmiles(isomers[0]), 'ids': row_data['ids'], 'mol': isomers[0]})
     else:
         if max_isomers > 0 and num_possible_isomers > max_isomers:
             logger.warning(f"{row_data['ids']}: Not all the stereoisomers are written out (capped at {max_isomers}/{num_possible_isomers}).")
@@ -302,18 +302,18 @@ def process_molecule_stereoisomer(row_data, max_isomers=32):
             result.append({
                 'smiles': Chem.MolToSmiles(isomer, isomericSmiles=True),
                 'ids': row_data['ids'] + '.' + (f"{i+1:02}" if two_digits else f"{i+1}"),
-                'mol': Chem.MolToSmiles(isomer)
+                'mol': isomer
             })
     return result
 
-def stereoisomers(df: pd.DataFrame, max_isomers=32, n_processes=4, debug=False) -> pd.DataFrame:
+def stereoisomers(df: pd.DataFrame, max_isomers=32, numcores=4, debug=False) -> pd.DataFrame:
     """
     Generate stereoisomers for molecules in the 'smiles' column and expand the DataFrame using multiprocessing.
     
     Args:
     df (pd.DataFrame): DataFrame with 'smiles' and 'ids' columns.
     max_isomers (int): Maximum number of stereoisomers to generate for each molecule.
-    n_processes (int): Number of processes to use. Default is 4.
+    numcores (int): Number of processes to use. Default is 4.
     debug (bool): Enable debug messages.
     
     Returns:
@@ -323,7 +323,7 @@ def stereoisomers(df: pd.DataFrame, max_isomers=32, n_processes=4, debug=False) 
     process_func = partial(process_molecule_stereoisomer, max_isomers=max_isomers)
     results = []
 
-    with mp.Pool(processes=n_processes) as pool:
+    with mp.Pool(processes=numcores) as pool:
         # Submit all tasks to the pool in parallel, keeping track of the rows for error handling
         async_results = [(row, pool.apply_async(process_func, (row,))) for _, row in df.iterrows()]
 
@@ -337,14 +337,14 @@ def stereoisomers(df: pd.DataFrame, max_isomers=32, n_processes=4, debug=False) 
                 results.append({
                     'smiles': row_data['smiles'],
                     'ids': row_data['ids'],
-                    'mol': row_data['smiles']
+                    'mol': row_data['mol']
                 })
             except Exception as e:
                 logger.error(f"Error processing compound {row_data['ids']}: {str(e)}. Using original molecule.")
                 results.append({
                     'smiles': row_data['smiles'],
                     'ids': row_data['ids'],
-                    'mol': row_data['smiles']
+                    'mol': row_data['mol']
                 })
 
     return pd.DataFrame(results)
