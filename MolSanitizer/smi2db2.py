@@ -1189,6 +1189,7 @@ def gen_conf_chunk_ver2(df: pd.DataFrame, args):
         name = row['ids']
         if os.path.exists(f"db2/{name}.db2"):
             print(f"Skipping {name} as it already exists")
+            logger.info(f"Skipping {name} as it already exists")
             continue
         logger.info(f"Handling {name}")
 
@@ -1230,8 +1231,7 @@ def gen_conf_chunk_ver2(df: pd.DataFrame, args):
             log_error(row['smiles'], name)
             continue
 
-
-        if args.timing: embed_time = time.time()
+        if args.timing: embed_time = time.time() # Time for embedding
         
         # Solvation using AMSOL
         if VERBOSE: print("Solvating...")
@@ -1305,9 +1305,7 @@ def gen_conf_chunk_ver2(df: pd.DataFrame, args):
 
     if cleanup:
         if not(smi2db2_utils.is_slurm_job()):
-            # Remove empty directories if not running on SLURM
-            smi2db2_utils.remove_empty_directories("3d")
-            smi2db2_utils.remove_empty_directories("solv")
+            smi2db2_utils.remove_folders(["3d", "solv"])
     if args.timing:
         with open('msani_timing.csv', 'a') as f:
             f.write(logging_time)

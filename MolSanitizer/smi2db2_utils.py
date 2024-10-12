@@ -232,15 +232,13 @@ def is_slurm_job():
     # Check if SLURM_JOB_ID is present in environment variables
     return 'SLURM_JOB_ID' in os.environ
 
-def remove_empty_directories(directory):
-    """
-    Recursively remove all empty directories in the given directory.
-    """
-    # Traverse the directory tree from the bottom up to ensure that subdirectories are deleted before their parents
-    for root, dirs, _ in os.walk(directory, topdown=False):
-        for dir_name in dirs:
-            dir_path = Path(root) / dir_name
-            # Check if the directory is empty
-            if not any(dir_path.iterdir()):
-                print(f"Deleting empty directory: {dir_path}")
-                dir_path.rmdir()
+def remove_folders(folders_to_remove: list):
+    # Remove "3d" and "solv" folders if they exist
+    
+    for folder in folders_to_remove:
+        if os.path.exists(folder) and os.path.isdir(folder):
+            try:
+                os.rmdir(folder)
+            except OSError as e:
+                print(f"Error removing folder {folder}: {e}")
+
