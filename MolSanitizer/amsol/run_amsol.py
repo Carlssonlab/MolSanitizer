@@ -145,7 +145,11 @@ def run(input_file, output_file, env, timeout_seconds=60, VERBOSE=False):
     if VERBOSE: 
         print(f"Running: {AMSOLEXE} < {input_file} > {output_file}")
     try:
-        subprocess.run([f"{AMSOLEXE} < {input_file} > {output_file}"], env=env, shell=True, text=True, timeout=timeout_seconds)
+        #subprocess.run([f"{AMSOLEXE} < {input_file} > {output_file}"], env=env, shell=True, text=True, timeout=timeout_seconds)
+        with open(input_file, 'r') as infile, open(output_file, 'w') as outfile:
+            # Run the command without shell redirection to avoid issues
+            subprocess.run([AMSOLEXE], stdin=infile, stdout=outfile, stderr=subprocess.PIPE, env=env, 
+                           timeout=timeout_seconds, text=True)
     except subprocess.TimeoutExpired:
         print(f"AMSOL execution timed out after {timeout_seconds} seconds")
         return -1
