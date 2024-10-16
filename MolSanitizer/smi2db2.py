@@ -748,6 +748,7 @@ def embed_smiles_ver2(smiles, name, randomSeed=42, VERBOSE=False):
     planar_rings, non_planar_rings = smi2db2_utils.get_flexible_ring(mol_H, ssr, planar_lib, non_planar_lib)
     sulfo_matches = smi2db2_utils.find_sulfonamide_like_scaffolds(mol_H)
     flippable_Ns = smi2db2_utils.find_flipped_nitrogen(mol_H)
+    conjugated_substituted_Ns = smi2db2_utils.find_conjugated_substituted_nitrogen(mol_H)
 
     if VERBOSE:
         if planar_rings:
@@ -773,12 +774,13 @@ def embed_smiles_ver2(smiles, name, randomSeed=42, VERBOSE=False):
     try:
         for cid in rdDistGeom.EmbedMultipleConfs(mol_H, numConfs=numConfs, params=params):
             ff = rdForceFieldHelpers.MMFFGetMoleculeForceField(mol_H, mp, confId=cid)
+            if conjugated_substituted_Ns:
+                for a, b, c, d in conjugated_substituted_Ns: ff.MMFFAddTorsionConstraint(a, b, c, d, False, 180, 180, 15)
             ff.Minimize()
             conformer = mol_H.GetConformer(cid)
             energy = ff.CalcEnergy()
             conf_ring_descriptors_df = smi2db2_utils.classify_confs(conformer, energy, non_planar_rings, flippable_Ns, sulfo_matches, conf_ring_descriptors_df)
     except: pass
-
     if len(conf_ring_descriptors_df) == 0:
         # In case where srETKDGv3 failed in embedding the molecule, 
         # we have to use the macrocyclic version.
@@ -790,6 +792,8 @@ def embed_smiles_ver2(smiles, name, randomSeed=42, VERBOSE=False):
         params.useRandomCoords = True
         for cid in rdDistGeom.EmbedMultipleConfs(mol_H, numConfs=numConfs, params=params):
             ff = rdForceFieldHelpers.MMFFGetMoleculeForceField(mol_H, mp, confId=cid)
+            if conjugated_substituted_Ns:
+                for a, b, c, d in conjugated_substituted_Ns: ff.MMFFAddTorsionConstraint(a, b, c, d, False, 180, 180, 15)
             ff.Minimize()
             conformer = mol_H.GetConformer(cid)
             energy = ff.CalcEnergy()
@@ -1220,12 +1224,12 @@ def gen_conf_chunk_ver2(df: pd.DataFrame, args):
         # Retrieve result from queue
         if not queue.empty():
             amsol_mol, netcharge, rigid_scaffolds, sulfo_matches, error = queue.get()
-            amsol_mol.SetProp("_Name", name) #By somehow this implementation loses the _Name props
-            for rigid_scaffold in rigid_scaffolds: rigid_scaffold.SetProp("_Name", name)
             if error:
                 logger.error(f"Error in generating initial conformation for {name}, skipping it: {error}")
                 log_error(row['smiles'], name)
                 continue
+            amsol_mol.SetProp("_Name", name) #By somehow this implementation loses the _Name props
+            for rigid_scaffold in rigid_scaffolds: rigid_scaffold.SetProp("_Name", name)
         else:
             logger.error(f"Unknown error in generating initial conformation for {name}, skipping it.")
             log_error(row['smiles'], name)

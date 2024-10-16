@@ -13,11 +13,14 @@ from pathlib import Path
 six_membered_aliphatic_substructure = Chem.MolFromSmarts("[A;!$(N-*=*)]1-[A;!$(N-*=*)]-[A;!$(N-*=*)]-[A;!$(N-*=*)]-[A;!$(N-*=*)]-[A;!$(N-*=*)]-1")
 sulfonamide_like_substructure = Chem.MolFromSmarts("[*:1][S;$(S(=*)=*):2]-!@[N&+0;!$([NH2]):3](-[*,#1:4])-[*,#1:5]")
 aliphatic_nitrogen_substructure = Chem.MolFromSmarts("[A:1]@[N&+0;!$(N-*=*):2](@[A:3])!@[*,#1:4]")
-
+conjugated_substituted_nitrogen = Chem.MolFromSmarts('[a:1]:[a:2]:[nX3&+0:3]-[*:4]')
 
 
 def find_flipped_nitrogen(mol_H: Mol):
     return mol_H.GetSubstructMatches(aliphatic_nitrogen_substructure)
+
+def find_conjugated_substituted_nitrogen(mol_H: Mol):
+    return mol_H.GetSubstructMatches(conjugated_substituted_nitrogen)
 
 
 def calculate_dihedrals_for_rings(conf: Conformer, ring_atoms):
