@@ -13,14 +13,28 @@ from pathlib import Path
 six_membered_aliphatic_substructure = Chem.MolFromSmarts("[A;!$(N-*=*)]1-[A;!$(N-*=*)]-[A;!$(N-*=*)]-[A;!$(N-*=*)]-[A;!$(N-*=*)]-[A;!$(N-*=*)]-1")
 sulfonamide_like_substructure = Chem.MolFromSmarts("[*:1][S;$(S(=*)=*):2]-!@[N&+0;!$([NH2]):3](-[*,#1:4])-[*,#1:5]")
 aliphatic_nitrogen_substructure = Chem.MolFromSmarts("[A:1]@[N&+0;!$(N-*=*):2](@[A:3])!@[*,#1:4]")
-conjugated_substituted_nitrogen = Chem.MolFromSmarts('[a:1]:[a:2]:[nX3&+0:3]-[*:4]')
+conjugated_substituted_nitrogen = Chem.MolFromSmarts('[a:1]:[a:2]:[a:3]:[nX3&+0:4]-*')
 
 
 def find_flipped_nitrogen(mol_H: Mol):
+    '''
+    Find the flippable nitrogen in the molecule. n(R):c:c:c:c.
+    '''
     return mol_H.GetSubstructMatches(aliphatic_nitrogen_substructure)
 
 def find_conjugated_substituted_nitrogen(mol_H: Mol):
-    return mol_H.GetSubstructMatches(conjugated_substituted_nitrogen)
+    '''
+        Find the conjugated substituted nitrogen in the molecule. c:c:n(R):c:c. 
+        Only match to the atoms within the same ring as n.
+    '''
+    ring_info = mol_H.GetRingInfo()
+    matches = [tuple(match[:4]) for match in mol_H.GetSubstructMatches(conjugated_substituted_nitrogen)]
+    filtered_matches = []
+    for match in matches:
+        for ring in ring_info.AtomRings():
+            if set(match).issubset(ring):
+                filtered_matches.append(match)
+    return filtered_matches
 
 
 def calculate_dihedrals_for_rings(conf: Conformer, ring_atoms):

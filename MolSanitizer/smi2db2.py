@@ -749,7 +749,6 @@ def embed_smiles_ver2(smiles, name, randomSeed=42, VERBOSE=False):
     sulfo_matches = smi2db2_utils.find_sulfonamide_like_scaffolds(mol_H)
     flippable_Ns = smi2db2_utils.find_flipped_nitrogen(mol_H)
     conjugated_substituted_Ns = smi2db2_utils.find_conjugated_substituted_nitrogen(mol_H)
-
     if VERBOSE:
         if planar_rings:
             print('\t Found planar rings:')
@@ -775,7 +774,7 @@ def embed_smiles_ver2(smiles, name, randomSeed=42, VERBOSE=False):
         for cid in rdDistGeom.EmbedMultipleConfs(mol_H, numConfs=numConfs, params=params):
             ff = rdForceFieldHelpers.MMFFGetMoleculeForceField(mol_H, mp, confId=cid)
             if conjugated_substituted_Ns:
-                for a, b, c, d in conjugated_substituted_Ns: ff.MMFFAddTorsionConstraint(a, b, c, d, False, 180, 180, 15)
+                for a, b, c, d in conjugated_substituted_Ns: ff.MMFFAddTorsionConstraint(a, b, c, d, False, 0, 0, 5)
             ff.Minimize()
             conformer = mol_H.GetConformer(cid)
             energy = ff.CalcEnergy()
@@ -793,7 +792,7 @@ def embed_smiles_ver2(smiles, name, randomSeed=42, VERBOSE=False):
         for cid in rdDistGeom.EmbedMultipleConfs(mol_H, numConfs=numConfs, params=params):
             ff = rdForceFieldHelpers.MMFFGetMoleculeForceField(mol_H, mp, confId=cid)
             if conjugated_substituted_Ns:
-                for a, b, c, d in conjugated_substituted_Ns: ff.MMFFAddTorsionConstraint(a, b, c, d, False, 180, 180, 15)
+                for a, b, c, d in conjugated_substituted_Ns: ff.MMFFAddTorsionConstraint(a, b, c, d, False, 0, 0, 5)
             ff.Minimize()
             conformer = mol_H.GetConformer(cid)
             energy = ff.CalcEnergy()
@@ -1161,6 +1160,7 @@ def choose_sampling_method_ver3(rigid_scaffolds, name, numConfs, sulfo_matches, 
         min_energy = product[0][1]
         result_mol = Chem.Mol(mol)
         result_mol.RemoveAllConformers()
+        for conf, energy in product: print(f"\t{energy}")
         product = [x[0] for x in product if x[1] - min_energy <= energywindow]
 
         #TODO: RMSD clustering if bad
