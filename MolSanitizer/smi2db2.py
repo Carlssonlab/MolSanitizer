@@ -1160,7 +1160,7 @@ def choose_sampling_method_ver3(rigid_scaffolds, name, numConfs, sulfo_matches, 
         min_energy = product[0][1]
         result_mol = Chem.Mol(mol)
         result_mol.RemoveAllConformers()
-        for conf, energy in product: print(f"\t{energy}")
+        #for conf, energy in product: print(f"\t{energy}")
         product = [x[0] for x in product if x[1] - min_energy <= energywindow]
 
         #TODO: RMSD clustering if bad
