@@ -58,6 +58,10 @@
       Oct 15 24
       The last rule to match the amide bond ([O:1]=[CX3:2]!@[NX3H1:3][!#1:4]) has been adapted
       to match the amide bond in which the N is N- as well ([O:1]=[CX3:2]!@[NX3H1,NX2&amp;-:3][!#1:4])
+
+      Aug 17 24
+      Added two peaks for acid benzoic in the case of the bulky substituent to the ortho of this group:
+      [O:1]=[C:2]([O-])!@[c:3]([cH1])[cH0:4]
 -->
 <library>
  <hierarchyClass id1="G" id2="G" name="GG" smarts="[*:2]!@[*:3]">
@@ -32074,6 +32078,8 @@
      <angleList>
       <angle score="12.86" tolerance1="30" tolerance2="40" value="180" />
       <angle score="10" tolerance1="30" tolerance2="40" value="0" />
+      <angle score="0" tolerance1="30" tolerance2="40" value="90" />
+      <angle score="0" tolerance1="30" tolerance2="40" value="-90" />
      </angleList>
      <histogram>
       <bin count="17" />
