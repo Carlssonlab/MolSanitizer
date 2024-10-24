@@ -15,6 +15,19 @@ import logging
 logger = logging.getLogger('molsani')
 RDLogger.DisableLog('rdApp.*') # To disable error messages with kekulizing tautomers from RDKit
 
+def get_tautomer_params():
+    """Get standardized RDKit tautomer parameters."""
+    params = rdMolStandardize.CleanupParameters()
+    params.tautomerRemoveSp3Stereo = False
+    params.tautomerRemoveBondStereo = False
+    params.tautomerRemoveIsotopicHs = False
+    params.maxTransforms = 1000
+    params.maxTautomers = 1000
+    return params
+
+# Initialize parameters once at module level
+TAUTOMER_PARAMS = get_tautomer_params()
+
 def remove_invalid_SMILES(df:pd.DataFrame) -> pd.DataFrame:
     """Remove rows with invalid SMILES from the input DataFrame.
 
@@ -74,7 +87,7 @@ def removesalts(df: pd.DataFrame, debug = False) -> pd.DataFrame:
     return df
 
 
-def tautomerize_step1(mol, params):
+def tautomerize_step1(mol, params=TAUTOMER_PARAMS):
     """Tautomerize the input molecule using the RDKit TautomerEnumerator class.
 
     Args:
@@ -92,48 +105,69 @@ def tautomerize_step1(mol, params):
         logger.info(f"Error tautomerizing molecule: {Chem.MolToSmiles(mol)}")
         canonical_tautomer = mol
     return canonical_tautomer
+
+def process_molecule_tautomer(row, reactions, taurdkit, debug=False):
+    """Process individual molecule: tautomerize and clean with SMARTS reactions."""
+    if taurdkit:
+    # Step 1: Use RDkit TautomerEnumerator to canonicalize the input molecule
+        mol = tautomerize_step1(row['mol'])
+    else: mol = row['mol']
     
-def tautomers(df: pd.DataFrame, debug = False) -> pd.DataFrame:
-    """Tautomers enumeration for the input molecules using the RDKit TautomerEnumerator class and cleaning using an in-house SMARTS reaction list.
+    if debug:
+        logger.info(f"Processing tautomer: {row['ids']}, {Chem.MolToSmiles(mol)}")
+    
+    # Step 2: Apply corrections
+    updates = list(recursive_reaction(mol, reactions, set()))
+    updated_rows = []
+    
+    if len(updates) == 1:
+        updated_rows.append({'smiles': updates[0], 'ids': row['ids'], 'mol': Chem.MolFromSmiles(updates[0])})
+    else:
+        two_digits = len(updates) >= 10
+        for i, update in enumerate(updates):
+            updated_rows.append({
+                'smiles': update,
+                'ids': row['ids'] + '_' + (f"{i+1:02}" if two_digits else f"{i+1}"),
+                'mol': Chem.MolFromSmiles(update)
+            })
+    
+    return updated_rows
 
-    Args:
-        df (pd.DataFrame): Input DataFrame with 'mol' column containing RDKit molecule objects.
-        debug (bool, optional): Debug mode. Defaults to False.
+def tautomers(df: pd.DataFrame, taurdkit=True, num_cores=4, debug=False) -> pd.DataFrame:
+    """Parallelized tautomers enumeration using multiprocessing."""
 
-    Returns:
-        pd.DataFrame: A new DataFrame chunk with tautomerized molecules.
-    """
-    # Step 1: Tautomerize the input molecules using the RDKit TautomerEnumerator class
-    params = rdMolStandardize.CleanupParameters()
-    params.tautomerRemoveSp3Stereo = False
-    params.tautomerRemoveBondStereo = False
-    params.tautomerRemoveIsotopicHs = False
-    params.maxTransforms = 10000
-    params.maxTautomers = 10000
-
-    df['mol'] = df['mol'].apply(lambda x:  tautomerize_step1(x, params))
-
-    # Step 2: Clean the tautomerized molecules using an in-house SMARTS reaction list
     smartsFile = Path(__file__).parent / 'Data' / 'tautomers.txt'
     reactions = load_reactions(smartsFile)
 
-    # Apply reactions to each SMILES in the DataFrame
-    updated_df = []
-    for _, row in df.iterrows():
-        if debug: logger.info(f"Processing tautomer: {row['ids']}, {Chem.MolToSmiles(row['mol'])}")
-        updates = list(recursive_reaction(row['mol'], reactions, set()))
-        if (len(updates) == 1): 
-            updated_df.append(
-                {'smiles': updates[0], 'ids': row['ids'],'mol': Chem.MolFromSmiles(updates[0])})
-        else:
-            two_digits = len(updates) >= 10
-            for i, update in enumerate(updates):
-                updated_df.append({
-                    'smiles': update,
-                    'ids': row['ids']+'_'+ (f"{i+1:02}" if two_digits else f"{i+1}"),
-                    'mol': Chem.MolFromSmiles(update)
+    # Parallel processing setup
+    process_func = partial(process_molecule_tautomer, reactions=reactions, taurdkit=taurdkit, debug=debug)
+    results = []
+
+    with mp.Pool(processes=num_cores) as pool:
+        # Submit all tasks to the pool in parallel, keeping track of rows for error handling
+        async_results = [(row, pool.apply_async(process_func, (row,))) for _, row in df.iterrows()]
+
+        # Collect results as they complete
+        for row_data, async_result in async_results:
+            try:
+                chunk_result = async_result.get(timeout=60)
+                results.extend(chunk_result)  # Append all processed rows
+            except mp.TimeoutError:
+                logger.warning(f"Timeout occurred for compound {row_data['ids']}. Using original molecule.")
+                results.append({
+                    'smiles': row_data['smiles'],
+                    'ids': row_data['ids'],
+                    'mol': row_data['mol']
                 })
-    return pd.DataFrame(updated_df)
+            except Exception as e:
+                logger.error(f"Error processing compound {row_data['ids']}: {str(e)}. Using original molecule.")
+                results.append({
+                    'smiles': row_data['smiles'],
+                    'ids': row_data['ids'],
+                    'mol': row_data['mol']
+                })
+
+    return pd.DataFrame(results)
 
 def detectPAINS(mol, catalog):
     """Detect PAINS functional groups in a molecule.
