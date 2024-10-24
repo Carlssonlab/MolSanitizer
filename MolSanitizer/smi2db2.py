@@ -747,7 +747,9 @@ def embed_smiles_ver2(smiles, name, randomSeed=42, VERBOSE=False):
     ssr = [set(ring) for ring in Chem.GetSymmSSSR(mol_H)]
     planar_rings, non_planar_rings = smi2db2_utils.get_flexible_ring(mol_H, ssr, planar_lib, non_planar_lib)
     sulfo_matches = smi2db2_utils.find_sulfonamide_like_scaffolds(mol_H)
-    flippable_Ns = smi2db2_utils.find_flipped_nitrogen(mol_H)
+    #In case only 1 ring is output, we don't need more embedding just for the flippable Ns
+    if num_ring_confs > 1: flippable_Ns = smi2db2_utils.find_flipped_nitrogen(mol_H)
+    else: flippable_Ns = []
     conjugated_substituted_Ns = smi2db2_utils.find_conjugated_substituted_nitrogen(mol_H)
     if VERBOSE:
         if planar_rings:
@@ -762,10 +764,9 @@ def embed_smiles_ver2(smiles, name, randomSeed=42, VERBOSE=False):
         if sulfo_matches: 
             print('\tFound sulfonamide-like structures')
             for match in sulfo_matches: print(f'\t {match}')
-
+    
     if sulfo_matches or non_planar_rings or flippable_Ns: numConfs = 100
     else: numConfs = 10
-
 
     mp = rdForceFieldHelpers.MMFFGetMoleculeProperties(mol_H, mmffVariant="MMFF94s")
     mp.SetMMFFDielectricConstant(1) #1 means vacumn, 80 means water, 20 is the compromised value (still arbitrary)
@@ -798,11 +799,9 @@ def embed_smiles_ver2(smiles, name, randomSeed=42, VERBOSE=False):
             energy = ff.CalcEnergy()
             conf_ring_descriptors_df = smi2db2_utils.classify_confs(conformer, energy, non_planar_rings, flippable_Ns, sulfo_matches, conf_ring_descriptors_df)
 
-
     conf_ring_descriptors_df.sort_values('Energy', inplace=True)
     # Keep a reservoir as the lowest energy possible conformer in case no confor
     reservoir = conf_ring_descriptors_df.iloc[0, 0]
-
     # Keep the top 10 conformers for further processing (e.g., AMSOL)
     for idx in range(min(10, len(conf_ring_descriptors_df))):
         amsol_mol.AddConformer(conf_ring_descriptors_df.iloc[idx, 0], assignId=True)
@@ -1181,7 +1180,7 @@ def choose_sampling_method_ver3(rigid_scaffolds, name, numConfs, sulfo_matches, 
 
 
 def gen_conf_chunk_ver2(df: pd.DataFrame, args):
-    randomSeed, numConfs, VERBOSE, cleanup, energywindow = args.randomSeed, args.numconfs, args.debug, args.cleanup, args.energywindow 
+    randomSeed, numConfs, VERBOSE, cleanup, energywindow, timeout = args.randomSeed, args.numconfs, args.debug, args.cleanup, args.energywindow, args.timeout 
     env = setup_env()
     if args.timing: 
         if not(os.path.exists('msani_timing.csv')): 
@@ -1211,7 +1210,7 @@ def gen_conf_chunk_ver2(df: pd.DataFrame, args):
         queue = multiprocessing.Queue()
         process = multiprocessing.Process(target=generate_conformation, args=(queue, row['smiles'], name, randomSeed, VERBOSE))
         process.start()
-        process.join(timeout=240)  # 4 minutes timeout
+        process.join(timeout=timeout*60)  # default 10 minutes timeout
 
         # Check if process is still alive (meaning it exceeded timeout)
         if process.is_alive():
