@@ -69,6 +69,7 @@ def parse_flags_single_job(args: dict):
     if args.lazy: flags += ' --lazy'
     if args.removesalts: flags += ' --removesalts'
     if args.tautomers: flags += ' --tautomers'
+    if not(args.taurdkit): flags += ' --notaurdkit'
     if args.pains: flags += ' --pains'
     if args.unwanted is not None: flags += f' --unwanted {" ".join(args.unwanted)}'
     if args.stereoisomers: flags += ' --stereoisomers'
@@ -82,7 +83,8 @@ def parse_flags_single_job(args: dict):
     if args.max_isomers != 32: flags += f' --max_isomers {args.max_isomers}'
     if args.numconfs != 2000: flags += f' --numconfs {args.numconfs}'
     if args.randomSeed != 42: flags += f' --randomSeed {args.randomSeed}'
-
+    if args.timeout != 10: flags += f' --timeout {args.timeout}'
+    
     return flags
 def write_single_job_script(slurm_header: str, slurm_script: str):
     """Write the script for a single job
@@ -118,7 +120,7 @@ def Split_Submit_jobs(args: dict):
     # Replace the PROJECT_NAME with the project name and time limit for SLURM
     global slurm_header
     slurm_header = slurm_header.replace('PROJECT_NAME', args.proj_name)
-    slurm_header = slurm_header.replace('TIME_LIMIT', f'{args.time}:00:00')
+    slurm_header = slurm_header.replace('TIME_LIMIT', f'{args.timelimit}:00:00')
     flags = parse_flags_single_job(args)
     global slurm_script
     slurm_script = slurm_script + flags
@@ -126,7 +128,7 @@ def Split_Submit_jobs(args: dict):
     
     print(f"\nStarting MolSanitizer in batch mode\n")
     print(f"Using project name (-p): {args.proj_name}")
-    print(f"Time limit for each job (-t): {args.time} hours")
+    print(f"Time limit for each job (-t): {args.timelimit} hours")
     print(f"Maximum number of jobs running parallelly (--max_jobs): {args.max_jobs} jobs")
     print(f"Number of compounds per job (-l): {args.lines} lines\n")
 
