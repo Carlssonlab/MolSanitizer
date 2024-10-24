@@ -2,9 +2,11 @@
 # LINE_PER_JOB: Number of compounds per job
 # TIME_LIMIT: Time limit for each job in hours (default: 3 hour)
 # MAX_JOBS: Maximum number of jobs running at the same time
+# TIMEOUT: Timeout for the initial embedding of each compound in minutes (default: 10 minutes)
 
 SLURM_ACCOUNT: 'naiss2023-3-39'
 LINES_PER_JOB: 50
 TIME_LIMIT: 3
 MAX_JOBS: 500
+TIMEOUT: 10
 

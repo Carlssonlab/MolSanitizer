@@ -55,8 +55,10 @@ def parseArguments(args = None):
 
     #parser.add_argument('--neutralize', action='store_true', help='Neutralize the structures')
     #parser.add_argument('--flavioFilters', action='store_true', help='Filter using Flavio script (For databases based on Greg Landrum)')
-    parser.add_argument('--debug', action='store_true', help='Debugging mode')
+    parser.add_argument('-debug', '--debug', action='store_true', help='Debugging mode')
     parser.add_argument('--test', action='store_true', help='Test mode (silent mode)')
+
+    parser.add_argument('--notaurdkit', action='store_false', dest='taurdkit', default = True, help='Do not use RDkit to canonicalize the input SMILES')
 
     # Add string option
     parser.add_argument('--custom', default=None, type=str, help='Filter out unwanted substructures using the customized list. To generate an example list, use --create_custom')
@@ -67,6 +69,7 @@ def parseArguments(args = None):
     parser.add_argument('-nconfs', '--numconfs', type=int, default=2000, help='Maximum number of conformers to generate (default: 2000)')
     parser.add_argument('-rs', '--randomSeed', type=int, default=42, help='Random seed for reproducibility (default: 42)')
     parser.add_argument('-j', '--numcores', type=int, default=4, help='Number of cores to use for parallel processing (default: 4)')
+    parser.add_argument('-t', '--timeout', type=int, default=10, help='Timeout for the initial embedding for each SMILES entry in minutes (default: 10)')
 
     # Add float options
     parser.add_argument('-w','--energywindow', type=float, default=15, help='Energy window for sampling the conformations (default: 15 (kcal/mol))')
@@ -89,6 +92,7 @@ def parseArguments_batch(args = None):
     time_limit = batch_configurations['TIME_LIMIT']
     lines_per_job = batch_configurations['LINES_PER_JOB']
     max_jobs = batch_configurations['MAX_JOBS']
+    timeout = batch_configurations['TIMEOUT']
 
     info = f"""MolSanitizer - A package to prepare SMILES databases
     This is a batch version of the MolSanitizer package. 
@@ -122,8 +126,9 @@ def parseArguments_batch(args = None):
     parser.add_argument('--protonation', action='store_true', help='Apply protonation to the structures (default: False)')
     parser.add_argument('-db2', '--db2', action='store_true', help='Generate conformers and stored in the DB2 format for DOCK 3.8 (default: False)')
     parser.add_argument('--nocleanup', action='store_false', dest='cleanup', default = True, help='Do not clean up the temporary files (default: False)')
-    parser.add_argument('--debug', action='store_true', help='Debugging mode')
+    parser.add_argument('-debug', '--debug', action='store_true', help='Debugging mode')
     parser.add_argument('--timing', action='store_true', help='Time the process')
+    parser.add_argument('--notaurdkit', action='store_false', dest='taurdkit', default = True, help='Do not use RDkit to canonicalize the input SMILES')
 
     # Add string option
     parser.add_argument('--custom', default=None, type=str, help='Filter out unwanted substructures using the customized list')
@@ -131,12 +136,13 @@ def parseArguments_batch(args = None):
 
     # Add integer option
     parser.add_argument('-l', '--lines_per_job', dest='lines', type=int, default=lines_per_job, help=f'Number of lines to process per job (default: {lines_per_job})')
-    parser.add_argument('--max_isomers', type=int, default=32, help='Maximum number of stereoisomers to consider (default: 32 = 5 stereocenters)')
+    parser.add_argument('-max_isomers', '--max_isomers', type=int, default=32, help='Maximum number of stereoisomers to consider (default: 32 = 5 stereocenters)')
     parser.add_argument('-nconfs', '--numconfs', type=int, default=2000, help='Maximum number of conformers to generate (default: 2000)')
     parser.add_argument('-rs', '--randomSeed', type=int, default=42, help='Random seed for reproducibility (default: 42)')
-    parser.add_argument('-t', '--time', type=int, default=time_limit, help=f'Time limit for the SLURM job in hours (default: {time_limit})')
+    parser.add_argument('-tl', '--timelimit', type=int, default=time_limit, help=f'Time limit for the SLURM job in hours (default: {time_limit})')
     parser.add_argument('--max_jobs', type=int, default=max_jobs, help=f'Maximum number of jobs to run simultaneously (default: {max_jobs})')
     parser.add_argument('-j', '--numcores', type=int, default=4, help='Number of cores to use for parallel processing (default: 4)')
+    parser.add_argument('-t', '--timeout', type=int, default=timeout, help=f'Timeout for the initial embedding for each SMILES entry in minutes (default: {timeout})')
 
     # Add float options
     parser.add_argument('-w','--energywindow', type=float, default=15, help='Energy window for sampling the conformations (default: 15 (kcal/mol))')
