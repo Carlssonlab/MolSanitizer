@@ -72,7 +72,7 @@ def parseArguments(args = None):
     parser.add_argument('-t', '--timeout', type=int, default=10, help='Timeout for the initial embedding for each SMILES entry in minutes (default: 10)')
 
     # Add float options
-    parser.add_argument('-w','--energywindow', type=float, default=15, help='Energy window for sampling the conformations (default: 15 (kcal/mol))')
+    parser.add_argument('-w','--energywindow', type=float, default=25, help='Energy window for sampling the conformations (default: 25 (kcal/mol))')
 
     # Parse the arguments
     args = parser.parse_args()
@@ -145,7 +145,7 @@ def parseArguments_batch(args = None):
     parser.add_argument('-t', '--timeout', type=int, default=timeout, help=f'Timeout for the initial embedding for each SMILES entry in minutes (default: {timeout})')
 
     # Add float options
-    parser.add_argument('-w','--energywindow', type=float, default=15, help='Energy window for sampling the conformations (default: 15 (kcal/mol))')
+    parser.add_argument('-w','--energywindow', type=float, default=25, help='Energy window for sampling the conformations (default: 25 (kcal/mol))')
 
     # Parse the arguments
     args = parser.parse_args()
