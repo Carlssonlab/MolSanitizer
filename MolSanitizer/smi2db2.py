@@ -15,7 +15,6 @@ from rdkit.Chem import rdDistGeom, rdForceFieldHelpers, rdMolTransforms, rdDistG
 import os, glob, shutil
 import subprocess
 from pathlib import Path
-from collections import defaultdict
 from scipy.spatial.distance import pdist, squareform
 from MolSanitizer.amsol import run_amsol
 from MolSanitizer.db2 import mol2db2, hydrogens, mol2
@@ -731,14 +730,14 @@ def gen_conf_chunk(df: pd.DataFrame, randomSeed = 42, numConfs = 10000, rmsd = 0
             subprocess.run("find 3d -type d -empty -delete", shell=True)
             subprocess.run("find solv -type d -empty -delete", shell=True)
 
-def embed_smiles_ver2(smiles, name, randomSeed=42, VERBOSE=False):
+def embed_smiles_rdkit(smiles, name, randomSeed=42, VERBOSE=False):
     mol_H = Chem.AddHs(Chem.MolFromSmiles(smiles))
     mol_H.SetProp("_Name", name)
     amsol_mol = Chem.Mol(mol_H)
     empty_mol = Chem.Mol(mol_H)
 
     params = rdDistGeom.srETKDGv3()
-    params.numThreads = 0  # Use all available threads
+    params.numThreads = 1  # Use all available threads
     params.pruneRmsThresh = 0.35  # Prune conformations that are too similar, not user-definable here
     params.randomSeed = randomSeed # For reproducibility
     params.useRandomCoords = True
@@ -750,7 +749,8 @@ def embed_smiles_ver2(smiles, name, randomSeed=42, VERBOSE=False):
     #In case only 1 ring is output, we don't need more embedding just for the flippable Ns
     if num_ring_confs > 1: flippable_Ns = smi2db2_utils.find_flipped_nitrogen(mol_H)
     else: flippable_Ns = []
-    conjugated_substituted_Ns = smi2db2_utils.find_conjugated_substituted_nitrogen(mol_H)
+    conjugated_substituted_Ns = smi2db2_utils.find_conjugated_substituted_nitrogen1(mol_H)
+    additional_conjugated_substituted_Ns = smi2db2_utils.find_conjugated_substituted_nitrogen2(mol_H)
     if VERBOSE:
         if planar_rings:
             print('\t Found planar rings:')
@@ -764,6 +764,10 @@ def embed_smiles_ver2(smiles, name, randomSeed=42, VERBOSE=False):
         if sulfo_matches: 
             print('\tFound sulfonamide-like structures')
             for match in sulfo_matches: print(f'\t {match}')
+        if conjugated_substituted_Ns:
+            print('\tFound conjugated substituted N structures')
+            for match in conjugated_substituted_Ns: print(f'\t {match}')
+            for match in additional_conjugated_substituted_Ns: print(f'\t {match}')
     
     if sulfo_matches or non_planar_rings or flippable_Ns: numConfs = 100
     else: numConfs = 10
@@ -776,6 +780,7 @@ def embed_smiles_ver2(smiles, name, randomSeed=42, VERBOSE=False):
             ff = rdForceFieldHelpers.MMFFGetMoleculeForceField(mol_H, mp, confId=cid)
             if conjugated_substituted_Ns:
                 for a, b, c, d in conjugated_substituted_Ns: ff.MMFFAddTorsionConstraint(a, b, c, d, False, 0, 0, 5)
+                for a, b, c, d in additional_conjugated_substituted_Ns: ff.MMFFAddTorsionConstraint(a, b, c, d, False, 178, 182, 1)
             ff.Minimize()
             conformer = mol_H.GetConformer(cid)
             energy = ff.CalcEnergy()
@@ -786,7 +791,7 @@ def embed_smiles_ver2(smiles, name, randomSeed=42, VERBOSE=False):
         # we have to use the macrocyclic version.
         logger.warning(f"srETKDGv3 failed for {name}, using macrocyclic version")
         params = rdDistGeom.ETKDGv3()
-        params.numThreads = 0  # Use all available threads
+        params.numThreads = 1  # Use all available threads
         params.pruneRmsThresh = 0.35  # Prune conformations that are too similar, not user-definable here
         params.randomSeed = randomSeed # For reproducibility
         params.useRandomCoords = True
@@ -794,6 +799,7 @@ def embed_smiles_ver2(smiles, name, randomSeed=42, VERBOSE=False):
             ff = rdForceFieldHelpers.MMFFGetMoleculeForceField(mol_H, mp, confId=cid)
             if conjugated_substituted_Ns:
                 for a, b, c, d in conjugated_substituted_Ns: ff.MMFFAddTorsionConstraint(a, b, c, d, False, 0, 0, 5)
+                for a, b, c, d in additional_conjugated_substituted_Ns: ff.MMFFAddTorsionConstraint(a, b, c, d, False, 178, 182, 1)
             ff.Minimize()
             conformer = mol_H.GetConformer(cid)
             energy = ff.CalcEnergy()
@@ -817,7 +823,7 @@ def embed_smiles_ver2(smiles, name, randomSeed=42, VERBOSE=False):
 
     if len(conf_ring_descriptors_df) == 0:
         # No conformer is found to compromise all the non-planar rings. 
-        # Use the lowest energy conformer
+        # Use the lowest energy conformer``
         scaffold = Chem.Mol(empty_mol)
         scaffold.AddConformer(reservoir, assignId=True)
         rigid_scaffolds.append(scaffold)
@@ -862,10 +868,58 @@ def generate_conformation(queue, smiles, name, randomSeed, VERBOSE):
     if VERBOSE:
         print("Generating initial 3D conformations...")
     try:
-        amsol_mol, netcharge, rigid_scaffolds, sulfo_matches = embed_smiles_ver2(smiles, name, randomSeed=randomSeed, VERBOSE=VERBOSE)
+        amsol_mol, netcharge, rigid_scaffolds, sulfo_matches = embed_smiles_rdkit(smiles, name, randomSeed=randomSeed, VERBOSE=VERBOSE)
         queue.put((amsol_mol, netcharge, rigid_scaffolds, sulfo_matches, None))
     except Exception as e:
         queue.put((None, None, None, None, str(e)))
+
+def embed_smiles_babel(smiles, name, VERBOSE=False):
+    # Step 1: Generate 3D conformer in Open Babel
+    obConversion = ob.OBConversion()
+    obConversion.SetInAndOutFormats("smi", "sdf")
+    
+    mol = ob.OBMol()
+    obConversion.ReadString(mol, smiles)
+    mol.AddHydrogens()
+    
+    builder = ob.OBBuilder()
+    builder.Build(mol)  # 3D coordinate generation
+
+    # Step 2: Minimize energy using MMFF94 force field
+    ff = ob.OBForceField.FindForceField("MMFF94s")
+    ff.Setup(mol)
+    
+    # Step 3: Apply multi-step minimization
+    # Steepest Descent
+    ff.SteepestDescent(250, 1.0e-4)
+    #ff.FastRotorSearch(True) # permute central bonds
+    ff.WeightedRotorSearch(100, 25) # 100 cycles, each with 25 forcefield ops
+    # Conjugate Gradients
+    ff.ConjugateGradients(250, 1.0e-4)
+    #feel free to tweak these to your balance of time / quality
+
+    #update the coordinates
+    ff.GetCoordinates(mol)
+
+    # Step 4: Convert to SDF in-memory and read into RDKit
+    sdf_data = obConversion.WriteString(mol)
+    mol_rdkit = Chem.MolFromMolBlock(sdf_data, removeHs=False)
+    
+    # Set molecule properties
+    mol_rdkit.SetProp("_Name", name)
+    net_charge = Chem.GetFormalCharge(mol_rdkit)
+
+    conjugated_substituted_Ns = smi2db2_utils.find_conjugated_substituted_nitrogen1(mol_rdkit)
+    additional_conjugated_substituted_Ns = smi2db2_utils.find_conjugated_substituted_nitrogen2(mol_rdkit)
+
+    mp = rdForceFieldHelpers.MMFFGetMoleculeProperties(mol_rdkit, mmffVariant="MMFF94s")
+    ff = rdForceFieldHelpers.MMFFGetMoleculeForceField(mol_rdkit, mp, confId=0)
+    if conjugated_substituted_Ns:
+        for a, b, c, d in conjugated_substituted_Ns: ff.MMFFAddTorsionConstraint(a, b, c, d, False, 0, 0, 5)
+        for a, b, c, d in additional_conjugated_substituted_Ns: ff.MMFFAddTorsionConstraint(a, b, c, d, False, 178, 182, 1)
+    ff.Minimize()
+    rigid_scaffolds = [Chem.Mol(mol_rdkit)] # Replicate the output from embed_rdkit
+    return mol_rdkit, net_charge, rigid_scaffolds, list()
 
 def stochastic_sampling_v3(mol, tolerance_level, match_torlib, sdwriters, original, numConfs, total_possible_solutions, atom_maps, max_attempts=100, product=0, unvisited = None, visited=None):
     """
@@ -1184,7 +1238,7 @@ def gen_conf_chunk_ver2(df: pd.DataFrame, args):
     env = setup_env()
     if args.timing: 
         if not(os.path.exists('msani_timing.csv')): 
-            with open('msani_timing.csv', 'w') as f: f.write('Name, Initial embedding, AMSOL, Torsional sampling, Mol2DB2, Total\n')
+            with open('msani_timing.csv', 'w') as f: f.write('Name,Initial embedding,AMSOL,Torsional sampling,Mol2DB2,Total\n')
         logging_time = ""
     for idx, row in df.iterrows():
         if args.timing: start = time.time()
@@ -1195,36 +1249,35 @@ def gen_conf_chunk_ver2(df: pd.DataFrame, args):
             logger.info(f"Skipping {name} as it already exists")
             continue
         logger.info(f"Handling {name}")
-
-        """# Embed smiles into initial conformation using RDKit        
-        if VERBOSE: print("Generating initial 3D conformations...")
-        try:
-            amsol_mol, netcharge, rigid_scaffolds, sulfo_matches = embed_smiles_ver2(row['smiles'], name, 
-                                        randomSeed = randomSeed, VERBOSE=VERBOSE)
-        except Exception as e:
-                logger.error(f"Error in generating initial conformation for {name}, skipping it {e}")
-                log_error(row['smiles'], name)
-                continue"""
+        if VERBOSE: print(f"Handling {name}")
         
         # Embed smiles into initial conformation using RDKit with a timeout
         queue = multiprocessing.Queue()
         process = multiprocessing.Process(target=generate_conformation, args=(queue, row['smiles'], name, randomSeed, VERBOSE))
         process.start()
-        process.join(timeout=timeout*60)  # default 10 minutes timeout
+        process.join(timeout=timeout*60)  # default 2 minutes timeout
 
         # Check if process is still alive (meaning it exceeded timeout)
         if process.is_alive():
-            logger.error(f"Timeout occurred while generating conformation for {name}, skipping it.")
+            logger.warning(f"Timeout occurred while generating conformation for {name}, using OpenBabel.")
             process.terminate()
             process.join()
-            log_error(row['smiles'], name)
-            continue
+            try:
+                amsol_mol, netcharge, rigid_scaffolds, sulfo_matches = embed_smiles_babel(row['smiles'], name, VERBOSE)
+            except Exception as e:
+                logger.error(f"Error in generating initial conformation using OpenBabel for {name}, skipping it {e}")
+                log_error(row['smiles'], name)
+                continue
+            if amsol_mol is None:
+                logger.error(f"Error in generating initial conformation using OpenBabel for {name}, skipping it")
+                log_error(row['smiles'], name)
+                continue
 
         # Retrieve result from queue
-        if not queue.empty():
+        elif not queue.empty():
             amsol_mol, netcharge, rigid_scaffolds, sulfo_matches, error = queue.get()
             if error:
-                logger.error(f"Error in generating initial conformation for {name}, skipping it: {error}")
+                logger.error(f"Error in generating initial conformation using RDKIT for {name}, skipping it: {error}")
                 log_error(row['smiles'], name)
                 continue
             amsol_mol.SetProp("_Name", name) #By somehow this implementation loses the _Name props
@@ -1271,7 +1324,13 @@ def gen_conf_chunk_ver2(df: pd.DataFrame, args):
         os.makedirs(f"3d/{name}", exist_ok=True)
         shutil.copy2(os.path.join("solv", name, f"{name}_solv.mol2"), os.path.join("3d", name, f"{name}.mol2"))
         os.chdir(f"3d/{name}")
-        numPossibleRigidAlignments = choose_sampling_method_ver3(rigid_scaffolds, name, numConfs, sulfo_matches, energywindow, VERBOSE)
+        try:
+            numPossibleRigidAlignments = choose_sampling_method_ver3(rigid_scaffolds, name, numConfs, sulfo_matches, energywindow, VERBOSE)
+        except Exception as e:
+            logger.error(f"Error in torsional sampling for {name}: {e}")
+            os.chdir("../..")
+            log_error(row['smiles'], name)
+            continue
         os.chdir("../..")
         if args.timing: sampling_time = time.time()
 
@@ -1304,7 +1363,7 @@ def gen_conf_chunk_ver2(df: pd.DataFrame, args):
                 continue
         if args.timing: 
             mol2db2_time = time.time()
-            logging_time += f'{name}, {embed_time-start}, {amsol_time-embed_time}, {sampling_time-amsol_time}, {mol2db2_time-sampling_time}, {mol2db2_time-start} \n'
+            logging_time += f'{name},{embed_time-start},{amsol_time-embed_time},{sampling_time-amsol_time},{mol2db2_time-sampling_time},{mol2db2_time-start}\n'
 
     if cleanup:
         if not(smi2db2_utils.is_slurm_job()):

@@ -69,7 +69,7 @@ def parseArguments(args = None):
     parser.add_argument('-nconfs', '--numconfs', type=int, default=2000, help='Maximum number of conformers to generate (default: 2000)')
     parser.add_argument('-rs', '--randomSeed', type=int, default=42, help='Random seed for reproducibility (default: 42)')
     parser.add_argument('-j', '--numcores', type=int, default=4, help='Number of cores to use for parallel processing (default: 4)')
-    parser.add_argument('-t', '--timeout', type=int, default=10, help='Timeout for the initial embedding for each SMILES entry in minutes (default: 10)')
+    parser.add_argument('-t', '--timeout', type=int, default=2, help='Timeout for the initial embedding for each SMILES entry in minutes (default: 10)')
 
     # Add float options
     parser.add_argument('-w','--energywindow', type=float, default=25, help='Energy window for sampling the conformations (default: 25 (kcal/mol))')

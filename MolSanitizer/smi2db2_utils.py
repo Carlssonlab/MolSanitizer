@@ -14,7 +14,7 @@ six_membered_aliphatic_substructure = Chem.MolFromSmarts("[A;!$(N-*=*)]1-[A;!$(N
 sulfonamide_like_substructure = Chem.MolFromSmarts("[*:1][S;$(S(=*)=*):2]-!@[N&+0;!$([NH2]):3](-[*,#1:4])-[*,#1:5]")
 aliphatic_nitrogen_substructure = Chem.MolFromSmarts("[A:1]@[N&+0;!$(N-*=*):2](@[A:3])!@[*,#1:4]")
 conjugated_substituted_nitrogen = Chem.MolFromSmarts('[a:1]:[a:2]:[a:3]:[nX3&+0:4]-*')
-
+additional_substituted_nitrogen = Chem.MolFromSmarts('[!#1]-[nX3&+0:1]:[a:2]:[a:3]')
 
 def find_flipped_nitrogen(mol_H: Mol):
     '''
@@ -22,9 +22,10 @@ def find_flipped_nitrogen(mol_H: Mol):
     '''
     return mol_H.GetSubstructMatches(aliphatic_nitrogen_substructure)
 
-def find_conjugated_substituted_nitrogen(mol_H: Mol):
+def find_conjugated_substituted_nitrogen1(mol_H: Mol):
     '''
         Find the conjugated substituted nitrogen in the molecule. c:c:n(R):c:c. 
+
         Only match to the atoms within the same ring as n.
     '''
     ring_info = mol_H.GetRingInfo()
@@ -33,6 +34,21 @@ def find_conjugated_substituted_nitrogen(mol_H: Mol):
     for match in matches:
         for ring in ring_info.AtomRings():
             if set(match).issubset(ring):
+                filtered_matches.append(match)
+    return filtered_matches
+
+def find_conjugated_substituted_nitrogen2(mol_H: Mol):
+    '''
+        Another function to find conjugated substituted nitrogen in the molecule fo fix the dihedral
+
+        Find two *-n:a:a matches for each Ns, then fix them to 180 to make them planar
+    '''
+    matches = mol_H.GetSubstructMatches(additional_substituted_nitrogen)
+    ring_info = mol_H.GetRingInfo()
+    filtered_matches = []
+    for match in matches:
+        for ring in ring_info.AtomRings():
+            if set(match[1:]).issubset(ring):
                 filtered_matches.append(match)
     return filtered_matches
 
