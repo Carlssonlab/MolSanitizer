@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### 🚀 Features
 
+- Initial implementation of OpenBabel 3D embedding for faster initial embedding process. Set the default timeout to 2 minutes as surveyed from the Tetralith clusters. - ([056270f](https://github.com/Isra3l/MolSanitizer/commit/056270f5acb1205d84e10a81b87824e9fba80cf6))
 - New default energywindow is 25 kcal/mol as we found that this window could compromise the accuracy in terms of both redocking and enrichment. - ([2241d1a](https://github.com/Isra3l/MolSanitizer/commit/2241d1a0f34bdc7ec480f7b641c09adebdd14cb4))
 - Implemented parallelization for tautomers and stereoisomers options - ([5996a32](https://github.com/Isra3l/MolSanitizer/commit/5996a3231cca650daa44fbe834fb8c9bceb80f5e))
 - Improved the initial conformations of conjugated Ns in heterocyclics inherited from using MMFF94s forcefield. Now these heterocycles should be planar. - ([3660f8b](https://github.com/Isra3l/MolSanitizer/commit/3660f8b30fdb1ca59bda1b24e2bf8f6f8f425b47))
