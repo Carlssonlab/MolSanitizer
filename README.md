@@ -12,8 +12,7 @@ MolSanitizer is a package for preparation (remove salts, stereoisomers enumerati
 
 # Installation (CONDA environment)
 
-We will set up the environment using [Anaconda](https://docs.anaconda.com/anaconda/install/index.html). Clone the
-current repository:
+We will set up the environment using [Anaconda](https://docs.anaconda.com/anaconda/install/index.html). Clone the current repository:
 
     git clone https://github.com/Isra3l/MolSanitizer.git
     

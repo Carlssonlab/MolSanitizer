@@ -48,6 +48,7 @@ def arguments(args):
         logger.info(f"Cleanup: {args.cleanup}")
         logger.info(f"Random seed: {args.randomSeed}")
         logger.info(f"Energy window: {args.energywindow}")
+        logger.info(f"Timelimit for initial embedding using Rdkit: {args.timeout}")
 
     if args.tautomers:
         smartsFile = Path(__file__).parent / 'Data' / 'tautomers.txt'
