@@ -69,7 +69,7 @@ def parseArguments(args = None):
     parser.add_argument('-nconfs', '--numconfs', type=int, default=2000, help='Maximum number of conformers to generate (default: 2000)')
     parser.add_argument('-rs', '--randomSeed', type=int, default=42, help='Random seed for reproducibility (default: 42)')
     parser.add_argument('-j', '--numcores', type=int, default=4, help='Number of cores to use for parallel processing (default: 4)')
-    parser.add_argument('-t', '--timeout', type=int, default=2, help='Timeout for the initial embedding for each SMILES entry in minutes (default: 10)')
+    parser.add_argument('-t', '--timeout', type=int, default=2, help='Timeout for the initial embedding for each SMILES entry before using OpenBabel in minutes (default: 2)')
 
     # Add float options
     parser.add_argument('-w','--energywindow', type=float, default=25, help='Energy window for sampling the conformations (default: 25 (kcal/mol))')
@@ -141,8 +141,8 @@ def parseArguments_batch(args = None):
     parser.add_argument('-rs', '--randomSeed', type=int, default=42, help='Random seed for reproducibility (default: 42)')
     parser.add_argument('-tl', '--timelimit', type=int, default=time_limit, help=f'Time limit for the SLURM job in hours (default: {time_limit})')
     parser.add_argument('--max_jobs', type=int, default=max_jobs, help=f'Maximum number of jobs to run simultaneously (default: {max_jobs})')
-    parser.add_argument('-j', '--numcores', type=int, default=4, help='Number of cores to use for parallel processing (default: 4)')
-    parser.add_argument('-t', '--timeout', type=int, default=timeout, help=f'Timeout for the initial embedding for each SMILES entry in minutes (default: {timeout})')
+    parser.add_argument('-j', '--numcores', type=int, default=1, help='Number of cores to use for parallel processing (default: 1)')
+    parser.add_argument('-t', '--timeout', type=int, default=timeout, help=f'Timeout for the initial embedding for each SMILES entry before using OpenBabel in minutes (default: {timeout})')
 
     # Add float options
     parser.add_argument('-w','--energywindow', type=float, default=25, help='Energy window for sampling the conformations (default: 25 (kcal/mol))')
