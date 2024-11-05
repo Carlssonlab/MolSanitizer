@@ -61,105 +61,6 @@ def convert(data, inf, otf):
 
     return obConversion.WriteString(obMol)
 
-def rmsd_filter(mol, ref_conf, conf_energies, threshold):
-    """
-    Ref:    https://www.rdkit.org/docs/source/rdkit.Chem.AllChem.html#rdkit.Chem.AllChem.GetConformerRMS
-            https://github.com/UnixJunkie/smi2sdf3d/blob/master/smi2sdf.py"""
-    # we use heavy atoms RMSD; not all atoms (Peter Gedeck's suggestion)
-    mol_noH = Chem.Mol(mol)
-    mol_noH = Chem.RemoveHs(mol_noH)
-    ref_conf_id = ref_conf.GetId()
-    res = []
-    for e, curr_conf in conf_energies:
-        curr_conf_id = curr_conf.GetId()
-        rms = rdMolAlign.GetBestRMS(mol_noH, mol_noH, ref_conf_id, curr_conf_id, numThreads=1, maxMatches=10000) #Use this to avoid the symmetrical problem
-        if rms > threshold:
-            res.append((e, curr_conf))
-    return res
-
-def get_num_confs_for_mol(mol):
-    """
-    Ref:    https://pubs.acs.org/doi/full/10.1021/ci2004658"""
-    rb = rdMolDescriptors.CalcNumRotatableBonds(mol, strict=True)
-    if rb <= 7: return 50
-    elif 8 <= rb <= 12: return 200
-    else: return 300
-    
-def embed_smiles(smiles, name, rmsd=0.25, randomSeed=42, VERBOSE=False):
-    """
-    Embed SMILES into multiple conformations, minimize using MMFF94s, and return the MOL2 format.
-    
-    Args:
-    smiles (str): The SMILES string of the molecule.
-    name (str): The name of the molecule.
-    rmsd (float): The RMSD threshold for pruning conformations.
-    randomSeed (int): The random seed for reproducibility.
-    numConfs (int): The number of conformations to generate.
-    
-    Returns:
-    str: The lowest energy conformation in MOL2 format.
-    """
-    
-    params = rdDistGeom.srETKDGv3()
-    params.numThreads = 0  # Use all available threads
-    params.pruneRmsThresh = 0.5  # Prune conformations that are too similar, not user-definable here
-    params.randomSeed = randomSeed # For reproducibility
-    #params.useMacrocycleTorsions = True
-    #params.useSmallRingTorsions = True
-
-    mol = Chem.MolFromSmiles(smiles)
-    numConfs = 300
-    #numConfs = get_num_confs_for_mol(mol)
-    #if VERBOSE: print(f"\tTry with {numConfs} conformations")
-    mol_H = Chem.AddHs(mol)
-    res = Chem.Mol(mol_H) # res = result molecule with conformations
-    res.RemoveAllConformers() # An empty conformer list
-
-    conf_energies = []
-    
-    mp = rdForceFieldHelpers.MMFFGetMoleculeProperties(mol_H, mmffVariant="MMFF94s")
-    mp.SetMMFFDielectricConstant(1) #1 means vacumn, 80 means water, 20 is the compromised value (still arbitrary)
-
-    for cid in rdDistGeom.EmbedMultipleConfs(mol_H, numConfs=numConfs, params=params):
-        ff = rdForceFieldHelpers.MMFFGetMoleculeForceField(mol_H, mp, confId=cid)
-        ff.Minimize()
-        energy = ff.CalcEnergy()
-        conformer = mol_H.GetConformer(cid)
-        conf_energies.append((energy, conformer))
-    
-    conf_energies = sorted(conf_energies, key=lambda x: x[0]) # sort by increasing E
-
-    while (res.GetNumConformers() < 10) and (len(conf_energies) > 0): # Attempts to reduce computational power!
-        energy, conformer = conf_energies.pop(0) # get the lowest energy conformer
-        res.AddConformer(conformer, assignId = True) # add it to the conformations list
-        conf_energies = rmsd_filter(mol_H, conformer, conf_energies, rmsd) # remove all conformers that are too similar to it
-
-    
-    if VERBOSE: print(f'\tBefore: {len(mol_H.GetConformers())}, after: {res.GetNumConformers()}')
-    res.SetProp("_Name", name)
-    netcharge = sum(atom.GetFormalCharge() for atom in res.GetAtoms())
-    return res, netcharge
-
-def load_molecule(file_path_mol: str) -> Chem.rdchem.Mol:
-    """
-    Read a MOL2 molecule file and return an RDKit Mol object.
-    Parameters:
-    - file_path_mol: str or Path, path to the molecule file.
-    Returns:
-    - mol: RDKit Mol object, or None if the format is unsupported or loading fails.
-    """
-
-    # Extract the file extension
-    # Convert file_path to a Path object if it's not already one
-    return Chem.MolFromMol2File(file_path_mol, removeHs=False, sanitize=False, cleanupSubstructures=True)
-
-def write_to_sdf(mol, filename):
-    with Chem.SDWriter(filename+'.sdf') as writer:
-        for i, conf in enumerate(mol.GetConformers()):
-            rdMolAlign.AlignMol(mol, mol, prbCid = conf.GetId(), refCid = 0)
-            mol.SetProp("_Name", f"Conformer_{i+1}")
-            writer.write(mol, confId=conf.GetId())
-
 
 def getDihedralMatches(mol, pattern):
     '''return list of atom indices of dihedrals'''
@@ -387,6 +288,7 @@ def get_random_angle(mean, tolerance):
     """
 
     # Generate a random angle within the specified Gaussian distribution and range limits
+    if tolerance == 0: return mean
     while True:
         random_angle = random.gauss(mean, tolerance)
         if mean-tolerance < random_angle < mean+tolerance: 
@@ -397,31 +299,6 @@ def get_random_angle(mean, tolerance):
     
     return normalized_angle
 
-# Deprecated Aug 22, 2024
-def already_sampled(sampled_mol, current_mol, map_alignment, threshold=0.5):    
-    """
-    https://greglandrum.github.io/rdkit-blog/posts/2023-03-02-clustering-conformers.html
-    Check if the current conformer is already sampled in the product_list.
-
-    Parameters:
-    sampled_mol (rdkit.Chem.Mol): The molecule with the sampled conformers.
-    current_mol (rdkit.Chem.Mol): The molecule with the current conformer.
-    map_alignment (list): The atom mapping between the original and current conformers.
-
-    Returns:
-    bool: True if the current conformer is already sampled, False otherwise.
-    """
-    # Remove hydrogens from the molecule
-    #print(map_alignment)
-    sampled_no_H = Chem.RemoveHs(sampled_mol)
-    current_no_H = Chem.RemoveHs(current_mol)
-    # Iterate through each conformer in the product list
-    for conf_id in range(sampled_no_H.GetNumConformers()):
-        # Compute RMSD between current conformer and each conformer in the product_list
-        rmsd = rdMolAlign.GetBestRMS(current_no_H, sampled_no_H, 0, conf_id, maxMatches=1000)
-        if rmsd <= threshold:
-            return True
-    return False
 
 def torsional_scan_rand(mol, conf, i, matches, match_torlib, sdwriter, product, original,
                         numConfs, atom_maps, visited, visitting):
