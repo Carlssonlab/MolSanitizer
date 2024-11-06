@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [unreleased - most recent changes come first]
 
+### 🚜 Refactor
+
+- Remove deprecated script that is not used anymore. - ([3cfa3b8](https://github.com/Isra3l/MolSanitizer/commit/3cfa3b87c545e416eee007c0ca643b3a27e21246))
+
+## [0.2.0] - 2024-11-06
+
 ### 🚀 Features
 
 - Updated new rules for aromatic hydroxyls to make them coplanar with the aromatic rings. - ([b240a29](https://github.com/Isra3l/MolSanitizer/commit/b240a29fd03dde6ccd64da19dc1a7b79f86d7f0e))
