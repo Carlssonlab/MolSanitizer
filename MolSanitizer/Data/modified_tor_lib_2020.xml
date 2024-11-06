@@ -62,6 +62,9 @@
       Aug 17 24
       Added two peaks for acid benzoic in the case of the bulky substituent to the ortho of this group:
       [O:1]=[C:2]([O-])!@[c:3]([cH1])[cH0:4]
+
+      Nov 5 24
+      Moved arylalcohol group before arylether and added SMARTS rules to make the dihedral to coplanar with the ring.
 -->
 <library>
  <hierarchyClass id1="G" id2="G" name="GG" smarts="[*:2]!@[*:3]">
@@ -42050,6 +42053,18 @@
     </histogram2_shifted>
    </torsionRule>
   </hierarchySubClass>
+<!--Moved arylalcohol before arylether to match this the aromatic hydroxyl more specifically
+All the angles here were added to make the hydroxyl coplanar with the ring-->
+
+  <hierarchySubClass name="Phenols" smarts="[c:2]!@[O:3]">
+   <torsionRule smarts="[a:1][c:2]!@[O:3][#1:4]">
+    <angleList>
+      <angle score="15" tolerance1="15" tolerance2="15" value="180" />
+      <angle score="15" tolerance1="15" tolerance2="15" value="0" />
+    </angleList>
+   </torsionRule>
+  </hierarchySubClass>
+   <!--Change finished here-->
   <hierarchySubClass name="Arylether" smarts="[a:1][c:2]!@[O:3]">
    <torsionRule smarts="[cH1:1][c:2]([cH1])!@[O:3][S:4]">
     <angleList>
@@ -46422,7 +46437,7 @@
     </histogram2_shifted>
    </torsionRule>
   </hierarchySubClass>
-  <hierarchySubClass name="Arylalcohol" smarts="[c:2]!@[O:3]" />
+
   <hierarchySubClass name="[CX4][OX2]" smarts="[CX4:2]!@[OX2:3]">
    <torsionRule smarts="[!#1:1][CX4H0:2]!@[OX2:3][!#1:4]">
     <angleList>
