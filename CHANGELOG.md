@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### 🚀 Features
 
+- Updated new rules for aromatic hydroxyls to make them coplanar with the aromatic rings. - ([b240a29](https://github.com/Isra3l/MolSanitizer/commit/b240a29fd03dde6ccd64da19dc1a7b79f86d7f0e))
 - Initial implementation of OpenBabel 3D embedding for faster initial embedding process. Set the default timeout to 2 minutes as surveyed from the Tetralith clusters. - ([056270f](https://github.com/Isra3l/MolSanitizer/commit/056270f5acb1205d84e10a81b87824e9fba80cf6))
 - New default energywindow is 25 kcal/mol as we found that this window could compromise the accuracy in terms of both redocking and enrichment. - ([2241d1a](https://github.com/Isra3l/MolSanitizer/commit/2241d1a0f34bdc7ec480f7b641c09adebdd14cb4))
 - Implemented parallelization for tautomers and stereoisomers options - ([5996a32](https://github.com/Isra3l/MolSanitizer/commit/5996a3231cca650daa44fbe834fb8c9bceb80f5e))
@@ -21,6 +22,10 @@ All notable changes to this project will be documented in this file.
 
 - Fix a bug in run_amsol that makes msani proceed although AMSOL failed. - ([ec4210c](https://github.com/Isra3l/MolSanitizer/commit/ec4210cb76969f2cb021bd689893d954120f54d1))
 - Fix a bug that the DB2 file loses the information about the input names -> make all the DB2 files have the same name as ***** - ([755d696](https://github.com/Isra3l/MolSanitizer/commit/755d69641b1eb5df29a70b9d569e3b3a9c3f94d1))
+
+### 🚜 Refactor
+
+- Remove deprecated functions - ([9bc63b6](https://github.com/Isra3l/MolSanitizer/commit/9bc63b6fde4568f4e83a67823fe0177110cf4773))
 
 ## [0.1.3] - 2024-10-05
 
