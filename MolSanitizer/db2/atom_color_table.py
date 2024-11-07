@@ -38,6 +38,7 @@ class ColorTable(object):
                        ('N.ar', 'acceptor'),
                        ('P.3', 1, 'O.co2', 'negative'),
                        ('S.o2', 1, 'O.co2', 'negative'),
+                       ('S.O2', 1, 'O.co2', 'negative'),
                        ('N.2', 1, 'H', 'donor'),
                        ('N.am', 1, 'H', 'donor'),
                        ('N.pl3', 1, 'H', 'donor'),
