@@ -1,13 +1,13 @@
 from rdkit import Chem
-from rdkit.Chem import AllChem
-from rdkit.Chem import rdMolTransforms, rdForceFieldHelpers, rdDistGeom, rdMolAlign
+
+from rdkit.Chem import rdMolTransforms
 from rdkit.Chem.rdchem import Mol, Conformer
-import os, glob, shutil
+import os, shutil
 import itertools
 from collections import defaultdict
 import numpy as np
 import pandas as pd
-from pathlib import Path
+
 
 
 six_membered_aliphatic_substructure = Chem.MolFromSmarts("[A;!$(N-*=*)]1-[A;!$(N-*=*)]-[A;!$(N-*=*)]-[A;!$(N-*=*)]-[A;!$(N-*=*)]-[A;!$(N-*=*)]-1")
@@ -251,7 +251,7 @@ def remove_unfavorable_confs(conf_ring_descriptors_df: pd.DataFrame, name: str)-
     for column in conf_ring_descriptors_df.columns[2:-2]:
         if (conf_ring_descriptors_df[column] == -1).all():
             conf_ring_descriptors_df.drop(columns=[column], inplace=True)
-            print(f"\t While handling {name}, found no good conformation of ring: {column}")
+            #print(f"\t While handling {name}, found no good conformation of ring: {column}")
 
     # Step 2: Drop rows where any value in remaining columns (2 onwards) is -1
     for column in conf_ring_descriptors_df.columns[2:-2]:
