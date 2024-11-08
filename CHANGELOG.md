@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### 🚜 Refactor
 
+- Remove deprecated scripts. - ([80f915c](https://github.com/Isra3l/MolSanitizer/commit/80f915c7187d7d2b7b089f2885765b0f4d85c893))
 - Remove deprecated script that is not used anymore. - ([3cfa3b8](https://github.com/Isra3l/MolSanitizer/commit/3cfa3b87c545e416eee007c0ca643b3a27e21246))
 
 ## [0.2.0] - 2024-11-06
