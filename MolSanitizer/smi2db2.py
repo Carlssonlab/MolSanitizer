@@ -22,6 +22,7 @@ from MolSanitizer import strain_filter, smi2db2_utils
 import random
 import time
 import multiprocessing
+import tarfile, io
 
 
 import logging
@@ -52,6 +53,11 @@ def setup_env():
 def write_to_file(content, file):
     with open(file, "w") as f:
         f.write(content)
+
+def write_to_tarball(ball, data, name):
+    tar = tarfile.TarInfo(name=name)
+    tar.size = len(data)
+    ball.addfile(tar, io.BytesIO(data))
 
 def convert(data, inf, otf):
     obConversion = ob.OBConversion()
@@ -1023,137 +1029,140 @@ def choose_sampling_method_ver3(rigid_scaffolds, name, numConfs, sulfo_matches, 
     return len(atom_maps)
 
 
-def gen_conf_chunk_ver2(df: pd.DataFrame, args):
+def gen_conf_chunk_ver2(df: pd.DataFrame, args, input_file='0'):
     randomSeed, numConfs, VERBOSE, cleanup, energywindow, timeout = args.randomSeed, args.numconfs, args.debug, args.cleanup, args.energywindow, args.timeout 
     env = setup_env()
     if args.timing: 
         if not(os.path.exists('msani_timing.csv')): 
             with open('msani_timing.csv', 'w') as f: f.write('Name,Initial embedding,AMSOL,Torsional sampling,Mol2DB2,Total\n')
         logging_time = ""
-    for idx, row in df.iterrows():
-        if args.timing: start = time.time()
-        random.seed(randomSeed)
-        name = row['ids']
-        if os.path.exists(f"db2/{name}.db2"):
-            print(f"Skipping {name} as it already exists")
-            logger.info(f"Skipping {name} as it already exists")
-            continue
-        logger.info(f"Handling {name}")
-        if VERBOSE: print(f"Handling {name}")
-        
-        # Embed smiles into initial conformation using RDKit with a timeout
-        queue = multiprocessing.Queue()
-        process = multiprocessing.Process(target=generate_conformation, args=(queue, row['smiles'], name, randomSeed, VERBOSE))
-        process.start()
-        process.join(timeout=timeout*60)  # default 2 minutes timeout
+    os.makedirs(f"db2", exist_ok=True)
+    with tarfile.open(f"db2/{input_file}.tar.gz", mode='w:gz') as output:
+        for idx, row in df.iterrows():
+            if args.timing: start = time.time()
+            random.seed(randomSeed)
+            name = row['ids']
+            if os.path.exists(f"db2/{name}.db2"):
+                print(f"Skipping {name} as it already exists")
+                logger.info(f"Skipping {name} as it already exists")
+                continue
+            logger.info(f"Handling {name}")
+            if VERBOSE: print(f"Handling {name}")
+            
+            # Embed smiles into initial conformation using RDKit with a timeout
+            queue = multiprocessing.Queue()
+            process = multiprocessing.Process(target=generate_conformation, args=(queue, row['smiles'], name, randomSeed, VERBOSE))
+            process.start()
+            process.join(timeout=timeout*60)  # default 2 minutes timeout
 
-        # Check if process is still alive (meaning it exceeded timeout)
-        if process.is_alive():
-            logger.warning(f"Timeout occurred while generating conformation for {name}, using OpenBabel.")
-            process.terminate()
-            process.join()
-            try:
-                amsol_mol, netcharge, rigid_scaffolds, sulfo_matches = embed_smiles_babel(row['smiles'], name, VERBOSE)
-            except Exception as e:
-                logger.error(f"Error in generating initial conformation using OpenBabel for {name}, skipping it {e}")
+            # Check if process is still alive (meaning it exceeded timeout)
+            if process.is_alive():
+                logger.warning(f"Timeout occurred while generating conformation for {name}, using OpenBabel.")
+                process.terminate()
+                process.join()
+                try:
+                    amsol_mol, netcharge, rigid_scaffolds, sulfo_matches = embed_smiles_babel(row['smiles'], name, VERBOSE)
+                except Exception as e:
+                    logger.error(f"Error in generating initial conformation using OpenBabel for {name}, skipping it {e}")
+                    log_error(row['smiles'], name)
+                    continue
+                if amsol_mol is None:
+                    logger.error(f"Error in generating initial conformation using OpenBabel for {name}, skipping it")
+                    log_error(row['smiles'], name)
+                    continue
+
+            # Retrieve result from queue
+            elif not queue.empty():
+                amsol_mol, netcharge, rigid_scaffolds, sulfo_matches, error = queue.get()
+                if error:
+                    logger.error(f"Error in generating initial conformation using RDKIT for {name}, skipping it: {error}")
+                    log_error(row['smiles'], name)
+                    continue
+                amsol_mol.SetProp("_Name", name) #By somehow this implementation loses the _Name props
+                for rigid_scaffold in rigid_scaffolds: rigid_scaffold.SetProp("_Name", name)
+            else:
+                logger.error(f"Unknown error in generating initial conformation for {name}, skipping it.")
                 log_error(row['smiles'], name)
                 continue
-            if amsol_mol is None:
-                logger.error(f"Error in generating initial conformation using OpenBabel for {name}, skipping it")
-                log_error(row['smiles'], name)
-                continue
 
-        # Retrieve result from queue
-        elif not queue.empty():
-            amsol_mol, netcharge, rigid_scaffolds, sulfo_matches, error = queue.get()
-            if error:
-                logger.error(f"Error in generating initial conformation using RDKIT for {name}, skipping it: {error}")
-                log_error(row['smiles'], name)
-                continue
-            amsol_mol.SetProp("_Name", name) #By somehow this implementation loses the _Name props
-            for rigid_scaffold in rigid_scaffolds: rigid_scaffold.SetProp("_Name", name)
-        else:
-            logger.error(f"Unknown error in generating initial conformation for {name}, skipping it.")
-            log_error(row['smiles'], name)
-            continue
+            if args.timing: embed_time = time.time() # Time for embedding
+            
+            # Solvation using AMSOL
+            if VERBOSE: print("Solvating...")
+            os.makedirs(f"solv/{name}", exist_ok=True)
+            os.chdir(f"solv/{name}")
+            for conf_id in range(amsol_mol.GetNumConformers()):
+                # Idea: try from the energy minimum conformer if AMSOL fails -> next conformer until reach the last
+                if VERBOSE: print(f"\tTrying conformer: {conf_id}")
+                error_signal = 0
 
-        if args.timing: embed_time = time.time() # Time for embedding
-        
-        # Solvation using AMSOL
-        if VERBOSE: print("Solvating...")
-        os.makedirs(f"solv/{name}", exist_ok=True)
-        os.chdir(f"solv/{name}")
-        for conf_id in range(amsol_mol.GetNumConformers()):
-            # Idea: try from the energy minimum conformer if AMSOL fails -> next conformer until reach the last
-            if VERBOSE: print(f"\tTrying conformer: {conf_id}")
-            error_signal = 0
+                cp = Chem.Mol(amsol_mol, confId=conf_id) #Retrieve the conf_id-th conformer of mol object
+                mol2_block = convert(Chem.MolToMolBlock(cp), "mol", "mol2")
+                write_to_file(mol2_block, f"{name}.mol2")
 
-            cp = Chem.Mol(amsol_mol, confId=conf_id) #Retrieve the conf_id-th conformer of mol object
-            mol2_block = convert(Chem.MolToMolBlock(cp), "mol", "mol2")
-            write_to_file(mol2_block, f"{name}.mol2")
-
-            run_amsol.prepare(f"{name}.mol2", name, netcharge)
-            error_signal = run_amsol.run('temp.in-hex', 'temp.o-hex', env)
-            if error_signal == -1: continue
-            error_signal = run_amsol.run('temp.in-wat', 'temp.o-wat', env)
-            if error_signal == -1: continue
-            error_signal = run_amsol.process_output('temp.o-wat', 'temp.o-hex', "temp.mol2", "output")#, VERBOSE=VERBOSE)
-            if error_signal == -1: continue
-            break
-        os.chdir("../..")
-        if error_signal == -1 and conf_id+1 == amsol_mol.GetNumConformers(): # AMSOL failed
-            logger.error(f"AMSOL failed for {name}, skipping it")
-            log_error(row['smiles'], name)
-            continue
-        subprocess.run(f"cp solv/{name}/output.mol2 solv/{name}/{name}_solv.mol2", shell=True)
-        subprocess.run(f"mv solv/{name}/output.solv solv/{name}/{name}_solv.solv", shell=True)
-        if args.timing: amsol_time = time.time()
-
-        # 3D generation
-        if VERBOSE: print("3D generation...")
-        os.makedirs(f"3d/{name}", exist_ok=True)
-        shutil.copy2(os.path.join("solv", name, f"{name}_solv.mol2"), os.path.join("3d", name, f"{name}.mol2"))
-        os.chdir(f"3d/{name}")
-        try:
-            numPossibleRigidAlignments = choose_sampling_method_ver3(rigid_scaffolds, name, numConfs, sulfo_matches, energywindow, VERBOSE)
-        except Exception as e:
-            logger.error(f"Error in torsional sampling for {name}: {e}")
+                run_amsol.prepare(f"{name}.mol2", name, netcharge)
+                error_signal = run_amsol.run('temp.in-hex', 'temp.o-hex', env)
+                if error_signal == -1: continue
+                error_signal = run_amsol.run('temp.in-wat', 'temp.o-wat', env)
+                if error_signal == -1: continue
+                error_signal = run_amsol.process_output('temp.o-wat', 'temp.o-hex', "temp.mol2", "output")#, VERBOSE=VERBOSE)
+                if error_signal == -1: continue
+                break
             os.chdir("../..")
-            log_error(row['smiles'], name)
-            continue
-        os.chdir("../..")
-        if args.timing: sampling_time = time.time()
+            if error_signal == -1 and conf_id+1 == amsol_mol.GetNumConformers(): # AMSOL failed
+                logger.error(f"AMSOL failed for {name}, skipping it")
+                log_error(row['smiles'], name)
+                continue
+            subprocess.run(f"cp solv/{name}/output.mol2 solv/{name}/{name}_solv.mol2", shell=True)
+            subprocess.run(f"mv solv/{name}/output.solv solv/{name}/{name}_solv.solv", shell=True)
+            if args.timing: amsol_time = time.time()
 
-        # Mol2DB2
-        if VERBOSE: print("Converting to DB2 format...")
-        os.makedirs(f"db2/{name}", exist_ok=True)
-        shutil.move(os.path.join("solv", name, f"{name}_solv.solv"), os.path.join("db2", name, f"{name}.solv"))
-        smi2db2_utils.move_and_rename_mol2_files(name, len(rigid_scaffolds), numPossibleRigidAlignments, VERBOSE)
-        os.chdir(f"db2/{name}")
-        if not any(glob.glob(f"{name}_mol*.mol2")) or not os.path.isfile(f"{name}.solv"):
-            logger.error(f"Not found any mol2 files or solv for db2 generation of {name}")
-            os.chdir("../..")
-            log_error(row['smiles'], name)
-            continue
-        else:
+            # 3D generation
+            if VERBOSE: print("3D generation...")
+            os.makedirs(f"3d/{name}", exist_ok=True)
+            shutil.copy2(os.path.join("solv", name, f"{name}_solv.mol2"), os.path.join("3d", name, f"{name}.mol2"))
+            os.chdir(f"3d/{name}")
             try:
-                db2_data_all = ""
-                for idx in range(len(rigid_scaffolds)):
-                    for rigid_alignment in range(numPossibleRigidAlignments):
-                        db2_data = mol2db2.mol2db2_quick(f"{name}_mol{idx}_align{rigid_alignment}.mol2", f"{name}.solv")
-                        db2_data_all += db2_data
-                write_to_file(db2_data_all, f"../{name}.db2")
-                os.chdir("../..")
-                if cleanup:
-                    subprocess.run(f"rm -rf 3d/{name} solv/{name} db2/{name}", shell=True)
+                numPossibleRigidAlignments = choose_sampling_method_ver3(rigid_scaffolds, name, numConfs, sulfo_matches, energywindow, VERBOSE)
             except Exception as e:
-                logger.error(f"Error in converting {name} to DB2 format: {e}")
+                logger.error(f"Error in torsional sampling for {name}: {e}")
                 os.chdir("../..")
                 log_error(row['smiles'], name)
                 continue
-        if args.timing: 
-            mol2db2_time = time.time()
-            logging_time += f'{name},{embed_time-start},{amsol_time-embed_time},{sampling_time-amsol_time},{mol2db2_time-sampling_time},{mol2db2_time-start}\n'
+            os.chdir("../..")
+            if args.timing: sampling_time = time.time()
+
+            # Mol2DB2
+            if VERBOSE: print("Converting to DB2 format...")
+            os.makedirs(f"db2/{name}", exist_ok=True)
+            shutil.move(os.path.join("solv", name, f"{name}_solv.solv"), os.path.join("db2", name, f"{name}.solv"))
+            smi2db2_utils.move_and_rename_mol2_files(name, len(rigid_scaffolds), numPossibleRigidAlignments, VERBOSE)
+            os.chdir(f"db2/{name}")
+            if not any(glob.glob(f"{name}_mol*.mol2")) or not os.path.isfile(f"{name}.solv"):
+                logger.error(f"Not found any mol2 files or solv for db2 generation of {name}")
+                os.chdir("../..")
+                log_error(row['smiles'], name)
+                continue
+            else:
+                try:
+                    db2_data_all = ""
+                    for idx in range(len(rigid_scaffolds)):
+                        for rigid_alignment in range(numPossibleRigidAlignments):
+                            db2_data = mol2db2.mol2db2_quick(f"{name}_mol{idx}_align{rigid_alignment}.mol2", f"{name}.solv")
+                            db2_data_all += db2_data
+                    #write_to_file(db2_data_all, f"../{name}.db2")
+                    write_to_tarball(output, db2_data_all.encode('utf-8'), name=f"{name}.db2")
+                    os.chdir("../..")
+                    if cleanup:
+                        subprocess.run(f"rm -rf 3d/{name} solv/{name} db2/{name}", shell=True)
+                except Exception as e:
+                    logger.error(f"Error in converting {name} to DB2 format: {e}")
+                    os.chdir("../..")
+                    log_error(row['smiles'], name)
+                    continue
+            if args.timing: 
+                mol2db2_time = time.time()
+                logging_time += f'{name},{embed_time-start},{amsol_time-embed_time},{sampling_time-amsol_time},{mol2db2_time-sampling_time},{mol2db2_time-start}\n'
 
     if cleanup:
         if not(smi2db2_utils.is_slurm_job()):

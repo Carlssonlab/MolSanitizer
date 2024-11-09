@@ -112,7 +112,7 @@ def process_files(args, start_time: int):
 
 
             if args.db2:
-                smi2db2.gen_conf_chunk_ver2(chunk, args)
+                smi2db2.gen_conf_chunk_ver2(chunk, args, input_file_path.stem)
                        
             if not args.test:
                 if step == 1: time_step1 = time.time()-start_time
