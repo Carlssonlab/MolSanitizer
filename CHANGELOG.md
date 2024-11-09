@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [unreleased - most recent changes come first]
 
+### 🚀 Features
+
+- DB2 files now are put in tar.gz by default. The number of files in each tar.gz depends on the number of lines per job. - ([dbd74a4](https://github.com/Isra3l/MolSanitizer/commit/dbd74a42537fed8c4e123f1f255b3debbd57d958))
+
 ### 🚜 Refactor
 
 - Remove deprecated scripts. - ([80f915c](https://github.com/Isra3l/MolSanitizer/commit/80f915c7187d7d2b7b089f2885765b0f4d85c893))
