@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### 🚀 Features
 
+- Log files and input files now being organized to corresponding folders. New cleanup mechanism for msani_batch. - ([16c7f11](https://github.com/Isra3l/MolSanitizer/commit/16c7f111b43f67c7ec3b60844f89723a55180382))
 - DB2 files now are put in tar.gz by default. The number of files in each tar.gz depends on the number of lines per job. - ([dbd74a4](https://github.com/Isra3l/MolSanitizer/commit/dbd74a42537fed8c4e123f1f255b3debbd57d958))
 
 ### 🚜 Refactor
