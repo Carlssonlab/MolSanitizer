@@ -31,7 +31,10 @@ dirs=( $(cat dirlista) )
 TASK_ID=${SLURM_ARRAY_TASK_ID}
 smiles_file=${dirs[$TASK_ID]}
 ARRAY_ID=${SLURM_ARRAY_JOB_ID}
-MSANI_PATH -i $smiles_file -j 2'''
+log_prefix=$(basename "$smiles_file")
+log_prefix="${log_prefix%.*}"  # Remove the extension
+log_file="${log_prefix}.log"
+MSANI_PATH -i $smiles_file -j 2 >> "$log_file" 2>&1'''
 
 cleanup_script ="""
 # Get the number of tasks with the name msani_3d from the user's squeue
@@ -46,7 +49,10 @@ if [ "$task_count" -eq 1 ]; then
 
     # Find and delete empty directories in the solv directory
     find solv -type d -empty -delete
-
+    mkdir -p in/processed log
+    mv in*_clean* in/processed
+    mv in* in
+    mv *.log log
     echo "Cleanup complete."
 fi
 """
