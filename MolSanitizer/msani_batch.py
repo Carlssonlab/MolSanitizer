@@ -34,7 +34,9 @@ ARRAY_ID=${SLURM_ARRAY_JOB_ID}
 log_prefix=$(basename "$smiles_file")
 log_prefix="${log_prefix%.*}"  # Remove the extension
 log_file="${log_prefix}.log"
-MSANI_PATH -i $smiles_file -j 2 >> "$log_file" 2>&1'''
+exec > "$log_file" 2>&1
+
+MSANI_PATH -i $smiles_file -j 2'''
 
 cleanup_script ="""
 # Get the number of tasks with the name msani_3d from the user's squeue
