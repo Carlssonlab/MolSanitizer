@@ -65,7 +65,7 @@ def parseArguments(args = None):
     parser.add_argument('-pre', '--prefix', default=None, type=str, help='Prefix for the output files. If not provided, the input file name will be used.')
 
     # Add integer option
-    parser.add_argument('--max_isomers', type=int, default=32, help='Maximum number of stereoisomers to consider (default: 32 = 5 stereocenters)')
+    parser.add_argument('--max_isomers', type=int, default=8, help='Maximum number of stereoisomers to consider (default: 8 = 3 stereocenters)')
     parser.add_argument('-nconfs', '--numconfs', type=int, default=2000, help='Maximum number of conformers to generate (default: 2000)')
     parser.add_argument('-rs', '--randomSeed', type=int, default=42, help='Random seed for reproducibility (default: 42)')
     parser.add_argument('-j', '--numcores', type=int, default=4, help='Number of cores to use for parallel processing (default: 4)')
@@ -136,7 +136,7 @@ def parseArguments_batch(args = None):
 
     # Add integer option
     parser.add_argument('-l', '--lines_per_job', dest='lines', type=int, default=lines_per_job, help=f'Number of lines to process per job (default: {lines_per_job})')
-    parser.add_argument('-max_isomers', '--max_isomers', type=int, default=32, help='Maximum number of stereoisomers to consider (default: 32 = 5 stereocenters)')
+    parser.add_argument('-max_isomers', '--max_isomers', type=int, default=8, help='Maximum number of stereoisomers to consider (default: 8 = 3 stereocenters)')
     parser.add_argument('-nconfs', '--numconfs', type=int, default=2000, help='Maximum number of conformers to generate (default: 2000)')
     parser.add_argument('-rs', '--randomSeed', type=int, default=42, help='Random seed for reproducibility (default: 42)')
     parser.add_argument('-tl', '--timelimit', type=int, default=time_limit, help=f'Time limit for the SLURM job in hours (default: {time_limit})')
