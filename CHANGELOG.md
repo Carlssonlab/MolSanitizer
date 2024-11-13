@@ -10,6 +10,10 @@ All notable changes to this project will be documented in this file.
 - Log files and input files now being organized to corresponding folders. New cleanup mechanism for msani_batch. - ([16c7f11](https://github.com/Isra3l/MolSanitizer/commit/16c7f111b43f67c7ec3b60844f89723a55180382))
 - DB2 files now are put in tar.gz by default. The number of files in each tar.gz depends on the number of lines per job. - ([dbd74a4](https://github.com/Isra3l/MolSanitizer/commit/dbd74a42537fed8c4e123f1f255b3debbd57d958))
 
+### 🐛 Bug Fixes
+
+- Constraints to MMFF94s to make the N atoms in amide linkages planar. - ([f1f82b7](https://github.com/Isra3l/MolSanitizer/commit/f1f82b7b7705b1bb5e32a3624fa7890e49b5a773))
+
 ### 🚜 Refactor
 
 - Remove deprecated scripts. - ([80f915c](https://github.com/Isra3l/MolSanitizer/commit/80f915c7187d7d2b7b089f2885765b0f4d85c893))
