@@ -306,124 +306,6 @@ def get_random_angle(mean, tolerance):
     return normalized_angle
 
 
-def torsional_scan_rand(mol, conf, i, matches, match_torlib, sdwriter, product, original,
-                        numConfs, atom_maps, visited, visitting):
-    '''
-    Recursively enumerates all angles for matching dihedrals.
-    
-    Parameters:
-    - mol: The molecule object.
-    - conf: The conformer object.
-    - i: The index of the dihedral being enumerated.
-    - matches: The list of matching dihedrals.
-    - match_torlib: The torsion library for matching dihedrals.
-    - sdwriter: The SD writer object.
-    - product: The list of conformers.
-    - original: The original molecule object (for alignment).
-    - numConfs: The maximum number of conformers to generate.
-    - atom_maps: The list of atom maps.
-    - visited: The set of visited dihedrals.
-    
-    Returns:
-    - product: The list of conformers.
-    '''
-
-    if len(product) >= numConfs: return product, visited
-    if i >= len(matches): #base case, torsions should be set in conf
-        #print(check_too_close_nonbonded_atoms(mol.GetConformer(conf), mol))
-        if check_too_close_nonbonded_atoms(mol.GetConformer(conf), mol): return product, visited
-        product.append(Chem.Conformer(mol.GetConformer(conf))) 
-        visited.add(tuple(visitting.copy()))
-        rdMolAlign.AlignMol(mol, original, conf, 0, atomMap=[(i, i) for i in atom_maps])
-        sdwriter.write(mol, conf)
-        return product, visited
-    else:
-        peaks = strain_filter.extract_peaks(match_torlib, matches[i][1:3])
-        dihedral_4_atoms = peaks[0]
-        for peakidx, (prefered, tolerance, _ , _) in enumerate(peaks[1]):
-            rdMolTransforms.SetDihedralDeg(mol.GetConformer(conf),*dihedral_4_atoms,value = get_random_angle(prefered, tolerance))
-            visitting[i] = peakidx
-            product, visited = torsional_scan_rand(mol, conf, i+1, matches, match_torlib, sdwriter, 
-                                                   product, original, numConfs, atom_maps, visited, visitting)        
-        return product, visited
-    
-
-def stochastic_sampling(mol, tolerance_level, reordered_rot_bonds, match_torlib, sdwriter, original, numConfs, rmsd, atom_maps, max_attempts = 100, product = [], visited = set()):
-    """
-    Perform stochastic sampling of the conformational space of a molecule using a Monte Carlo method.
-
-    This function generates a specified number of conformers for a given molecule by iteratively modifying
-    its torsional angles according to predefined torsion library rules. The method utilizes a Monte Carlo 
-    approach to explore the conformational space, checking for already sampled or invalid conformers 
-    (e.g., those with non-bonded atoms too close to each other) and aligning the resulting conformers to 
-    a reference structure.
-
-    Args:
-        mol (rdkit.Chem.Mol): The RDKit molecule object to sample.
-        tolerance_level (int): The tolerance level for sampling torsional angles:
-                               1 for relaxed sampling, 2 for more tolerable sampling.
-        reordered_rot_bonds (list): A list of rotatable bonds in the molecule, reordered for processing.
-        match_torlib (list): The torsion library rules that dictate the allowed torsional angles and their probabilities.
-        sdwriter (rdkit.Chem.SDWriter): An SDWriter object to output the generated conformers to an SD file.
-        original (rdkit.Chem.Mol): The original conformation of the molecule used for alignment reference.
-        numConfs (int): The number of unique conformers to generate.
-        rmsd (float): The RMSD threshold for pruning conformers.
-        atom_maps (list of tuples): A list of tuples representing the atom mapping between the original
-                                    conformation and the generated conformers, used for rigid part alignment.
-        max_attempts (int, optional): The maximum number of attempts to find a valid, unique conformer before stopping. 
-                                      Defaults to 100.
-        product (list, optional): A list to store the successfully generated conformers. Defaults to an empty list.
-        visited (set, optional): A set to store the visited dihedral angles (especially from the torsional scan) to avoid redundant conformers. 
-                                 Defaults to an empty
-
-    Returns:
-        list: A list of RDKit Conformer objects representing the successfully sampled conformers.
-    """
-    sampled_mol = Chem.Mol(mol)
-    sampled_mol.RemoveAllConformers()
-    for conf in product:
-        sampled_mol.AddConformer(conf, assignId = True)
-
-    max_angles = 0 
-    for rule in match_torlib:
-        max_angles = max(len(rule[2]), max_angles)
-    #visit_matrix = np.zeros((len(reordered_rot_bonds), max_angles))
-    n_transform = len(reordered_rot_bonds)
-    visitting = [0 for _ in range(n_transform)]
-    attempts = 0
-    while (len(product) < numConfs):
-        for idx in range(n_transform):
-            # Each rotatable bond has equally likely chance to be selected
-            bond_idx = random.randint(0, len(reordered_rot_bonds)-1)
-            bond = reordered_rot_bonds[bond_idx]
-            
-            # Which peak to be selected is based on the weights of the peaks (defined by the "score" in TorLib)
-            peaks = strain_filter.extract_peaks(match_torlib, bond[1:3])
-            #peak_idx = random.randint(0, len(peaks[1])-1)
-            peak_idx = random.choices(range(len(peaks[1])), weights = [peak[3] for peak in peaks[1]], k=1)[0]
-            #print(peak_idx)
-            visitting[bond_idx] = peak_idx
-            peak = peaks[1][peak_idx]
-            #visit_matrix[bond_idx][peak_idx] += 1
-            rdMolTransforms.SetDihedralDeg(mol.GetConformer(0),*peaks[0],value = get_random_angle(peak[0], peak[tolerance_level]))
-
-        if check_too_close_nonbonded_atoms(mol.GetConformer(0), mol) or \
-        tuple(visitting) in visited:
-        #already_sampled(sampled_mol, mol, rmsd): 
-            attempts += 1
-            if attempts > max_attempts: break
-            continue
-        attempts = 0
-        rdMolAlign.AlignMol(mol, original, 0, 0, atomMap=[(i, i) for i in atom_maps])
-        #print(visitting)
-        visited.add(tuple(visitting.copy()))
-        product.append(Chem.Conformer(mol.GetConformer(0)))
-        sampled_mol.AddConformer(mol.GetConformer(0), assignId = True)
-        sdwriter.write(mol,confId=0)
-    #print(visit_matrix)
-    return product, visited
-
-
 def find_rigid_part(mol, rigid_rules):
     '''Find fused ring system of the molecule as the rigid part, 
     if none, use the hierarchical rules in rigid_part_rules.txt'''
@@ -547,6 +429,8 @@ def embed_smiles_rdkit(smiles, name, randomSeed=42, VERBOSE=False):
     else: flippable_Ns = []
     conjugated_substituted_Ns = smi2db2_utils.find_conjugated_substituted_nitrogen1(mol_H)
     additional_conjugated_substituted_Ns = smi2db2_utils.find_conjugated_substituted_nitrogen2(mol_H)
+    amide_linkages = smi2db2_utils.find_amide(mol_H)
+
     if VERBOSE:
         if planar_rings:
             print('\t Found planar rings:')
@@ -577,6 +461,9 @@ def embed_smiles_rdkit(smiles, name, randomSeed=42, VERBOSE=False):
             if conjugated_substituted_Ns:
                 for a, b, c, d in conjugated_substituted_Ns: ff.MMFFAddTorsionConstraint(a, b, c, d, False, 0, 0, 5)
                 for a, b, c, d in additional_conjugated_substituted_Ns: ff.MMFFAddTorsionConstraint(a, b, c, d, False, 178, 182, 1)
+                for a, b, c, d, e in amide_linkages: # O=C-N(-C)-H should be coplanar.
+                    ff.MMFFAddTorsionConstraint(a, b, c, d, False, 0, 0, 1)
+                    ff.MMFFAddTorsionConstraint(a, b, c, e, False, 180, 180, 1)
             ff.Minimize()
             conformer = mol_H.GetConformer(cid)
             energy = ff.CalcEnergy()
@@ -596,6 +483,9 @@ def embed_smiles_rdkit(smiles, name, randomSeed=42, VERBOSE=False):
             if conjugated_substituted_Ns:
                 for a, b, c, d in conjugated_substituted_Ns: ff.MMFFAddTorsionConstraint(a, b, c, d, False, 0, 0, 5)
                 for a, b, c, d in additional_conjugated_substituted_Ns: ff.MMFFAddTorsionConstraint(a, b, c, d, False, 178, 182, 1)
+                for a, b, c, d, e in amide_linkages: # O=C-N(-C)-H should be coplanar.
+                    ff.MMFFAddTorsionConstraint(a, b, c, d, False, 0, 0, 1)
+                    ff.MMFFAddTorsionConstraint(a, b, c, e, False, 180, 180, 1)
             ff.Minimize()
             conformer = mol_H.GetConformer(cid)
             energy = ff.CalcEnergy()
@@ -707,12 +597,15 @@ def embed_smiles_babel(smiles, name, VERBOSE=False):
 
     conjugated_substituted_Ns = smi2db2_utils.find_conjugated_substituted_nitrogen1(mol_rdkit)
     additional_conjugated_substituted_Ns = smi2db2_utils.find_conjugated_substituted_nitrogen2(mol_rdkit)
-
+    amide_linkages = smi2db2_utils.find_amide(mol_rdkit)
     mp = rdForceFieldHelpers.MMFFGetMoleculeProperties(mol_rdkit, mmffVariant="MMFF94s")
     ff = rdForceFieldHelpers.MMFFGetMoleculeForceField(mol_rdkit, mp, confId=0)
     if conjugated_substituted_Ns:
         for a, b, c, d in conjugated_substituted_Ns: ff.MMFFAddTorsionConstraint(a, b, c, d, False, 0, 0, 5)
         for a, b, c, d in additional_conjugated_substituted_Ns: ff.MMFFAddTorsionConstraint(a, b, c, d, False, 178, 182, 1)
+        for a, b, c, d, e in amide_linkages: # O=C-N(-C)-H should be coplanar.
+            ff.MMFFAddTorsionConstraint(a, b, c, d, False, 0, 0, 1)
+            ff.MMFFAddTorsionConstraint(a, b, c, e, False, 180, 180, 1)
     ff.Minimize()
     rigid_scaffolds = [Chem.Mol(mol_rdkit)] # Replicate the output from embed_rdkit
     return mol_rdkit, net_charge, rigid_scaffolds, list()
@@ -960,7 +853,7 @@ def choose_sampling_method_ver3(rigid_scaffolds, name, numConfs, sulfo_matches, 
     
     """
     num_confs_by_rotbonds, match_torlib = count_confs_by_rotbonds(rigid_scaffolds[0], VERBOSE)
-    
+    requested_num_confs = numConfs
     #if VERBOSE: print(f"\t{num_confs_by_rotbonds} {num_confs_H} {num_rotatable_H} {numConfs}")
     if VERBOSE: print(f"\tTheory: {num_confs_by_rotbonds} possible conformations")
 
@@ -987,7 +880,7 @@ def choose_sampling_method_ver3(rigid_scaffolds, name, numConfs, sulfo_matches, 
         original_mol = Chem.Mol(mol)
         # Only remap the match_torlib when sulfo_matches is found
         if sulfo_matches: num_confs_by_rotbonds, match_torlib = count_confs_by_rotbonds(mol, VERBOSE)
- 
+        if numConfs < num_confs_by_rotbonds: numConfs = min(numConfs * 5, num_confs_by_rotbonds)
         if VERBOSE: print('\tRunning stochastic torsional sampling')
         
         product, visited, unvisited = stochastic_sampling_v4(mol, 1, match_torlib, numConfs, num_confs_by_rotbonds, 250, list(), visited = None, unvisited=None)
@@ -1005,6 +898,7 @@ def choose_sampling_method_ver3(rigid_scaffolds, name, numConfs, sulfo_matches, 
             continue
 
         product.sort(key=lambda x: x[1]) #Sort by energy
+        product = product[:requested_num_confs]
         before_energy = len(product)
         min_energy = product[0][1]
         result_mol = Chem.Mol(mol)
@@ -1022,7 +916,7 @@ def choose_sampling_method_ver3(rigid_scaffolds, name, numConfs, sulfo_matches, 
             sdf_file, mol2_file = smi2db2_utils.get_sdf_mol2_filename(name, idx, align_copy)
             with Chem.SDWriter(sdf_file) as sdwriter:
                 for conf_id in range(result_mol.GetNumConformers()):
-                    rdMolAlign.AlignMol(result_mol, original_mol, conf_id, 0, atomMap=[(i,i) for i in atom_map])
+                    rdMolAlign.AlignMol(result_mol, original_mol, conf_id, 0, atomMap=[(i, i) for i in atom_map])
                     sdwriter.write(result_mol, confId=conf_id)
             convert_sdf_mol2(sdf_file, mol2_file, VERBOSE)
             

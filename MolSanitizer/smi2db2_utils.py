@@ -15,6 +15,7 @@ sulfonamide_like_substructure = Chem.MolFromSmarts("[*:1][S;$(S(=*)=*):2]-!@[N&+
 aliphatic_nitrogen_substructure = Chem.MolFromSmarts("[A:1]@[N&+0;!$(N-*=*):2](@[A:3])!@[*,#1:4]")
 conjugated_substituted_nitrogen = Chem.MolFromSmarts('[a:1]:[a:2]:[a:3]:[nX3&+0:4]-*')
 additional_substituted_nitrogen = Chem.MolFromSmarts('[!#1]-[nX3&+0:1]:[a:2]:[a:3]')
+amide_substructure = Chem.MolFromSmarts('[O:1]=[CX3:2]!@[N&+0:3](-[!#1:4])-[#1:5]')
 
 def find_flipped_nitrogen(mol_H: Mol):
     '''
@@ -52,6 +53,11 @@ def find_conjugated_substituted_nitrogen2(mol_H: Mol):
                 filtered_matches.append(match)
     return filtered_matches
 
+def find_amide(mol_H: Mol):
+    '''
+        Find the amide in the molecule. O=C-N(-R)-H
+    '''
+    return mol_H.GetSubstructMatches(amide_substructure)
 
 def calculate_dihedrals_for_rings(conf: Conformer, ring_atoms):
     """Calculate dihedral angles for all torsions involving four consecutive atoms in the ring."""
