@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### 🚀 Features
 
+- SMILES is now back to the DB2 format! - ([0da0468](https://github.com/Isra3l/MolSanitizer/commit/0da04682d7cea4588945ee4fddaf5e8f1fb4ff16))
 - New implementation of stochastic sampling that can sample more exhaustively the conformational space. This involves sampling more and filter later at the end. Msani now doesn't write out and read in intermediate files repeatedly but process in the memory to speed up the process. - ([6edbfad](https://github.com/Isra3l/MolSanitizer/commit/6edbfadda576db3c4b819e88aa7881615fb84847))
 - The default maximum stereoisomers to be expanded is now set to 8 (previously 32). This could always be set specifically by flag --max_isomers. - ([536f5fe](https://github.com/Isra3l/MolSanitizer/commit/536f5fe94af181e32a9d5b3ad7d54f11061b61df))
 - Log files and input files now being organized to corresponding folders. New cleanup mechanism for msani_batch. - ([16c7f11](https://github.com/Isra3l/MolSanitizer/commit/16c7f111b43f67c7ec3b60844f89723a55180382))
@@ -20,6 +21,10 @@ All notable changes to this project will be documented in this file.
 - Remove deprecated scripts. - ([4d82dfa](https://github.com/Isra3l/MolSanitizer/commit/4d82dfa97a7bf0adb6a11f3c7d6656ad3cd12329))
 - Remove deprecated scripts. - ([80f915c](https://github.com/Isra3l/MolSanitizer/commit/80f915c7187d7d2b7b089f2885765b0f4d85c893))
 - Remove deprecated script that is not used anymore. - ([3cfa3b8](https://github.com/Isra3l/MolSanitizer/commit/3cfa3b87c545e416eee007c0ca643b3a27e21246))
+
+### ⚡ Performance
+
+- Modifications to mol2db2 allows the mol2 object being recorded on-the-fly rather than reading from the mol2 blocks. OpenBabel is now only being used for the initial conversion for AMSOL. - ([65eed12](https://github.com/Isra3l/MolSanitizer/commit/65eed12479d9d31fc11eeb31d0b40061f59fab5a))
 
 ## [0.2.0] - 2024-11-06
 
