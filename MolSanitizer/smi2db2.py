@@ -13,7 +13,7 @@ from openbabel import openbabel as ob
 from rdkit import Chem
 from rdkit.Chem import rdDistGeom, rdForceFieldHelpers, rdMolTransforms, rdDistGeom, rdMolAlign, rdMolDescriptors
 import os,  shutil
-import subprocess
+import copy
 from pathlib import Path
 from scipy.spatial.distance import pdist, squareform
 from MolSanitizer.amsol import run_amsol
@@ -827,6 +827,10 @@ def choose_sampling_method_ver4(rigid_scaffolds, name, smiles, numConfs, sulfo_m
     """
     num_confs_by_rotbonds, match_torlib = count_confs_by_rotbonds(rigid_scaffolds[0], VERBOSE)
     requested_num_confs = numConfs
+    mol2_obj = mol2.Mol2(mol2fileName=f'../../solv/{name}/{name}.mol2')
+    mol2_obj.smiles = smiles
+    mol2_obj.cleanConfs()  # Clean previous conformations if any
+
     #if VERBOSE: print(f"\t{num_confs_by_rotbonds} {num_confs_H} {num_rotatable_H} {numConfs}")
     if VERBOSE: print(f"\tTheory: {num_confs_by_rotbonds} possible conformations")
 
@@ -845,14 +849,25 @@ def choose_sampling_method_ver4(rigid_scaffolds, name, smiles, numConfs, sulfo_m
         rigid_info = f'\tFound {atom_maps} ({label_map}) as a rigid part' if label_map else f'\tFound {atom_maps} (rings) as rigid parts'
         print(rigid_info)
 
-    if (len(match_torlib) == 0 or num_confs_by_rotbonds == 1):
-        for idx, mol in enumerate(rigid_scaffolds):
-            sdf_file, mol2_file = smi2db2_utils.get_sdf_mol2_filename(name, idx, 0)
-            with Chem.SDWriter(sdf_file) as sdwriter: sdwriter.write(mol)
-            convert_sdf_mol2(sdf_file, mol2_file, VERBOSE)
-        return 1
-    
     mol2_per_rigid_scaffold = []
+
+    if (len(match_torlib) == 0 or num_confs_by_rotbonds == 1):
+        clean_mol2_obj = copy.deepcopy(mol2_obj)
+
+        for idx, mol in enumerate(rigid_scaffolds):
+            clean_mol2_obj.atomXyz.append([])  # Initialize a list for atom coordinates
+            for atom_idx in range(mol.GetNumAtoms()):
+                pos = mol.GetConformer(0).GetAtomPosition(atom_idx)
+                clean_mol2_obj.atomXyz[-1].append((float(pos.x), float(pos.y), float(pos.z)))
+            clean_mol2_obj.xyzCount = 1
+            clean_mol2_obj.inputEnergy.append(9999.99)
+            clean_mol2_obj.inputTotalStrain.append(9999.99)
+            clean_mol2_obj.inputMaxStrain.append(9999.99)
+            clean_mol2_obj.inputHydrogens.append(0)  
+            mol2_per_rigid_scaffold.append([clean_mol2_obj])
+        return mol2_per_rigid_scaffold
+    
+
     for idx, mol in enumerate(rigid_scaffolds):
         if VERBOSE: print(f"\tHandling ring/sulfonamide conformation {idx+1}/{len(rigid_scaffolds)}")
         original_mol = Chem.Mol(mol)
@@ -868,10 +883,17 @@ def choose_sampling_method_ver4(rigid_scaffolds, name, smiles, numConfs, sulfo_m
 
         if len(product) == 0:
             # A backup when no conformer is found for given tolerance levels and SMILES
-            for align_copy, atom_map in enumerate(atom_maps):
-                sdf_file, mol2_file = smi2db2_utils.get_sdf_mol2_filename(name, idx, align_copy)
-                with Chem.SDWriter(sdf_file) as sdwriter: sdwriter.write(mol)
-                convert_sdf_mol2(sdf_file, mol2_file, VERBOSE)
+            clean_mol2_obj = copy.deepcopy(mol2_obj)
+            clean_mol2_obj.atomXyz.append([])  # Initialize a list for atom coordinates
+            for atom_idx in range(mol.GetNumAtoms()):
+                pos = mol.GetConformer(0).GetAtomPosition(atom_idx)
+                clean_mol2_obj.atomXyz[-1].append((float(pos.x), float(pos.y), float(pos.z)))
+            clean_mol2_obj.xyzCount = 1
+            clean_mol2_obj.inputEnergy.append(9999.99)
+            clean_mol2_obj.inputTotalStrain.append(9999.99)
+            clean_mol2_obj.inputMaxStrain.append(9999.99)
+            clean_mol2_obj.inputHydrogens.append(0)  
+            mol2_per_rigid_scaffold.append([clean_mol2_obj])
             continue
 
         product.sort(key=lambda x: x[1]) #Sort by energy
@@ -891,12 +913,12 @@ def choose_sampling_method_ver4(rigid_scaffolds, name, smiles, numConfs, sulfo_m
 
         for align_copy, atom_map in enumerate(atom_maps):
             # Load the Mol2 object for the specified molecule
-            mol2_obj = mol2.Mol2(mol2fileName=f'../../solv/{name}/{name}.mol2')
-            mol2_obj.cleanConfs()  # Clean previous conformations if any
-            mol2_obj.smiles = smiles
+            clean_mol2_obj = copy.deepcopy(mol2_obj)
+            #mol2_obj.cleanConfs()  # Clean previous conformations if any
+
             # Process each conformer in the result molecule
             for conf_id in range(result_mol.GetNumConformers()):
-                mol2_obj.atomXyz.append([])  # Initialize a list for atom coordinates
+                clean_mol2_obj.atomXyz.append([])  # Initialize a list for atom coordinates
 
                 # Align the conformer to the original molecule using the atom map
                 rdMolAlign.AlignMol(result_mol, original_mol, conf_id, 0, atomMap=[(i, i) for i in atom_map])
@@ -905,24 +927,24 @@ def choose_sampling_method_ver4(rigid_scaffolds, name, smiles, numConfs, sulfo_m
                 # Extract the atomic positions for the aligned conformer
                 for atom_idx in range(result_mol.GetNumAtoms()):
                     pos = conf.GetAtomPosition(atom_idx)
-                    mol2_obj.atomXyz[-1].append((float(pos.x), float(pos.y), float(pos.z)))
+                    clean_mol2_obj.atomXyz[-1].append((float(pos.x), float(pos.y), float(pos.z)))
 
                 # Initialize strain and energy values
-                mol2_obj.inputEnergy.append(9999.99)
-                mol2_obj.inputTotalStrain.append(9999.99)
-                mol2_obj.inputMaxStrain.append(9999.99)
-                mol2_obj.inputHydrogens.append(0)  
+                clean_mol2_obj.inputEnergy.append(9999.99)
+                clean_mol2_obj.inputTotalStrain.append(9999.99)
+                clean_mol2_obj.inputMaxStrain.append(9999.99)
+                clean_mol2_obj.inputHydrogens.append(0)  
 
             # Set the number of conformations for this Mol2 object
-            mol2_obj.xyzCount = result_mol.GetNumConformers()
-            mol2_objs.append(mol2_obj)
+            clean_mol2_obj.xyzCount = result_mol.GetNumConformers()
+            mol2_objs.append(clean_mol2_obj)
 
         if not(cleanup): 
             with Chem.SDWriter(f"{name}_mol{idx}.sdf") as sdwriter:
                 for confid in range(result_mol.GetNumConformers()):
                     sdwriter.write(result_mol, confId=confid)
 
-    mol2_per_rigid_scaffold.append(mol2_objs)
+        mol2_per_rigid_scaffold.append(mol2_objs)
 
     return mol2_per_rigid_scaffold
 
@@ -1065,8 +1087,7 @@ def gen_conf_chunk_ver3(df: pd.DataFrame, args, input_file='0'):
             if os.path.exists(folder) and os.path.isdir(folder):
                 try:
                     os.rmdir(folder)
-                except OSError as e:
-                    logger.error(f"Error in removing {folder}: {e}")
+                except: pass
     if args.timing:
         with open('msani_timing.csv', 'a') as f:
             f.write(logging_time)

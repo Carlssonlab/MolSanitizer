@@ -467,6 +467,7 @@ class Mol2(object):
     return self.rmsdTable
   
   def cleanConfs(self):
+    '''Remove all conformational information. Retain only the MOLECULE and BOND sections'''
     self.atomXyz = []
     self.inputEnergy = []  # kept for every conformation
     self.inputTotalStrain = [] # kept for every conformation
