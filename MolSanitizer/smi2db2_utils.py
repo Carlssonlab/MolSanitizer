@@ -268,11 +268,11 @@ def get_sdf_mol2_filename(name: str, rigid_scaffold_idx: int, align_copy: int):
     return f"{name}_mol{rigid_scaffold_idx}_align{align_copy}.sdf", f"{name}_mol{rigid_scaffold_idx}_align{align_copy}.mol2"
 
 def is_slurm_job():
-    # Check if SLURM_JOB_ID is present in environment variables
+    '''Check if SLURM_JOB_ID is present in environment variables'''
     return 'SLURM_JOB_ID' in os.environ
 
 def remove_folders(folders_to_remove: list):
-    # Remove specified folders and all their contents if they exist
+    ''' Remove specified folders and all their contents if they exist'''
     for folder in folders_to_remove:
         if os.path.exists(folder) and os.path.isdir(folder):
             try:

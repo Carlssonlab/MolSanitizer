@@ -865,6 +865,8 @@ def choose_sampling_method_ver4(rigid_scaffolds, name, smiles, numConfs, sulfo_m
             clean_mol2_obj.inputMaxStrain.append(9999.99)
             clean_mol2_obj.inputHydrogens.append(0)  
             mol2_per_rigid_scaffold.append([clean_mol2_obj])
+            with Chem.SDWriter(f"{name}_mol{idx}.sdf") as sdwriter:
+                sdwriter.write(mol, 0)
         return mol2_per_rigid_scaffold
     
 
@@ -894,6 +896,8 @@ def choose_sampling_method_ver4(rigid_scaffolds, name, smiles, numConfs, sulfo_m
             clean_mol2_obj.inputMaxStrain.append(9999.99)
             clean_mol2_obj.inputHydrogens.append(0)  
             mol2_per_rigid_scaffold.append([clean_mol2_obj])
+            with Chem.SDWriter(f"{name}_mol{idx}.sdf") as sdwriter:
+                sdwriter.write(mol, 0)
             continue
 
         product.sort(key=lambda x: x[1]) #Sort by energy
