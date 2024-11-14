@@ -1039,18 +1039,15 @@ def gen_conf_chunk_ver3(df: pd.DataFrame, args, input_file='0'):
             os.chdir(f"db2/{name}")
             try:
                 db2_data_all = ""
-                # for mol2strs in mol2_per_rigid_scaffold:
-                #     for mol2str in mol2strs:
-                #         db2_data = mol2db2.mol2db2_quick_ver2(mol2str, f"{name}.solv")
-                #         db2_data_all += db2_data
                 for mol2objs in mol2_per_rigid_scaffold:
                     for mol2obj in mol2objs:
                         db2_data = mol2db2.mol2db2_quick_ver2(mol2obj, f"{name}.solv")
                         db2_data_all += db2_data
                 write_to_tarball(output, db2_data_all.encode('utf-8'), name=f"{name}.db2")
                 os.chdir("../..")
+                smi2db2_utils.remove_folders([f"solv/{name}"])
                 if cleanup:
-                    subprocess.run(f"rm -rf 3d/{name} solv/{name} db2/{name}", shell=True)
+                    smi2db2_utils.remove_folders([f"3d/{name}", f"db2/{name}"])
             except Exception as e:
                 logger.error(f"Error in converting {name} to DB2 format: {e}")
                 os.chdir("../..")
@@ -1061,9 +1058,15 @@ def gen_conf_chunk_ver3(df: pd.DataFrame, args, input_file='0'):
                 logging_time += f'{name},{embed_time-start},{amsol_time-embed_time},{sampling_time-amsol_time},{mol2db2_time-sampling_time},{mol2db2_time-start}\n'
             processed_mols.add(name)
 
-    if cleanup:
-        if not(smi2db2_utils.is_slurm_job()):
-            smi2db2_utils.remove_folders(["3d", "solv"])
+    
+    if not(smi2db2_utils.is_slurm_job()):
+        folders_to_remove = ['3d', 'solv'] if cleanup else ['solv']
+        for folder in folders_to_remove:
+            if os.path.exists(folder) and os.path.isdir(folder):
+                try:
+                    os.rmdir(folder)
+                except OSError as e:
+                    logger.error(f"Error in removing {folder}: {e}")
     if args.timing:
         with open('msani_timing.csv', 'a') as f:
             f.write(logging_time)

@@ -272,12 +272,11 @@ def is_slurm_job():
     return 'SLURM_JOB_ID' in os.environ
 
 def remove_folders(folders_to_remove: list):
-    # Remove "3d" and "solv" folders if they exist
-    
+    # Remove specified folders and all their contents if they exist
     for folder in folders_to_remove:
         if os.path.exists(folder) and os.path.isdir(folder):
             try:
-                os.rmdir(folder)
-            except OSError as e:
+                shutil.rmtree(folder)
+            except Exception as e:
                 print(f"Error removing folder {folder}: {e}")
 
