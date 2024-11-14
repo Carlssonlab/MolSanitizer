@@ -893,7 +893,7 @@ def choose_sampling_method_ver4(rigid_scaffolds, name, smiles, numConfs, sulfo_m
             # Load the Mol2 object for the specified molecule
             mol2_obj = mol2.Mol2(mol2fileName=f'../../solv/{name}/{name}.mol2')
             mol2_obj.cleanConfs()  # Clean previous conformations if any
-            #mol2_obj.smiles = smiles
+            mol2_obj.smiles = smiles
             # Process each conformer in the result molecule
             for conf_id in range(result_mol.GetNumConformers()):
                 mol2_obj.atomXyz.append([])  # Initialize a list for atom coordinates
