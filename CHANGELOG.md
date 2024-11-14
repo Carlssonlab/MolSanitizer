@@ -26,6 +26,10 @@ All notable changes to this project will be documented in this file.
 
 - Modifications to mol2db2 allows the mol2 object being recorded on-the-fly rather than reading from the mol2 blocks. OpenBabel is now only being used for the initial conversion for AMSOL. - ([65eed12](https://github.com/Isra3l/MolSanitizer/commit/65eed12479d9d31fc11eeb31d0b40061f59fab5a))
 
+### 🎨 Styling
+
+- Solv files are now deleted even the nocleanup is used. The .solv file is still exist in the db2 folder if the user want to check for the partial charges and desolvation penalties. - ([b99efdf](https://github.com/Isra3l/MolSanitizer/commit/b99efdf80ef94561b591f4b8bbd4bb107c33e8e8))
+
 ## [0.2.0] - 2024-11-06
 
 ### 🚀 Features
