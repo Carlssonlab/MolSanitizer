@@ -185,7 +185,7 @@ def mol2db2(options):
     print(("time to (start) construction hierarchy (subtotal):", timeHier-hydTime))
   return timeStart, hierarchyDataGenerator(mol2data)
 
-def mol2db2_quick_ver2(mol2str, solvfile, clashfile = Path(__file__).parent / 'clashfile.txt', disttol = 0.001):
+def mol2db2_quick_ver2(mol2obj, solvfile, clashfile = Path(__file__).parent / 'clashfile.txt', disttol = 0.001):
   #argv = ["-s", solvfile, "-d", clashfile]
   argv = ["-s", solvfile, "-z", "-r"] #Added norotateh (-z) noreseth (-r) here
   options, args = parserDefaults().parse_args(argv) # get the default options
@@ -196,7 +196,7 @@ def mol2db2_quick_ver2(mol2str, solvfile, clashfile = Path(__file__).parent / 'c
   else:
     timeStart = None
   #print(mol2str[:100])
-  mol2data = mol2.Mol2(mol2text=mol2str)
+  mol2data = mol2obj
   mol2data.convertDockTypes(options.atomtypefile)
   mol2data.addColors(options.colortablefile)
   solvdata = solv.Solv(options.solvfile)

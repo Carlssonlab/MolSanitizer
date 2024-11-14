@@ -465,7 +465,14 @@ class Mol2(object):
           self.rmsdList.append((rmsd, otherXyz, xyzCount))
       self.rmsdList.sort(key=operator.itemgetter(0))
     return self.rmsdTable
-
+  
+  def cleanConfs(self):
+    self.atomXyz = []
+    self.inputEnergy = []  # kept for every conformation
+    self.inputTotalStrain = [] # kept for every conformation
+    self.inputMaxStrain = [] # kept for every conformation
+    self.inputHydrogens = []
+    
   def getRMSDlist(self):
     '''gets the rmsds between all pairs as a list of rmsd, conf, conf tuples'''
     self.getRMSDtable()

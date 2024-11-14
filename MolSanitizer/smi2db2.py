@@ -12,7 +12,7 @@ import itertools
 from openbabel import openbabel as ob
 from rdkit import Chem
 from rdkit.Chem import rdDistGeom, rdForceFieldHelpers, rdMolTransforms, rdDistGeom, rdMolAlign, rdMolDescriptors
-import os, glob, shutil
+import os,  shutil
 import subprocess
 from pathlib import Path
 from scipy.spatial.distance import pdist, squareform
@@ -821,7 +821,7 @@ def stochastic_sampling_v4(mol, tolerance_level, match_torlib, numConfs, total_p
             if energy < min_energy + window: product.append((Chem.Conformer(mol.GetConformer(0)), energy))
     return product, visited, unvisited
 
-def choose_sampling_method_ver4(rigid_scaffolds, name, numConfs, sulfo_matches, energywindow, VERBOSE=False):
+def choose_sampling_method_ver4(rigid_scaffolds, name, smiles, numConfs, sulfo_matches, energywindow, cleanup=True, VERBOSE=False):
     """
     
     """
@@ -886,17 +886,44 @@ def choose_sampling_method_ver4(rigid_scaffolds, name, numConfs, sulfo_matches, 
         for conf in product:
             result_mol.AddConformer(conf, assignId=True)
         if VERBOSE: print(f"\tEnergy filter: {before_energy} -> {len(product)}")
-        mol2_strings = []
+
+        mol2_objs = []
+
         for align_copy, atom_map in enumerate(atom_maps):
-            sdf_file, mol2_file = smi2db2_utils.get_sdf_mol2_filename(name, idx, align_copy)
-            sdf_buffer = io.StringIO()
-            with Chem.SDWriter(sdf_buffer) as sdwriter:
-                for conf_id in range(result_mol.GetNumConformers()):
-                    rdMolAlign.AlignMol(result_mol, original_mol, conf_id, 0, atomMap=[(i, i) for i in atom_map])
-                    sdwriter.write(result_mol, confId=conf_id)
-            mol2_strings.append(convert_sdf_mol2_str(sdf_buffer, VERBOSE))
-        with open(f"{name}_mol{idx}.sdf", "w") as f: f.write(sdf_buffer.getvalue())
-    mol2_per_rigid_scaffold.append(mol2_strings)
+            # Load the Mol2 object for the specified molecule
+            mol2_obj = mol2.Mol2(mol2fileName=f'../../solv/{name}/{name}.mol2')
+            mol2_obj.cleanConfs()  # Clean previous conformations if any
+            #mol2_obj.smiles = smiles
+            # Process each conformer in the result molecule
+            for conf_id in range(result_mol.GetNumConformers()):
+                mol2_obj.atomXyz.append([])  # Initialize a list for atom coordinates
+
+                # Align the conformer to the original molecule using the atom map
+                rdMolAlign.AlignMol(result_mol, original_mol, conf_id, 0, atomMap=[(i, i) for i in atom_map])
+                conf = result_mol.GetConformer(conf_id)
+
+                # Extract the atomic positions for the aligned conformer
+                for atom_idx in range(result_mol.GetNumAtoms()):
+                    pos = conf.GetAtomPosition(atom_idx)
+                    mol2_obj.atomXyz[-1].append((float(pos.x), float(pos.y), float(pos.z)))
+
+                # Initialize strain and energy values
+                mol2_obj.inputEnergy.append(9999.99)
+                mol2_obj.inputTotalStrain.append(9999.99)
+                mol2_obj.inputMaxStrain.append(9999.99)
+                mol2_obj.inputHydrogens.append(0)  
+
+            # Set the number of conformations for this Mol2 object
+            mol2_obj.xyzCount = result_mol.GetNumConformers()
+            mol2_objs.append(mol2_obj)
+
+        if not(cleanup): 
+            with Chem.SDWriter(f"{name}_mol{idx}.sdf") as sdwriter:
+                for confid in range(result_mol.GetNumConformers()):
+                    sdwriter.write(result_mol, confId=confid)
+
+    mol2_per_rigid_scaffold.append(mol2_objs)
+
     return mol2_per_rigid_scaffold
 
 
@@ -909,11 +936,12 @@ def gen_conf_chunk_ver3(df: pd.DataFrame, args, input_file='0'):
         logging_time = ""
     processed_mols = set()
     os.makedirs(f"db2", exist_ok=True)
-    with tarfile.open(f"db2/{input_file}.tar.gz", mode='w:gz') as output:
+    with tarfile.open(f"db2/{input_file}.db2.tgz", mode='w:gz') as output:
         for idx, row in df.iterrows():
             if args.timing: start = time.time()
             random.seed(randomSeed)
             name = row['ids']
+            smiles = row['smiles']
             if name in processed_mols:
                 print(f"Skipping {name} as it already exists")
                 logger.info(f"Skipping {name} as it already exists")
@@ -923,7 +951,7 @@ def gen_conf_chunk_ver3(df: pd.DataFrame, args, input_file='0'):
             
             # Embed smiles into initial conformation using RDKit with a timeout
             queue = multiprocessing.Queue()
-            process = multiprocessing.Process(target=generate_conformation, args=(queue, row['smiles'], name, randomSeed, VERBOSE))
+            process = multiprocessing.Process(target=generate_conformation, args=(queue, smiles, name, randomSeed, VERBOSE))
             process.start()
             process.join(timeout=timeout*60)  # default 2 minutes timeout
 
@@ -933,14 +961,14 @@ def gen_conf_chunk_ver3(df: pd.DataFrame, args, input_file='0'):
                 process.terminate()
                 process.join()
                 try:
-                    amsol_mol, netcharge, rigid_scaffolds, sulfo_matches = embed_smiles_babel(row['smiles'], name, VERBOSE)
+                    amsol_mol, netcharge, rigid_scaffolds, sulfo_matches = embed_smiles_babel(smiles, name, VERBOSE)
                 except Exception as e:
                     logger.error(f"Error in generating initial conformation using OpenBabel for {name}, skipping it {e}")
-                    log_error(row['smiles'], name)
+                    log_error(smiles, name)
                     continue
                 if amsol_mol is None:
                     logger.error(f"Error in generating initial conformation using OpenBabel for {name}, skipping it")
-                    log_error(row['smiles'], name)
+                    log_error(smiles, name)
                     continue
 
             # Retrieve result from queue
@@ -948,13 +976,13 @@ def gen_conf_chunk_ver3(df: pd.DataFrame, args, input_file='0'):
                 amsol_mol, netcharge, rigid_scaffolds, sulfo_matches, error = queue.get()
                 if error:
                     logger.error(f"Error in generating initial conformation using RDKIT for {name}, skipping it: {error}")
-                    log_error(row['smiles'], name)
+                    log_error(smiles, name)
                     continue
                 amsol_mol.SetProp("_Name", name) #By somehow this implementation loses the _Name props
                 for rigid_scaffold in rigid_scaffolds: rigid_scaffold.SetProp("_Name", name)
             else:
                 logger.error(f"Unknown error in generating initial conformation for {name}, skipping it.")
-                log_error(row['smiles'], name)
+                log_error(smiles, name)
                 continue
 
             if args.timing: embed_time = time.time() # Time for embedding
@@ -983,7 +1011,7 @@ def gen_conf_chunk_ver3(df: pd.DataFrame, args, input_file='0'):
             os.chdir("../..")
             if error_signal == -1 and conf_id+1 == amsol_mol.GetNumConformers(): # AMSOL failed
                 logger.error(f"AMSOL failed for {name}, skipping it")
-                log_error(row['smiles'], name)
+                log_error(smiles, name)
                 continue
             shutil.copy(f"solv/{name}/output.mol2", f"solv/{name}/{name}_solv.mol2")
             shutil.move(f"solv/{name}/output.solv", f"solv/{name}/{name}_solv.solv")
@@ -995,11 +1023,11 @@ def gen_conf_chunk_ver3(df: pd.DataFrame, args, input_file='0'):
             shutil.copy2(os.path.join("solv", name, f"{name}_solv.mol2"), os.path.join("3d", name, f"{name}.mol2"))
             os.chdir(f"3d/{name}")
             try:
-                mol2_per_rigid_scaffold = choose_sampling_method_ver4(rigid_scaffolds, name, numConfs, sulfo_matches, energywindow, VERBOSE)
+                mol2_per_rigid_scaffold = choose_sampling_method_ver4(rigid_scaffolds, name, smiles, numConfs, sulfo_matches, energywindow, cleanup, VERBOSE)
             except Exception as e:
                 logger.error(f"Error in torsional sampling for {name}: {e}")
                 os.chdir("../..")
-                log_error(row['smiles'], name)
+                log_error(smiles, name)
                 continue
             os.chdir("../..")
             if args.timing: sampling_time = time.time()
@@ -1011,11 +1039,14 @@ def gen_conf_chunk_ver3(df: pd.DataFrame, args, input_file='0'):
             os.chdir(f"db2/{name}")
             try:
                 db2_data_all = ""
-                for mol2strs in mol2_per_rigid_scaffold:
-                    for mol2str in mol2strs:
-                        db2_data = mol2db2.mol2db2_quick_ver2(mol2str, f"{name}.solv")
+                # for mol2strs in mol2_per_rigid_scaffold:
+                #     for mol2str in mol2strs:
+                #         db2_data = mol2db2.mol2db2_quick_ver2(mol2str, f"{name}.solv")
+                #         db2_data_all += db2_data
+                for mol2objs in mol2_per_rigid_scaffold:
+                    for mol2obj in mol2objs:
+                        db2_data = mol2db2.mol2db2_quick_ver2(mol2obj, f"{name}.solv")
                         db2_data_all += db2_data
-                #write_to_file(db2_data_all, f"../{name}.db2")
                 write_to_tarball(output, db2_data_all.encode('utf-8'), name=f"{name}.db2")
                 os.chdir("../..")
                 if cleanup:
@@ -1023,7 +1054,7 @@ def gen_conf_chunk_ver3(df: pd.DataFrame, args, input_file='0'):
             except Exception as e:
                 logger.error(f"Error in converting {name} to DB2 format: {e}")
                 os.chdir("../..")
-                log_error(row['smiles'], name)
+                log_error(smiles, name)
                 continue
             if args.timing: 
                 mol2db2_time = time.time()
