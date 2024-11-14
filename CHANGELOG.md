@@ -14,6 +14,7 @@ All notable changes to this project will be documented in this file.
 
 ### 🐛 Bug Fixes
 
+- Fix a bug inheriting from the recent mol2 implementation improvement. Mol2 objects are now deepcopy to avoid referencing issues. - ([58a0815](https://github.com/Isra3l/MolSanitizer/commit/58a081580eea581081b963e6b4512553a2a7eeac))
 - Constraints to MMFF94s to make the N atoms in amide linkages planar. - ([f1f82b7](https://github.com/Isra3l/MolSanitizer/commit/f1f82b7b7705b1bb5e32a3624fa7890e49b5a773))
 
 ### 🚜 Refactor
