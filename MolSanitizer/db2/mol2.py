@@ -60,6 +60,12 @@ class Mol2(object):
       for line in mol2text:
         self.processLine(line)
       self.xyzCount += 1
+      self.origXyzCount = self.xyzCount
+      while len(self.inputEnergy) < self.xyzCount:
+        self.inputEnergy.append(9999.99)
+        self.inputTotalStrain.append(9999.99)
+        self.inputMaxStrain.append(9999.99)
+        self.inputHydrogens.append(0)
     #read the name.txt file which is one line and is made by the toolchain
     if nameFileName is not None:
       try:

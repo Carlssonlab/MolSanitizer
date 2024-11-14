@@ -112,7 +112,7 @@ def process_files(args, start_time: int):
 
 
             if args.db2:
-                smi2db2.gen_conf_chunk_ver2(chunk, args, input_file_path.stem)
+                smi2db2.gen_conf_chunk_ver3(chunk, args, input_file_path.stem)
                        
             if not args.test:
                 if step == 1: time_step1 = time.time()-start_time
@@ -133,7 +133,7 @@ def process_smiles(args):
 
     if args.db2: 
         if os.path.exists('db2/0.db2'): os.remove('db2/0.db2') # 0 is the default name
-        smi2db2.gen_conf_chunk_ver2(chunk, args)
+        smi2db2.gen_conf_chunk_ver3(chunk, args)
     
     print('Processed SMILES:')
     for i, row in chunk.iterrows():

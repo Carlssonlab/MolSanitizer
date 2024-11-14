@@ -185,6 +185,173 @@ def mol2db2(options):
     print(("time to (start) construction hierarchy (subtotal):", timeHier-hydTime))
   return timeStart, hierarchyDataGenerator(mol2data)
 
+def mol2db2_quick_ver2(mol2str, solvfile, clashfile = Path(__file__).parent / 'clashfile.txt', disttol = 0.001):
+  #argv = ["-s", solvfile, "-d", clashfile]
+  argv = ["-s", solvfile, "-z", "-r"] #Added norotateh (-z) noreseth (-r) here
+  options, args = parserDefaults().parse_args(argv) # get the default options
+  options.tolerance = disttol
+  #options.verbose = True
+  if options.timeit:
+    timeStart = time.time()
+  else:
+    timeStart = None
+  #print(mol2str[:100])
+  mol2data = mol2.Mol2(mol2text=mol2str)
+  mol2data.convertDockTypes(options.atomtypefile)
+  mol2data.addColors(options.colortablefile)
+  solvdata = solv.Solv(options.solvfile)
+  if options.covalent:
+    covAtomType,indicesList = mol2data.removeCovalentDummyAtom()
+    mol2data.recolorCovalentAttachment(covAtomType)
+    for index in indicesList:
+      del solvdata.charge[index]
+      del solvdata.polarSolv[index]
+      del solvdata.surface[index]
+      del solvdata.apolarSolv[index]
+      del solvdata.solv[index]
+
+  if options.verbose:
+    print(("names:", mol2data.name, mol2data.protName, mol2data.smiles, \
+        mol2data.longname))
+    print(("dock atom types:", mol2data.atomType))
+    print(("dock atom type numbers:", mol2data.dockNum))
+    print(("dock color type numbers:", mol2data.colorNum))
+  clashDecider = clash.Clash(options.clashfile)
+  hydrogenRotater = hydrogens.Hydrogens(options.hydrogenfile)
+  if options.timeit:
+    timeReadIn = time.time()
+    print(("time to read in files:", timeReadIn-timeStart))
+  #0th step is to do the hydrogen operation directly on the mol2data.
+  #done here so the hierarchy knows exactly how many conformations it must deal
+  #with, not some estimate. and so each hierarchy has the max # of allowed sets
+  #again, without guessing.
+  if options.rotateh or options.reseth:
+    hydrogenRotater.findTerminalHydrogens(mol2data)
+    if options.verbose:
+      print((mol2data.hydrogensToRotate, " hydrogens need rotated"))
+    if options.reseth and 0 < mol2data.hydrogensToRotate:
+      hydrogenRotater.resetHydrogens(mol2data)
+    if options.rotateh and 0 < mol2data.hydrogensToRotate:
+      mol2data = hydrogenRotater.rotateHydrogens(mol2data)
+  if options.timeit:
+    hydTime = time.time()
+    print(("time to move hydrogens:", hydTime-timeReadIn))
+  if options.verbose:
+    print((len(mol2data.atomXyz), " conformations in input"))
+
+  def hierarchyDataGenerator(this_mol2data, depth=1):
+    '''Generators to pipeline hierarchy generation'''
+    try:
+      yield hierarchy.Hierarchy(
+          this_mol2data, clashDecider, tolerance=options.tolerance,
+          verbose=options.verbose, timeit=options.timeit,
+          limitset=options.limitset, limitconf=options.limitconf,
+          limitcoord=options.limitcoord, solvdata=solvdata)
+    except TooBigError as limitError:
+      if depth > options.maxrecursiondepth:
+        raise
+      breaks = hierarchy.computeBreaks(limitError, options)
+      origConfsPer = max(len(this_mol2data.atomXyz)/(breaks + 1), 1)  # at least 1
+      if options.verbose:
+        print(("splitting original input conformations into", breaks + 1, "parts", "(current depth: ", depth, ')'))
+      for snap in range(breaks + 1):  # extra one to do leftovers
+        newMol2data = this_mol2data.copy()  # copy orig before hydrogen rotations
+        first = origConfsPer * snap
+        last = origConfsPer * (snap + 1)
+        newMol2data.keepConfsOnly(first, last)
+        if len(newMol2data.atomXyz) > 0:
+          subgen = hierarchyDataGenerator(newMol2data, depth=depth+1)
+          for subhier in subgen:
+              yield subhier
+  if options.timeit:
+    timeHier = time.time()
+    print(("time to (start) construction hierarchy (subtotal):", timeHier-hydTime))
+  hierarchyDatas = hierarchyDataGenerator(mol2data)
+  sio = io.StringIO()
+  for data in hierarchyDatas:
+    # new function added to hierarchy class, writeFile, takes in a file handle instead of a file name so we can write to a stringIO file handle
+    data.writeFile(fileHandle=sio, verbose=options.verbose, timeit=options.timeit, limitset=options.limitset)
+  return sio.getvalue()
+
+def mol2db2(options):
+  '''function that does all the actual work you may want to do to convert a
+  mol2 file and solv file into a db2 file.'''
+  if options.timeit:
+    timeStart = time.time()
+  else:
+    timeStart = None
+  mol2data = mol2.Mol2(options.mol2file, nameFileName=None)
+  mol2data.convertDockTypes(options.atomtypefile)
+  mol2data.addColors(options.colortablefile)
+  solvdata = solv.Solv(options.solvfile)
+  if options.covalent:
+    covAtomType,indicesList = mol2data.removeCovalentDummyAtom()
+    mol2data.recolorCovalentAttachment(covAtomType)
+    for index in indicesList:
+      del solvdata.charge[index]
+      del solvdata.polarSolv[index]
+      del solvdata.surface[index]
+      del solvdata.apolarSolv[index]
+      del solvdata.solv[index]
+
+  if options.verbose:
+    print(("names:", mol2data.name, mol2data.protName, mol2data.smiles, \
+        mol2data.longname))
+    print(("dock atom types:", mol2data.atomType))
+    print(("dock atom type numbers:", mol2data.dockNum))
+    print(("dock color type numbers:", mol2data.colorNum))
+  clashDecider = clash.Clash(options.clashfile)
+  hydrogenRotater = hydrogens.Hydrogens(options.hydrogenfile)
+  if options.timeit:
+    timeReadIn = time.time()
+    print(("time to read in files:", timeReadIn-timeStart))
+  #0th step is to do the hydrogen operation directly on the mol2data.
+  #done here so the hierarchy knows exactly how many conformations it must deal
+  #with, not some estimate. and so each hierarchy has the max # of allowed sets
+  #again, without guessing.
+  if options.rotateh or options.reseth:
+    hydrogenRotater.findTerminalHydrogens(mol2data)
+    if options.verbose:
+      print((mol2data.hydrogensToRotate, " hydrogens need rotated"))
+    if options.reseth and 0 < mol2data.hydrogensToRotate:
+      hydrogenRotater.resetHydrogens(mol2data)
+    if options.rotateh and 0 < mol2data.hydrogensToRotate:
+      mol2data = hydrogenRotater.rotateHydrogens(mol2data)
+  if options.timeit:
+    hydTime = time.time()
+    print(("time to move hydrogens:", hydTime-timeReadIn))
+  if options.verbose:
+    print((len(mol2data.atomXyz), " conformations in input"))
+
+  def hierarchyDataGenerator(this_mol2data, depth=1):
+    '''Generators to pipeline hierarchy generation'''
+    try:
+      yield hierarchy.Hierarchy(
+          this_mol2data, clashDecider, tolerance=options.tolerance,
+          verbose=options.verbose, timeit=options.timeit,
+          limitset=options.limitset, limitconf=options.limitconf,
+          limitcoord=options.limitcoord, solvdata=solvdata)
+    except TooBigError as limitError:
+      if depth > options.maxrecursiondepth:
+        raise
+      breaks = hierarchy.computeBreaks(limitError, options)
+      origConfsPer = max(len(this_mol2data.atomXyz)/(breaks + 1), 1)  # at least 1
+      if options.verbose:
+        print(("splitting original input conformations into", breaks + 1, "parts", "(current depth: ", depth, ')'))
+      for snap in range(breaks + 1):  # extra one to do leftovers
+        newMol2data = this_mol2data.copy()  # copy orig before hydrogen rotations
+        first = origConfsPer * snap
+        last = origConfsPer * (snap + 1)
+        newMol2data.keepConfsOnly(first, last)
+        if len(newMol2data.atomXyz) > 0:
+          subgen = hierarchyDataGenerator(newMol2data, depth=depth+1)
+          for subhier in subgen:
+              yield subhier
+  if options.timeit:
+    timeHier = time.time()
+    print(("time to (start) construction hierarchy (subtotal):", timeHier-hydTime))
+  return timeStart, hierarchyDataGenerator(mol2data)
+
 def mol2db2writeDb2(options, timeStart, hierarchyDatas):
   '''does the writing of the output files. separate so you can make but
   not write. requires timeStart (can be None if no times wanted) and
