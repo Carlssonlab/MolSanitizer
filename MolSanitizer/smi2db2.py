@@ -729,7 +729,7 @@ def choose_sampling_method_ver2(rigid_scaffolds, name, numConfs, sulfo_matches, 
             
     return len(sdwriters)
 
-def stochastic_sampling_v4(mol, tolerance_level, match_torlib, numConfs, total_possible_solutions, window = 25, max_attempts=100, product=list(), unvisited = None, visited=None):
+def stochastic_sampling_v4(mol, tolerance_level, match_torlib, numConfs, total_possible_solutions, max_attempts=100, product=list(), unvisited = None, visited=None):
     """
     Perform stochastic sampling of the conformational space of a molecule.
 
@@ -753,8 +753,6 @@ def stochastic_sampling_v4(mol, tolerance_level, match_torlib, numConfs, total_p
     # Initialize the force field using MMFF94s
     mp = rdForceFieldHelpers.MMFFGetMoleculeProperties(mol, mmffVariant="MMFF94s")
 
-    if product: min_energy = min([conf[1] for conf in product])
-    else: min_energy = 1e6
 
     bonded_pairs, same_parent_pairs = precompute_bonded_and_same_parent_pairs(mol)
     # Condition to switch between visited matrix and unvisited set approaches
@@ -787,8 +785,7 @@ def stochastic_sampling_v4(mol, tolerance_level, match_torlib, numConfs, total_p
             visited.add(tuple(visitting.copy()))
             ff = rdForceFieldHelpers.MMFFGetMoleculeForceField(mol, mp, confId=0)
             energy = ff.CalcEnergy()
-            if energy < min_energy: min_energy = energy
-            if energy < min_energy + window: product.append((Chem.Conformer(mol.GetConformer(0)), energy))
+            product.append((Chem.Conformer(mol.GetConformer(0)), energy))
 
     else:
         # Use unvisited set approach for smaller spaces
@@ -817,8 +814,7 @@ def stochastic_sampling_v4(mol, tolerance_level, match_torlib, numConfs, total_p
             attempts = 0
             ff = rdForceFieldHelpers.MMFFGetMoleculeForceField(mol, mp, confId=0)
             energy = ff.CalcEnergy()
-            if energy < min_energy: min_energy = energy
-            if energy < min_energy + window: product.append((Chem.Conformer(mol.GetConformer(0)), energy))
+            product.append((Chem.Conformer(mol.GetConformer(0)), energy))
     return product, visited, unvisited
 
 def choose_sampling_method_ver4(rigid_scaffolds, name, smiles, numConfs, sulfo_matches, energywindow, cleanup=True, VERBOSE=False):
@@ -841,9 +837,10 @@ def choose_sampling_method_ver4(rigid_scaffolds, name, smiles, numConfs, sulfo_m
     if label_map is not None: numConfs = 30
     # For very flexible molecules, we need to sample more, then filter by energy later
     else:
-        if numConfs*10 < num_confs_by_rotbonds: numConfs = min(numConfs * 2, num_confs_by_rotbonds)
-        elif numConfs*5 < num_confs_by_rotbonds: numConfs = min(int(numConfs * 1.5), num_confs_by_rotbonds)
-        else: numConfs = min(numConfs, num_confs_by_rotbonds)
+        if numConfs*20 < num_confs_by_rotbonds: numConfs = min(numConfs * 5, num_confs_by_rotbonds)
+        elif numConfs*10 < num_confs_by_rotbonds: numConfs = min(int(numConfs * 3), num_confs_by_rotbonds)
+        elif numConfs*5 < num_confs_by_rotbonds: numConfs = min(int(numConfs * 2), num_confs_by_rotbonds)
+        else: numConfs = min(int(numConfs*1.5), num_confs_by_rotbonds)
 
     if VERBOSE:
         rigid_info = f'\tFound {atom_maps} ({label_map}) as a rigid part' if label_map else f'\tFound {atom_maps} (rings) as rigid parts'
@@ -877,11 +874,11 @@ def choose_sampling_method_ver4(rigid_scaffolds, name, smiles, numConfs, sulfo_m
         if sulfo_matches: num_confs_by_rotbonds, match_torlib = count_confs_by_rotbonds(mol, VERBOSE)
         if VERBOSE: print('\tRunning stochastic torsional sampling')
         
-        product, visited, unvisited = stochastic_sampling_v4(mol, 1, match_torlib, numConfs, num_confs_by_rotbonds, energywindow, 200, list(), visited = None, unvisited=None)
+        product, visited, unvisited = stochastic_sampling_v4(mol, 1, match_torlib, numConfs, num_confs_by_rotbonds, 200, list(), visited = None, unvisited=None)
 
         if len(product) <= min(numConfs, num_confs_by_rotbonds) // 3: 
             if VERBOSE: print(f'Failed for stochastic scan (generated {len(product)} confs), use the 2nd tolerance level')
-            product, visited, unvisited = stochastic_sampling_v4(mol, 2, match_torlib, numConfs, num_confs_by_rotbonds, energywindow, 400, product, visited = visited, unvisited = unvisited)
+            product, visited, unvisited = stochastic_sampling_v4(mol, 2, match_torlib, numConfs, num_confs_by_rotbonds, 400, product, visited = visited, unvisited = unvisited)
 
         if len(product) == 0:
             # A backup when no conformer is found for given tolerance levels and SMILES
