@@ -14,11 +14,13 @@ All notable changes to this project will be documented in this file.
 
 ### 🐛 Bug Fixes
 
+- The recent increased sampling seems to run too long on some case examples. This was the case of very flexbile but contain multiple repulsive parts. The current implementation should sampling faster for these cases. - ([aed5d98](https://github.com/Isra3l/MolSanitizer/commit/aed5d98369b116d8a084b01b8cd735802a45e2d7))
 - Fix a bug inheriting from the recent mol2 implementation improvement. Mol2 objects are now deepcopy to avoid referencing issues. - ([58a0815](https://github.com/Isra3l/MolSanitizer/commit/58a081580eea581081b963e6b4512553a2a7eeac))
 - Constraints to MMFF94s to make the N atoms in amide linkages planar. - ([f1f82b7](https://github.com/Isra3l/MolSanitizer/commit/f1f82b7b7705b1bb5e32a3624fa7890e49b5a773))
 
 ### 🚜 Refactor
 
+- Refactor the organization of the Mol2 object. - ([77b6fed](https://github.com/Isra3l/MolSanitizer/commit/77b6fed73721a91ff569e1808fba73e7ac03b6fe))
 - Remove deprecated scripts. - ([4d82dfa](https://github.com/Isra3l/MolSanitizer/commit/4d82dfa97a7bf0adb6a11f3c7d6656ad3cd12329))
 - Remove deprecated scripts. - ([80f915c](https://github.com/Isra3l/MolSanitizer/commit/80f915c7187d7d2b7b089f2885765b0f4d85c893))
 - Remove deprecated script that is not used anymore. - ([3cfa3b8](https://github.com/Isra3l/MolSanitizer/commit/3cfa3b87c545e416eee007c0ca643b3a27e21246))
