@@ -857,10 +857,6 @@ def choose_sampling_method_ver4(rigid_scaffolds, name, smiles, numConfs, sulfo_m
                 pos = mol.GetConformer(0).GetAtomPosition(atom_idx)
                 clean_mol2_obj.atomXyz[-1].append((float(pos.x), float(pos.y), float(pos.z)))
             clean_mol2_obj.xyzCount = 1
-            clean_mol2_obj.inputEnergy.append(9999.99)
-            clean_mol2_obj.inputTotalStrain.append(9999.99)
-            clean_mol2_obj.inputMaxStrain.append(9999.99)
-            clean_mol2_obj.inputHydrogens.append(0)  
             mol2_per_rigid_scaffold.append([clean_mol2_obj])
             with Chem.SDWriter(f"{name}_mol{idx}.sdf") as sdwriter:
                 sdwriter.write(mol, 0)
@@ -887,11 +883,7 @@ def choose_sampling_method_ver4(rigid_scaffolds, name, smiles, numConfs, sulfo_m
             for atom_idx in range(mol.GetNumAtoms()):
                 pos = mol.GetConformer(0).GetAtomPosition(atom_idx)
                 clean_mol2_obj.atomXyz[-1].append((float(pos.x), float(pos.y), float(pos.z)))
-            clean_mol2_obj.xyzCount = 1
-            clean_mol2_obj.inputEnergy.append(9999.99)
-            clean_mol2_obj.inputTotalStrain.append(9999.99)
-            clean_mol2_obj.inputMaxStrain.append(9999.99)
-            clean_mol2_obj.inputHydrogens.append(0)  
+            clean_mol2_obj.xyzCount = 1 
             mol2_per_rigid_scaffold.append([clean_mol2_obj])
             with Chem.SDWriter(f"{name}_mol{idx}.sdf") as sdwriter:
                 sdwriter.write(mol, 0)
@@ -912,10 +904,9 @@ def choose_sampling_method_ver4(rigid_scaffolds, name, smiles, numConfs, sulfo_m
 
         mol2_objs = []
 
-        for align_copy, atom_map in enumerate(atom_maps):
+        for atom_map in atom_maps:
             # Load the Mol2 object for the specified molecule
             clean_mol2_obj = copy.deepcopy(mol2_obj)
-            #mol2_obj.cleanConfs()  # Clean previous conformations if any
 
             # Process each conformer in the result molecule
             for conf_id in range(result_mol.GetNumConformers()):
@@ -929,12 +920,6 @@ def choose_sampling_method_ver4(rigid_scaffolds, name, smiles, numConfs, sulfo_m
                 for atom_idx in range(result_mol.GetNumAtoms()):
                     pos = conf.GetAtomPosition(atom_idx)
                     clean_mol2_obj.atomXyz[-1].append((float(pos.x), float(pos.y), float(pos.z)))
-
-                # Initialize strain and energy values
-                clean_mol2_obj.inputEnergy.append(9999.99)
-                clean_mol2_obj.inputTotalStrain.append(9999.99)
-                clean_mol2_obj.inputMaxStrain.append(9999.99)
-                clean_mol2_obj.inputHydrogens.append(0)  
 
             # Set the number of conformations for this Mol2 object
             clean_mol2_obj.xyzCount = result_mol.GetNumConformers()
