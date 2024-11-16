@@ -17,7 +17,7 @@ import copy
 from pathlib import Path
 from scipy.spatial.distance import pdist, squareform
 from MolSanitizer.amsol import run_amsol
-from MolSanitizer.db2 import mol2db2, hydrogens, mol2
+from MolSanitizer.db2 import mol2db2, mol2, solv
 from MolSanitizer import strain_filter, smi2db2_utils
 import random
 import time
@@ -729,6 +729,99 @@ def choose_sampling_method_ver2(rigid_scaffolds, name, numConfs, sulfo_matches, 
             
     return len(sdwriters)
 
+
+def stochastic_sampling_v5(mol, tolerance_level, match_torlib, numConfs, total_possible_solutions, window = 25, max_attempts=100, product=list(), unvisited = None, visited=None):
+    """
+    Perform stochastic sampling of the conformational space of a molecule.
+
+    Args:
+        mol: The molecule for which to generate conformers.
+        tolerance_level: Specifies the tolerance level for dihedral angles.
+        match_torlib: List of torsion matches (rotatable bonds).
+        numConfs: Maximum number of conformers to generate.
+        total_possible_solutions: The total number of possible dihedral combinations.
+        window: Energy window for filtering conformers.
+        max_attempts: Maximum number of attempts to generate a valid conformer.
+        product: List of conformers and their energies.
+        unvisited: List of unvisited conformer combinations.
+        visited: Set of visited conformers.
+
+    Returns:
+        product: List of generated conformers and their energies.
+        visited: Updated set of visited conformers.
+        unvisited: Updated list of unvisited conformer combinations.
+    """
+    # Initialize the force field using MMFF94s
+    mp = rdForceFieldHelpers.MMFFGetMoleculeProperties(mol, mmffVariant="MMFF94s")
+
+    if product: min_energy = min([conf[1] for conf in product])
+    else: min_energy = 1e6
+
+    bonded_pairs, same_parent_pairs = precompute_bonded_and_same_parent_pairs(mol)
+    # Condition to switch between visited matrix and unvisited set approaches
+    if total_possible_solutions > 2 * numConfs:
+        # Use visited matrix approach for large spaces
+        n_transform = len(match_torlib)  # Number of rotatable bonds
+        visitting = [0 for _ in range(n_transform)]
+        attempts = 0
+        if visited is None: visited = set()
+
+        while len(product) < numConfs:
+            for idx in range(n_transform):
+                bond_idx = random.randint(0, len(match_torlib) - 1)
+                bond = match_torlib[bond_idx]
+                peaks = bond[2]  # Extract peaks
+                peak_idx = random.choices(range(len(peaks)), weights=[peak[3] for peak in peaks], k=1)[0]
+                visitting[bond_idx] = peak_idx
+                peak = peaks[peak_idx]
+                rdMolTransforms.SetDihedralDeg(mol.GetConformer(0), *bond[1], value=get_random_angle(peak[0], peak[tolerance_level]))
+
+            # Check if the conformation is valid and not already visited
+            if check_too_close_nonbonded_atoms(mol.GetConformer(0), mol, bonded_pairs, same_parent_pairs)\
+            or tuple(visitting) in visited:
+                attempts += 1
+                if attempts > max_attempts:
+                    break
+                continue
+            
+            visited.add(tuple(visitting.copy()))
+            ff = rdForceFieldHelpers.MMFFGetMoleculeForceField(mol, mp, confId=0)
+            energy = ff.CalcEnergy()
+            if energy < min_energy: min_energy = energy
+            if energy <= min_energy + window: product.append((Chem.Conformer(mol.GetConformer(0)), energy))
+
+
+    else:
+        # Use unvisited set approach for smaller spaces
+        if unvisited is None:
+            combination_ranges = [range(len(peaks)) for _, _, peaks in match_torlib]
+            unvisited = list(itertools.product(*combination_ranges))
+
+        attempts = 0
+        while len(product) < numConfs and len(unvisited) > 0:
+            choice = random.choice(unvisited)
+
+            # Set the dihedrals based on the chosen combination
+            for idx, (_, bond, _) in enumerate(match_torlib):
+                peak = match_torlib[idx][2][choice[idx]]
+                value = get_random_angle(peak[0], peak[tolerance_level])
+                rdMolTransforms.SetDihedralDeg(mol.GetConformer(0), *bond, value=value)
+
+            # If atoms are too close or if we already visited this conformation
+            if check_too_close_nonbonded_atoms(mol.GetConformer(0), mol, bonded_pairs, same_parent_pairs):
+                attempts += 1
+                if attempts > max_attempts:
+                    break
+                continue
+
+            unvisited.remove(choice)  # Remove the chosen combination from the unvisited set
+            ff = rdForceFieldHelpers.MMFFGetMoleculeForceField(mol, mp, confId=0)
+            energy = ff.CalcEnergy()
+            if energy < min_energy: min_energy = energy
+            if energy <= min_energy + window: product.append((Chem.Conformer(mol.GetConformer(0)), energy))
+            #product.append((Chem.Conformer(mol.GetConformer(0)), energy))
+    return product, visited, unvisited
+
 def stochastic_sampling_v4(mol, tolerance_level, match_torlib, numConfs, total_possible_solutions, max_attempts=100, product=list(), unvisited = None, visited=None):
     """
     Perform stochastic sampling of the conformational space of a molecule.
@@ -873,7 +966,7 @@ def choose_sampling_method_ver4(rigid_scaffolds, name, smiles, numConfs, sulfo_m
         product, visited, unvisited = stochastic_sampling_v4(mol, 1, match_torlib, numConfs, num_confs_by_rotbonds, 200, list(), visited = None, unvisited=None)
 
         if len(product) <= min(numConfs, num_confs_by_rotbonds) // 3: 
-            if VERBOSE: print(f'Failed for stochastic scan (generated {len(product)} confs), use the 2nd tolerance level')
+            if VERBOSE: print(f'Failed for stochastic sampling (generated {len(product)} confs), use the 2nd tolerance level')
             product, visited, unvisited = stochastic_sampling_v4(mol, 2, match_torlib, numConfs, num_confs_by_rotbonds, 400, product, visited = visited, unvisited = unvisited)
 
         if len(product) == 0:
@@ -934,6 +1027,122 @@ def choose_sampling_method_ver4(rigid_scaffolds, name, smiles, numConfs, sulfo_m
 
     return mol2_per_rigid_scaffold
 
+def choose_sampling_method_ver5(rigid_scaffolds, name, smiles, numConfs, sulfo_matches, energywindow, cleanup=True, VERBOSE=False):
+    """
+    
+    """
+    num_confs_by_rotbonds, match_torlib = count_confs_by_rotbonds(rigid_scaffolds[0], VERBOSE)
+    requested_num_confs = numConfs
+    mol2_obj = mol2.Mol2(mol2fileName=f'../../solv/{name}/{name}.mol2')
+    mol2_obj.smiles = smiles
+    mol2_obj.cleanConfs()  # Clean previous conformations if any
+
+    #if VERBOSE: print(f"\t{num_confs_by_rotbonds} {num_confs_H} {num_rotatable_H} {numConfs}")
+    if VERBOSE: print(f"\tTheory: {num_confs_by_rotbonds} possible conformations")
+
+    # Find the rigid part only once outside the loop to save processing time
+    atom_maps, label_map = find_rigid_part(rigid_scaffolds[0], rigid_rules)
+
+    # Molecules which don't have rings are not of interest --> only sample limitedly.
+    if label_map is not None: numConfs = 30
+    # For very flexible molecules, we need to sample more, then filter by energy later
+    else:
+        if numConfs*10 < num_confs_by_rotbonds: numConfs = min(numConfs * 2, num_confs_by_rotbonds)
+        elif numConfs*5 < num_confs_by_rotbonds: numConfs = min(int(numConfs * 1.5), num_confs_by_rotbonds)
+        else: numConfs = min(numConfs, num_confs_by_rotbonds)
+
+
+    if VERBOSE:
+        rigid_info = f'\tFound {atom_maps} ({label_map}) as a rigid part' if label_map else f'\tFound {atom_maps} (rings) as rigid parts'
+        print(rigid_info)
+
+    mol2_per_rigid_scaffold = []
+
+    if (len(match_torlib) == 0 or num_confs_by_rotbonds == 1):
+        clean_mol2_obj = copy.deepcopy(mol2_obj)
+
+        for idx, mol in enumerate(rigid_scaffolds):
+            clean_mol2_obj.atomXyz.append([])  # Initialize a list for atom coordinates
+            for atom_idx in range(mol.GetNumAtoms()):
+                pos = mol.GetConformer(0).GetAtomPosition(atom_idx)
+                clean_mol2_obj.atomXyz[-1].append((float(pos.x), float(pos.y), float(pos.z)))
+            clean_mol2_obj.xyzCount = 1
+            mol2_per_rigid_scaffold.append([clean_mol2_obj])
+            with Chem.SDWriter(f"{name}_mol{idx}.sdf") as sdwriter:
+                sdwriter.write(mol, 0)
+        return mol2_per_rigid_scaffold
+    
+
+    for idx, mol in enumerate(rigid_scaffolds):
+        if VERBOSE: print(f"\tHandling ring/sulfonamide conformation {idx+1}/{len(rigid_scaffolds)}")
+        original_mol = Chem.Mol(mol)
+        # Only remap the match_torlib when sulfo_matches is found
+        if sulfo_matches: num_confs_by_rotbonds, match_torlib = count_confs_by_rotbonds(mol, VERBOSE)
+        if VERBOSE: print('\tRunning stochastic torsional sampling')
+        
+        product, visited, unvisited = stochastic_sampling_v5(mol, 1, match_torlib, numConfs, num_confs_by_rotbonds, energywindow, 20000, list(), visited = None, unvisited=None)
+
+        if len(product) <= min(numConfs, num_confs_by_rotbonds) // 3: 
+            if VERBOSE: print(f'Failed for stochastic sampling (generated {len(product)} confs), use the 2nd tolerance level')
+            product, visited, unvisited = stochastic_sampling_v5(mol, 2, match_torlib, numConfs, num_confs_by_rotbonds, energywindow, 40000, product, visited = visited, unvisited = unvisited)
+
+        if len(product) == 0:
+            # A backup when no conformer is found for given tolerance levels and SMILES
+            clean_mol2_obj = copy.deepcopy(mol2_obj)
+            clean_mol2_obj.atomXyz.append([])  # Initialize a list for atom coordinates
+            for atom_idx in range(mol.GetNumAtoms()):
+                pos = mol.GetConformer(0).GetAtomPosition(atom_idx)
+                clean_mol2_obj.atomXyz[-1].append((float(pos.x), float(pos.y), float(pos.z)))
+            clean_mol2_obj.xyzCount = 1 
+            mol2_per_rigid_scaffold.append([clean_mol2_obj])
+            with Chem.SDWriter(f"{name}_mol{idx}.sdf") as sdwriter:
+                sdwriter.write(mol, 0)
+            continue
+
+        product.sort(key=lambda x: x[1]) #Sort by energy
+        product = product[:requested_num_confs]
+        before_energy = len(product)
+        min_energy = product[0][1]
+        result_mol = Chem.Mol(mol)
+        result_mol.RemoveAllConformers()
+        product = [x[0] for x in product if x[1] - min_energy <= energywindow]
+
+
+        for conf in product:
+            result_mol.AddConformer(conf, assignId=True)
+        if VERBOSE: print(f"\tEnergy filter: {before_energy} -> {len(product)}")
+
+        mol2_objs = []
+
+        for atom_map in atom_maps:
+            # Load the Mol2 object for the specified molecule
+            clean_mol2_obj = copy.deepcopy(mol2_obj)
+
+            # Process each conformer in the result molecule
+            for conf_id in range(result_mol.GetNumConformers()):
+                clean_mol2_obj.atomXyz.append([])  # Initialize a list for atom coordinates
+
+                # Align the conformer to the original molecule using the atom map
+                rdMolAlign.AlignMol(result_mol, original_mol, conf_id, 0, atomMap=[(i, i) for i in atom_map])
+                conf = result_mol.GetConformer(conf_id)
+
+                # Extract the atomic positions for the aligned conformer
+                for atom_idx in range(result_mol.GetNumAtoms()):
+                    pos = conf.GetAtomPosition(atom_idx)
+                    clean_mol2_obj.atomXyz[-1].append((float(pos.x), float(pos.y), float(pos.z)))
+
+            # Set the number of conformations for this Mol2 object
+            clean_mol2_obj.xyzCount = result_mol.GetNumConformers()
+            mol2_objs.append(clean_mol2_obj)
+
+        if not(cleanup): 
+            with Chem.SDWriter(f"{name}_mol{idx}.sdf") as sdwriter:
+                for confid in range(result_mol.GetNumConformers()):
+                    sdwriter.write(result_mol, confId=confid)
+
+        mol2_per_rigid_scaffold.append(mol2_objs)
+
+    return mol2_per_rigid_scaffold
 
 def gen_conf_chunk_ver3(df: pd.DataFrame, args, input_file='0'):
     randomSeed, numConfs, VERBOSE, cleanup, energywindow, timeout = args.randomSeed, args.numconfs, args.debug, args.cleanup, args.energywindow, args.timeout 
@@ -944,128 +1153,135 @@ def gen_conf_chunk_ver3(df: pd.DataFrame, args, input_file='0'):
         logging_time = ""
     processed_mols = set()
     os.makedirs(f"db2", exist_ok=True)
-    with tarfile.open(f"db2/{input_file}.db2.tgz", mode='w:gz') as output:
-        for idx, row in df.iterrows():
-            if args.timing: start = time.time()
-            random.seed(randomSeed)
-            name = row['ids']
-            smiles = row['smiles']
-            if name in processed_mols:
-                print(f"Skipping {name} as it already exists")
-                logger.info(f"Skipping {name} as it already exists")
-                continue
-            logger.info(f"Handling {name}")
-            if VERBOSE: print(f"Handling {name}")
-            
-            # Embed smiles into initial conformation using RDKit with a timeout
-            queue = multiprocessing.Queue()
-            process = multiprocessing.Process(target=generate_conformation, args=(queue, smiles, name, randomSeed, VERBOSE))
-            process.start()
-            process.join(timeout=timeout*60)  # default 2 minutes timeout
 
-            # Check if process is still alive (meaning it exceeded timeout)
-            if process.is_alive():
-                logger.warning(f"Timeout occurred while generating conformation for {name}, using OpenBabel.")
-                process.terminate()
-                process.join()
-                try:
-                    amsol_mol, netcharge, rigid_scaffolds, sulfo_matches = embed_smiles_babel(smiles, name, VERBOSE)
-                except Exception as e:
-                    logger.error(f"Error in generating initial conformation using OpenBabel for {name}, skipping it {e}")
-                    log_error(smiles, name)
-                    continue
-                if amsol_mol is None:
-                    logger.error(f"Error in generating initial conformation using OpenBabel for {name}, skipping it")
-                    log_error(smiles, name)
-                    continue
+    if (args.enrichment): output = None #Write directly to db2 files
+    else:   output = tarfile.open(f"db2/{input_file}.db2.tgz", mode='w:gz')
+    
+    for idx, row in df.iterrows():
+        if args.timing: start = time.time()
+        random.seed(randomSeed)
+        name = row['ids']
+        smiles = row['smiles']
+        if name in processed_mols:
+            print(f"Skipping {name} as it already exists")
+            logger.info(f"Skipping {name} as it already exists")
+            continue
+        logger.info(f"Handling {name}")
+        if VERBOSE: print(f"Handling {name}")
+        
+        # Embed smiles into initial conformation using RDKit with a timeout
+        queue = multiprocessing.Queue()
+        process = multiprocessing.Process(target=generate_conformation, args=(queue, smiles, name, randomSeed, VERBOSE))
+        process.start()
+        process.join(timeout=timeout*60)  # default 2 minutes timeout
 
-            # Retrieve result from queue
-            elif not queue.empty():
-                amsol_mol, netcharge, rigid_scaffolds, sulfo_matches, error = queue.get()
-                if error:
-                    logger.error(f"Error in generating initial conformation using RDKIT for {name}, skipping it: {error}")
-                    log_error(smiles, name)
-                    continue
-                amsol_mol.SetProp("_Name", name) #By somehow this implementation loses the _Name props
-                for rigid_scaffold in rigid_scaffolds: rigid_scaffold.SetProp("_Name", name)
-            else:
-                logger.error(f"Unknown error in generating initial conformation for {name}, skipping it.")
-                log_error(smiles, name)
-                continue
-
-            if args.timing: embed_time = time.time() # Time for embedding
-            
-            # Solvation using AMSOL
-            if VERBOSE: print("Solvating...")
-            os.makedirs(f"solv/{name}", exist_ok=True)
-            os.chdir(f"solv/{name}")
-            for conf_id in range(amsol_mol.GetNumConformers()):
-                # Idea: try from the energy minimum conformer if AMSOL fails -> next conformer until reach the last
-                if VERBOSE: print(f"\tTrying conformer: {conf_id}")
-                error_signal = 0
-
-                cp = Chem.Mol(amsol_mol, confId=conf_id) #Retrieve the conf_id-th conformer of mol object
-                mol2_block = convert(Chem.MolToMolBlock(cp), "mol", "mol2")
-                write_to_file(mol2_block, f"{name}.mol2")
-
-                run_amsol.prepare(f"{name}.mol2", name, netcharge)
-                error_signal = run_amsol.run('temp.in-hex', 'temp.o-hex', env)
-                if error_signal == -1: continue
-                error_signal = run_amsol.run('temp.in-wat', 'temp.o-wat', env)
-                if error_signal == -1: continue
-                error_signal = run_amsol.process_output('temp.o-wat', 'temp.o-hex', "temp.mol2", "output")#, VERBOSE=VERBOSE)
-                if error_signal == -1: continue
-                break
-            os.chdir("../..")
-            if error_signal == -1 and conf_id+1 == amsol_mol.GetNumConformers(): # AMSOL failed
-                logger.error(f"AMSOL failed for {name}, skipping it")
-                log_error(smiles, name)
-                continue
-            shutil.copy(f"solv/{name}/output.mol2", f"solv/{name}/{name}_solv.mol2")
-            shutil.move(f"solv/{name}/output.solv", f"solv/{name}/{name}_solv.solv")
-            if args.timing: amsol_time = time.time()
-
-            # 3D generation
-            if VERBOSE: print("3D generation...")
-            os.makedirs(f"3d/{name}", exist_ok=True)
-            shutil.copy2(os.path.join("solv", name, f"{name}_solv.mol2"), os.path.join("3d", name, f"{name}.mol2"))
-            os.chdir(f"3d/{name}")
+        # Check if process is still alive (meaning it exceeded timeout)
+        if process.is_alive():
+            logger.warning(f"Timeout occurred while generating conformation for {name}, using OpenBabel.")
+            process.terminate()
+            process.join()
             try:
-                mol2_per_rigid_scaffold = choose_sampling_method_ver4(rigid_scaffolds, name, smiles, numConfs, sulfo_matches, energywindow, cleanup, VERBOSE)
+                amsol_mol, netcharge, rigid_scaffolds, sulfo_matches = embed_smiles_babel(smiles, name, VERBOSE)
             except Exception as e:
-                logger.error(f"Error in torsional sampling for {name}: {e}")
-                os.chdir("../..")
+                logger.error(f"Error in generating initial conformation using OpenBabel for {name}, skipping it {e}")
                 log_error(smiles, name)
                 continue
+            if amsol_mol is None:
+                logger.error(f"Error in generating initial conformation using OpenBabel for {name}, skipping it")
+                log_error(smiles, name)
+                continue
+
+        # Retrieve result from queue
+        elif not queue.empty():
+            amsol_mol, netcharge, rigid_scaffolds, sulfo_matches, error = queue.get()
+            if error:
+                logger.error(f"Error in generating initial conformation using RDKIT for {name}, skipping it: {error}")
+                log_error(smiles, name)
+                continue
+            amsol_mol.SetProp("_Name", name) #By somehow this implementation loses the _Name props
+            for rigid_scaffold in rigid_scaffolds: rigid_scaffold.SetProp("_Name", name)
+        else:
+            logger.error(f"Unknown error in generating initial conformation for {name}, skipping it.")
+            log_error(smiles, name)
+            continue
+
+        if args.timing: embed_time = time.time() # Time for embedding
+        
+        # Solvation using AMSOL
+        if VERBOSE: print("Solvating...")
+        os.makedirs(f"solv/{name}", exist_ok=True)
+        os.chdir(f"solv/{name}")
+        for conf_id in range(amsol_mol.GetNumConformers()):
+            # Idea: try from the energy minimum conformer if AMSOL fails -> next conformer until reach the last
+            if VERBOSE: print(f"\tTrying conformer: {conf_id}")
+            error_signal = 0
+
+            cp = Chem.Mol(amsol_mol, confId=conf_id) #Retrieve the conf_id-th conformer of mol object
+            mol2_block = convert(Chem.MolToMolBlock(cp), "mol", "mol2")
+            write_to_file(mol2_block, f"{name}.mol2")
+
+            run_amsol.prepare(f"{name}.mol2", name, netcharge)
+            error_signal = run_amsol.run('temp.in-hex', 'temp.o-hex', env)
+            if error_signal == -1: continue
+            error_signal = run_amsol.run('temp.in-wat', 'temp.o-wat', env)
+            if error_signal == -1: continue
+            error_signal = run_amsol.process_output('temp.o-wat', 'temp.o-hex', "temp.mol2", "output")#, VERBOSE=VERBOSE)
+            if error_signal == -1: continue
+            break
+        os.chdir("../..")
+        if error_signal == -1 and conf_id+1 == amsol_mol.GetNumConformers(): # AMSOL failed
+            logger.error(f"AMSOL failed for {name}, skipping it")
+            log_error(smiles, name)
+            continue
+        shutil.copy(f"solv/{name}/output.mol2", f"solv/{name}/{name}_solv.mol2")
+        shutil.move(f"solv/{name}/output.solv", f"solv/{name}/{name}_solv.solv")
+        if args.timing: amsol_time = time.time()
+
+        # 3D generation
+        if VERBOSE: print("3D generation...")
+        os.makedirs(f"3d/{name}", exist_ok=True)
+        shutil.copy2(os.path.join("solv", name, f"{name}_solv.mol2"), os.path.join("3d", name, f"{name}.mol2"))
+        os.chdir(f"3d/{name}")
+        try:
+            mol2_per_rigid_scaffold = choose_sampling_method_ver5(rigid_scaffolds, name, smiles, numConfs, sulfo_matches, energywindow, cleanup, VERBOSE)
+        except Exception as e:
+            logger.error(f"Error in torsional sampling for {name}: {e}")
             os.chdir("../..")
-            if args.timing: sampling_time = time.time()
+            log_error(smiles, name)
+            continue
+        os.chdir("../..")
+        if args.timing: sampling_time = time.time()
 
-            # Mol2DB2
-            if VERBOSE: print("Converting to DB2 format...")
-            os.makedirs(f"db2/{name}", exist_ok=True)
-            shutil.move(os.path.join("solv", name, f"{name}_solv.solv"), os.path.join("db2", name, f"{name}.solv"))
-            os.chdir(f"db2/{name}")
-            try:
-                db2_data_all = ""
-                for mol2objs in mol2_per_rigid_scaffold:
-                    for mol2obj in mol2objs:
-                        db2_data = mol2db2.mol2db2_quick_ver2(mol2obj, f"{name}.solv")
-                        db2_data_all += db2_data
-                write_to_tarball(output, db2_data_all.encode('utf-8'), name=f"{name}.db2")
-                os.chdir("../..")
-                smi2db2_utils.remove_folders([f"solv/{name}"])
-                if cleanup:
-                    smi2db2_utils.remove_folders([f"3d/{name}", f"db2/{name}"])
-            except Exception as e:
-                logger.error(f"Error in converting {name} to DB2 format: {e}")
-                os.chdir("../..")
-                log_error(smiles, name)
-                continue
-            if args.timing: 
-                mol2db2_time = time.time()
-                logging_time += f'{name},{embed_time-start},{amsol_time-embed_time},{sampling_time-amsol_time},{mol2db2_time-sampling_time},{mol2db2_time-start}\n'
-            processed_mols.add(name)
-
+        # Mol2DB2
+        if VERBOSE: print("Converting to DB2 format...")
+        os.makedirs(f"db2/{name}", exist_ok=True)
+        shutil.move(os.path.join("solv", name, f"{name}_solv.solv"), os.path.join("db2", name, f"{name}.solv"))
+        os.chdir(f"db2/{name}")
+        try:
+            db2_data_all = ""
+            solv_obj = solv.Solv(f"{name}.solv")
+            for mol2objs in mol2_per_rigid_scaffold:
+                for mol2obj in mol2objs:
+                    db2_data = mol2db2.mol2db2_quick_ver2(mol2obj, solv_obj)
+                    db2_data_all += db2_data
+            if args.enrichment: write_to_file(db2_data_all, f"../{name}.db2") #Write directly to db2 files if in enrichment mode
+            else: write_to_tarball(output, db2_data_all.encode('utf-8'), name=f"{name}.db2")
+            os.chdir("../..")
+            smi2db2_utils.remove_folders([f"solv/{name}"])
+            if cleanup:
+                smi2db2_utils.remove_folders([f"3d/{name}", f"db2/{name}"])
+        except Exception as e:
+            logger.error(f"Error in converting {name} to DB2 format: {e}")
+            os.chdir("../..")
+            log_error(smiles, name)
+            continue
+        if args.timing: 
+            mol2db2_time = time.time()
+            logging_time += f'{name},{embed_time-start},{amsol_time-embed_time},{sampling_time-amsol_time},{mol2db2_time-sampling_time},{mol2db2_time-start}\n'
+        processed_mols.add(name)
+    
+    if output: #Close the tarball if opened
+        output.close()
     
     if not(smi2db2_utils.is_slurm_job()):
         folders_to_remove = ['3d', 'solv'] if cleanup else ['solv']

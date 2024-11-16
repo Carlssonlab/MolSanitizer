@@ -185,9 +185,9 @@ def mol2db2(options):
     print(("time to (start) construction hierarchy (subtotal):", timeHier-hydTime))
   return timeStart, hierarchyDataGenerator(mol2data)
 
-def mol2db2_quick_ver2(mol2obj, solvfile, clashfile = Path(__file__).parent / 'clashfile.txt', disttol = 0.001):
+def mol2db2_quick_ver2(mol2data, solvdata, clashfile = Path(__file__).parent / 'clashfile.txt', disttol = 0.001):
   #argv = ["-s", solvfile, "-d", clashfile]
-  argv = ["-s", solvfile, "-z", "-r"] #Added norotateh (-z) noreseth (-r) here
+  argv = ["-z", "-r"] #Added norotateh (-z) noreseth (-r) here
   options, args = parserDefaults().parse_args(argv) # get the default options
   options.tolerance = disttol
   #options.verbose = True
@@ -196,7 +196,7 @@ def mol2db2_quick_ver2(mol2obj, solvfile, clashfile = Path(__file__).parent / 'c
   else:
     timeStart = None
   #print(mol2str[:100])
-  mol2data = mol2obj
+  #mol2data = mol2obj
   while len(mol2data.inputEnergy) < mol2data.xyzCount:
     mol2data.inputEnergy.append(9999.99)
     mol2data.inputTotalStrain.append(9999.99)
@@ -204,7 +204,7 @@ def mol2db2_quick_ver2(mol2obj, solvfile, clashfile = Path(__file__).parent / 'c
     mol2data.inputHydrogens.append(0)
   mol2data.convertDockTypes(options.atomtypefile)
   mol2data.addColors(options.colortablefile)
-  solvdata = solv.Solv(options.solvfile)
+  #solvdata = solvobj
   if options.covalent:
     covAtomType,indicesList = mol2data.removeCovalentDummyAtom()
     mol2data.recolorCovalentAttachment(covAtomType)

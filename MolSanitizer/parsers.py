@@ -57,8 +57,8 @@ def parseArguments(args = None):
     #parser.add_argument('--flavioFilters', action='store_true', help='Filter using Flavio script (For databases based on Greg Landrum)')
     parser.add_argument('-debug', '--debug', action='store_true', help='Debugging mode')
     parser.add_argument('--test', action='store_true', help='Test mode (silent mode)')
-
     parser.add_argument('--notaurdkit', action='store_false', dest='taurdkit', default = True, help='Do not use RDkit to canonicalize the input SMILES')
+    parser.add_argument('--enrichment', action='store_true', help='Enrichment mode (do not put in db2.tgz files)')
 
     # Add string option
     parser.add_argument('--custom', default=None, type=str, help='Filter out unwanted substructures using the customized list. To generate an example list, use --create_custom')
@@ -129,6 +129,7 @@ def parseArguments_batch(args = None):
     parser.add_argument('-debug', '--debug', action='store_true', help='Debugging mode')
     parser.add_argument('--timing', action='store_true', help='Time the process')
     parser.add_argument('--notaurdkit', action='store_false', dest='taurdkit', default = True, help='Do not use RDkit to canonicalize the input SMILES')
+    parser.add_argument('--enrichment', action='store_true', help='Enrichment mode (do not put in db2.tgz files)')
 
     # Add string option
     parser.add_argument('--custom', default=None, type=str, help='Filter out unwanted substructures using the customized list')
