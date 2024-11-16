@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### 🚀 Features
 
+- Trial of new stochastic sampling method that involved in increased sampling but keeping the failure count continously increase without being resetted after every good conformer. This shown a 2X performance on a small tricky subset. - ([b5f8e32](https://github.com/Isra3l/MolSanitizer/commit/b5f8e32d1608dc9de3e8ca7be67014f6e7691465))
 - SMILES is now back to the DB2 format! - ([0da0468](https://github.com/Isra3l/MolSanitizer/commit/0da04682d7cea4588945ee4fddaf5e8f1fb4ff16))
 - New implementation of stochastic sampling that can sample more exhaustively the conformational space. This involves sampling more and filter later at the end. Msani now doesn't write out and read in intermediate files repeatedly but process in the memory to speed up the process. - ([6edbfad](https://github.com/Isra3l/MolSanitizer/commit/6edbfadda576db3c4b819e88aa7881615fb84847))
 - The default maximum stereoisomers to be expanded is now set to 8 (previously 32). This could always be set specifically by flag --max_isomers. - ([536f5fe](https://github.com/Isra3l/MolSanitizer/commit/536f5fe94af181e32a9d5b3ad7d54f11061b61df))
