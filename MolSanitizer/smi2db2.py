@@ -757,13 +757,14 @@ def stochastic_sampling_v5(mol, tolerance_level, match_torlib, numConfs, total_p
     if product: min_energy = min([conf[1] for conf in product])
     else: min_energy = 1e6
 
+    attempts = 0
+
     bonded_pairs, same_parent_pairs = precompute_bonded_and_same_parent_pairs(mol)
     # Condition to switch between visited matrix and unvisited set approaches
     if total_possible_solutions > 2 * numConfs:
         # Use visited matrix approach for large spaces
         n_transform = len(match_torlib)  # Number of rotatable bonds
         visitting = [0 for _ in range(n_transform)]
-        attempts = 0
         if visited is None: visited = set()
 
         while len(product) < numConfs:
@@ -797,7 +798,6 @@ def stochastic_sampling_v5(mol, tolerance_level, match_torlib, numConfs, total_p
             combination_ranges = [range(len(peaks)) for _, _, peaks in match_torlib]
             unvisited = list(itertools.product(*combination_ranges))
 
-        attempts = 0
         while len(product) < numConfs and len(unvisited) > 0:
             choice = random.choice(unvisited)
 
@@ -1047,8 +1047,8 @@ def choose_sampling_method_ver5(rigid_scaffolds, name, smiles, numConfs, sulfo_m
     if label_map is not None: numConfs = 30
     # For very flexible molecules, we need to sample more, then filter by energy later
     else:
-        if numConfs*10 < num_confs_by_rotbonds: numConfs = min(numConfs * 2, num_confs_by_rotbonds)
-        elif numConfs*5 < num_confs_by_rotbonds: numConfs = min(int(numConfs * 1.5), num_confs_by_rotbonds)
+        if numConfs*10 < num_confs_by_rotbonds: numConfs = min(int(numConfs * 1.5), num_confs_by_rotbonds)
+        elif numConfs*5 < num_confs_by_rotbonds: numConfs = min(int(numConfs * 1.25), num_confs_by_rotbonds)
         else: numConfs = min(numConfs, num_confs_by_rotbonds)
 
 
@@ -1080,11 +1080,11 @@ def choose_sampling_method_ver5(rigid_scaffolds, name, smiles, numConfs, sulfo_m
         if sulfo_matches: num_confs_by_rotbonds, match_torlib = count_confs_by_rotbonds(mol, VERBOSE)
         if VERBOSE: print('\tRunning stochastic torsional sampling')
         
-        product, visited, unvisited = stochastic_sampling_v5(mol, 1, match_torlib, numConfs, num_confs_by_rotbonds, energywindow, 20000, list(), visited = None, unvisited=None)
+        product, visited, unvisited = stochastic_sampling_v5(mol, 1, match_torlib, numConfs, num_confs_by_rotbonds, energywindow, 15000, list(), visited = None, unvisited=None)
 
         if len(product) <= min(numConfs, num_confs_by_rotbonds) // 3: 
             if VERBOSE: print(f'Failed for stochastic sampling (generated {len(product)} confs), use the 2nd tolerance level')
-            product, visited, unvisited = stochastic_sampling_v5(mol, 2, match_torlib, numConfs, num_confs_by_rotbonds, energywindow, 40000, product, visited = visited, unvisited = unvisited)
+            product, visited, unvisited = stochastic_sampling_v5(mol, 2, match_torlib, numConfs, num_confs_by_rotbonds, energywindow, 15000, product, visited = visited, unvisited = unvisited)
 
         if len(product) == 0:
             # A backup when no conformer is found for given tolerance levels and SMILES
