@@ -6,6 +6,8 @@ All notable changes to this project will be documented in this file.
 
 ### 🚀 Features
 
+- Lower down the exhaustiveness as it takes unecessarily long. - ([dbb8aae](https://github.com/Isra3l/MolSanitizer/commit/dbb8aaeb1d9ba8450f7221ecc9f69817d163990a))
+- Now support enrichment mode, not putting the db2 files into db2.tgz. Maily for adapting with the internal enrichment pipeline. - ([004af69](https://github.com/Isra3l/MolSanitizer/commit/004af6938faef4507ee9c32f7229e78471e73b88))
 - Trial of new stochastic sampling method that involved in increased sampling but keeping the failure count continously increase without being resetted after every good conformer. This shown a 2X performance on a small tricky subset. - ([b5f8e32](https://github.com/Isra3l/MolSanitizer/commit/b5f8e32d1608dc9de3e8ca7be67014f6e7691465))
 - SMILES is now back to the DB2 format! - ([0da0468](https://github.com/Isra3l/MolSanitizer/commit/0da04682d7cea4588945ee4fddaf5e8f1fb4ff16))
 - New implementation of stochastic sampling that can sample more exhaustively the conformational space. This involves sampling more and filter later at the end. Msani now doesn't write out and read in intermediate files repeatedly but process in the memory to speed up the process. - ([6edbfad](https://github.com/Isra3l/MolSanitizer/commit/6edbfadda576db3c4b819e88aa7881615fb84847))
