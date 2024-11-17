@@ -98,7 +98,7 @@ def parse_flags_single_job(args: dict):
     if args.numconfs != 2000: flags += f' --numconfs {args.numconfs}'
     if args.randomSeed != 42: flags += f' --randomSeed {args.randomSeed}'
     if args.timeout != 2: flags += f' --timeout {args.timeout}'
-    
+    if args.enrichment: flags += ' --enrichment'
     return flags
 def write_single_job_script(slurm_header: str, slurm_script: str):
     """Write the script for a single job
