@@ -28,6 +28,10 @@ All notable changes to this project will be documented in this file.
 - Remove deprecated scripts. - ([80f915c](https://github.com/Isra3l/MolSanitizer/commit/80f915c7187d7d2b7b089f2885765b0f4d85c893))
 - Remove deprecated script that is not used anymore. - ([3cfa3b8](https://github.com/Isra3l/MolSanitizer/commit/3cfa3b87c545e416eee007c0ca643b3a27e21246))
 
+### 📚 Documentation
+
+- Redirect MolSanitizer README to the read-the-docs page. - ([6e6bc43](https://github.com/Isra3l/MolSanitizer/commit/6e6bc434bc69180c67b24950fb476b21898907ea))
+
 ### ⚡ Performance
 
 - Modifications to mol2db2 allows the mol2 object being recorded on-the-fly rather than reading from the mol2 blocks. OpenBabel is now only being used for the initial conversion for AMSOL. - ([65eed12](https://github.com/Isra3l/MolSanitizer/commit/65eed12479d9d31fc11eeb31d0b40061f59fab5a))
