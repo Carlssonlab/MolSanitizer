@@ -2,6 +2,8 @@
 
 You need to download, compile & install AMSOL7.1 here. The executable should be named amsol7.1
 
+The precompiled AMSOL should work fine if put it in this folder with the correct name.
+
 2. Instruction on how to compile
 
 Download the source code from [here](https://comp.chem.umn.edu/sds/amsol/amsol.cgi)
@@ -11,9 +13,9 @@ Extract the zip file and go to the AMSOL7.1 folder.
 In lines 320-323 of amsol.compile, use your editor of interest, replace to:
 
 ```bash
-    set F77  = 'gfortran -c -finit-local-zero -fno-automatic -ffixed-line-length-72 -std=legacy -Iinclude -O -o'
-    set F77o = 'gfortran -c -finit-local-zero -fno-automatic -ffixed-line-length-72 -std=legacy -Iinclude -o'
-    set LD   = 'gfortran -ffixed-line-length-72 -o'
+set F77  = 'gfortran -c -finit-local-zero -fno-automatic -ffixed-line-length-72 -std=legacy -Iinclude -O -o'
+set F77o = 'gfortran -c -finit-local-zero -fno-automatic -ffixed-line-length-72 -std=legacy -Iinclude -o'
+set LD   = 'gfortran -ffixed-line-length-72 -o'
 ```
 
 Save and return to the folder.
