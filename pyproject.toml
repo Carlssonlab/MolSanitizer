@@ -12,10 +12,10 @@ authors = [
     {name = "Thua-Phong Lam", email = "lamthuaphong@gmail.com"},
     {name = "Szymon Pach", email = "szymon.pach@icm.uu.se"}
 ]
-license = {text = "MIT"}
+license = {text = "GPL 2.0"}
 classifiers = [
     "Development Status :: 3 - Alpha",
-    "License :: OSI Approved :: MIT License",
+    "License :: OSI Approved :: GPL 2.0",
     "Programming Language :: Python :: 3.11",
     "Operating System :: POSIX :: Linux",
     "Topic :: Scientific/Engineering :: Chemistry",
@@ -27,7 +27,7 @@ dependencies = [
     "markdown",
     "pandas",
     "numpy",
-    "rdkit>=2024.09.1"
+    "rdkit==2024.09.1"
 ]
 
 [project.urls]
