@@ -26,7 +26,7 @@ sed -i 's/ OPEN(20,NAME=/ OPEN(20,FILE='/g new/amsol.f
 sed -i 's/ OPEN(19,NAME=/ OPEN(19,FILE='/g new/amsol.f
 ```
 
-Now it is able to compile AMSOL using:
+Now it is able to compile AMSOL using (please read through the right below option before starting):
 ```bash
 csh amsol.compile
 ```
