@@ -11,6 +11,9 @@
 [Mn+2] manganese_ion
 [Pt] platinum
 [Pt+4] platinum_ion4
+[Zn] zinc_salt
+[Fe] iron_salt
+[Al+3] aluminium_salt
 [O] oxide
 [OH-] hydroxide
 [N] azide_ammonia
