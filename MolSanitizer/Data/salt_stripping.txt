@@ -23,6 +23,10 @@
 [#56] barium_salts
 [#64] gadolinium_complexes
 [#39] yttrium_complexes
+[#79] gold_comprexes
+[#62] samarium_complexes
+[#83] bismuth_complexes
+[#49] indium_complexes
 [O] oxide
 [OH-] hydroxide
 [N] azide_ammonia
@@ -45,6 +49,7 @@ c1([CH3])[cH]c([CH3])cc([CH3])c1[S](=O)(=O)(O) trimethylbenzenesulfonate
 c1([CH3])[cH][cH][cH]c([CH3])c1[S](=O)(=O)(O) oo-dimethylbenzenesulfonate
 [CH3][CH2]C(=O)O propionate
 [CH3][CH2][CH2]C(=O)O butyrate
+[CH3][CH]([OH])C(=O)[OH,O-] lactate
 [Br]-[Br] brom_complex
 OC(=O)[CH2]C(=O)O maleate
 OC(=O)[CH2][CH2]C(=O)O succinate
@@ -56,3 +61,5 @@ OC(=O)[CH2][CH2][CH2][CH2][CH2][CH2][CH2]C(=O)O azelate
 OC(=O)[CH2][CH2][CH2][CH2][CH2][CH2][CH2][CH2]C(=O)O sebacate
 OC(=O)[CH2][C]([OH])(C(=O)O)[CH2]C(=O)O citrate
 [CH3][CH2][NH][CH2][CH3] diethylamine
+[OH][CH2]C([NH2])([CH2][OH])[CH2][OH] tromethamine
+[NH2][CH2][CH2][OH] ethanolamine
