@@ -23,6 +23,7 @@ def get_tautomer_params():
     params.tautomerRemoveIsotopicHs = False
     params.maxTransforms = 1000
     params.maxTautomers = 1000
+    
     return params
 
 # Initialize parameters once at module level
@@ -98,7 +99,7 @@ def tautomerize_step1(mol, params=TAUTOMER_PARAMS):
         RO Mol: Canonical tautomeric form of the input molecule.
     """
     te = rdMolStandardize.TautomerEnumerator(params) 
-    
+
     try:
         canonical_tautomer = te.Canonicalize(mol)
     except: # If tautomerization fails, return the input molecule
@@ -110,7 +111,12 @@ def process_molecule_tautomer(row, reactions, taurdkit, debug=False):
     """Process individual molecule: tautomerize and clean with SMARTS reactions."""
     if taurdkit:
     # Step 1: Use RDkit TautomerEnumerator to canonicalize the input molecule
-        mol = tautomerize_step1(row['mol'])
+        rdkit_canonical = tautomerize_step1(row['mol'])
+        initial_chiral_centers  = len(Chem.FindMolChiralCenters(row['mol']))
+        rdkit_chiral_centers = len(Chem.FindMolChiralCenters(rdkit_canonical))
+        # If canonical tauatomer has less chiral centers than the initial molecule, keep the initial molecule
+        if rdkit_chiral_centers < initial_chiral_centers: mol = row['mol']
+        else: mol = rdkit_canonical
     else: mol = row['mol']
     
     if debug:
