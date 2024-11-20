@@ -1,7 +1,7 @@
 SMARTS LABEL REASON MODE REF_DOI
 [C;!$(C[NH])!$(C[NH2])!$(C[OH,SH])]=,#C[$([C,P,S]=[N,O,S]),$([N]=[O,S]),$(C#N)] Michael_acceptors Reactive Regular 10.1021/cr010182v
 [#6](~[#9])(~[#9])~[#6](~[#9])(~[#9]) tetrafluoroethylene Greasy Regular 10.1002/cmdc.200700139
-[$([#6R1](~[#9,#17,#35,#53])~[#6R1](~[#9,#17,#35,#53])~[#6R1]~[#9,#17,#35,#53]),$([#6R1](~[#9,#17,#35,#53])~[#6R1](~[#9,#17,#35,#53])~[*R1]~[#6R1]~[#9,#17,#35,#53]),$([#6R1](~[#9,#17,#35,#53])~[#6R1](~[#9,#17,#35,#53])~[*R1]~[*R1]~[#6R1]~[#9,#17,#35,#53]),$([#6R1](~[#9,#17,#35,#53])~[*R1]~[#6R1](~[#9,#17,#35,#53])~[*R1]~[#6R1]~[#9,#17,#35,#53])] perhalogenated_rings_3_holgenids_and_more Greasy Special 10.1002/cmdc.200700139
+[$([#6R1](~[#9,#17,#35,#53])~[#6R1](~[#9,#17,#35,#53])~[#6R1]~[#9,#17,#35,#53]),$([#6R1](~[#9,#17,#35,#53])~[#6R1](~[#9,#17,#35,#53])~[*R1]~[#6R1]~[#9,#17,#35,#53]),$([#6R1](~[#9,#17,#35,#53])~[#6R1](~[#9,#17,#35,#53])~[*R1]~[*R1]~[#6R1]~[#9,#17,#35,#53]),$([#6R1](~[#9,#17,#35,#53])~[*R1]~[#6R1](~[#9,#17,#35,#53])~[*R1]~[#6R1]~[#9,#17,#35,#53])] perhalogenated_rings_3_holgenids_and_more Greasy Optional 10.1002/cmdc.200700139
 [#6](=[#16])~[#7] thioamides_thiocyanates Complexing_metals Regular 10.1021/acschembio.8b01022
 [#8]=[#6]1~c2c(~[#8]~[#6]=,:[#6]~1)cccc2 flavons Reactive Optional 10.1021/acs.jmedchem.5b01009
 [#16H] thiols Reactive Regular 10.1021/acs.jmedchem.8b01153
@@ -63,7 +63,7 @@ SMARTS LABEL REASON MODE REF_DOI
 [*]-!@[$([CX4H2,OX2H0,SX2H0,NH2+]),$([NX3H1;!$(N-[#6,#15,#16]=[#7,#8,#16])])]-!@[$([CX4H2,OX2H0,SX2H0,NH2+]),$([NX3H1;!$(N-[#6,#15,#16]=[#7,#8,#16])])]-!@[$([CX4H2,OX2H0,SX2H0,NH2+]),$([NX3H1;!$(N-[#6,#15,#16]=[#7,#8,#16])])]-!@[$([CX4H2,OX2H0,SX2H0,NH2+]),$([NX3H1;!$(N-[#6,#15,#16]=[#7,#8,#16])])]-!@[*] butylene_chains Entropic_penalty Optional 10.1002/cmdc.200700139
 [$(a:[aR2]:[aR2]:a:[aR2]:[aR2](:a):a),$([aR2](:a)(:a):[aR2]:[aR2](:a):a)] polycyclic_aromatic_compounds Cancerogenic,Greasy Optional 10.1002/cmdc.200700139
 [#6]=!@[#6]=!@[#6] allenes Exotic_chemistry Regular none
-[#6]1-,:[#16X2]-,:[#6](-[#7X3])=,:[#7X2]-,:[#6]=,:1 2-aminothiazoles Frequent_hitters Optional 10.1021/jm501402x
+[#6]1-,:[#16X2]-,:[#6](-[#7X3])=,:[#7X2]-,:[#6]=,:1 2-aminothiazoles Frequent_hitters Special 10.1021/jm501402x
 [2H] deuterium Exotic_chemistry Regular none
 [13C,15N,17O,18O,32P,33P,35S,13c,15n,17o,18o,32p,33p,35s] heavy_isotopes Exotic_chemistry Regular none
 [#8,#16]=[#6]=[#7] isocyanates Reactive Regular 10.1021/acs.jmedchem.8b01153
