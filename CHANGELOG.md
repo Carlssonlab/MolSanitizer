@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [unreleased - most recent changes come first]
+
+### 🐛 Bug Fixes
+
+- Fix a bug that rdkit tautomer canonicalize lose the specified stereocenters. - ([907e799](https://github.com/Isra3l/MolSanitizer/commit/907e7994bb15de84401d6b06fae3f1b970d11d47))
+
 ## [0.2.1] - 2024-11-18
 
 ### 🚀 Features
