@@ -14,6 +14,15 @@
 [Zn] zinc_salt
 [Fe] iron_salt
 [Al+3] aluminium_salt
+[#31] gallium_salt
+[#88] radium_salt
+[#43] technetium_complexes
+[#37] rubidium_salts
+[#38] strontium_salts
+[#47] silver_complexes
+[#56] barium_salts
+[#64] gadolinium_complexes
+[#39] yttrium_complexes
 [O] oxide
 [OH-] hydroxide
 [N] azide_ammonia
