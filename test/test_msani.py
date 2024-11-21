@@ -150,7 +150,7 @@ class TestMolSanitizer(unittest.TestCase):
             "debug": False, 
             "custom":None, 
             "prefix":output_prefix, 
-            "max_isomers": 32,
+            "max_stereoisomers": 8,
             "test": False,
             "smiles": None,
             "db2": False

@@ -320,7 +320,7 @@ def generate_stereoisomers(mol, max_isomers=0):
     return isomers
 
 
-def process_molecule_stereoisomer(row_data, max_isomers=32):
+def process_molecule_stereoisomer(row_data, max_isomers=8):
     mol = Chem.MolFromSmiles(row_data['smiles'])
     try:
         isomers = generate_stereoisomers(mol, max_isomers=max_isomers)
