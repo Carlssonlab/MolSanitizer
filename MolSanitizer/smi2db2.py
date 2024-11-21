@@ -36,8 +36,8 @@ rigid_rule_files = Path(__file__).parent / 'Data' / 'rigid_part_rules.txt'
 rigid_rules = pd.read_csv(rigid_rule_files, header=None, sep ='\s+', names=['SMARTS','label'])
 rigid_rules['mol'] = rigid_rules['SMARTS'].apply(lambda x: Chem.MolFromSmarts(x))
 
-
 planar_lib, non_planar_lib = strain_filter.parse_sr_confs_library()
+
 
 def setup_env():
     env = os.environ.copy()
@@ -575,6 +575,8 @@ def embed_smiles_babel(smiles, name, VERBOSE=False):
     rigid_scaffolds = [Chem.Mol(mol_rdkit)] # Replicate the output from embed_rdkit
     return mol_rdkit, net_charge, rigid_scaffolds, list()
 
+
+    
 def stochastic_sampling_v3(mol, tolerance_level, match_torlib, sdwriters, original, numConfs, total_possible_solutions, atom_maps, max_attempts=100, product=0, unvisited = None, visited=None):
     """
     Perform stochastic sampling of the conformational space of a molecule using a hybrid approach.
@@ -1211,6 +1213,129 @@ def gen_conf_chunk_ver3(df: pd.DataFrame, args, input_file='0'):
         if VERBOSE: print("Solvating...")
         os.makedirs(f"solv/{name}", exist_ok=True)
         os.chdir(f"solv/{name}")
+        for conf_id in range(amsol_mol.GetNumConformers()):
+            # Idea: try from the energy minimum conformer if AMSOL fails -> next conformer until reach the last
+            if VERBOSE: print(f"\tTrying conformer: {conf_id}")
+            error_signal = 0
+
+            cp = Chem.Mol(amsol_mol, confId=conf_id) #Retrieve the conf_id-th conformer of mol object
+            mol2_block = convert(Chem.MolToMolBlock(cp), "mol", "mol2")
+            write_to_file(mol2_block, f"{name}.mol2")
+
+            run_amsol.prepare(f"{name}.mol2", name, netcharge)
+            error_signal = run_amsol.run('temp.in-hex', 'temp.o-hex', env)
+            if error_signal == -1: continue
+            error_signal = run_amsol.run('temp.in-wat', 'temp.o-wat', env)
+            if error_signal == -1: continue
+            error_signal = run_amsol.process_output('temp.o-wat', 'temp.o-hex', "temp.mol2", "output")#, VERBOSE=VERBOSE)
+            if error_signal == -1: continue
+            break
+        os.chdir("../..")
+        if error_signal == -1 and conf_id+1 == amsol_mol.GetNumConformers(): # AMSOL failed
+            logger.error(f"AMSOL failed for {name}, skipping it")
+            log_error(smiles, name)
+            continue
+        shutil.copy(f"solv/{name}/output.mol2", f"solv/{name}/{name}_solv.mol2")
+        shutil.move(f"solv/{name}/output.solv", f"solv/{name}/{name}_solv.solv")
+        if args.timing: amsol_time = time.time()
+
+        # 3D generation
+        if VERBOSE: print("3D generation...")
+        os.makedirs(f"3d/{name}", exist_ok=True)
+        shutil.copy2(os.path.join("solv", name, f"{name}_solv.mol2"), os.path.join("3d", name, f"{name}.mol2"))
+        os.chdir(f"3d/{name}")
+        try:
+            mol2_per_rigid_scaffold = choose_sampling_method_ver5(rigid_scaffolds, name, smiles, numConfs, sulfo_matches, energywindow, cleanup, VERBOSE)
+        except Exception as e:
+            logger.error(f"Error in torsional sampling for {name}: {e}")
+            os.chdir("../..")
+            log_error(smiles, name)
+            continue
+        os.chdir("../..")
+        if args.timing: sampling_time = time.time()
+
+        # Mol2DB2
+        if VERBOSE: print("Converting to DB2 format...")
+        os.makedirs(f"db2/{name}", exist_ok=True)
+        shutil.move(os.path.join("solv", name, f"{name}_solv.solv"), os.path.join("db2", name, f"{name}.solv"))
+        os.chdir(f"db2/{name}")
+        try:
+            db2_data_all = ""
+            solv_obj = solv.Solv(f"{name}.solv")
+            for mol2objs in mol2_per_rigid_scaffold:
+                for mol2obj in mol2objs:
+                    db2_data = mol2db2.mol2db2_quick_ver2(mol2obj, solv_obj)
+                    db2_data_all += db2_data
+            if args.enrichment: write_to_file(db2_data_all, f"../{name}.db2") #Write directly to db2 files if in enrichment mode
+            else: write_to_tarball(output, db2_data_all.encode('utf-8'), name=f"{name}.db2")
+            os.chdir("../..")
+            smi2db2_utils.remove_folders([f"solv/{name}"])
+            if cleanup:
+                smi2db2_utils.remove_folders([f"3d/{name}", f"db2/{name}"])
+        except Exception as e:
+            logger.error(f"Error in converting {name} to DB2 format: {e}")
+            os.chdir("../..")
+            log_error(smiles, name)
+            continue
+        if args.timing: 
+            mol2db2_time = time.time()
+            logging_time += f'{name},{embed_time-start},{amsol_time-embed_time},{sampling_time-amsol_time},{mol2db2_time-sampling_time},{mol2db2_time-start}\n'
+        processed_mols.add(name)
+    
+    if output: #Close the tarball if opened
+        output.close()
+    
+    if not(smi2db2_utils.is_slurm_job()):
+        folders_to_remove = ['3d', 'solv'] if cleanup else ['solv']
+        for folder in folders_to_remove:
+            if os.path.exists(folder) and os.path.isdir(folder):
+                try:
+                    os.rmdir(folder)
+                except: pass
+    if args.timing:
+        with open('msani_timing.csv', 'a') as f:
+            f.write(logging_time)
+
+def gen_conf_chunk_corina(df: pd.DataFrame, args, input_file='0'):
+    randomSeed, numConfs, VERBOSE, cleanup, energywindow, timeout = args.randomSeed, args.numconfs, args.debug, args.cleanup, args.energywindow, args.timeout 
+    env = setup_env()
+    if args.timing: 
+        if not(os.path.exists('msani_timing.csv')): 
+            with open('msani_timing.csv', 'w') as f: f.write('Name,Initial embedding,AMSOL,Torsional sampling,Mol2DB2,Total\n')
+        logging_time = ""
+    processed_mols = set()
+    os.makedirs(f"db2", exist_ok=True)
+
+    if (args.enrichment): output = None #Write directly to db2 files
+    else:   output = tarfile.open(f"db2/{input_file}.db2.tgz", mode='w:gz')
+    
+    for idx, row in df.iterrows():
+        if args.timing: start = time.time()
+        random.seed(randomSeed)
+        name = row['ids']
+        smiles = row['smiles']
+        if name in processed_mols:
+            print(f"Skipping {name} as it already exists")
+            logger.info(f"Skipping {name} as it already exists")
+            continue
+        logger.info(f"Handling {name}")
+        if VERBOSE: print(f"Handling {name}")
+        os.makedirs(f"solv/{name}", exist_ok=True)
+        os.chdir(f"solv/{name}")
+        try:
+            amsol_mol, netcharge, rigid_scaffolds, sulfo_matches = smi2db2_utils.embed_smiles_corina(smiles, name, VERBOSE)
+        except Exception as e:
+            logger.error(f"Error in generating initial conformation using Corina for {name}, skipping it {e}")
+            log_error(smiles, name)
+            os.chdir("../..")
+            continue
+        
+
+        if args.timing: embed_time = time.time() # Time for embedding
+        
+        # Solvation using AMSOL
+        if VERBOSE: print("Solvating...")
+        
         for conf_id in range(amsol_mol.GetNumConformers()):
             # Idea: try from the energy minimum conformer if AMSOL fails -> next conformer until reach the last
             if VERBOSE: print(f"\tTrying conformer: {conf_id}")

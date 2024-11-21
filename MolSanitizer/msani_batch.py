@@ -13,7 +13,7 @@ import os
 import sys
 import time
 import math
-
+import yaml
 from . import parsers
 import subprocess
 from rdkit import rdBase
@@ -65,6 +65,19 @@ if [ "$task_count" -eq 1 ]; then
 fi
 """
 
+with open(os.path.join(os.path.dirname(__file__), 'msani_configurations.yaml')) as confFile:
+    configurations = yaml.full_load(confFile)
+    slurm_account = configurations['SLURM_ACCOUNT']
+    time_limit = configurations['TIME_LIMIT']
+    lines_per_job = configurations['LINES_PER_JOB']
+    max_jobs = configurations['MAX_JOBS']
+    timeout = configurations['TIMEOUT']
+    use_corina = configurations['USE_CORINA']
+    corina_exe = configurations['CORINA']
+    energy_window = configurations['ENERGY_WINDOW']
+    numconfs = configurations['NUMCONFS']
+    max_stereoisomers = configurations['MAX_STEREOISOMERS']
+
 def count_lines_bash(file_path):
     result = subprocess.run(['wc', '-l', file_path], stdout=subprocess.PIPE)
     return int(result.stdout.split()[0])
@@ -93,13 +106,15 @@ def parse_flags_single_job(args: dict):
     if args.debug: flags += ' --debug'
     if args.timing: flags += ' --timing'
     if args.custom is not None: flags += f' --custom ../{args.custom}'
-    if args.energywindow != 25: flags += f' --energywindow {args.energywindow}'
-    if args.max_isomers != 8: flags += f' --max_isomers {args.max_isomers}'
-    if args.numconfs != 2000: flags += f' --numconfs {args.numconfs}'
+    if args.energywindow != energy_window: flags += f' --energywindow {args.energywindow}'
+    if args.max_stereoisomers != max_stereoisomers: flags += f' --max_stereoisomers {args.max_stereoisomers}'
+    if args.numconfs != numconfs: flags += f' --numconfs {args.numconfs}'
     if args.randomSeed != 42: flags += f' --randomSeed {args.randomSeed}'
-    if args.timeout != 2: flags += f' --timeout {args.timeout}'
+    if args.timeout != timeout: flags += f' --timeout {args.timeout}'
     if args.enrichment: flags += ' --enrichment'
+    if args.corina: flags += f' --corina'
     return flags
+
 def write_single_job_script(slurm_header: str, slurm_script: str):
     """Write the script for a single job
 

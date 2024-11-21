@@ -7,7 +7,7 @@ import itertools
 from collections import defaultdict
 import numpy as np
 import pandas as pd
-
+import yaml, subprocess
 
 
 six_membered_aliphatic_substructure = Chem.MolFromSmarts("[A;!$(N-*=*)]1-[A;!$(N-*=*)]-[A;!$(N-*=*)]-[A;!$(N-*=*)]-[A;!$(N-*=*)]-[A;!$(N-*=*)]-1")
@@ -16,6 +16,27 @@ aliphatic_nitrogen_substructure = Chem.MolFromSmarts("[A:1]@[N&+0;!$(N-*=*):2](@
 conjugated_substituted_nitrogen = Chem.MolFromSmarts('[a:1]:[a:2]:[a:3]:[nX3&+0:4]-*')
 additional_substituted_nitrogen = Chem.MolFromSmarts('[!#1]-[nX3&+0:1]:[a:2]:[a:3]')
 amide_substructure = Chem.MolFromSmarts('[O:1]=[CX3:2]!@[N&+0:3](-[!#1:4])-[#1:5]')
+
+with open(os.path.join(os.path.dirname(__file__), 'msani_configurations.yaml')) as confFile:
+    msani_configurations = yaml.full_load(confFile)
+CORINA_EXE = msani_configurations['CORINA']
+
+def embed_smiles_corina(smiles, name, VERBOSE):
+    with open('temp.smi', 'w') as f:
+        f.write(f"{smiles} {name}")
+    subprocess.run([CORINA_EXE, '-i', 't=smiles,scn=1,ncn=2', 
+                    '-o', 't=mol2', '-d', 'rc,flapn,de=6,mc=1,wh', 'temp.smi', f'{name}.mol2'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if VERBOSE: print(f"\tGenerated mol2 file for {name} using CORINA")
+    mol2block = ''
+    with open(f"{name}.mol2", 'r') as f:
+        for line in f:
+            if line.startswith("#"): continue
+            else: mol2block += line
+    mol_rdkit = Chem.MolFromMol2Block(mol2block, removeHs=False, sanitize=True)
+    net_charge = sum([atom.GetFormalCharge() for atom in mol_rdkit.GetAtoms()])
+    rigid_scaffolds = [Chem.Mol(mol_rdkit)] # Replicate the output from embed_rdkit
+    return mol_rdkit, net_charge, rigid_scaffolds, list()
+
 
 def find_flipped_nitrogen(mol_H: Mol):
     '''
