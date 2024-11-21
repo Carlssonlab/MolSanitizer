@@ -11,7 +11,18 @@ except ImportError:
 import logging
 logger = logging.getLogger('molsani')
 
-
+with open(os.path.join(os.path.dirname(__file__), 'msani_configurations.yaml')) as confFile:
+    configurations = yaml.full_load(confFile)
+    slurm_account = configurations['SLURM_ACCOUNT']
+    time_limit = configurations['TIME_LIMIT']
+    lines_per_job = configurations['LINES_PER_JOB']
+    max_jobs = configurations['MAX_JOBS']
+    timeout = configurations['TIMEOUT']
+    use_corina = configurations['USE_CORINA']
+    corina_exe = configurations['CORINA']
+    energy_window = configurations['ENERGY_WINDOW']
+    numconfs = configurations['NUMCONFS']
+    max_stereoisomers = configurations['MAX_STEREOISOMERS']
 
 def parseArguments(args = None):
     info = """MolSanitizer - A package to prepare SMILES databases
@@ -52,27 +63,25 @@ def parseArguments(args = None):
     parser.add_argument('--db2', action='store_true', help='Generate conformers and stored in the DB2 format for DOCK 3.8 (default: False)')
     parser.add_argument('--nocleanup', action='store_false', dest='cleanup', default = True, help='Do not clean up the temporary files (default: False)')
     parser.add_argument('--timing', action='store_true', help='Time the process')
-
-    #parser.add_argument('--neutralize', action='store_true', help='Neutralize the structures')
-    #parser.add_argument('--flavioFilters', action='store_true', help='Filter using Flavio script (For databases based on Greg Landrum)')
     parser.add_argument('-debug', '--debug', action='store_true', help='Debugging mode')
     parser.add_argument('--test', action='store_true', help='Test mode (silent mode)')
     parser.add_argument('--notaurdkit', action='store_false', dest='taurdkit', default = True, help='Do not use RDkit to canonicalize the input SMILES')
     parser.add_argument('--enrichment', action='store_true', help='Enrichment mode (do not put in db2.tgz files)')
+    parser.add_argument('-c', '--corina', action='store_true', default = use_corina, help=f'Use Corina for 3D structure generation (default: {use_corina})')
 
     # Add string option
     parser.add_argument('--custom', default=None, type=str, help='Filter out unwanted substructures using the customized list. To generate an example list, use --create_custom')
     parser.add_argument('-pre', '--prefix', default=None, type=str, help='Prefix for the output files. If not provided, the input file name will be used.')
 
     # Add integer option
-    parser.add_argument('--max_isomers', type=int, default=8, help='Maximum number of stereoisomers to consider (default: 8 = 3 stereocenters)')
+    parser.add_argument('-max_stereo','--max_stereoisomers', type=int, default=max_stereoisomers, help=f'Maximum number of stereoisomers to consider (default: {max_stereoisomers} = 3 stereocenters)')
     parser.add_argument('-nconfs', '--numconfs', type=int, default=2000, help='Maximum number of conformers to generate (default: 2000)')
     parser.add_argument('-rs', '--randomSeed', type=int, default=42, help='Random seed for reproducibility (default: 42)')
     parser.add_argument('-j', '--numcores', type=int, default=4, help='Number of cores to use for parallel processing (default: 4)')
     parser.add_argument('-t', '--timeout', type=int, default=2, help='Timeout for the initial embedding for each SMILES entry before using OpenBabel in minutes (default: 2)')
 
     # Add float options
-    parser.add_argument('-w','--energywindow', type=float, default=25, help='Energy window for sampling the conformations (default: 25 (kcal/mol))')
+    parser.add_argument('-w','--energywindow', type=float, default=energy_window, help=f'Energy window for sampling the conformations (default: {energy_window} (kcal/mol))')
 
     # Parse the arguments
     args = parser.parse_args()
@@ -81,25 +90,21 @@ def parseArguments(args = None):
         for inFile in args.input_files:
             if not Path(inFile).is_file():
                 parser.error(f'The input file: {inFile} does not exist.')
-
+    if args.corina:
+        if not Path(corina_exe).is_file:
+            parser.error('Corina path is not correct or corina not found. Please check the configuration file.')
     return args
 
 
 def parseArguments_batch(args = None):
-    with open(os.path.join(os.path.dirname(__file__), 'batch_configurations.yaml')) as confFile:
-            batch_configurations = yaml.full_load(confFile)
-    slurm_account = batch_configurations['SLURM_ACCOUNT']
-    time_limit = batch_configurations['TIME_LIMIT']
-    lines_per_job = batch_configurations['LINES_PER_JOB']
-    max_jobs = batch_configurations['MAX_JOBS']
-    timeout = batch_configurations['TIMEOUT']
+
 
     info = f"""MolSanitizer - A package to prepare SMILES databases
     This is a batch version of the MolSanitizer package. 
     It reads a list of input files, splits the files into chunks of "--lines_per_job" and processes them parallelly on the HPC.
     For more information, use msani_batch -h
 
-    Default settings (modifiable in batch_configurations.yaml):
+    Default settings (modifiable in msani_configurations.yaml):
     Project name: {slurm_account}
     Time limit: {time_limit} hour(s)
     Number of compounds per job: {lines_per_job} 
@@ -130,6 +135,7 @@ def parseArguments_batch(args = None):
     parser.add_argument('--timing', action='store_true', help='Time the process')
     parser.add_argument('--notaurdkit', action='store_false', dest='taurdkit', default = True, help='Do not use RDkit to canonicalize the input SMILES')
     parser.add_argument('--enrichment', action='store_true', help='Enrichment mode (do not put in db2.tgz files)')
+    parser.add_argument('-c', '--corina', action='store_true', default = use_corina, help=f'Use Corina for 3D structure generation (default: {use_corina})')
 
     # Add string option
     parser.add_argument('--custom', default=None, type=str, help='Filter out unwanted substructures using the customized list')
@@ -137,7 +143,7 @@ def parseArguments_batch(args = None):
 
     # Add integer option
     parser.add_argument('-l', '--lines_per_job', dest='lines', type=int, default=lines_per_job, help=f'Number of lines to process per job (default: {lines_per_job})')
-    parser.add_argument('-max_isomers', '--max_isomers', type=int, default=8, help='Maximum number of stereoisomers to consider (default: 8 = 3 stereocenters)')
+    parser.add_argument('-max_stereo','--max_stereoisomers', type=int, default=max_stereoisomers, help=f'Maximum number of stereoisomers to consider (default: {max_stereoisomers} = 3 stereocenters)')
     parser.add_argument('-nconfs', '--numconfs', type=int, default=2000, help='Maximum number of conformers to generate (default: 2000)')
     parser.add_argument('-rs', '--randomSeed', type=int, default=42, help='Random seed for reproducibility (default: 42)')
     parser.add_argument('-tl', '--timelimit', type=int, default=time_limit, help=f'Time limit for the SLURM job in hours (default: {time_limit})')
@@ -146,12 +152,14 @@ def parseArguments_batch(args = None):
     parser.add_argument('-t', '--timeout', type=int, default=timeout, help=f'Timeout for the initial embedding for each SMILES entry before using OpenBabel in minutes (default: {timeout})')
 
     # Add float options
-    parser.add_argument('-w','--energywindow', type=float, default=25, help='Energy window for sampling the conformations (default: 25 (kcal/mol))')
+    parser.add_argument('-w','--energywindow', type=float, default=energy_window, help=f'Energy window for sampling the conformations (default: {energy_window} (kcal/mol))')
 
     # Parse the arguments
     args = parser.parse_args()
     for inFile in args.input_files:
         if not Path(inFile).is_file():
             parser.error(f'The input file: {inFile} does not exist.')
-
+    if args.corina:
+        if not Path(corina_exe).is_file:
+            parser.error('Corina path is not correct or corina not found. Please check the msani_configurations.yaml file.')
     return args

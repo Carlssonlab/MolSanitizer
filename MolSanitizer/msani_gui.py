@@ -145,7 +145,7 @@ class MolSanitizerGUI(QWidget):
             create_custom=False,
             custom=None,
             unwanted=None,
-            max_isomers=None,
+            max_stereoisomers=None,
             randomSeed=int(self.rs_entry.text()) if self.db2_check.isChecked() else None,
             numconfs=int(self.numconfs_entry.text()) if self.db2_check.isChecked() else None,
             rmsd=float(self.rmsd_entry.text()) if self.db2_check.isChecked() else None,

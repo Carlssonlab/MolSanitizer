@@ -1,0 +1,32 @@
+# In this file, you can set default values for parser, 
+# so that you don't need to specify the flags every time
+# you run the program.
+
+#===============SINGLE MODE================
+# Configurations for MolSanitizer single mode
+# USE_CORINA: Use Corina for 3D structure generation (default: False)
+# CORINA: Path to the corina executable file
+# TIMEOUT: Timeout for the initial embedding of each compound in minutes (default: 2 minutes)
+# MAX_STEREOISOMERS: Maximum number of stereoisomers to be generated for each compound (default: 8)
+# ENERGY_WINDOW: Energy window for the conformer generation (default: 25 kcal/mol)
+# NUMCONFS: Number of conformers to be generated for each compound (default: 2000)
+
+USE_CORINA: False
+CORINA: '/home/phong/tmp/build_3d_common_phong/corina-4.2/corina'
+ENERGY_WINDOW: 25
+NUMCONFS: 2000
+MAX_STEREOISOMERS: 8
+TIMEOUT: 2
+
+#================BATCH MODE=================
+# Configuration file for MolSanitizer batch mode
+# LINE_PER_JOB: Number of compounds per job
+# TIME_LIMIT: Time limit for each job in hours (default: 96 hour)
+# MAX_JOBS: Maximum number of jobs running at the same time
+
+SLURM_ACCOUNT: 'naiss2023-3-39'
+LINES_PER_JOB: 200
+TIME_LIMIT: 96
+MAX_JOBS: 500
+
+

@@ -46,7 +46,7 @@ def apply_filters(chunk, args, rejected_file):
     if args.protonation:
         chunk = filters.protonation(chunk, args.debug)
     if args.stereoisomers:
-        chunk = filters.stereoisomers(chunk, args.max_isomers, args.numcores, args.debug)
+        chunk = filters.stereoisomers(chunk, args.max_stereoisomers, args.numcores, args.debug)
 
     return chunk
 
@@ -112,7 +112,10 @@ def process_files(args, start_time: int):
 
 
             if args.db2:
-                smi2db2.gen_conf_chunk_ver3(chunk, args, input_file_path.stem)
+                if args.corina:
+                    smi2db2.gen_conf_chunk_corina(chunk, args, input_file_path.stem)
+                else:
+                    smi2db2.gen_conf_chunk_ver3(chunk, args, input_file_path.stem)
                        
             if not args.test:
                 if step == 1: time_step1 = time.time()-start_time
@@ -133,7 +136,10 @@ def process_smiles(args):
 
     if args.db2: 
         if os.path.exists('db2/0.db2'): os.remove('db2/0.db2') # 0 is the default name
-        smi2db2.gen_conf_chunk_ver3(chunk, args)
+        if args.corina:
+            smi2db2.gen_conf_chunk_corina(chunk, args)
+        else:
+            smi2db2.gen_conf_chunk_ver3(chunk, args)
     
     print('Processed SMILES:')
     for i, row in chunk.iterrows():
