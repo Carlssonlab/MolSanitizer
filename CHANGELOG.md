@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [unreleased - most recent changes come first]
 
+### 🚀 Features
+
+- Incorporated CORINA as an optional 3D initial embedding machine. Enable by -c or --corina, but the user is asked to set a path to CORINA in msani_configurations.yaml. - ([de95bf7](https://github.com/Isra3l/MolSanitizer/commit/de95bf7bfafde8c2306236c4a6990dd01cec0d97))
+
 ### 🐛 Bug Fixes
 
 - Fix a bug that rdkit tautomer canonicalize lose the specified stereocenters. - ([907e799](https://github.com/Isra3l/MolSanitizer/commit/907e7994bb15de84401d6b06fae3f1b970d11d47))
