@@ -284,7 +284,7 @@ def count_confs_by_rotbonds(mol, ignoreTorlib=False, VERBOSE=False):
     # Remove some redundant rotation related to the symmetric rings 
     # such as p-substituted benzenes or p-pyridine
     symmetric_rings = smi2db2_utils.find_symmetric_rings(mol)
-    print(f"\tSymmetric rings: {symmetric_rings}")
+    #print(f"\tSymmetric rings: {symmetric_rings}")
     for ring in symmetric_rings:
         ring_key = set(ring[0:2])
         for rule in match_torlib:
@@ -297,14 +297,17 @@ def count_confs_by_rotbonds(mol, ignoreTorlib=False, VERBOSE=False):
                 break
 
     for rotatable_bond in rotatable_bonds:
-        if is_terminal(mol, rotatable_bond[1:3]):
-            if is_symmetric(mol, rotatable_bond[1:3]):
-                #Exclude meaningless angles for symmetric terminal rotatable bonds (eg. CH3, CF3 only rotate onces)
-                for rule in match_torlib:
-                    if set(rotatable_bond[1:3]) == set(rule[1][1:3]):
-                        while len(rule[2]) > 2: # rotate these angles by 120 degrees is the same
-                            while (len(rule[2]) >= 2) and ((rule[2][0][0] - rule[2][1][0]) % 120 == 0): rule[2].pop(1)
-                            if len(rule[2]) > 2 : rule[2].pop(-1)
+        if is_terminal(mol, rotatable_bond[1:3]) and is_symmetric(mol, rotatable_bond[1:3]):
+        # Exclude redundant angles for symmetric terminal rotatable bonds (e.g., CH3, CF3)
+            bond_key = set(rotatable_bond[1:3])
+            for rule in match_torlib:
+                if bond_key == set(rule[1][1:3]):
+                    # Retain only unique angles that differ by at least 120 degrees
+                    rule[2] = [
+                        angle for i, angle in enumerate(rule[2])
+                        if all((angle[0] - other_angle[0]) % 120 != 0 for other_angle in rule[2][i + 1:])
+                    ]
+                    break
                             
     if ignoreTorlib:
         amide_linkages = smi2db2_utils.find_amide(mol)
