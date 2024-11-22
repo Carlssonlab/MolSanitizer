@@ -13,6 +13,10 @@ All notable changes to this project will be documented in this file.
 
 - Fix a bug that rdkit tautomer canonicalize lose the specified stereocenters. - ([907e799](https://github.com/Isra3l/MolSanitizer/commit/907e7994bb15de84401d6b06fae3f1b970d11d47))
 
+### ⚡ Performance
+
+- Removed some redundant rotations such as para-substituted phenyl or para-pyridine. This have shown an X2 faster and fewer conformers in some cases with symmetric ring-substituents. - ([435a0df](https://github.com/Isra3l/MolSanitizer/commit/435a0df74dd47bec831bbd27aa74f92a59554652))
+
 ### 🎨 Styling
 
 - Configurations of both single and batch jobs are now in msani_configurations.yaml. The user can now change default values of Msani with this configuration file, and set the PATH to CORINA if the user want to use. - ([358e4dd](https://github.com/Isra3l/MolSanitizer/commit/358e4dd0ce07ca6e3792eb8f4ea11945083555d5))
