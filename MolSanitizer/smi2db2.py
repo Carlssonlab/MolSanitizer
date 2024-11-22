@@ -281,8 +281,21 @@ def count_confs_by_rotbonds(mol, ignoreTorlib=False, VERBOSE=False):
 
     match_torlib = strain_filter.get_match_dihedral(mol, Torlib)
 
-    # We need to put the terminal rot bonds at the beginning as they dont 
-    # contribute much to the diversity of the conformations
+    # Remove some redundant rotation related to the symmetric rings 
+    # such as p-substituted benzenes or p-pyridine
+    symmetric_rings = smi2db2_utils.find_symmetric_rings(mol)
+    print(f"\tSymmetric rings: {symmetric_rings}")
+    for ring in symmetric_rings:
+        ring_key = set(ring[0:2])
+        for rule in match_torlib:
+            if ring_key == set(rule[1][1:3]):
+                # Filter out redundant rotations where angles differ by 180 degrees
+                rule[2] = [
+                    angle for i, angle in enumerate(rule[2])
+                    if all((angle[0] - other_angle[0]) % 180 != 0 for other_angle in rule[2][i + 1:])
+                ]
+                break
+
     for rotatable_bond in rotatable_bonds:
         if is_terminal(mol, rotatable_bond[1:3]):
             if is_symmetric(mol, rotatable_bond[1:3]):
@@ -306,10 +319,9 @@ def count_confs_by_rotbonds(mol, ignoreTorlib=False, VERBOSE=False):
     for bond in rotatable_bonds:
         for rule in match_torlib:
             if set(bond[1:3]) == set(rule[1][1:3]):
-                print(set(bond[1:3]), set(rule[1][1:3]))
                 if ignoreTorlib:
                     new_rule = copy.deepcopy(rule[:2])
-                    if set(bond[1:3]).intersection(amide_atoms):
+                    if set(bond[1:3]).issubset(amide_atoms):
                         match_torlib_clean.append(rule)
                         num_confs *= (len(rule[2]))
                     else:
