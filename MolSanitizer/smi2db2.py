@@ -265,7 +265,7 @@ def convert_sdf_mol2_str(sdf_io, VERBOSE: bool = False):
 
 
 
-def count_confs_by_rotbonds(mol, VERBOSE=False):
+def count_confs_by_rotbonds(mol, ignoreTorlib=False, VERBOSE=False):
     """
     Count the number of conformations based on rotatable bonds and reorder bonds with terminal
     atoms at the beginning.
@@ -293,15 +293,32 @@ def count_confs_by_rotbonds(mol, VERBOSE=False):
                             while (len(rule[2]) >= 2) and ((rule[2][0][0] - rule[2][1][0]) % 120 == 0): rule[2].pop(1)
                             if len(rule[2]) > 2 : rule[2].pop(-1)
                             
-
+    if ignoreTorlib:
+        amide_linkages = smi2db2_utils.find_amide(mol)
+        amide_atoms=set()
+        for a, b, c, d, e in amide_linkages: 
+            amide_atoms.add(b)
+            amide_atoms.add(c)
+        const_rule = [(-120, 30, 30, 1), (-60, 30, 30, 1), (0, 30, 30, 1), (60, 30, 30, 1), (120, 30, 30, 1), (180, 30, 30, 1)]
 
     num_confs = 1
     match_torlib_clean = []
     for bond in rotatable_bonds:
         for rule in match_torlib:
             if set(bond[1:3]) == set(rule[1][1:3]):
-                num_confs *= (len(rule[2]))
-                match_torlib_clean.append(rule)
+                print(set(bond[1:3]), set(rule[1][1:3]))
+                if ignoreTorlib:
+                    new_rule = copy.deepcopy(rule[:2])
+                    if set(bond[1:3]).intersection(amide_atoms):
+                        match_torlib_clean.append(rule)
+                        num_confs *= (len(rule[2]))
+                    else:
+                        new_rule.append(const_rule)
+                        num_confs *= (len(new_rule[2]))
+                        match_torlib_clean.append(new_rule)
+                else:
+                    num_confs *= (len(rule[2]))
+                    match_torlib_clean.append(rule)
                 break
 
     if VERBOSE: 
@@ -576,161 +593,6 @@ def embed_smiles_babel(smiles, name, VERBOSE=False):
     return mol_rdkit, net_charge, rigid_scaffolds, list()
 
 
-    
-def stochastic_sampling_v3(mol, tolerance_level, match_torlib, sdwriters, original, numConfs, total_possible_solutions, atom_maps, max_attempts=100, product=0, unvisited = None, visited=None):
-    """
-    Perform stochastic sampling of the conformational space of a molecule using a hybrid approach.
-    It switches between a visited matrix approach for large solution spaces and an unvisited set approach for smaller spaces.
-
-    This function generates conformers of a molecule and prunes conformers that are either too close in terms of atomic distances or have already been visited (i.e., previously generated conformers). The method of tracking unvisited or visited conformations depends on the size of the search space relative to the number of allowed conformers.
-
-    Args:
-        mol (rdkit.Chem.Mol): The molecule for which to generate conformers.
-        tolerance_level (int): The index in the torsion library specifying the tolerance for angle deviations.
-        match_torlib (list): List of tuples containing torsion matching information for dihedral angles.
-        sdwriter (rdkit.Chem.SDWriter): Writer object to output generated conformers to an SDF file.
-        original (rdkit.Chem.Mol): The reference molecule to align the generated conformers to.
-        numConfs (int): The maximum number of conformers to generate.
-        total_possible_solutions (int): The total number of possible dihedral combinations (solution space).
-        atom_maps (list): List of atom indices to use for alignment when generating conformers.
-        max_attempts (int, optional): Maximum number of attempts to generate a valid conformer. Defaults to 100.
-        product (int, optional): Number of conformers generated so far. Defaults to 0.
-        unvisited (list or None, optional): List of unvisited conformer combinations. Defaults to None. Used when the solution space is smaller than twice the maximum allowed conformers.
-        visited (set or None, optional): Set of visited conformers. Defaults to None. Used when the solution space is larger than twice the maximum allowed conformers.
-
-    Returns:
-        tuple: (product, visited, unvisited) - 
-            - `product`: Number of generated conformers.
-            - `visited`: Set of visited conformations if the large-space approach is used.
-            - `unvisited`: List of unvisited conformer combinations if the small-space approach is used.
-    
-    Logic:
-    - If the total number of possible conformers exceeds twice the maximum allowed conformers (`total_possible_solutions > 2 * numConfs`), a **visited matrix approach** is used. This method randomly samples from the search space and tracks visited conformers to avoid generating duplicates.
-    - If the total number of possible conformers is smaller or equal to twice the maximum allowed conformers, an **unvisited set approach** is used. This method randomly selects from a set of all unvisited combinations and generates conformers until the desired number is reached or all possibilities are exhausted.
-
-    """
-    
-    bonded_pairs, same_parent_pairs = precompute_bonded_and_same_parent_pairs(mol)
-    # Condition to switch between visited matrix and unvisited set approaches
-    if total_possible_solutions > 2 * numConfs:
-        # Use visited matrix approach for large spaces
-        n_transform = len(match_torlib)  # Number of rotatable bonds
-        visitting = [0 for _ in range(n_transform)]
-        attempts = 0
-        if visited is None: visited = set()
-
-        while product < numConfs:
-            for idx in range(n_transform):
-                bond_idx = random.randint(0, len(match_torlib) - 1)
-                bond = match_torlib[bond_idx]
-                peaks = bond[2]  # Extract peaks
-                peak_idx = random.choices(range(len(peaks)), weights=[peak[3] for peak in peaks], k=1)[0]
-                visitting[bond_idx] = peak_idx
-                peak = peaks[peak_idx]
-                rdMolTransforms.SetDihedralDeg(mol.GetConformer(0), *bond[1], value=get_random_angle(peak[0], peak[tolerance_level]))
-
-            # Check if the conformation is valid and not already visited
-            if check_too_close_nonbonded_atoms(mol.GetConformer(0), mol, bonded_pairs, same_parent_pairs)\
-            or tuple(visitting) in visited:
-                attempts += 1
-                if attempts > max_attempts:
-                    break
-                continue
-            
-            attempts = 0
-            visited.add(tuple(visitting.copy()))
-            product+=1
-            for sdwriter, sdf_file, mol2_file, atom_map in sdwriters:
-                rdMolAlign.AlignMol(mol, original, 0, 0, atomMap=atom_map)
-                sdwriter.write(mol, confId=0)
-
-    else:
-        # Use unvisited set approach for smaller spaces
-        if unvisited is None:
-            combination_ranges = [range(len(peaks)) for _, _, peaks in match_torlib]
-            unvisited = list(itertools.product(*combination_ranges))
-
-        attempts = 0
-        while product < numConfs and len(unvisited) > 0:
-            # Select a random combination from the unvisited set
-            # As the number of possible solutions <= allowance, we don't need to prioritize any combination
-            #print(unvisited)
-            #print(unvisited.dtype)
-            choice = random.choice(unvisited)
-
-            # Set the dihedrals based on the chosen combination
-            for idx, (_, bond, _) in enumerate(match_torlib):
-                peak = match_torlib[idx][2][choice[idx]]
-                value = get_random_angle(peak[0], peak[tolerance_level])
-                rdMolTransforms.SetDihedralDeg(mol.GetConformer(0), *bond, value=value)
-
-            # If atoms are too close or if we already visited this conformation
-            if check_too_close_nonbonded_atoms(mol.GetConformer(0), mol, bonded_pairs, same_parent_pairs):
-                attempts += 1
-                if attempts > max_attempts:
-                    break
-                continue
-
-            unvisited.remove(choice)  # Remove the chosen combination from the unvisited set
-            attempts = 0
-            product+=1                        
-            for sdwriter, sdf_file, mol2_file, atom_map in sdwriters:
-                rdMolAlign.AlignMol(mol, original, 0, 0, atomMap=atom_map)
-                sdwriter.write(mol, confId=0)
-    return product, visited, unvisited
-
-def choose_sampling_method_ver2(rigid_scaffolds, name, numConfs, sulfo_matches, VERBOSE=False):
-    """
-    
-    """
-    num_confs_by_rotbonds, match_torlib = count_confs_by_rotbonds(rigid_scaffolds[0], VERBOSE)
-    
-    #if VERBOSE: print(f"\t{num_confs_by_rotbonds} {num_confs_H} {num_rotatable_H} {numConfs}")
-    if VERBOSE: print(f"\tTheory: {num_confs_by_rotbonds} possible conformations")
-
-    # Find the rigid part only once outside the loop to save processing time
-    atom_maps, label_map = find_rigid_part(rigid_scaffolds[0], rigid_rules)
-    
-    if VERBOSE:
-        rigid_info = f'\tFound {atom_maps} ({label_map}) as a rigid part' if label_map else f'\tFound {atom_maps} (rings) as rigid parts'
-        print(rigid_info)
-
-    if (len(match_torlib) == 0 or num_confs_by_rotbonds == 1):
-        for idx, mol in enumerate(rigid_scaffolds):
-            sdf_file, mol2_file = smi2db2_utils.get_sdf_mol2_filename(name, idx, 0)
-            with Chem.SDWriter(sdf_file) as sdwriter: sdwriter.write(mol)
-            convert_sdf_mol2(sdf_file, mol2_file, VERBOSE)
-        return 1
-    
-
-    for idx, mol in enumerate(rigid_scaffolds):
-        if VERBOSE: print(f"\tHandling ring/sulfonamide conformation {idx+1}/{len(rigid_scaffolds)}")
-        original_mol = Chem.Mol(mol)
-        # Only remap the match_torlib when sulfo_matches is found
-        if sulfo_matches: num_confs_by_rotbonds, match_torlib = count_confs_by_rotbonds(mol, VERBOSE)
-        sdwriters = []
-        for align_copy, atom_map in enumerate(atom_maps):
-            sdf_file, mol2_file = smi2db2_utils.get_sdf_mol2_filename(name, idx, align_copy)
-            sdwriter = Chem.SDWriter(sdf_file)
-            sdwriters.append((sdwriter, sdf_file, mol2_file, [(i,i) for i in atom_map]))
-
-        if VERBOSE: print('\tRunning stochastic torsional sampling')
-        
-        product, visited, unvisited = stochastic_sampling_v3(mol, 1, match_torlib, sdwriters, original_mol, 
-                                      numConfs, num_confs_by_rotbonds, atom_maps, 250, 0, visited = None, unvisited=None)
-
-        if product <= min(numConfs, num_confs_by_rotbonds) // 3: 
-            if VERBOSE: print(f'Failed for stochastic scan (generated {len(product)} confs), use the 2nd tolerance level')
-            product, visited, unvisited = stochastic_sampling_v3(mol, 2, match_torlib, sdwriters, original_mol, 
-                                          numConfs, num_confs_by_rotbonds, atom_maps, 500, product, visited = visited, unvisited = unvisited)
-    
-        for sdwriter, sdf_file, mol2_file, atom_map in sdwriters:
-            if product == 0: sdwriter.write(mol)
-            sdwriter.close()
-            convert_sdf_mol2(sdf_file, mol2_file, VERBOSE)
-            
-    return len(sdwriters)
-
 
 def stochastic_sampling_v5(mol, tolerance_level, match_torlib, numConfs, total_possible_solutions, window = 25, max_attempts=100, product=list(), unvisited = None, visited=None):
     """
@@ -912,11 +774,11 @@ def stochastic_sampling_v4(mol, tolerance_level, match_torlib, numConfs, total_p
             product.append((Chem.Conformer(mol.GetConformer(0)), energy))
     return product, visited, unvisited
 
-def choose_sampling_method_ver4(rigid_scaffolds, name, smiles, numConfs, sulfo_matches, energywindow, cleanup=True, VERBOSE=False):
+def choose_sampling_method_ver4(rigid_scaffolds, name, smiles, numConfs, sulfo_matches, energywindow, ignoreTorlib = False, cleanup=True, VERBOSE=False):
     """
     
     """
-    num_confs_by_rotbonds, match_torlib = count_confs_by_rotbonds(rigid_scaffolds[0], VERBOSE)
+    num_confs_by_rotbonds, match_torlib = count_confs_by_rotbonds(rigid_scaffolds[0], ignoreTorlib, VERBOSE)
     requested_num_confs = numConfs
     mol2_obj = mol2.Mol2(mol2fileName=f'../../solv/{name}/{name}.mol2')
     mol2_obj.smiles = smiles
@@ -962,7 +824,7 @@ def choose_sampling_method_ver4(rigid_scaffolds, name, smiles, numConfs, sulfo_m
         if VERBOSE: print(f"\tHandling ring/sulfonamide conformation {idx+1}/{len(rigid_scaffolds)}")
         original_mol = Chem.Mol(mol)
         # Only remap the match_torlib when sulfo_matches is found
-        if sulfo_matches: num_confs_by_rotbonds, match_torlib = count_confs_by_rotbonds(mol, VERBOSE)
+        if sulfo_matches: num_confs_by_rotbonds, match_torlib = count_confs_by_rotbonds(mol, ignoreTorlib, VERBOSE)
         if VERBOSE: print('\tRunning stochastic torsional sampling')
         
         product, visited, unvisited = stochastic_sampling_v4(mol, 1, match_torlib, numConfs, num_confs_by_rotbonds, 200, list(), visited = None, unvisited=None)
@@ -1029,11 +891,11 @@ def choose_sampling_method_ver4(rigid_scaffolds, name, smiles, numConfs, sulfo_m
 
     return mol2_per_rigid_scaffold
 
-def choose_sampling_method_ver5(rigid_scaffolds, name, smiles, numConfs, sulfo_matches, energywindow, cleanup=True, VERBOSE=False):
+def choose_sampling_method_ver5(rigid_scaffolds, name, smiles, numConfs, sulfo_matches, energywindow, ignoreTorlib=False, cleanup=True, VERBOSE=False):
     """
     
     """
-    num_confs_by_rotbonds, match_torlib = count_confs_by_rotbonds(rigid_scaffolds[0], VERBOSE)
+    num_confs_by_rotbonds, match_torlib = count_confs_by_rotbonds(rigid_scaffolds[0], ignoreTorlib, VERBOSE)
     requested_num_confs = numConfs
     mol2_obj = mol2.Mol2(mol2fileName=f'../../solv/{name}/{name}.mol2')
     mol2_obj.smiles = smiles
@@ -1079,7 +941,7 @@ def choose_sampling_method_ver5(rigid_scaffolds, name, smiles, numConfs, sulfo_m
         if VERBOSE: print(f"\tHandling ring/sulfonamide conformation {idx+1}/{len(rigid_scaffolds)}")
         original_mol = Chem.Mol(mol)
         # Only remap the match_torlib when sulfo_matches is found
-        if sulfo_matches: num_confs_by_rotbonds, match_torlib = count_confs_by_rotbonds(mol, VERBOSE)
+        if sulfo_matches: num_confs_by_rotbonds, match_torlib = count_confs_by_rotbonds(mol, ignoreTorlib, VERBOSE)
         if VERBOSE: print('\tRunning stochastic torsional sampling')
         
         product, visited, unvisited = stochastic_sampling_v5(mol, 1, match_torlib, numConfs, num_confs_by_rotbonds, energywindow, 15000, list(), visited = None, unvisited=None)
@@ -1147,7 +1009,8 @@ def choose_sampling_method_ver5(rigid_scaffolds, name, smiles, numConfs, sulfo_m
     return mol2_per_rigid_scaffold
 
 def gen_conf_chunk_ver3(df: pd.DataFrame, args, input_file='0'):
-    randomSeed, numConfs, VERBOSE, cleanup, energywindow, timeout = args.randomSeed, args.numconfs, args.debug, args.cleanup, args.energywindow, args.timeout 
+    randomSeed, numConfs, VERBOSE, cleanup, energywindow, timeout, ignoreTorlib = args.randomSeed, \
+        args.numconfs, args.debug, args.cleanup, args.energywindow, args.timeout , args.ignoretorlib
     env = setup_env()
     if args.timing: 
         if not(os.path.exists('msani_timing.csv')): 
@@ -1245,7 +1108,15 @@ def gen_conf_chunk_ver3(df: pd.DataFrame, args, input_file='0'):
         shutil.copy2(os.path.join("solv", name, f"{name}_solv.mol2"), os.path.join("3d", name, f"{name}.mol2"))
         os.chdir(f"3d/{name}")
         try:
-            mol2_per_rigid_scaffold = choose_sampling_method_ver5(rigid_scaffolds, name, smiles, numConfs, sulfo_matches, energywindow, cleanup, VERBOSE)
+            mol2_per_rigid_scaffold = choose_sampling_method_ver5(rigid_scaffolds,
+                                                                  name, 
+                                                                  smiles, 
+                                                                  numConfs, 
+                                                                  sulfo_matches, 
+                                                                  energywindow, 
+                                                                  ignoreTorlib, 
+                                                                  cleanup, 
+                                                                  VERBOSE)
         except Exception as e:
             logger.error(f"Error in torsional sampling for {name}: {e}")
             os.chdir("../..")
@@ -1297,7 +1168,8 @@ def gen_conf_chunk_ver3(df: pd.DataFrame, args, input_file='0'):
             f.write(logging_time)
 
 def gen_conf_chunk_corina(df: pd.DataFrame, args, input_file='0'):
-    randomSeed, numConfs, VERBOSE, cleanup, energywindow, timeout = args.randomSeed, args.numconfs, args.debug, args.cleanup, args.energywindow, args.timeout 
+    randomSeed, numConfs, VERBOSE, cleanup, energywindow, timeout, ignoreTorlib = args.randomSeed, \
+        args.numconfs, args.debug, args.cleanup, args.energywindow, args.timeout , args.ignoretorlib
     env = setup_env()
     if args.timing: 
         if not(os.path.exists('msani_timing.csv')): 
@@ -1368,7 +1240,15 @@ def gen_conf_chunk_corina(df: pd.DataFrame, args, input_file='0'):
         shutil.copy2(os.path.join("solv", name, f"{name}_solv.mol2"), os.path.join("3d", name, f"{name}.mol2"))
         os.chdir(f"3d/{name}")
         try:
-            mol2_per_rigid_scaffold = choose_sampling_method_ver5(rigid_scaffolds, name, smiles, numConfs, sulfo_matches, energywindow, cleanup, VERBOSE)
+            mol2_per_rigid_scaffold = choose_sampling_method_ver5(rigid_scaffolds,
+                                                                  name, 
+                                                                  smiles, 
+                                                                  numConfs, 
+                                                                  sulfo_matches, 
+                                                                  energywindow, 
+                                                                  ignoreTorlib, 
+                                                                  cleanup, 
+                                                                  VERBOSE)
         except Exception as e:
             logger.error(f"Error in torsional sampling for {name}: {e}")
             os.chdir("../..")

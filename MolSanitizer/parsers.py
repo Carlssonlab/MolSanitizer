@@ -68,7 +68,7 @@ def parseArguments(args = None):
     parser.add_argument('--notaurdkit', action='store_false', dest='taurdkit', default = True, help='Do not use RDkit to canonicalize the input SMILES')
     parser.add_argument('--enrichment', action='store_true', help='Enrichment mode (do not put in db2.tgz files)')
     parser.add_argument('-c', '--corina', action='store_true', default = use_corina, help=f'Use Corina for 3D structure generation (default: {use_corina})')
-
+    parser.add_argument('-igtor', '--långben', action='store_true', dest='ignoretorlib', default = False, help='Ignore the Torsion Library - generate every possible conformer')
     # Add string option
     parser.add_argument('--custom', default=None, type=str, help='Filter out unwanted substructures using the customized list. To generate an example list, use --create_custom')
     parser.add_argument('-pre', '--prefix', default=None, type=str, help='Prefix for the output files. If not provided, the input file name will be used.')
