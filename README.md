@@ -3,6 +3,7 @@
 [![anaconda](https://img.shields.io/badge/Anaconda.org-2.1.0-green.svg?style=flat-square)]()
 [![Documentation](https://img.shields.io/badge/docs-0.2.1-orange)](https://msani.readthedocs.io/)
 ![GitHub forks](https://img.shields.io/github/forks/:user/:repo)
+[![license](https://img.shields.io/badge/license-GPLv2-yellow)]()
 
 
 MolSanitizer is a package for preparation (remove salts, stereoisomers enumeration, protonation, ...) and filtering undesirable substructures (PAINS, reactive functional groups, ...) for drug discovery projects.
