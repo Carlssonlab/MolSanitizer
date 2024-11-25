@@ -49,7 +49,9 @@ def arguments(args):
         logger.info(f"Random seed: {args.randomSeed}")
         logger.info(f"Energy window: {args.energywindow}")
         logger.info(f"Timelimit for initial embedding using Rdkit: {args.timeout}")
-
+        logger.info(f"Using CORINA for initial embedding: {args.corina}")
+        if args.enrichment:
+            logger.info(f"Enrichment mode: {args.enrichment}")
     if args.tautomers:
         smartsFile = Path(__file__).parent / 'Data' / 'tautomers.txt'
         temp_df = loadSMARTSdata(smartsFile.resolve())
