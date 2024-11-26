@@ -34,12 +34,12 @@ def arguments(args):
     logger.info(f"Input files: {args.input_files}")
     logger.info(f"Enamine format: {args.enamine}")
     logger.info(f"Remove Salts: {args.removesalts}")
+    logger.info(f"Neutralize before tautomerization: {args.neutralize}")
     logger.info(f"Tautomers enumeration: {args.tautomers}")
     logger.info(f"PAINS filter: {args.pains}")
     logger.info(f"Unwanted filter: {args.unwanted}")
     logger.info(f"Customized filter: {args.custom}")
     logger.info(f"Protonation: {args.protonation}")
-    #logger.info(f"Neutralize: {args.neutralize}")
     logger.info(f"Stereoisomers: {args.stereoisomers}")
     logger.info(f"Max stereoisomers: {args.max_stereoisomers}")
     if args.db2:

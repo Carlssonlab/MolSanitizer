@@ -36,6 +36,8 @@ def apply_filters(chunk, args, rejected_file):
     if args.removesalts:
         chunk = filters.removesalts(chunk, args.debug)
     if args.tautomers:
+        if args.neutralize:
+            chunk = filters.neutralize(chunk, args.debug)
         chunk = filters.tautomers(chunk, args.taurdkit, args.numcores, args.debug)
     if args.pains:
         chunk = filters.pains(chunk, rejected_file, args.debug)

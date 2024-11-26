@@ -28,7 +28,8 @@ def get_tautomer_params():
 
 # Initialize parameters once at module level
 TAUTOMER_PARAMS = get_tautomer_params()
-
+uncharger = rdMolStandardize.Uncharger()
+        
 def remove_invalid_SMILES(df:pd.DataFrame) -> pd.DataFrame:
     """Remove rows with invalid SMILES from the input DataFrame.
 
@@ -87,6 +88,19 @@ def removesalts(df: pd.DataFrame, debug = False) -> pd.DataFrame:
     df=df[df['smiles']!=''] #Remove purely salt molecules
     return df
 
+def neutralize(df: pd.DataFrame, debug = False) -> pd.DataFrame:
+    '''Neutralize the input molecules using the RDKit Uncharger class. 
+    Turn on by default if the user trigger the tautomers flag.'''
+    if debug: print('Neutralizing molecules...')
+    logger.info('Neutralizing molecules...')
+    for i, row in df.iterrows():
+        try:
+            uncharged = uncharger.uncharge(row['mol'])
+            df.at[i, 'mol'] = uncharged
+        except:
+            logger.error(f"Error neutralizing molecule: {Chem.MolToSmiles(row['mol'])}")
+            pass
+    return df
 
 def tautomerize_step1(mol, params=TAUTOMER_PARAMS):
     """Tautomerize the input molecule using the RDKit TautomerEnumerator class.
