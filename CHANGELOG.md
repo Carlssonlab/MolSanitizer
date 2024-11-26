@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### 🚀 Features
 
+- Neutralization filter applied before the tautomerization perception. This help to remove any possible charge-related error from the input. The user can turn off suchbehavior by -noneu or --noneutralize - ([4f7c53f](https://github.com/Isra3l/MolSanitizer/commit/4f7c53fe299cba0d3fb522a8cb7597c5e41f8e1d))
 - Added -igtor or --långben flags, that will apply stochastic but without adhere to any rules in TorLib. This will help to explore the conformational space without any constraints to the Torlib. - ([fbb57a9](https://github.com/Isra3l/MolSanitizer/commit/fbb57a9586866d4de486a9684c6427c49e4db576))
 - Incorporated CORINA as an optional 3D initial embedding machine. Enable by -c or --corina, but the user is asked to set a path to CORINA in msani_configurations.yaml. - ([de95bf7](https://github.com/Isra3l/MolSanitizer/commit/de95bf7bfafde8c2306236c4a6990dd01cec0d97))
 
