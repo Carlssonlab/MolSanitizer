@@ -307,6 +307,7 @@ def count_confs_by_rotbonds(mol, ignoreTorlib=False, VERBOSE=False):
                         angle for i, angle in enumerate(rule[2])
                         if all((angle[0] - other_angle[0]) % 120 != 0 for other_angle in rule[2][i + 1:])
                     ]
+                    while len(rule[2])>2: rule[2].pop()
                     break
                             
     if ignoreTorlib:
