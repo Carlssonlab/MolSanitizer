@@ -24,6 +24,22 @@ with open(os.path.join(os.path.dirname(__file__), 'msani_configurations.yaml')) 
     numconfs = configurations['NUMCONFS']
     max_stereoisomers = configurations['MAX_STEREOISOMERS']
 
+class CustomHelpFormatter(argparse.RawDescriptionHelpFormatter, argparse.HelpFormatter):
+    def _format_action_invocation(self, action):
+        """
+        Override to customize the argument display in the help message.
+        Suppress the metavar formatting like `$short $metavar, $long=$metavar`.
+        """
+        if not action.option_strings:
+            # Positional argument, return it as-is
+            return super()._format_action_invocation(action)
+        
+        parts = []
+        for option_string in action.option_strings:
+            # Only display the option string (short/long flag) without metavar
+            parts.append(option_string)
+        return ', '.join(parts)
+    
 def parseArguments(args = None):
     info = """MolSanitizer - A package to prepare SMILES databases
 
@@ -40,53 +56,65 @@ def parseArguments(args = None):
     """
 
     # Create the argument parser
-    parser = argparse.ArgumentParser(description= info, formatter_class=argparse.RawTextHelpFormatter)
+    parser = argparse.ArgumentParser(description=info,
+                                     formatter_class=CustomHelpFormatter,
+                                     add_help=False)  # Suppress default -h/--help)
     
     # Create a mutually exclusive group
-    group = parser.add_mutually_exclusive_group(required=True)
+    #group = parser.add_mutually_exclusive_group(required=True)
 
     # Add the required input files argument
-    group.add_argument('-i', '--input_files', type=str,  default=None, nargs='+', help='Input files containing chemical structures')
-    group.add_argument('-s', '--smiles', default=None, type=str, nargs='+', help='Input SMILES strings')
-    group.add_argument('--create_custom', action='store_true', help='Generate a template for customized substructure filtering')
+
+    # Group 1: Input and output options
+    io_group = parser.add_argument_group("Input and output options")
+    io_group.add_argument('-i', '--input_files', type=str,  default=None, nargs='+', help='Input files containing chemical structures')
+    io_group.add_argument('-s', '--smiles', default=None, type=str, nargs='+', help='Input SMILES strings')
+    io_group.add_argument('-e', '--enamine', action='store_true', help='Enamine input format (default: False)')
+    io_group.add_argument('-pre', '--prefix', default=None, type=str, help='Prefix for the output files. If not provided, the input file name will be used.')
+    io_group.add_argument('-enrich', '--enrichment', action='store_true', help='Enrichment mode (do not put in db2.tgz files)')
+
+    # Group 2: Filtering options
+    filter_group = parser.add_argument_group("Filtering options")
+    filter_group.add_argument('--removesalts', action='store_true', help='Remove salts from the structures (default: False)')
+    filter_group.add_argument('--create_custom', action='store_true', help='Generate a template for customized substructure filtering')
+    filter_group.add_argument('--custom', default=None, type=str, help='Filter out unwanted substructures using the customized list. To generate an example list, use --create_custom')
+    filter_group.add_argument('--unwanted', choices=['all', 'regular', 'special', 'optional'], default=None, nargs='*', help='Filter out unwanted substructures using the default list')
+    filter_group.add_argument('--pains', action='store_true', help='Remove PAINS violations from the structures (default: False)')
+
+    # Group 3: SMILES processing options
+    smiles_group = parser.add_argument_group("SMILES processing options")
+    smiles_group.add_argument('--tautomers', action='store_true', help='Tautomers enumeration (default: False)')
+    smiles_group.add_argument('--noneutralize','-noneu',  action='store_false', dest='neutralize', default = True, help='Do not neutralize the molecule before tautomerization (default: False)')
+    smiles_group.add_argument('--notaurdkit', action='store_false', dest='taurdkit', default = True, help='Do not use RDkit to canonicalize the input SMILES')
+    smiles_group.add_argument('--stereoisomers', action='store_true', help='Stereoisomers enumeration (only consider unspecified chiral centers) (default: False)')
+    smiles_group.add_argument('--max_stereoisomers','-max_stereo', type=int, default=max_stereoisomers, help=f'Maximum number of stereoisomers to consider (default: {max_stereoisomers} = 3 stereocenters)')
+    smiles_group.add_argument('--protonation', action='store_true', help='Apply protonation to the structures (default: False)')
+
+    # Group 4: DB2 related options
+    db2_group = parser.add_argument_group("DB2 related options")
+    db2_group.add_argument('--db2', '-db2',  action='store_true', help='Generate conformers and stored in the DB2 format for DOCK 3.8 (default: False)')
+    db2_group.add_argument('--corina', '-c', action='store_true', default = use_corina, help=f'Use Corina for 3D structure generation (default: {use_corina})')
+    db2_group.add_argument('--långben', '-igtor', action='store_true', dest='ignoretorlib', default = False, help='Ignore the Torsion Library - generate every possible conformer')
+    db2_group.add_argument('--numconfs', '-nconfs', type=int, default=2000, help='Maximum number of conformers to generate (default: 2000)')
+    db2_group.add_argument('--randomSeed', '-rs', type=int, default=42, help='Random seed for reproducibility (default: 42)')
+    db2_group.add_argument('--numcores', '-j', type=int, default=4, help='Number of cores to use for parallel processing (default: 4)')
+    db2_group.add_argument('--timeout', '-t', type=int, default=2, help='Timeout for the initial embedding for each SMILES entry before using OpenBabel in minutes (default: 2)')
+    db2_group.add_argument('--nocleanup', action='store_false', dest='cleanup', default = True, help='Do not clean up the temporary files (default: False)')
+    db2_group.add_argument('--energywindow', '-w', type=float, default=energy_window, help=f'Energy window for sampling the conformations (default: {energy_window} (kcal/mol))')
+
+    # Group 5: Miscellaneous
+    misc_group = parser.add_argument_group("Miscellaneous")
+    misc_group.add_argument("--debug", "-d", action="store_true", help="Enable debugging mode")
+    misc_group.add_argument('--lazy', action='store_true', help='Implement all the processing and preparation steps (default: False)')
+    misc_group.add_argument("--help", "-h", action="help", help="Show this help message and exit")
+    misc_group.add_argument('--timing', action='store_true', help='Time the process')
+    misc_group.add_argument('--test', action='store_true', help='Test mode (silent mode)')
+
     
-    # Add Boolean options
-    parser.add_argument('-e', '--enamine', action='store_true', help='Enamine input format (default: False)')
-    parser.add_argument('--lazy', action='store_true', help='Implement all the processing and preparation steps (default: False)')
-    parser.add_argument('--removesalts', action='store_true', help='Remove salts from the structures (default: False)')
-    parser.add_argument('--tautomers', action='store_true', help='Tautomers enumeration (default: False)')
-    parser.add_argument('--pains', action='store_true', help='Remove PAINS violations from the structures (default: False)')
-    parser.add_argument('--unwanted', choices=['all', 'regular', 'special', 'optional'], default=None, nargs='*', help='Filter out unwanted substructures using the default list')
-    
-    parser.add_argument('--stereoisomers', action='store_true', help='Stereoisomers enumeration (only consider unspecified chiral centers) (default: False)')
-    parser.add_argument('--protonation', action='store_true', help='Apply protonation to the structures (default: False)')
-    parser.add_argument('--db2', action='store_true', help='Generate conformers and stored in the DB2 format for DOCK 3.8 (default: False)')
-    parser.add_argument('--nocleanup', action='store_false', dest='cleanup', default = True, help='Do not clean up the temporary files (default: False)')
-    parser.add_argument('-noneu', '--noneutralize', action='store_false', dest='neutralize', default = True, help='Do not neutralize the molecule before tautomerization (default: False)')
-    parser.add_argument('--timing', action='store_true', help='Time the process')
-    parser.add_argument('-debug', '--debug', action='store_true', help='Debugging mode')
-    parser.add_argument('--test', action='store_true', help='Test mode (silent mode)')
-    parser.add_argument('--notaurdkit', action='store_false', dest='taurdkit', default = True, help='Do not use RDkit to canonicalize the input SMILES')
-    parser.add_argument('--enrichment', action='store_true', help='Enrichment mode (do not put in db2.tgz files)')
-    parser.add_argument('-c', '--corina', action='store_true', default = use_corina, help=f'Use Corina for 3D structure generation (default: {use_corina})')
-    parser.add_argument('-igtor', '--långben', action='store_true', dest='ignoretorlib', default = False, help='Ignore the Torsion Library - generate every possible conformer')
-    # Add string option
-    parser.add_argument('--custom', default=None, type=str, help='Filter out unwanted substructures using the customized list. To generate an example list, use --create_custom')
-    parser.add_argument('-pre', '--prefix', default=None, type=str, help='Prefix for the output files. If not provided, the input file name will be used.')
-
-    # Add integer option
-    parser.add_argument('-max_stereo','--max_stereoisomers', type=int, default=max_stereoisomers, help=f'Maximum number of stereoisomers to consider (default: {max_stereoisomers} = 3 stereocenters)')
-    parser.add_argument('-nconfs', '--numconfs', type=int, default=2000, help='Maximum number of conformers to generate (default: 2000)')
-    parser.add_argument('-rs', '--randomSeed', type=int, default=42, help='Random seed for reproducibility (default: 42)')
-    parser.add_argument('-j', '--numcores', type=int, default=4, help='Number of cores to use for parallel processing (default: 4)')
-    parser.add_argument('-t', '--timeout', type=int, default=2, help='Timeout for the initial embedding for each SMILES entry before using OpenBabel in minutes (default: 2)')
-
-    # Add float options
-    parser.add_argument('-w','--energywindow', type=float, default=energy_window, help=f'Energy window for sampling the conformations (default: {energy_window} (kcal/mol))')
-
     # Parse the arguments
     args = parser.parse_args()
-
+    if args.input_files and args.smiles:
+        parser.error('Please provide either input files or SMILES strings, not both.')
     if args.input_files is not None:
         for inFile in args.input_files:
             if not Path(inFile).is_file():
@@ -116,48 +144,63 @@ def parseArguments_batch(args = None):
     msani_batch -i example.smi -l 50 --stereosiomers --protonation --db2 --nocleanup
     """
     # Create the argument parser
-    parser = argparse.ArgumentParser(description= info, formatter_class=argparse.RawTextHelpFormatter)
+    parser = argparse.ArgumentParser(description= info,
+                                     formatter_class=CustomHelpFormatter,
+                                     add_help=False)  # Suppress default -h/--help)
     
-    # Add the required input files argument
-    parser.add_argument('-i', '--input_files', type=str, nargs='+', help='Input files containing chemical structures')
+    # Group 1: Input and output options
+    io_group = parser.add_argument_group("Input and output options")
+    io_group.add_argument('-i', '--input_files', type=str,  default=None, nargs='+', help='Input files containing chemical structures')
+    io_group.add_argument('-e', '--enamine', action='store_true', help='Enamine input format (default: False)')
+    io_group.add_argument('-pre', '--prefix', default=None, type=str, help='Prefix for the output files. If not provided, the input file name will be used.')
+    io_group.add_argument('-enrich', '--enrichment', action='store_true', help='Enrichment mode (do not put in db2.tgz files)')
+    
+    # Group 2: Filtering options
+    filter_group = parser.add_argument_group("Filtering options")
+    filter_group.add_argument('--removesalts', action='store_true', help='Remove salts from the structures (default: False)')
+    filter_group.add_argument('--custom', default=None, type=str, help='Filter out unwanted substructures using the customized list. To generate an example list, use --create_custom')
+    filter_group.add_argument('--unwanted', choices=['all', 'regular', 'special', 'optional'], default=None, nargs='*', help='Filter out unwanted substructures using the default list')
+    filter_group.add_argument('--pains', action='store_true', help='Remove PAINS violations from the structures (default: False)')
+    
+    # Group 3: SMILES processing options
+    smiles_group = parser.add_argument_group("SMILES processing options")
+    smiles_group.add_argument('--tautomers', action='store_true', help='Tautomers enumeration (default: False)')
+    smiles_group.add_argument('--noneutralize','-noneu',  action='store_false', dest='neutralize', default = True, help='Do not neutralize the molecule before tautomerization (default: False)')
+    smiles_group.add_argument('--notaurdkit', action='store_false', dest='taurdkit', default = True, help='Do not use RDkit to canonicalize the input SMILES')
+    smiles_group.add_argument('--stereoisomers', action='store_true', help='Stereoisomers enumeration (only consider unspecified chiral centers) (default: False)')
+    smiles_group.add_argument('--max_stereoisomers','-max_stereo', type=int, default=max_stereoisomers, help=f'Maximum number of stereoisomers to consider (default: {max_stereoisomers} = 3 stereocenters)')
+    smiles_group.add_argument('--protonation', action='store_true', help='Apply protonation to the structures (default: False)')
 
-    # Add Boolean options
-    parser.add_argument('-e', '--enamine', action='store_true', help='Enamine input format (default: False)')
-    parser.add_argument('--lazy', action='store_true', help='Implement all the processing and preparation steps (default: False)')
-    parser.add_argument('--removesalts', action='store_true', help='Remove salts from the structures (default: False)')
-    parser.add_argument('--tautomers', action='store_true', help='Tautomers enumeration (default: False)')
-    parser.add_argument('--pains', action='store_true', help='Remove PAINS violations from the structures (default: False)')
-    parser.add_argument('--unwanted', choices=['all', 'regular', 'special', 'optional'], default=None, nargs='*', help='Filter out unwanted substructures using the default list (default: None)')
-    parser.add_argument('--stereoisomers', action='store_true', help='Stereoisomers enumeration (only consider unspecified chiral centers) (default: False)')
-    parser.add_argument('--protonation', action='store_true', help='Apply protonation to the structures (default: False)')
-    parser.add_argument('-db2', '--db2', action='store_true', help='Generate conformers and stored in the DB2 format for DOCK 3.8 (default: False)')
-    parser.add_argument('--nocleanup', action='store_false', dest='cleanup', default = True, help='Do not clean up the temporary files (default: False)')
-    parser.add_argument('-noneu', '--noneutralize', action='store_false', dest='neutralize', default = True, help='Do not neutralize the molecule before tautomerization (default: False)')
-    parser.add_argument('-debug', '--debug', action='store_true', help='Debugging mode')
-    parser.add_argument('--timing', action='store_true', help='Time the process')
-    parser.add_argument('--notaurdkit', action='store_false', dest='taurdkit', default = True, help='Do not use RDkit to canonicalize the input SMILES')
-    parser.add_argument('--enrichment', action='store_true', help='Enrichment mode (do not put in db2.tgz files)')
-    parser.add_argument('-c', '--corina', action='store_true', default = use_corina, help=f'Use Corina for 3D structure generation (default: {use_corina})')
+    # Group 4: DB2 related options
+    db2_group = parser.add_argument_group("DB2 related options")
+    db2_group.add_argument('--db2', '-db2',  action='store_true', help='Generate conformers and stored in the DB2 format for DOCK 3.8 (default: False)')
+    db2_group.add_argument('--corina', '-c', action='store_true', default = use_corina, help=f'Use Corina for 3D structure generation (default: {use_corina})')
+    db2_group.add_argument('--långben', '-igtor', action='store_true', dest='ignoretorlib', default = False, help='Ignore the Torsion Library - generate every possible conformer')
+    db2_group.add_argument('--numconfs', '-nconfs', type=int, default=2000, help='Maximum number of conformers to generate (default: 2000)')
+    db2_group.add_argument('--randomSeed', '-rs', type=int, default=42, help='Random seed for reproducibility (default: 42)')
+    db2_group.add_argument('--numcores', '-j', type=int, default=4, help='Number of cores to use for parallel processing (default: 4)')
+    db2_group.add_argument('--timeout', '-t', type=int, default=2, help='Timeout for the initial embedding for each SMILES entry before using OpenBabel in minutes (default: 2)')
+    db2_group.add_argument('--nocleanup', action='store_false', dest='cleanup', default = True, help='Do not clean up the temporary files (default: False)')
+    db2_group.add_argument('--energywindow', '-w', type=float, default=energy_window, help=f'Energy window for sampling the conformations (default: {energy_window} (kcal/mol))')
 
-    # Add string option
-    parser.add_argument('--custom', default=None, type=str, help='Filter out unwanted substructures using the customized list')
-    parser.add_argument('-n', '--projectName', default=slurm_account, dest='proj_name', type=str, help=f'Project name for the SLURM script (default: {slurm_account})')
+    # Group 5: Miscellaneous
+    misc_group = parser.add_argument_group("Miscellaneous")
+    misc_group.add_argument("--debug", "-d", action="store_true", help="Enable debugging mode")
+    misc_group.add_argument('--lazy', action='store_true', help='Implement all the processing and preparation steps (default: False)')
+    misc_group.add_argument("--help", "-h", action="help", help="Show this help message and exit")
+    misc_group.add_argument('--timing', action='store_true', help='Time the process')
 
-    # Add integer option
-    parser.add_argument('-l', '--lines_per_job', dest='lines', type=int, default=lines_per_job, help=f'Number of lines to process per job (default: {lines_per_job})')
-    parser.add_argument('-max_stereo','--max_stereoisomers', type=int, default=max_stereoisomers, help=f'Maximum number of stereoisomers to consider (default: {max_stereoisomers} = 3 stereocenters)')
-    parser.add_argument('-nconfs', '--numconfs', type=int, default=2000, help='Maximum number of conformers to generate (default: 2000)')
-    parser.add_argument('-rs', '--randomSeed', type=int, default=42, help='Random seed for reproducibility (default: 42)')
-    parser.add_argument('-tl', '--timelimit', type=int, default=time_limit, help=f'Time limit for the SLURM job in hours (default: {time_limit})')
-    parser.add_argument('--max_jobs', type=int, default=max_jobs, help=f'Maximum number of jobs to run simultaneously (default: {max_jobs})')
-    parser.add_argument('-j', '--numcores', type=int, default=1, help='Number of cores to use for parallel processing (default: 1)')
-    parser.add_argument('-t', '--timeout', type=int, default=timeout, help=f'Timeout for the initial embedding for each SMILES entry before using OpenBabel in minutes (default: {timeout})')
-
-    # Add float options
-    parser.add_argument('-w','--energywindow', type=float, default=energy_window, help=f'Energy window for sampling the conformations (default: {energy_window} (kcal/mol))')
+    # Group 6: Batch mode options
+    batch_group = parser.add_argument_group("Batch mode options")
+    batch_group.add_argument('-n', '--projectName', default=slurm_account, dest='proj_name', type=str, help=f'Project name for the SLURM script (default: {slurm_account})')
+    batch_group.add_argument('-l', '--lines_per_job', dest='lines', type=int, default=lines_per_job, help=f'Number of lines to process per job (default: {lines_per_job})')
+    batch_group.add_argument('-tl', '--timelimit', type=int, default=time_limit, help=f'Time limit for the SLURM job in hours (default: {time_limit})')
+    batch_group.add_argument('--max_jobs', type=int, default=max_jobs, help=f'Maximum number of jobs to run simultaneously (default: {max_jobs})')
 
     # Parse the arguments
     args = parser.parse_args()
+    if args.input_files and args.smiles:
+        parser.error('Please provide either input files or SMILES strings, not both.')
     for inFile in args.input_files:
         if not Path(inFile).is_file():
             parser.error(f'The input file: {inFile} does not exist.')

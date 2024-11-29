@@ -113,6 +113,8 @@ def parse_flags_single_job(args: dict):
     if args.timeout != timeout: flags += f' --timeout {args.timeout}'
     if args.enrichment: flags += ' --enrichment'
     if args.corina: flags += f' --corina'
+    if args.ignoretorlib: flags += ' -igtor'
+    if not(args.neutralize): flags += ' --noneutralize'
     return flags
 
 def write_single_job_script(slurm_header: str, slurm_script: str):
