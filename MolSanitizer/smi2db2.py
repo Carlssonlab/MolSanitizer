@@ -938,7 +938,7 @@ def choose_sampling_method_ver5(rigid_scaffolds, name, smiles, numConfs, sulfo_m
 
     mol2_per_rigid_scaffold = []
 
-    if (len(match_torlib) == 0 or num_confs_by_rotbonds == 1):
+    if (len(match_torlib) == 0):
         clean_mol2_obj = copy.deepcopy(mol2_obj)
 
         for idx, mol in enumerate(rigid_scaffolds):
