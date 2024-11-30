@@ -199,8 +199,6 @@ def parseArguments_batch(args = None):
 
     # Parse the arguments
     args = parser.parse_args()
-    if args.input_files and args.smiles:
-        parser.error('Please provide either input files or SMILES strings, not both.')
     for inFile in args.input_files:
         if not Path(inFile).is_file():
             parser.error(f'The input file: {inFile} does not exist.')
