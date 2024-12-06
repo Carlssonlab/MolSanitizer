@@ -36,5 +36,6 @@ jobs:
           else
             git add CHANGELOG.md
             git commit -m "Update changelog"
-            git push https://${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git ${{ github.ref_name }}
+            # Push only branch changes, not tags
+            git push https://${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git HEAD:${{ github.ref_name }}
           fi
