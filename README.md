@@ -8,7 +8,7 @@
 
 MolSanitizer is a package for preparation (remove salts, stereoisomers enumeration, protonation, ...) and filtering undesirable substructures (PAINS, reactive functional groups, ...) for drug discovery projects.
 
-## Installation and getting started
+# Installation and getting started
 
 We will set up the environment using [Anaconda](https://docs.anaconda.com/anaconda/install/index.html). Clone the
 current repository:
@@ -23,7 +23,7 @@ Example of how to set up a working conda environment to run the code:
 
 More information on the installation and dependencies could be found [here](https://msani.readthedocs.io/en/latest/installation.html).
 
-## Documentation
+# Documentation
 
 Documentation on the theory behind MolSanitizer and how to use it can be found [here](https://msani.readthedocs.io/)
 
