@@ -53,13 +53,13 @@ class TestMolSanitizer(unittest.TestCase):
             molSanitizer.clean_data(args)
             os.system(f'ls {temp_dir}')
             #self.compareFiles(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_unwanted_all_clean.txt')
-            self.compareFiles(f'{temp_dir}/dummy_output_rejected.txt', f'{self.path}/out_unwanted_all_rejected.txt')
+            self.compare_relative(f'{temp_dir}/dummy_output_rejected.txt', f'{self.path}/out_unwanted_all_rejected.txt')
          
             args.unwanted = ['Regular','Optional']
             system(f'rm {temp_dir}/*.txt')
             molSanitizer.clean_data(args)
-            self.compareFiles(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_unwanted_regular_optional_clean.txt')
-            self.compareFiles(f'{temp_dir}/dummy_output_rejected.txt', f'{self.path}/out_unwanted_regular_optional_rejected.txt')
+            self.compare_relative(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_unwanted_regular_optional_clean.txt')
+            self.compare_relative(f'{temp_dir}/dummy_output_rejected.txt', f'{self.path}/out_unwanted_regular_optional_rejected.txt')
 
             # Test if filters works together
             args.unwanted = ['Regular']
@@ -88,15 +88,28 @@ class TestMolSanitizer(unittest.TestCase):
 
     def test_stereoisomers(self):
         with tempfile.TemporaryDirectory() as temp_dir:
-            args = self.generate_mock_arguments([f'{self.path}/in_stereo.txt'], ['stereoisomers', 'test'], temp_dir)
+            args = self.generate_mock_arguments([f'{self.path}/in_stereo.txt'], ['stereoisomers', 'test', ], temp_dir)
+            args.max_stereoisomers = 128
             molSanitizer.clean_data(args)
-            self.compareFiles(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_stereo.txt')
+            self.compare_relative(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_stereo.txt')
 
     def test_protonation(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             args = self.generate_mock_arguments([f'{self.path}/in_protonation.txt'], ['protonation', 'test'], temp_dir)
+            args.pH = 7
             molSanitizer.clean_data(args)
-            self.compare_relative(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_protonation.txt')
+            self.compare_relative(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/ph7_clean.txt')
+            system(f'rm {temp_dir}/*.txt')
+            
+            args.pH = 5
+            molSanitizer.clean_data(args)
+            self.compare_relative(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/ph5_clean.txt')
+            system(f'rm {temp_dir}/*.txt')
+
+            args.pH = 9
+            molSanitizer.clean_data(args)
+            self.compare_relative(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/ph9_clean.txt')
+            system(f'rm {temp_dir}/*.txt')
     
     def test_integrity(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -145,12 +158,15 @@ class TestMolSanitizer(unittest.TestCase):
             'unwanted': None,
             'create_custom': False,
             'stereoisomers': False, 
-            'protonation': False, 
+            'protonation': False,
+            'pH': 7,
+            'pH_range': 0,
             "neutralize": False, 
             "debug": False, 
             "custom":None, 
             "prefix":output_prefix, 
             "max_stereoisomers": 8,
+            "numcores": 4,
             "test": False,
             "smiles": None,
             "db2": False
