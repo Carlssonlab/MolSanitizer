@@ -28,7 +28,9 @@ def get_tautomer_params():
 
 # Initialize parameters once at module level
 TAUTOMER_PARAMS = get_tautomer_params()
-uncharger = rdMolStandardize.Uncharger()
+#uncharger = rdMolStandardize.Uncharger()
+enumerating_reactions = ['amine', 'vinylog_acid', 'squaric_acid', 'vinyl_acid', 'vanillin_like',
+                         'hydrazine', 'p-phenyldiamine', 'biguanides', 'cycloguanil-like']
         
 def remove_invalid_SMILES(df:pd.DataFrame) -> pd.DataFrame:
     """Remove rows with invalid SMILES from the input DataFrame.
@@ -88,15 +90,35 @@ def removesalts(df: pd.DataFrame, debug = False) -> pd.DataFrame:
     df=df[df['smiles']!=''] #Remove purely salt molecules
     return df
 
+def neutralize_atoms(mol):
+    """Neutralize the input molecule by balancing the charges on atoms.
+    Adapted from RDKit Cookbook: https://rdkit.org/docs/Cookbook.html"""
+
+    pattern = Chem.MolFromSmarts("[+1!h0!$([*]~[-1,-2,-3,-4]),-1!$([*]~[+1,+2,+3,+4])]")
+    at_matches = mol.GetSubstructMatches(pattern)
+    at_matches_list = [y[0] for y in at_matches]
+    if len(at_matches_list) > 0:
+        for at_idx in at_matches_list:
+            atom = mol.GetAtomWithIdx(at_idx)
+            chg = atom.GetFormalCharge()
+            hcount = atom.GetTotalNumHs()
+            atom.SetFormalCharge(0)
+            atom.SetNumExplicitHs(hcount - chg)
+            atom.UpdatePropertyCache()
+    return mol
+
 def neutralize(df: pd.DataFrame, debug = False) -> pd.DataFrame:
-    '''Neutralize the input molecules using the RDKit Uncharger class. 
-    Turn on by default if the user trigger the tautomers flag.'''
+    '''Neutralize the input molecules using the neutralize_atoms() function. 
+    Turn on by default if the user trigger the tautomers or protonation flag.'''
+
     if debug: print('Neutralizing molecules...')
     logger.info('Neutralizing molecules...')
+    # for atom in df.iloc['mol'][0].GetAtoms():
+    #     print(atom.GetFormalCharge())
     for i, row in df.iterrows():
         try:
-            uncharged = uncharger.uncharge(row['mol'])
-            df.at[i, 'mol'] = uncharged
+            row['mol'] = neutralize_atoms(row['mol'])
+            row['smiles'] = Chem.MolToSmiles(row['mol'])
         except:
             logger.error(f"Error neutralizing molecule: {Chem.MolToSmiles(row['mol'])}")
             pass
@@ -422,46 +444,94 @@ def load_reactions(file_path):
                 reactions.append([AllChem.ReactionFromSmarts(smarts[0]), smarts[1]])
     return reactions
 
+def load_protonation_rules(file_path):
+    '''
+    Load the protonation rules from a file containing SMARTS strings.'''
+
+    rules = pd.read_csv(file_path, sep=r"\s+")
+    rules['Mol'] = rules['REACTION'].apply(lambda x: AllChem.ReactionFromSmarts(x))
+    return rules
+
+def extract_necessary_rules(rule_library, pH):
+    """
+    Processes ionization rules from a file and filters them based on pH.
+    
+    Parameters:
+        file_path (str): Path to the ionization rules file.
+        pH (float): The pH value to filter the rules.
+        
+    Returns:
+        pd.DataFrame: Filtered rules based on the pH.
+    """
+
+
+    # Filter based on pH for ACID and BASE rules
+    filtered_rules = rule_library[
+        ((rule_library['TYPE'] == 'ACID') & (rule_library['pKa'] < pH)) |
+        ((rule_library['TYPE'] == 'BASE') & (rule_library['pKa'] > pH))
+    ]
+
+    reaction_list = []
+
+    for i, row in filtered_rules.iterrows():
+        reaction_list.append((row['Mol'], row['FUNCTIONAL_GROUP']))
+    logger.info(f'Parsed {len(reaction_list)} rules for pH {pH}')    
+    return reaction_list
+
 # Function to apply reactions to a molecule
-def recursive_reaction(mol, reactions, collection):
-    """Recursively conduct the reaction until no more products are generated.
+def recursive_reaction(mol, reactions, collection, visited=None):
+    """
+    Recursively apply reactions to the molecule until no new products are generated.
 
     Args:
-        mol (rdkit.Chem.rdchem.Mol object): the reactants for the reaction
-        reactions (list):   A list of reactions in the form of SMARTS strings
-                            format: [rdkit.Chem.rdchem.Mol object, name]
-        collection (set):   A set of unique products (in SMILES) generated from the reaction
+        mol (rdkit.Chem.rdchem.Mol): The reactant molecule.
+        reactions (list): A list of reactions in the form [(rdkit.Chem.rdChem.Reaction object, name), ...].
+        collection (set): A set of unique products (in SMILES) generated from the reaction.
+        visited (set): A set of SMILES strings for molecules already processed to avoid redundancy.
 
     Returns:
-        collection (set):   A set of unique products (in SMILES) generated from the reaction
+        set: A set of unique products (in SMILES) generated from the reaction.
     """
+    if visited is None:
+        visited = set()
+    
+    mol_smiles = Chem.MolToSmiles(mol)
+    
+    # Check if the molecule has already been visited
+    if mol_smiles in visited:
+        return collection  # Skip redundant processing
+
+    visited.add(mol_smiles)  # Mark the molecule as visited
+
     reactive = False
     for rxn, name in reactions:
         outcomes = rxn.RunReactants((mol,))
-        if outcomes:  # Check if there are any outcomes
+        if outcomes:  # Check if there are any outcomes            
             reactive = True
-            if name == 'amine':
+            if name in enumerating_reactions:
                 for outcome in outcomes:
                     product = outcome[0]
                     try:
                         Chem.SanitizeMol(product)
-                        recursive_reaction(product, reactions, collection)  # Recurse with the new product
+                        recursive_reaction(product, reactions, collection, visited)  # Recurse with the new product
                     except:
+                        print(f"Error sanitizing molecule: {Chem.MolToSmiles(mol)} to {Chem.MolToSmiles(product)}")
                         logger.info(f"Error sanitizing molecule: {Chem.MolToSmiles(mol)} to {Chem.MolToSmiles(product)}")
                         pass
             else:
                 product = outcomes[0][0]
                 try:
                         Chem.SanitizeMol(product)
-                        recursive_reaction(product, reactions, collection)  # Recurse with the new product
+                        recursive_reaction(product, reactions, collection, visited)  # Recurse with the new product
                 except:
+                    print(f"Error sanitizing molecule: {Chem.MolToSmiles(mol)} to {Chem.MolToSmiles(product)}")
                     logger.info(f"Error sanitizing molecule: {Chem.MolToSmiles(mol)} to {Chem.MolToSmiles(product)}")
                     pass
     if not reactive: 
-        collection.add(Chem.MolToSmiles(mol))  # Add the initial molecule if it is not reactive
+        collection.add(mol_smiles)  # Add the initial molecule if it is not reactive
     return collection  # Return the collection of products
 
-def protonation(df: pd.DataFrame, debug = False) -> pd.DataFrame:
+def protonation(df: pd.DataFrame, pH: int = 7, pH_range: int = 0, debug = False) -> pd.DataFrame:
     """Protonate the input molecules using a set of predefined reactions.
     The reactions are stored in a file with the following format:
     SMARTS reactants >> products [name]
@@ -469,26 +539,37 @@ def protonation(df: pd.DataFrame, debug = False) -> pd.DataFrame:
 
     Args:
         df (pd.DataFrame): Input DataFrame with 'mol' column containing RDKit molecule objects.
+        pH (int, optional): The pH value to use for protonation. Defaults to 7.
+        pH_range (int, optional): The range of pH values to consider. Defaults to 0.
         debug (bool, optional): Debug mode. Defaults to False.
 
     Returns:
         pd.DataFrame: A new DataFrame chunk with protonated molecules.
     """
     # Get the absolute path to the template SMARTS file using pathlib
-    smartsFile = Path(__file__).parent / 'Data' / 'ionizations.txt'
+    smartsFile = Path(__file__).parent / 'Data' / 'ionizations_v2.txt'
 
     # Load reactions from file
-    reactions = load_reactions(smartsFile)
+    rule_library = load_protonation_rules(smartsFile)
+    pH_values = (pH,) if pH_range == 0\
+                else (max(0, pH - pH_range), pH, pH + pH_range)
 
+    all_rules = {}
+    for pH in pH_values:
+        rules = extract_necessary_rules(rule_library, pH)
+        all_rules[pH] = rules
     # Apply reactions to each SMILES in the DataFrame
     charged_df = []
     for _, row in df.iterrows():
-        variations = list(recursive_reaction(row['mol'], reactions, set()))
-        if (len(variations) == 1): 
+        variation_sets = set()    
+        for pH in pH_values:
+            variations = list(recursive_reaction(row['mol'], all_rules[pH], set()))
+            variation_sets.update(variations)
+        if (len(variation_sets) == 1): 
             charged_df.append(
-                {'smiles': variations[0], 'ids': row['ids'],'mol': Chem.MolFromSmiles(variations[0])})
+                {'smiles': list(variation_sets)[0], 'ids': row['ids'],'mol': Chem.MolFromSmiles(list(variation_sets)[0])})
         else:
-            for i, variation in enumerate(variations):
+            for i, variation in enumerate(variation_sets):
                 charged_df.append({
                     'smiles': variation,
                     'ids': row['ids']+'_'+str(i+1),

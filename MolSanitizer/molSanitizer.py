@@ -35,9 +35,10 @@ def apply_filters(chunk, args, rejected_file):
 
     if args.removesalts:
         chunk = filters.removesalts(chunk, args.debug)
-    if args.tautomers:
+    if args.tautomers or args.protonation:
         if args.neutralize:
             chunk = filters.neutralize(chunk, args.debug)
+    if args.tautomers:
         chunk = filters.tautomers(chunk, args.taurdkit, args.numcores, args.debug)
     if args.pains:
         chunk = filters.pains(chunk, rejected_file, args.debug)
@@ -46,7 +47,7 @@ def apply_filters(chunk, args, rejected_file):
     if args.custom:
         chunk = filters.custom(chunk, rejected_file, args.custom, args.debug)
     if args.protonation:
-        chunk = filters.protonation(chunk, args.debug)
+        chunk = filters.protonation(chunk, args.pH, args.pH_range, args.debug)
     if args.stereoisomers:
         chunk = filters.stereoisomers(chunk, args.max_stereoisomers, args.numcores, args.debug)
 
@@ -190,6 +191,10 @@ def Sanitycheck(args: dict):
         # Always enumerate stereoisomers for before generating DB2 files
         # Maximum number of stereoisomers is set to in parser
         args.stereoisomers = True
+    
+    if (args.pH != 7 or args.pH_range != 0) and not args.protonation:
+        print("It seems like you forget the --protonation flag. We turned it on for you.")
+        args.protonation = True
     return args
 
 def generateCustomTemplate(args):

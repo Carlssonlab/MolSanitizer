@@ -16,7 +16,7 @@ nitro_phenols	6	ACID	[OH1&+0;$(O-[$(a1a(-N(=O)O)aaaa1),$(a1aaa(-N(=O)O)aa1),$(a1
 aro_thiol	7	ACID	[SHX2&+0;$(S-a):1]>>[SH0&-:1]
 barbituric_acid-CH2	4	ACID	[CH2;$(C1-C(=[O,SX1])-N-C(=[O,SX1])-N-C-1(=[O,SX1]))!$(C~*~[*-]):1]>>[CH1&-:1]
 barbituric_acid-CH	4	ACID	[CH&+0;$(C1-C(=[O,SX1])-N-C(=[O,SX1])-N-C-1(=[O,SX1]))!$(C~[*-])!$(C~*~[*-]):1]>>[CH0&-:1]
-barbituric_acid-NH	7	ACID	[NH&+0;$(N1-C(=[O,SX1])-N-C(=[O,SX1])-C-C-1(=[O,SX1]))!$(N~[*-])!$(N~*~[*-]):1]>>[NH0&-:1]
+barbituric_acid-NH	7	ACID	[NH&+0;$(N1-C(=[O,SX1])-N-C(=[O,SX1])-[CH0&+0]-C-1(=[O,SX1]))!$(N~[*-])!$(N1-C(=[O,SX1])-[N-]-C(=[O,SX1])-C-C-1(=[O,SX1]))!$(N~C~[O-,S-]):1]>>[NH0&-:1]
 pyrazolidindion_CH	4	ACID	[CH&+0;$(C1-C(=O)-N-N-C-1(=O))!$(C~[*-])!$(C~*~[*-]):1]>>[CH0&-:1]
 vanillin_like	8	ACID	[OH1&+0;$(O-c1ccc(-[C;$([CH]),$(C-C)]=O)cc1)!$(O~*~*~[-1]):1]>>[OH0&-:1]
 thiazolidinediones	6	ACID	[NH&+0;$(N1-C(=O)-C-S-C-1(=O)):1]>>[NH0&-:1]

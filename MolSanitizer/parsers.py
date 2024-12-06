@@ -23,6 +23,8 @@ with open(os.path.join(os.path.dirname(__file__), 'msani_configurations.yaml')) 
     energy_window = configurations['ENERGY_WINDOW']
     numconfs = configurations['NUMCONFS']
     max_stereoisomers = configurations['MAX_STEREOISOMERS']
+    pH = configurations['PH']
+    pH_range = configurations['PH_RANGE']
 
 class CustomHelpFormatter(argparse.RawDescriptionHelpFormatter, argparse.HelpFormatter):
     def _format_action_invocation(self, action):
@@ -89,6 +91,8 @@ def parseArguments(args = None):
     smiles_group.add_argument('--stereoisomers', action='store_true', help='Stereoisomers enumeration (only consider unspecified chiral centers) (default: False)')
     smiles_group.add_argument('--max_stereoisomers','-max_stereo', type=int, default=max_stereoisomers, help=f'Maximum number of stereoisomers to consider (default: {max_stereoisomers} = 3 stereocenters)')
     smiles_group.add_argument('--protonation', action='store_true', help='Apply protonation to the structures (default: False)')
+    smiles_group.add_argument('--pH', '-p', type=int, default=pH, help='pH for the protonation (default: 7)')
+    smiles_group.add_argument('--pH_range', '-r', type=int, default=pH_range, help='pH range for the protonation (default: 0)')
 
     # Group 4: DB2 related options
     db2_group = parser.add_argument_group("DB2 related options")
@@ -165,11 +169,13 @@ def parseArguments_batch(args = None):
     # Group 3: SMILES processing options
     smiles_group = parser.add_argument_group("SMILES processing options")
     smiles_group.add_argument('--tautomers', action='store_true', help='Tautomers enumeration (default: False)')
-    smiles_group.add_argument('--noneutralize','-noneu',  action='store_false', dest='neutralize', default = True, help='Do not neutralize the molecule before tautomerization (default: False)')
+    smiles_group.add_argument('--noneutralize','-noneu',  action='store_false', dest='neutralize', default = True, help='Do not neutralize the molecule before tautomerization and protonation (default: False)')
     smiles_group.add_argument('--notaurdkit', action='store_false', dest='taurdkit', default = True, help='Do not use RDkit to canonicalize the input SMILES')
     smiles_group.add_argument('--stereoisomers', action='store_true', help='Stereoisomers enumeration (only consider unspecified chiral centers) (default: False)')
     smiles_group.add_argument('--max_stereoisomers','-max_stereo', type=int, default=max_stereoisomers, help=f'Maximum number of stereoisomers to consider (default: {max_stereoisomers} = 3 stereocenters)')
     smiles_group.add_argument('--protonation', action='store_true', help='Apply protonation to the structures (default: False)')
+    smiles_group.add_argument('--pH', '-p', type=int, default=pH, help='pH for the protonation (default: 7)')
+    smiles_group.add_argument('--pH_range', '-r', type=int, default=pH_range, help='pH range for the protonation (default: 0)')
 
     # Group 4: DB2 related options
     db2_group = parser.add_argument_group("DB2 related options")

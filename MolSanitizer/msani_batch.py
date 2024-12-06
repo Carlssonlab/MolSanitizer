@@ -77,6 +77,8 @@ with open(os.path.join(os.path.dirname(__file__), 'msani_configurations.yaml')) 
     energy_window = configurations['ENERGY_WINDOW']
     numconfs = configurations['NUMCONFS']
     max_stereoisomers = configurations['MAX_STEREOISOMERS']
+    pH = configurations['PH']
+    pH_range = configurations['PH_RANGE']
 
 def count_lines_bash(file_path):
     result = subprocess.run(['wc', '-l', file_path], stdout=subprocess.PIPE)
@@ -99,15 +101,22 @@ def parse_flags_single_job(args: dict):
     if not(args.taurdkit): flags += ' --notaurdkit'
     if args.pains: flags += ' --pains'
     if args.unwanted is not None: flags += f' --unwanted {" ".join(args.unwanted)}'
-    if args.stereoisomers: flags += ' --stereoisomers'
-    if args.protonation: flags += ' --protonation'
+
+    if args.stereoisomers: 
+        flags += ' --stereoisomers'
+        if args.max_stereoisomers != max_stereoisomers: flags += f' --max_stereoisomers {args.max_stereoisomers}'
+
+    if args.protonation: 
+        flags += ' --protonation'
+        if args.pH != pH: flags += f' --pH {args.pH}'
+        if args.pH_range != pH_range: flags += f' --pH_range {args.pH_range}'
+
     if args.db2: flags += ' --db2'
     if not(args.cleanup): flags += ' --nocleanup'
     if args.debug: flags += ' --debug'
     if args.timing: flags += ' --timing'
     if args.custom is not None: flags += f' --custom ../{args.custom}'
     if args.energywindow != energy_window: flags += f' --energywindow {args.energywindow}'
-    if args.max_stereoisomers != max_stereoisomers: flags += f' --max_stereoisomers {args.max_stereoisomers}'
     if args.numconfs != numconfs: flags += f' --numconfs {args.numconfs}'
     if args.randomSeed != 42: flags += f' --randomSeed {args.randomSeed}'
     if args.timeout != timeout: flags += f' --timeout {args.timeout}'
