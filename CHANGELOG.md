@@ -8,6 +8,7 @@ All notable changes to this project will be documented in this file.
 
 - *(install)* Added toml file and fixed null arguments - ([61c1380](https://github.com/phonglam3103/MolSanitizer/commit/61c138077348b74af345a29aa34ef87613ce357f))
 - *(smi2db2)* :sparkles: Rigid compounds without any rotatable bonds (or with only 1 conf during rotating rot bonds) will output all the 3D conformations by Rdkit rather than only one like before.  eg. steroids, morphine...🔥 - ([0ff023e](https://github.com/phonglam3103/MolSanitizer/commit/0ff023ed4ee262100fc8baa67865dd9346b457a4))
+- New protonation rules and protonation method. Msani now could enumerate the protonation states at different pH values and within a range of pH. - ([9a779a2](https://github.com/phonglam3103/MolSanitizer/commit/9a779a2214159a9d177491ca6b436356cfdb96cc))
 - Neutralization filter applied before the tautomerization perception. This help to remove any possible charge-related error from the input. The user can turn off suchbehavior by -noneu or --noneutralize - ([4f7c53f](https://github.com/phonglam3103/MolSanitizer/commit/4f7c53fe299cba0d3fb522a8cb7597c5e41f8e1d))
 - Added -igtor or --långben flags, that will apply stochastic but without adhere to any rules in TorLib. This will help to explore the conformational space without any constraints to the Torlib. - ([fbb57a9](https://github.com/phonglam3103/MolSanitizer/commit/fbb57a9586866d4de486a9684c6427c49e4db576))
 - Incorporated CORINA as an optional 3D initial embedding machine. Enable by -c or --corina, but the user is asked to set a path to CORINA in msani_configurations.yaml. - ([de95bf7](https://github.com/phonglam3103/MolSanitizer/commit/de95bf7bfafde8c2306236c4a6990dd01cec0d97))
@@ -125,6 +126,10 @@ All notable changes to this project will be documented in this file.
 - Fix typos - ([e51eefc](https://github.com/phonglam3103/MolSanitizer/commit/e51eefc47099fe49ccabe0598e260e4cc387de5d))
 - :art: Improved logging of the time of running of each step of MolSanitizer (should now output hours:mins:secs) - ([a3ff715](https://github.com/phonglam3103/MolSanitizer/commit/a3ff715dc9ed4b16f84a690d0751e954c74e24a3))
 - :fire: Better logger for errorneous compounds - ([4627645](https://github.com/phonglam3103/MolSanitizer/commit/4627645bd555a5b9ae51476762cde4c070003c61))
+
+### 🧪 Testing
+
+- Update the new goldenData for the unittest.py - ([dfe57b8](https://github.com/phonglam3103/MolSanitizer/commit/dfe57b879df9d245741f480df91298e4bc479e09))
 
 ### ◀️ Revert
 
