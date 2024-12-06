@@ -1,3 +1,3 @@
-CC(C)(C(N)=O)c1c(F)c(F)c(F)c(F)c1F perhalogenated_rings_3_holgenids_and_more perhalogenated_rings_3_holgenids_and_more
 NC(=O)N1CCC(O)CC1 heterocyclic_ureas heterocyclic_ureas
 Cc1noc(C)c1[N+](=O)[O-] 4-(electron-withdrawing-group)-isoxazoles 4-(electron-withdrawing-group)-isoxazoles
+Nc1nc(CCO)cs1 2-aminothiazoles 2-aminothiazoles

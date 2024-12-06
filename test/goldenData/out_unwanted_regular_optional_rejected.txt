@@ -3,6 +3,7 @@ N#CC=Cc1ccccc1 Michael_acceptors2 Michael_acceptors
 O=C(O)C#Cc1ccc2c(c1)OCO2 Michael_acceptors3 Michael_acceptors
 N#CC#CC1CC1 Michael_acceptors4 Michael_acceptors
 OCC(F)(F)C(F)F tetrafluoroethylene tetrafluoroethylene
+CC(C)(C(N)=O)c1c(F)c(F)c(F)c(F)c1F perhalogenated_rings_3_holgenids_and_more perhalogenated_rings_3_holgenids_and_more
 NC(=S)c1ccco1 thioamides_thiocyanates thioamides_thiocyanates
 CCc1ccc2occc(=O)c2c1 flavons flavons
 C=C(C)CSc1nnc(S)s1 thiols thiols
@@ -62,7 +63,6 @@ O=C(O)c1ccc(C2SCCCS2)cc1 dithioacetals dithioacetals
 CCCCCCCC(=O)NCCO butylene_chains butylene_chains
 c1cnc2c(c1)ccc1cccnc12 polycyclic_aromatic_compounds polycyclic_aromatic_compounds
 CC=C=CCCN allenes allenes
-Nc1nc(CCO)cs1 2-aminothiazoles 2-aminothiazoles
 [2H]C([2H])([2H])OCC(=O)O deuterium deuterium
 [13C]C(=O)OC heavy_isotopes heavy_isotopes
 COC(=O)c1ccc(N=C=O)cc1 isocyanates isocyanates

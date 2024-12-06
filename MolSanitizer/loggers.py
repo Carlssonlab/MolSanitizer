@@ -34,14 +34,21 @@ def arguments(args):
     logger.info(f"Input files: {args.input_files}")
     logger.info(f"Enamine format: {args.enamine}")
     logger.info(f"Remove Salts: {args.removesalts}")
-    logger.info(f"Neutralize before tautomerization: {args.neutralize}")
+    logger.info(f"Neutralize before tautomerization and protonation: {args.neutralize}")
     logger.info(f"Tautomers enumeration: {args.tautomers}")
     logger.info(f"PAINS filter: {args.pains}")
     logger.info(f"Unwanted filter: {args.unwanted}")
     logger.info(f"Customized filter: {args.custom}")
-    logger.info(f"Protonation: {args.protonation}")
-    logger.info(f"Stereoisomers: {args.stereoisomers}")
-    logger.info(f"Max stereoisomers: {args.max_stereoisomers}")
+
+    if args.protonation:
+        logger.info(f"Protonation: {args.protonation}")
+        logger.info(f"pH: {args.pH}")
+        logger.info(f"pH range: {args.pH_range}")
+
+    if args.stereoisomers:
+        logger.info(f"Stereoisomers: {args.stereoisomers}")
+        logger.info(f"Max stereoisomers: {args.max_stereoisomers}")
+
     if args.db2:
         logger.info(f"Generate DB2 files for DOCK 3.8: {args.db2}")
         logger.info(f"Number of conformers: {args.numconfs}")
@@ -49,9 +56,10 @@ def arguments(args):
         logger.info(f"Random seed: {args.randomSeed}")
         logger.info(f"Energy window: {args.energywindow}")
         logger.info(f"Timelimit for initial embedding using Rdkit: {args.timeout}")
-        logger.info(f"Using CORINA for initial embedding: {args.corina}")
+        logger.info(f"Use CORINA for initial embedding: {args.corina}")
         if args.enrichment:
             logger.info(f"Enrichment mode: {args.enrichment}")
+
     if args.tautomers:
         smartsFile = Path(__file__).parent / 'Data' / 'tautomers.txt'
         temp_df = loadSMARTSdata(smartsFile.resolve())

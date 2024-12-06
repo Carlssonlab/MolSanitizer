@@ -1,6 +1,5 @@
 C=C(C)C(=O)OCCO Michael_acceptors1
 OCC(F)(F)C(F)F tetrafluoroethylene
-CC(C)(C(N)=O)c1c(F)c(F)c(F)c(F)c1F perhalogenated_rings_3_holgenids_and_more
 NC(=S)c1ccco1 thioamides_thiocyanates
 C=C(C)CSc1nnc(S)s1 thiols
 Cn1cc(SSc2cnn(C)c2)cn1 disulfides
@@ -43,6 +42,7 @@ CN(CC1=CC1(F)F)C(=O)OC(C)(C)C cyclic_double_bonds_3-4-membered
 O=c1n(Cl)c(=O)n(Cl)c(=O)n1Cl N-halo_compounds
 O=Nc1ccc(Br)cc1 nitroso-cmpds
 CC=C=CCCN allenes
+Nc1nc(CCO)cs1 2-aminothiazoles
 [2H]C([2H])([2H])OCC(=O)O deuterium
 [13C]C(=O)OC heavy_isotopes
 COC(=O)c1ccc(N=C=O)cc1 isocyanates
