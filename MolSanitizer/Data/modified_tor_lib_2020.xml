@@ -65,6 +65,9 @@
 
       Nov 5 24
       Moved arylalcohol group before arylether and added SMARTS rules to make the dihedral to coplanar with the ring.
+
+     Dec 9 24
+     Disabled minor "peaks" for the rule [a:1][c:2]!@[CX3:3]([NX3H1,NX3H2])=[O:4]
 -->
 <library>
  <hierarchyClass id1="G" id2="G" name="GG" smarts="[*:2]!@[*:3]">
@@ -35353,10 +35356,10 @@
      <angleList>
       <angle score="8.880000000000001" tolerance1="20" tolerance2="30" value="0" />
       <angle score="8.460000000000001" tolerance1="20" tolerance2="30" value="180" />
-      <angle score="0.78" tolerance1="20" tolerance2="30" value="-120" />
+<!--      <angle score="0.78" tolerance1="20" tolerance2="30" value="-120" />
       <angle score="0.66" tolerance1="20" tolerance2="30" value="60" />
       <angle score="0.52" tolerance1="20" tolerance2="30" value="-60" />
-      <angle score="0.51" tolerance1="20" tolerance2="30" value="120" />
+      <angle score="0.51" tolerance1="20" tolerance2="30" value="120" />-->
      </angleList>
      <histogram>
       <bin count="2088" />
