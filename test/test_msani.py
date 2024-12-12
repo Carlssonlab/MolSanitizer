@@ -169,7 +169,9 @@ class TestMolSanitizer(unittest.TestCase):
             "numcores": 4,
             "test": False,
             "smiles": None,
-            "db2": False
+            "db2": False,
+            "synthons": False,
+            "taurdkit": True
          } 
         for mode in modes: 
             if (mode not in ['unwanted','custom']): args[mode] = True
