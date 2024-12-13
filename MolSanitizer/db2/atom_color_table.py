@@ -36,14 +36,16 @@ class ColorTable(object):
                        ('O.3', 'acceptor'),
                        ('S.2', 'acceptor'),
                        ('N.ar', 'acceptor'),
-                       ('P.3', 1, 'O.co2', 'negative'),
-                       ('S.o2', 1, 'O.co2', 'negative'),
-                       ('S.O2', 1, 'O.co2', 'negative'),
-                       ('N.2', 1, 'H', 'donor'),
+                       #('P.3', 1, 'O.co2', 'negative'), #Turned off, as this was chemically incorrect
+                       ('O.3', 1, 'P.3', 'negative'), #Added to make O.3 bonded to P.3 negative. Have to fix the ester side later.
+                       ('O.3', 1, 'S.o2', 'negative'), #Added to make O.3 bonded to S.o2 negative. Have to fix the ester side later.
                        ('N.am', 1, 'H', 'donor'),
                        ('N.pl3', 1, 'H', 'donor'),
-                       ('O.3', 1, 'H', 'donor'),
-                       ('N.ar', -1, 'H', 'acceptor'),
+                       #('O.3', 1, 'H', 'donor'), #Duplicated
+                       ('N.2', -1, 'H', 'acceptor'),
+                       ('N.2', -1, 'C.3', 'acceptor'),
+                       ('N.2', 1, 'H', 'donor'),
+                       ('N.ar', -1, 'H', 'acceptor'), #These N.ar seems unnecessary but were kept for compatibility with CORINA
                        ('N.ar', -1, 'C.3', 'acceptor'),
                        ('N.ar', 1, 'H', 'donor'),
                        ('O.3', 1, 'H', 'donor'),
@@ -126,6 +128,11 @@ class ColorTable(object):
           if 0 == actualName.find(rule[0]):  # matched the first part
             if mol2data.bondedTo(atomNum, rule[2], rule[1]):
               lastColorFound = rule[3]
+    
+    # Special case for ester O.3 bonded to P.3 and C.3 or C.2
+    if actualName == 'O.3' and (mol2data.bondedTo(atomNum, 'P.3') or mol2data.bondedTo(atomNum, 'S.o2')) and\
+      (mol2data.bondedTo(atomNum, 'C.3') or mol2data.bondedTo(atomNum, 'C.2')):  
+      lastColorFound = 'acceptor'
     return self.colorInts[lastColorFound]
 
 # fix for py3-3.7

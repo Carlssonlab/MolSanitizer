@@ -1098,8 +1098,12 @@ def gen_conf_chunk_ver3(df: pd.DataFrame, args, input_file='0'):
             error_signal = 0
 
             cp = Chem.Mol(amsol_mol, confId=conf_id) #Retrieve the conf_id-th conformer of mol object
-            mol2_block = convert(Chem.MolToMolBlock(cp), "mol", "mol2")
-            write_to_file(mol2_block, f"{name}.mol2")
+            #mol2_block = convert(Chem.MolToMolBlock(cp), "mol", "mol2")
+            #write_to_file(mol2_block, f"{name}.mol2")
+            Chem.Kekulize(cp, clearAromaticFlags=True)    
+            #print(Chem.MolToSmiles(cp))
+            mol2_obj = smi2db2_utils.Mol2Writer(cp)
+            mol2_obj.write_mol2(f"{name}.mol2")
 
             run_amsol.prepare(f"{name}.mol2", name, netcharge)
             error_signal = run_amsol.run('temp.in-hex', 'temp.o-hex', env)
@@ -1230,8 +1234,9 @@ def gen_conf_chunk_corina(df: pd.DataFrame, args, input_file='0'):
             error_signal = 0
 
             cp = Chem.Mol(amsol_mol, confId=conf_id) #Retrieve the conf_id-th conformer of mol object
+            
             mol2_block = convert(Chem.MolToMolBlock(cp), "mol", "mol2")
-            write_to_file(mol2_block, f"{name}.mol2")
+            #write_to_file(mol2_block, f"{name}.mol2")
 
             run_amsol.prepare(f"{name}.mol2", name, netcharge)
             error_signal = run_amsol.run('temp.in-hex', 'temp.o-hex', env)
