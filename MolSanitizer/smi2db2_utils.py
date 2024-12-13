@@ -36,8 +36,7 @@ class Mol2Writer:
             'carboxylate': Chem.MolFromSmarts("[C;X3](=O)[O-]"),    # COO- 
             'carboxylic_acid': Chem.MolFromSmarts("[C;X3](=O)[OH1]"),   # COOH
             'amide': Chem.MolFromSmarts("[C;X3](=O)N"),             # CONH (amide)
-            'phosphate': Chem.MolFromSmarts("[O;X1&-:1]-[P:2]=[O:3]"), # PO4(3-)
-            'phosphoric_acid': Chem.MolFromSmarts("[P](=O)([OH1])([OH1])([OH1])"), # H3PO4
+            'phosphate': Chem.MolFromSmarts("[P](=O)(O)(O)(O)"), # H3PO4 or H2PO4- or HPO4-- or C-PO4*
             'so2': Chem.MolFromSmarts("[S;X4](=O)(=O)"),             # SO2
             'so': Chem.MolFromSmarts("[S;X3;!$(S(=O)=O)]=O")                     # SO (sulfoxide)
         }
@@ -159,31 +158,19 @@ class Mol2Writer:
             atom_types[o_idx] = 'O.2'
             atom_types[n_idx] = 'N.am'
 
-        # O- nears to the phosphate P=O
-        # Pattern: [O;X1&-:1]-[P:2]=[O:3]
-        # Match order: O(-) idx, P_idx, O(double) idx
-        for match in mol.GetSubstructMatches(self.smarts_patterns['phosphate']):
-            # P plus 4 oxygens: one double bonded, three single bonds
-            # Order matches the SMARTS: P_idx, O= idx, O- idx, O- idx, O- idx
-            O_minus_idx, P_idx, O_double_idx,= match
-            # The other O are deprotonated O => O.co2
-            atom_types[O_minus_idx] = 'O.3'
-            atom_types[P_idx] = 'P.3'
-            # The double-bonded O is still O.2
-            atom_types[O_double_idx] = 'O.2'  
 
-
-        # Phosphoric acid H3PO4
+        # Phosphate
         # Pattern: [P](=O)(O)(O)(O)
         # Match order: P_idx, O(double) idx, O idx, O idx, O idx (all neutral)
-        for match in mol.GetSubstructMatches(self.smarts_patterns['phosphoric_acid']):
+        for match in mol.GetSubstructMatches(self.smarts_patterns['phosphate']):
             P_idx, O_double_idx, O1_idx, O2_idx, O3_idx = match
             atom_types[P_idx] = 'P.3'
             atom_types[O_double_idx] = 'O.2'
             # The rest are neutral hydroxyl oxygens => O.2
-            atom_types[O1_idx] = 'O.2'
-            atom_types[O2_idx] = 'O.2'
-            atom_types[O3_idx] = 'O.2'
+            atom_types[O1_idx] = 'O.3'
+            atom_types[O2_idx] = 'O.3'
+            atom_types[O3_idx] = 'O.3'
+
         # SO2 (Sulfone)
         # Pattern: S(=O)(=O)
         for match in mol.GetSubstructMatches(self.smarts_patterns['so2']):
