@@ -74,10 +74,11 @@ def parseArguments(args = None):
     io_group.add_argument('-e', '--enamine', action='store_true', help='Enamine input format (default: False)')
     io_group.add_argument('-pre', '--prefix', default=None, type=str, help='Prefix for the output files. If not provided, the input file name will be used.')
     io_group.add_argument('-enrich', '--enrichment', action='store_true', help='Enrichment mode (do not put in db2.tgz files)')
+    io_group.add_argument('-synthon', '--synthon', action='store_true', help='Synthon mode (Additional metadata about the capping groups required)')
 
     # Group 2: Filtering options
     filter_group = parser.add_argument_group("Filtering options")
-    filter_group.add_argument('--removesalts', action='store_true', help='Remove salts from the structures')
+    filter_group.add_argument('--removesalts', action='store_true', help='Remove salts from the structures. The small fragments within the same molecule are also removed.')
     filter_group.add_argument('--create_custom', action='store_true', help='Generate a template for customized substructure filtering')
     filter_group.add_argument('--custom', default=None, type=str, help='Filter out unwanted substructures using the customized list. To generate an example list, use --create_custom')
     filter_group.add_argument('--unwanted', choices=['all', 'regular', 'special', 'optional'], default=None, nargs='*', help='Filter out unwanted substructures using the default list (choose from all, regular, special, optional)')
@@ -87,7 +88,7 @@ def parseArguments(args = None):
     smiles_group = parser.add_argument_group("SMILES processing options")
     smiles_group.add_argument('--tautomers', action='store_true', help='Tautomers enumeration')
     smiles_group.add_argument('--noneutralize','-noneu',  action='store_false', dest='neutralize', default = True, help='Do not neutralize the molecule before tautomerization')
-    smiles_group.add_argument('--notaurdkit', action='store_false', dest='taurdkit', default = True, help='Do not use RDkit to canonicalize the input SMILES')
+    smiles_group.add_argument('--notaurdkit', action='store_false', dest='taurdkit', default = True, help='Do not use RDKit to canonicalize the input SMILES')
     smiles_group.add_argument('--stereoisomers', action='store_true', help='Stereoisomers enumeration (only consider unspecified chiral centers)')
     smiles_group.add_argument('--max_stereoisomers','-max_stereo', type=int, default=max_stereoisomers, help=f'Maximum number of stereoisomers to consider (default: {max_stereoisomers} = 3 stereocenters)')
     smiles_group.add_argument('--protonation', action='store_true', help='Apply protonation to the structures')
@@ -158,10 +159,11 @@ def parseArguments_batch(args = None):
     io_group.add_argument('-e', '--enamine', action='store_true', help='Enamine input format (default: False)')
     io_group.add_argument('-pre', '--prefix', default=None, type=str, help='Prefix for the output files. If not provided, the input file name will be used.')
     io_group.add_argument('-enrich', '--enrichment', action='store_true', help='Enrichment mode (do not put in db2.tgz files)')
-    
+    io_group.add_argument('-synthon', '--synthon', action='store_true', help='Synthon mode (Additional metadata about the capping groups required)')
+
     # Group 2: Filtering options
     filter_group = parser.add_argument_group("Filtering options")
-    filter_group.add_argument('--removesalts', action='store_true', help='Remove salts from the structures')
+    filter_group.add_argument('--removesalts', action='store_true', help='Remove salts from the structures. The small fragments within the same molecule are also removed.')
     filter_group.add_argument('--custom', default=None, type=str, help='Filter out unwanted substructures using the customized list. To generate an example list, use --create_custom')
     filter_group.add_argument('--unwanted', choices=['all', 'regular', 'special', 'optional'], default=None, nargs='*', help='Filter out unwanted substructures using the default list (choose from all, regular, special, optional)')
     filter_group.add_argument('--pains', action='store_true', help='Remove PAINS violations from the structures')
@@ -170,7 +172,7 @@ def parseArguments_batch(args = None):
     smiles_group = parser.add_argument_group("SMILES processing options")
     smiles_group.add_argument('--tautomers', action='store_true', help='Tautomers enumeration')
     smiles_group.add_argument('--noneutralize','-noneu',  action='store_false', dest='neutralize', default = True, help='Do not neutralize the molecule before tautomerization and protonation')
-    smiles_group.add_argument('--notaurdkit', action='store_false', dest='taurdkit', default = True, help='Do not use RDkit to canonicalize the input SMILES')
+    smiles_group.add_argument('--notaurdkit', action='store_false', dest='taurdkit', default = True, help='Do not use RDKit to canonicalize the input SMILES')
     smiles_group.add_argument('--stereoisomers', action='store_true', help='Stereoisomers enumeration (only consider unspecified chiral centers)')
     smiles_group.add_argument('--max_stereoisomers','-max_stereo', type=int, default=max_stereoisomers, help=f'Maximum number of stereoisomers to consider (default: {max_stereoisomers} = 3 stereocenters)')
     smiles_group.add_argument('--protonation', action='store_true', help='Apply protonation to the structures')
