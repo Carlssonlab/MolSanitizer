@@ -13,5 +13,5 @@ CC(O)=O.CC(C)(N)C(=O)N[C@H](CC1=CNC2=CC=CC=C12)C(=O)N[C@H](CC1=CNC2=CC=CC=C12)NC
 CCOC(=O)C1=C(NC(=C(C1C2=CC=CC=C2Cl)C(=O)OC)C)COCCN.C(=CC(=O)O)C(=O)O amlodipin_acetate
 CC1=CC(=C(C(=C1)C)S(=O)(=O)[O-])C.C[N+]1=CC=C(C=C1)C=CC2=CC=C(C=C2)N(C)C.O 4-{2-[4-(Dimethylamino)phenyl]ethenyl}-1-methylpyridinium-2,4,6-trimethylbenzenesulfonatemonohydrate
 CC1=CC=C(C=C1)C2=C(N3C=C(C=CC3=N2)C)CC(=O)N(C)C.CC1=CC=C(C=C1)C2=C(N3C=C(C=CC3=N2)C)CC(=O)N(C)C.C(C(C(=O)O)O)(C(=O)O)O zolpidem_tartrate
-
+CCOC(C1=C(COCCN)NC(C)=C(C(OC)=O)C1C2=CC=CC=C2Cl)=O.O=C(OCC)\C1=C(\N/C(=C(/C(=O)OC)C1c2cccc(Cl)c2Cl)C)C amlodipin_felodipin
 
