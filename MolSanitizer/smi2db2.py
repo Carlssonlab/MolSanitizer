@@ -38,6 +38,9 @@ rigid_rules['mol'] = rigid_rules['SMARTS'].apply(lambda x: Chem.MolFromSmarts(x)
 
 planar_lib, non_planar_lib = strain_filter.parse_sr_confs_library()
 
+AMSOLEXE = Path(__file__).parent / "amsol" / "amsol7.1"
+if not AMSOLEXE.exists():
+    raise FileNotFoundError(f"AMSOL executable not found at {AMSOLEXE}. Check the amsol directory for instruction to install amsol")
 
 def setup_env():
     env = os.environ.copy()
@@ -1032,6 +1035,11 @@ def gen_conf_chunk_ver3(df: pd.DataFrame, args, input_file='0'):
         if not(os.path.exists('msani_timing.csv')): 
             with open('msani_timing.csv', 'w') as f: f.write('Name,Initial embedding,AMSOL,Torsional sampling,Mol2DB2,Total\n')
         logging_time = ""
+    
+    # Test mode in unittest, not to produce redundant files here
+    if args.test: 
+        os.chdir(args.prefix)
+
     processed_mols = set()
     os.makedirs(f"db2", exist_ok=True)
 

@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 from types import SimpleNamespace
 from os import system
+import shutil
 
 import pandas as pd
 import MolSanitizer.molSanitizer as molSanitizer
@@ -119,6 +120,23 @@ class TestMolSanitizer(unittest.TestCase):
             self.compare_relative(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_enamine_clean.txt')
             self.compare_relative(f'{temp_dir}/dummy_output_rejected.txt', f'{self.path}/out_enamine_rejected.txt')
     
+    def test_db2_generation(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            args = self.generate_mock_arguments([f'{self.path}/in_db2.smi'], ['db2', 'test', 'enrichment'], temp_dir)
+            args.prefix = Path(temp_dir)
+
+            # If AMSOL is installed
+            self.assertTrue((Path(__file__).parent.parent / 'MolSanitizer' / 'amsol' / 'amsol7.1').exists(), "amsol7.1 file does not exist. Check MolSanitizer/amsol directory for AMSOL installation")
+            molSanitizer.clean_data(args)
+            # If the file was produced
+            self.assertTrue(Path(f"{temp_dir}/db2/3,4-diclorophenol.db2").exists(), "DB2 file was not created.")
+
+            # If produce 2 conformers
+            with open(f"{temp_dir}/db2/3,4-diclorophenol.db2") as db2_file:
+                first_line = db2_file.readline()
+                self.assertEqual(first_line.split()[7],'2', "DB2 file was not created correctly.")   
+
+
     def compare_relative(self, newfile: str, goldenfile: str):
         # Read the files into dataframes
         df1 = pd.read_csv(newfile, header=None, sep=' ')
@@ -170,6 +188,15 @@ class TestMolSanitizer(unittest.TestCase):
             "test": False,
             "smiles": None,
             "db2": False,
+            "numconfs": 2000,
+            "cleanup": True,
+            "randomSeed": 42,
+            "enrichment": False,
+            "energywindow": 25,
+            "timeout": 2,
+            "ignoretorlib":False,
+            "timing":False,
+            'corina': False,
             "synthons": False,
             "taurdkit": True
          } 
