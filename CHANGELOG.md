@@ -6,11 +6,13 @@ All notable changes to this project will be documented in this file.
 
 ### 🚀 Features
 
+- Remove salts option now also only remove small fragments in one entry of molecule and only retains the largest one. - ([857d30e](https://github.com/Isra3l/MolSanitizer/commit/857d30e05e0ef60a973e66212682b69ef0c16e70))
 - Initial commit of the new self-written Mol2Writer. The Mol2 file now should be intepretable by RDKit and should not confront problem with kekulization caused by the old OpenBabel-based approach. - ([c6cc898](https://github.com/Isra3l/MolSanitizer/commit/c6cc8988b5e8094d67905fd5e1836ee21790f8bd))
 - New protonation rules and protonation method. Msani now could enumerate the protonation states at different pH values and within a range of pH. - ([9a779a2](https://github.com/Isra3l/MolSanitizer/commit/9a779a2214159a9d177491ca6b436356cfdb96cc))
 
 ### 🧪 Testing
 
+- Unittest for DB2 part added. - ([6648c36](https://github.com/Isra3l/MolSanitizer/commit/6648c3660bbb8ed536e2d2d2a94346f3e418565e))
 - Update the new goldenData for the unittest.py - ([dfe57b8](https://github.com/Isra3l/MolSanitizer/commit/dfe57b879df9d245741f480df91298e4bc479e09))
 
 ## [0.2.2] - 2024-11-30
