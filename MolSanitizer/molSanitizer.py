@@ -85,7 +85,10 @@ def get_output_files(args, input_file_path):
 
     return output_file, rejected_file
 
-def read_input_file(input_file, is_enamine):
+def read_input_file(input_file, is_enamine, is_synthon):
+    if is_synthon:
+        logger.info('Using Synthon format for parsing')
+        return pd.read_csv(input_file, sep=r'\s+', names=['smiles', 'ids', 'highlights'], usecols=[0, 1, 2], header=None, chunksize=500_000)
     if is_enamine:
         logger.info('Using Enamine format for parsing')
         return pd.read_csv(input_file, sep='\t', names=['smiles', 'ids'], usecols=[0, 1], header=None, chunksize=500_000)
@@ -99,7 +102,7 @@ def process_files(args, start_time: int):
 
         output_file, rejected_file = get_output_files(args, input_file_path)
 
-        df_input = read_input_file(input_file, args.enamine)
+        df_input = read_input_file(input_file, args.enamine, args.synthon)
 
         for step, chunk in enumerate(df_input, start=1):
             if args.enamine:
@@ -107,11 +110,12 @@ def process_files(args, start_time: int):
             
             chunk['mol'] = chunk['smiles'].apply(Chem.MolFromSmiles)
             chunk['ids'] = chunk['ids'].astype(str)
-
             chunk = apply_filters(chunk, args, rejected_file)
-            
             if not chunk.empty:
-                chunk.to_csv(output_file, index=False, mode='a', columns=['smiles', 'ids'], header=False, sep=' ')
+                if args.synthon:
+                    chunk.to_csv(output_file, index=False, mode='a', columns=['smiles', 'ids', 'highlights'], header=False, sep='\t')
+                else:
+                    chunk.to_csv(output_file, index=False, mode='a', columns=['smiles', 'ids'], header=False, sep='\t')
 
 
             if args.db2:

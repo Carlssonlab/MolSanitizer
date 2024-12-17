@@ -166,16 +166,20 @@ def process_molecule_tautomer(row, reactions, taurdkit, debug=False):
     # Step 2: Apply corrections
     updates = list(recursive_reaction(mol, reactions, set()))
     updated_rows = []
-    
+    highlights = row.get('highlights', None)
     if len(updates) == 1:
-        updated_rows.append({'smiles': updates[0], 'ids': row['ids'], 'mol': Chem.MolFromSmiles(updates[0])})
+        updated_rows.append({'smiles': updates[0],
+                             'ids': row['ids'],
+                             'mol': Chem.MolFromSmiles(updates[0]),
+                             'highlights': highlights})
     else:
         two_digits = len(updates) >= 10
         for i, update in enumerate(updates):
             updated_rows.append({
                 'smiles': update,
                 'ids': row['ids'] + '_' + (f"{i+1:02}" if two_digits else f"{i+1}"),
-                'mol': Chem.MolFromSmiles(update)
+                'mol': Chem.MolFromSmiles(update),
+                'highlights': highlights
             })
     
     return updated_rows
@@ -199,19 +203,19 @@ def tautomers(df: pd.DataFrame, taurdkit=True, num_cores=4, debug=False) -> pd.D
             try:
                 chunk_result = async_result.get(timeout=60)
                 results.extend(chunk_result)  # Append all processed rows
-            except mp.TimeoutError:
-                logger.warning(f"Timeout occurred for compound {row_data['ids']}. Using original molecule.")
+            except (mp.TimeoutError, Exception) as e:
+                # Differentiate the logging based on the type of exception if desired
+                if isinstance(e, mp.TimeoutError):
+                    logger.warning(f"Timeout occurred for compound {row_data['ids']}. Using original molecule.")
+                else:
+                    logger.error(f"Error processing compound {row_data['ids']}: {str(e)}. Using original molecule.")
+                
+                highlights = row_data.get('highlights', None)
                 results.append({
                     'smiles': row_data['smiles'],
                     'ids': row_data['ids'],
-                    'mol': row_data['mol']
-                })
-            except Exception as e:
-                logger.error(f"Error processing compound {row_data['ids']}: {str(e)}. Using original molecule.")
-                results.append({
-                    'smiles': row_data['smiles'],
-                    'ids': row_data['ids'],
-                    'mol': row_data['mol']
+                    'mol': row_data['mol'],
+                    'highlights': highlights
                 })
 
     return pd.DataFrame(results)
@@ -361,7 +365,7 @@ def generate_stereoisomers(mol, max_isomers=0):
     return isomers
 
 
-def process_molecule_stereoisomer(row_data, max_isomers=8):
+def process_molecule_stereoisomer(row_data, max_isomers=8, is_synthon=False):
     mol = Chem.MolFromSmiles(row_data['smiles'])
     try:
         isomers = generate_stereoisomers(mol, max_isomers=max_isomers)
@@ -372,8 +376,13 @@ def process_molecule_stereoisomer(row_data, max_isomers=8):
     unassigned = [idx for idx, tag in centers if tag == '?']
     num_possible_isomers = 2 ** len(unassigned)
     result = []
+    # Get highlights if available
+    highlights = row_data.get('highlights', None)
     if len(isomers) == 1:
-        result.append({'smiles': Chem.MolToSmiles(isomers[0]), 'ids': row_data['ids'], 'mol': isomers[0]})
+        result.append({'smiles': Chem.MolToSmiles(isomers[0]),
+                        'ids': row_data['ids'],
+                        'mol': isomers[0],
+                        'highlights': highlights})
     else:
         if max_isomers > 0 and num_possible_isomers > max_isomers:
             logger.warning(f"{row_data['ids']}: Not all the stereoisomers are written out (capped at {max_isomers}/{num_possible_isomers}).")
@@ -383,8 +392,10 @@ def process_molecule_stereoisomer(row_data, max_isomers=8):
             result.append({
                 'smiles': Chem.MolToSmiles(isomer, isomericSmiles=True),
                 'ids': row_data['ids'] + '.' + (f"{i+1:02}" if two_digits else f"{i+1}"),
-                'mol': isomer
+                'mol': isomer,
+                'highlights': highlights
             })
+    
     return result
 
 def stereoisomers(df: pd.DataFrame, max_isomers=32, numcores=4, debug=False) -> pd.DataFrame:
@@ -413,19 +424,19 @@ def stereoisomers(df: pd.DataFrame, max_isomers=32, numcores=4, debug=False) -> 
             try:
                 chunk_result = async_result.get(timeout=60)
                 results.extend(chunk_result)
-            except mp.TimeoutError:
-                logger.warning(f"Timeout occurred for compound {row_data['ids']}. Using original molecule.")
+            except (mp.TimeoutError, Exception) as e:
+                # Differentiate the logging based on the type of exception if desired
+                if isinstance(e, mp.TimeoutError):
+                    logger.warning(f"Timeout occurred for compound {row_data['ids']}. Using original molecule.")
+                else:
+                    logger.error(f"Error processing compound {row_data['ids']}: {str(e)}. Using original molecule.")
+                
+                highlights = row_data.get('highlights', None)
                 results.append({
                     'smiles': row_data['smiles'],
                     'ids': row_data['ids'],
-                    'mol': row_data['mol']
-                })
-            except Exception as e:
-                logger.error(f"Error processing compound {row_data['ids']}: {str(e)}. Using original molecule.")
-                results.append({
-                    'smiles': row_data['smiles'],
-                    'ids': row_data['ids'],
-                    'mol': row_data['mol']
+                    'mol': row_data['mol'],
+                    'highlights': highlights
                 })
 
     return pd.DataFrame(results)
@@ -566,19 +577,24 @@ def protonation(df: pd.DataFrame, pH: int = 7, pH_range: int = 0, debug = False)
     # Apply reactions to each SMILES in the DataFrame
     charged_df = []
     for _, row in df.iterrows():
-        variation_sets = set()    
+        variation_sets = set() 
+        highlights = row.get('highlights', None)   
         for pH in pH_values:
             variations = list(recursive_reaction(row['mol'], all_rules[pH], set()))
             variation_sets.update(variations)
         if (len(variation_sets) == 1): 
             charged_df.append(
-                {'smiles': list(variation_sets)[0], 'ids': row['ids'],'mol': Chem.MolFromSmiles(list(variation_sets)[0])})
+                {'smiles': list(variation_sets)[0], 
+                 'ids': row['ids'],
+                 'mol': Chem.MolFromSmiles(list(variation_sets)[0]),
+                 'highlights': highlights})
         else:
             for i, variation in enumerate(variation_sets):
                 charged_df.append({
                     'smiles': variation,
                     'ids': row['ids']+'_'+str(i+1),
-                    'mol': Chem.MolFromSmiles(variation)
+                    'mol': Chem.MolFromSmiles(variation),
+                    'highlights': highlights
                 })
     return pd.DataFrame(charged_df)
 

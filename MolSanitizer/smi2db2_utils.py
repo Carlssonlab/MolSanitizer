@@ -29,7 +29,7 @@ class Mol2Writer:
         Initialize the writer with an optional RDKit Mol object.
         """
         self.mol = mol
-
+        Chem.Kekulize(self.mol, clearAromaticFlags=True)  
         # Define SMARTS patterns for functional groups
         # These are examples and may need refinement.
         self.smarts_patterns = {

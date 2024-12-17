@@ -1108,7 +1108,7 @@ def gen_conf_chunk_ver3(df: pd.DataFrame, args, input_file='0'):
             cp = Chem.Mol(amsol_mol, confId=conf_id) #Retrieve the conf_id-th conformer of mol object
             #mol2_block = convert(Chem.MolToMolBlock(cp), "mol", "mol2")
             #write_to_file(mol2_block, f"{name}.mol2")
-            Chem.Kekulize(cp, clearAromaticFlags=True)    
+              
             #print(Chem.MolToSmiles(cp))
             mol2_obj = smi2db2_utils.Mol2Writer(cp)
             mol2_obj.write_mol2(f"{name}.mol2")
@@ -1163,6 +1163,7 @@ def gen_conf_chunk_ver3(df: pd.DataFrame, args, input_file='0'):
             solv_obj = solv.Solv(f"{name}.solv")
             for mol2objs in mol2_per_rigid_scaffold:
                 for mol2obj in mol2objs:
+                    if args.synthon: mol2obj.longname = row['highlights']
                     db2_data = mol2db2.mol2db2_quick_ver2(mol2obj, solv_obj)
                     db2_data_all += db2_data
             if args.enrichment: write_to_file(db2_data_all, f"../{name}.db2") #Write directly to db2 files if in enrichment mode
