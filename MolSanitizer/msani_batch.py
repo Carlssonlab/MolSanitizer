@@ -71,6 +71,7 @@ with open(os.path.join(os.path.dirname(__file__), 'msani_configurations.yaml')) 
     time_limit = configurations['TIME_LIMIT']
     lines_per_job = configurations['LINES_PER_JOB']
     max_jobs = configurations['MAX_JOBS']
+    max_limit_project = configurations['MAX_LIMIT_PROJECT']
     timeout = configurations['TIMEOUT']
     use_corina = configurations['USE_CORINA']
     corina_exe = configurations['CORINA']
@@ -173,6 +174,13 @@ def Split_Submit_jobs(args: dict):
     print(f"Maximum number of jobs running parallelly (--max_jobs): {args.max_jobs} jobs")
     print(f"Number of compounds per job (-l): {args.lines} lines\n")
 
+    result = subprocess.run(f'squeue -A {args.proj_name} -r | wc -l', shell=True, stdout=subprocess.PIPE, text=True)
+    try: 
+        current_running_jobs = int(result.stdout.strip())
+    except:
+        current_running_jobs = 0
+        pass
+    
     n_jobs = 0
     for file in args.input_files:
         if not os.path.exists(file):
@@ -184,6 +192,14 @@ def Split_Submit_jobs(args: dict):
     print(f"Total number of jobs to submit: {n_jobs}\n")
     if n_jobs > 1000:
         print(f"Too many jobs to submit ({n_jobs}). Please increase the number of lines per job or decrease the number of input files")
+        print(f"Exitting MolSanitizer...")
+        return
+    
+    if current_running_jobs + n_jobs > max_limit_project:
+        print(f"Current number of jobs running in the project {args.proj_name}: {current_running_jobs}")
+        print(f"Total number of jobs to submit: {n_jobs}")
+        print(f"Total number of jobs will exceed the limit of {max_limit_project} jobs in the project {args.proj_name}")
+        print(f"Please wait for the current jobs to finish before submitting new jobs.")
         print(f"Exitting MolSanitizer...")
         return
 

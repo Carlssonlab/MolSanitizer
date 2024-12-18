@@ -25,10 +25,11 @@ PH_RANGE: 0 # 0 means choose specific pH=7 (default), 2 means will sample pH 5 a
 # LINE_PER_JOB: Number of compounds per job
 # TIME_LIMIT: Time limit for each job in hours (default: 96 hour)
 # MAX_JOBS: Maximum number of jobs running at the same time
-
+# MAX_LIMIT_PROJECT: Maximum number of jobs allowed for a project account (for example: naiss2023-3-39 is 5000 jobs)
 SLURM_ACCOUNT: 'naiss2023-3-39'
 LINES_PER_JOB: 200
 TIME_LIMIT: 96
 MAX_JOBS: 500
+MAX_LIMIT_PROJECT: 5000
 
 
