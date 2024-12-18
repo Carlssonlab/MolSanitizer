@@ -124,6 +124,7 @@ def parse_flags_single_job(args: dict):
     if args.corina: flags += f' --corina'
     if args.ignoretorlib: flags += ' -igtor'
     if not(args.neutralize): flags += ' --noneutralize'
+    if args.synthon: flags += ' --synthon'
     return flags
 
 def write_single_job_script(slurm_header: str, slurm_script: str):
