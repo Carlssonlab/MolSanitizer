@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### 🚀 Features
 
+- Msani in batch mode will now check if the number of jobs to be submitted will exceed the quota and warn the user. This is to avoid potential loss of the DB2 generation. - ([4e9bf80](https://github.com/Isra3l/MolSanitizer/commit/4e9bf80aed657afaa11f7a3c09b68ce91f73d106))
 - Remove salts option now also only remove small fragments in one entry of molecule and only retains the largest one. - ([857d30e](https://github.com/Isra3l/MolSanitizer/commit/857d30e05e0ef60a973e66212682b69ef0c16e70))
 - Initial commit of the new self-written Mol2Writer. The Mol2 file now should be intepretable by RDKit and should not confront problem with kekulization caused by the old OpenBabel-based approach. - ([c6cc898](https://github.com/Isra3l/MolSanitizer/commit/c6cc8988b5e8094d67905fd5e1836ee21790f8bd))
 - New protonation rules and protonation method. Msani now could enumerate the protonation states at different pH values and within a range of pH. - ([9a779a2](https://github.com/Isra3l/MolSanitizer/commit/9a779a2214159a9d177491ca6b436356cfdb96cc))
