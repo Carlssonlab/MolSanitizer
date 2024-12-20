@@ -50,12 +50,12 @@ def arguments(args):
         logger.info(f"Max stereoisomers: {args.max_stereoisomers}")
 
     if args.db2:
-        logger.info(f"Generate DB2 files for DOCK 3.8: {args.db2}")
+        logger.info(f"Generate DB2 files for DOCK3.8: {args.db2}")
         logger.info(f"Number of conformers: {args.numconfs}")
         logger.info(f"Cleanup: {args.cleanup}")
         logger.info(f"Random seed: {args.randomSeed}")
         logger.info(f"Energy window: {args.energywindow}")
-        logger.info(f"Timelimit for initial embedding using Rdkit: {args.timeout}")
+        logger.info(f"Timelimit for initial embedding using RDkit: {args.timeout}")
         logger.info(f"Use CORINA for initial embedding: {args.corina}")
         if args.enrichment:
             logger.info(f"Enrichment mode: {args.enrichment}")
@@ -70,11 +70,6 @@ def arguments(args):
         temp_df = loadSMARTSdata(smartsFile.resolve(), args.unwanted)
         logger.info(f'Parsed {len(temp_df)} substructures from: {smartsFile}')
     
-    if args.protonation:
-        smartsFile = Path(__file__).parent / 'Data' / 'ionizations.txt' 
-        reactions = load_reactions(smartsFile)
-        logger.info(f'Parsed {len(reactions)} ionization reactions from: {smartsFile}')
-        
     if args.custom is not None: 
         temp_df = loadSMARTSdata(args.custom)
         logger.info(f'Parsed {len(temp_df)} substructures from: {args.custom}')
