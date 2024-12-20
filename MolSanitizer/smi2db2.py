@@ -1062,6 +1062,9 @@ def gen_conf_chunk(df: pd.DataFrame, args, input_file='0'):
             if error_signal == -1 and conf_id+1 == amsol_mol.GetNumConformers(): # AMSOL failed
                 logger.error(f"AMSOL failed for {name}, skipping it")
                 log_error(smiles, name)
+                try: # Clean up the folders if error occurs. This help to not overfill the disk
+                    shutil.rmtree(f"solv/{name}", ignore_errors=True)
+                except: pass
                 continue
             shutil.copy(f"solv/{name}/output.mol2", f"solv/{name}/{name}_solv.mol2")
             shutil.move(f"solv/{name}/output.solv", f"solv/{name}/{name}_solv.solv")
@@ -1082,6 +1085,10 @@ def gen_conf_chunk(df: pd.DataFrame, args, input_file='0'):
                 logger.error(f"Error in torsional sampling for {name}: {e}")
                 os.chdir("../..")
                 log_error(smiles, name)
+                try: # Clean up the folders if error occurs. This help to not overfill the disk
+                    shutil.rmtree(f"solv/{name}", ignore_errors=True)
+                    shutil.rmtree(f"3d/{name}", ignore_errors=True)
+                except: pass
                 continue
             os.chdir("../..")
             if args.timing: sampling_time = time.time()
@@ -1223,6 +1230,9 @@ def gen_conf_chunk_corina(df: pd.DataFrame, args, input_file='0'):
             os.chdir("../..")
             if error_signal == -1 and conf_id+1 == amsol_mol.GetNumConformers(): # AMSOL failed
                 logger.error(f"AMSOL failed for {name}, skipping it")
+                try: # Clean up the folders if error occurs. This help to not overfill the disk
+                    shutil.rmtree(f"solv/{name}", ignore_errors=True)
+                except: pass
                 log_error(smiles, name)
                 continue
             shutil.copy(f"solv/{name}/output.mol2", f"solv/{name}/{name}_solv.mol2")
@@ -1243,6 +1253,10 @@ def gen_conf_chunk_corina(df: pd.DataFrame, args, input_file='0'):
             except Exception as e:
                 logger.error(f"Error in torsional sampling for {name}: {e}")
                 os.chdir("../..")
+                try: # Clean up the folders if error occurs. This help to not overfill the disk
+                    shutil.rmtree(f"solv/{name}", ignore_errors=True)
+                    shutil.rmtree(f"3d/{name}", ignore_errors=True)
+                except: pass
                 log_error(smiles, name)
                 continue
             os.chdir("../..")
