@@ -197,7 +197,7 @@ class TestMolSanitizer(unittest.TestCase):
             "ignoretorlib":False,
             "timing":False,
             'corina': False,
-            "synthons": False,
+            "synthon": False,
             "taurdkit": True
          } 
         for mode in modes: 
