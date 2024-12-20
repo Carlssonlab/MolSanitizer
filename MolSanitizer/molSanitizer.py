@@ -110,6 +110,7 @@ def process_files(args, start_time: int):
             
             chunk['mol'] = chunk['smiles'].apply(Chem.MolFromSmiles)
             chunk['ids'] = chunk['ids'].astype(str)
+            if args.synthon: chunk['highlights'] = chunk['highlights'].astype(str)
             chunk = apply_filters(chunk, args, rejected_file)
             if not chunk.empty:
                 if args.synthon:
