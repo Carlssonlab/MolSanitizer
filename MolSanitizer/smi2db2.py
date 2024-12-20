@@ -971,13 +971,17 @@ def gen_conf_chunk(df: pd.DataFrame, args, input_file='0'):
     with tarfile.open(output_tgz, mode='w:gz') as output:
         # Write previously processed DB2 files to the tarball
         if restart_flag:
-            with tarfile.open(restart_tgz, mode='r:gz') as restart_file:
-                for member in restart_file.getmembers():
-                    if member.isfile() and member.name.endswith(".db2"):
-                        # Extract file content and keep track of processed molecules
-                        processed_mols.add(member.name.split(".db2")[0])
-                        output.addfile(member, restart_file.extractfile(member))
-            os.remove(restart_tgz)
+            try: 
+                with tarfile.open(restart_tgz, mode='r:gz') as restart_file:
+                    for member in restart_file.getmembers():
+                        if member.isfile() and member.name.endswith(".db2"):
+                            # Extract file content and keep track of processed molecules
+                            processed_mols.add(member.name.split(".db2")[0])
+                            output.addfile(member, restart_file.extractfile(member))
+                os.remove(restart_tgz)
+            except:
+                logger.error(f"Error in reading the restart file {restart_tgz}. Start from the beginning")
+                os.remove(restart_tgz)
         # Process the unprocessed molecules
         for idx, row in df.iterrows():
             if args.timing: start = time.time()
@@ -1159,13 +1163,17 @@ def gen_conf_chunk_corina(df: pd.DataFrame, args, input_file='0'):
     with tarfile.open(output_tgz, mode='w:gz') as output:
         # Write previously processed DB2 files to the tarball
         if restart_flag:
-            with tarfile.open(restart_tgz, mode='r:gz') as restart_file:
-                for member in restart_file.getmembers():
-                    if member.isfile() and member.name.endswith(".db2"):
-                        # Extract file content and keep track of processed molecules
-                        processed_mols.add(member.name.split(".db2")[0])
-                        output.addfile(member, restart_file.extractfile(member))
-            os.remove(restart_tgz)
+            try: 
+                with tarfile.open(restart_tgz, mode='r:gz') as restart_file:
+                    for member in restart_file.getmembers():
+                        if member.isfile() and member.name.endswith(".db2"):
+                            # Extract file content and keep track of processed molecules
+                            processed_mols.add(member.name.split(".db2")[0])
+                            output.addfile(member, restart_file.extractfile(member))
+                os.remove(restart_tgz)
+            except:
+                logger.error(f"Error in reading the restart file {restart_tgz}. Start from the beginning")
+                os.remove(restart_tgz)
         # Process the unprocessed molecules
         for idx, row in df.iterrows():
             if args.timing: start = time.time()
