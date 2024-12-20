@@ -48,7 +48,7 @@ slurm_out_file="slurm-${ARRAY_ID}_${TASK_ID}.out"
 cat $slurm_out_file >> "$log_file"
 rm -f "$slurm_out_file"
 
-# If the count is equal to 1 (last job in the array), perform the cleanup
+# If the count is equal to 1 (last job in the array), perform cleanup and check for failed tasks
 if [ "$task_count" -eq 1 ]; then
     echo "Proceeding with cleanup..."
 
@@ -60,7 +60,30 @@ if [ "$task_count" -eq 1 ]; then
     mkdir -p in/processed log
     mv *.log log
     mv in*_clean* in/processed
-    mv in* in
+
+    # Check for failed tasks using sacct
+    failed_tasks=$(sacct -j "${ARRAY_ID}" --format='JobID%30,State' --noheader | grep 'NODE_FAIL' | awk -F_ '{print $2}' | awk '{print $1}' | tr '\n' ',' | sed 's/,$//')
+
+    if [ -n "$failed_tasks" ]; then
+        echo "Failed tasks detected: $failed_tasks"
+        echo "sbatch --array=${failed_tasks} submit_msani.sh" > RESUBMIT_FAILED_JOBS.txt
+        echo "Instructions for resubmitting failed jobs written to RESUBMIT_FAILED_JOBS.txt"
+
+        # Create a pattern to exclude failed task files with zero-padded IDs
+        exclude_pattern=$(echo $failed_tasks | tr ',' '\n' | awk '{printf "in%03d.smi ", $1}' | tr '\n' ' ')
+        echo "Excluding files: $exclude_pattern"
+
+        # Move all `in*.smi` files except those corresponding to failed tasks
+        for file in in*.smi; do
+            if [[ ! $exclude_pattern =~ $(basename "$file") ]]; then
+                mv "$file" in
+            fi
+        done
+    else
+        echo "No failed tasks detected."
+        mv in*.smi in
+    fi
+
     echo "Cleanup complete."
 fi
 """
