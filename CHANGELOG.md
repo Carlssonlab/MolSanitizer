@@ -11,8 +11,17 @@ All notable changes to this project will be documented in this file.
 - Initial commit of the new self-written Mol2Writer. The Mol2 file now should be intepretable by RDKit and should not confront problem with kekulization caused by the old OpenBabel-based approach. - ([c6cc898](https://github.com/Isra3l/MolSanitizer/commit/c6cc8988b5e8094d67905fd5e1836ee21790f8bd))
 - New protonation rules and protonation method. Msani now could enumerate the protonation states at different pH values and within a range of pH. - ([9a779a2](https://github.com/Isra3l/MolSanitizer/commit/9a779a2214159a9d177491ca6b436356cfdb96cc))
 
+### 🚜 Refactor
+
+- Refactored huge chunks of scripts. Now MolSanitizer can continue to handle unexpectedly failed jobs without restarting from the beginning. - ([0017709](https://github.com/Isra3l/MolSanitizer/commit/0017709b92af88a57aed7a13177bb9e6e5c118d0))
+
+### 📚 Documentation
+
+- Improved logger. Removed information regarding the old ionization method. - ([9497d19](https://github.com/Isra3l/MolSanitizer/commit/9497d19224f416690974b99022d05d7caa31fbe7))
+
 ### 🧪 Testing
 
+- Fix a bug in unittest that triggered the wrong argument. - ([e67411e](https://github.com/Isra3l/MolSanitizer/commit/e67411ee1775e72254b613f225d0b1773aeff642))
 - Unittest for DB2 part added. - ([6648c36](https://github.com/Isra3l/MolSanitizer/commit/6648c3660bbb8ed536e2d2d2a94346f3e418565e))
 - Update the new goldenData for the unittest.py - ([dfe57b8](https://github.com/Isra3l/MolSanitizer/commit/dfe57b879df9d245741f480df91298e4bc479e09))
 
