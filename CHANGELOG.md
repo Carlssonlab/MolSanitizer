@@ -20,6 +20,10 @@ All notable changes to this project will be documented in this file.
 
 - Improved logger. Removed information regarding the old ionization method. - ([9497d19](https://github.com/Isra3l/MolSanitizer/commit/9497d19224f416690974b99022d05d7caa31fbe7))
 
+### ⚡ Performance
+
+- Improved the rules for possible dihedrals of symmetric 6-membered aromatic rings. - ([c745454](https://github.com/Isra3l/MolSanitizer/commit/c745454c8c7093f5389ecde4b883f15bc2e22c3e))
+
 ### 🧪 Testing
 
 - Fix a bug in unittest that triggered the wrong argument. - ([e67411e](https://github.com/Isra3l/MolSanitizer/commit/e67411ee1775e72254b613f225d0b1773aeff642))
