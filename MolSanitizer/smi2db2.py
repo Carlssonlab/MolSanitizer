@@ -286,10 +286,20 @@ def count_confs_by_rotbonds(mol, ignoreTorlib=False, VERBOSE=False):
 
     # Remove some redundant rotation related to the symmetric rings 
     # such as p-substituted benzenes or p-pyridine
+    # Should only remove from one side of the ring. 
+    # If two sides of a symmetric ring has 2 x 2 possible peaks that are 180 degrees apart, 
+    # we should produce 2 possible combinations, 0x180 and 0x0, rather than produce
+    # 180x180 0x180 0x0 180x0 as they are symmetrically equivalent.
+
     symmetric_rings = smi2db2_utils.find_symmetric_rings(mol)
     #print(f"\tSymmetric rings: {symmetric_rings}")
+    reduced_rotated_rings = set()
     for ring in symmetric_rings:
         ring_key = set(ring[0:2])
+        sorted_ring_atoms = tuple(sorted(ring[1:7]))  # Create a sorted tuple for consistent representation
+        # Already processed this symmetric ring; skip
+        if sorted_ring_atoms in reduced_rotated_rings: continue
+        reduced_rotated_rings.add(sorted_ring_atoms)
         for rule in match_torlib:
             if ring_key == set(rule[1][1:3]):
                 # Filter out redundant rotations where angles differ by 180 degrees
