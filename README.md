@@ -1,7 +1,7 @@
 # MolSanitizer - A package to prepare SMILES databases
 [![python](https://img.shields.io/badge/python-v3.11-blue)]()
 [![anaconda](https://img.shields.io/badge/Anaconda.org-2.1.0-green.svg?style=flat-square)]()
-[![Documentation](https://img.shields.io/badge/docs-0.2.1-orange)](https://msani.readthedocs.io/)
+[![Documentation](https://img.shields.io/badge/docs-0.2.2-orange)](https://msani.readthedocs.io/)
 ![GitHub forks](https://img.shields.io/github/forks/:user/:repo)
 [![license](https://img.shields.io/badge/license-GPLv2-yellow)]()
 
@@ -28,7 +28,7 @@ More information on the installation and dependencies could be found [here](http
 Documentation on the theory behind MolSanitizer and how to use it can be found [here](https://msani.readthedocs.io/)
 
 
-## Notes about AMSOL
+# Notes about AMSOL
 
 By default, all the dependencies are automatically installed by conda and pip, except for AMSOL. The user is asked to place the compiled version of (named `amsol7.1`) to [MolSanitizer/amsol](MolSanitizer/amsol). In that folder, there will be a README on how to compile it on the modern Linux systems.
 
