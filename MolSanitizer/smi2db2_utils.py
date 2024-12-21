@@ -260,6 +260,10 @@ class Mol2Writer:
         return symbol
 
 def embed_smiles_corina(smiles, name, VERBOSE):
+    '''
+    Embed the SMILES string using CORINA and return the mol, net_charge,
+    rigid_scaffolds, and flexible_scaffolds
+    '''
     with open('temp.smi', 'w') as f:
         f.write(f"{smiles} {name}")
     subprocess.run([CORINA_EXE, '-i', 't=smiles,scn=1,ncn=2', 
