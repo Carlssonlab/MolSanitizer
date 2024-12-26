@@ -11,7 +11,7 @@ import pandas as pd
 import itertools
 from openbabel import openbabel as ob
 from rdkit import Chem
-from rdkit.Chem import rdDistGeom, rdForceFieldHelpers, rdMolTransforms, rdDistGeom, rdMolAlign, rdMolDescriptors
+from rdkit.Chem import rdDistGeom, rdForceFieldHelpers, rdMolTransforms, rdDistGeom, rdMolAlign
 import os,  shutil
 import copy
 from pathlib import Path
@@ -291,23 +291,23 @@ def count_confs_by_rotbonds(mol, ignoreTorlib=False, VERBOSE=False):
     # we should produce 2 possible combinations, 0x180 and 0x0, rather than produce
     # 180x180 0x180 0x0 180x0 as they are symmetrically equivalent.
 
-    symmetric_rings = smi2db2_utils.find_symmetric_rings(mol)
-    #print(f"\tSymmetric rings: {symmetric_rings}")
-    reduced_rotated_rings = set()
-    for ring in symmetric_rings:
-        ring_key = set(ring[0:2])
-        sorted_ring_atoms = tuple(sorted(ring[1:7]))  # Create a sorted tuple for consistent representation
-        # Already processed this symmetric ring; skip
-        if sorted_ring_atoms in reduced_rotated_rings: continue
-        reduced_rotated_rings.add(sorted_ring_atoms)
-        for rule in match_torlib:
-            if ring_key == set(rule[1][1:3]):
-                # Filter out redundant rotations where angles differ by 180 degrees
-                rule[2] = [
-                    angle for i, angle in enumerate(rule[2])
-                    if all((angle[0] - other_angle[0]) % 180 != 0 for other_angle in rule[2][i + 1:])
-                ]
-                break
+    # symmetric_rings = smi2db2_utils.find_symmetric_rings(mol)
+    # #print(f"\tSymmetric rings: {symmetric_rings}")
+    # reduced_rotated_rings = set()
+    # for ring in symmetric_rings:
+    #     ring_key = set(ring[0:2])
+    #     sorted_ring_atoms = tuple(sorted(ring[1:7]))  # Create a sorted tuple for consistent representation
+    #     # Already processed this symmetric ring; skip
+    #     if sorted_ring_atoms in reduced_rotated_rings: continue
+    #     reduced_rotated_rings.add(sorted_ring_atoms)
+    #     for rule in match_torlib:
+    #         if ring_key == set(rule[1][1:3]):
+    #             # Filter out redundant rotations where angles differ by 180 degrees
+    #             rule[2] = [
+    #                 angle for i, angle in enumerate(rule[2])
+    #                 if all((angle[0] - other_angle[0]) % 180 != 0 for other_angle in rule[2][i + 1:])
+    #             ]
+    #             break
 
     for rotatable_bond in rotatable_bonds:
         if is_terminal(mol, rotatable_bond[1:3]) and is_symmetric(mol, rotatable_bond[1:3]):
