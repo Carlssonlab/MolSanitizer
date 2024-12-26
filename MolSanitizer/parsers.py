@@ -114,6 +114,7 @@ def parseArguments(args = None):
     misc_group.add_argument("--help", "-h", action="help", help="Show this help message and exit")
     misc_group.add_argument('--timing', action='store_true', help='Time the process')
     misc_group.add_argument('--test', action='store_true', help=argparse.SUPPRESS)
+    misc_group.add_argument('--version', '-v', action='store_true', help = 'Show the current version of MolSanitizer')
 
     
     # Parse the arguments
@@ -203,7 +204,7 @@ def parseArguments_batch(args = None):
     batch_group.add_argument('-n', '--projectName', default=slurm_account, dest='proj_name', type=str, help=f'Project name for the SLURM script (default: {slurm_account})')
     batch_group.add_argument('-l', '--lines_per_job', dest='lines', type=int, default=lines_per_job, help=f'Number of lines to process per job (default: {lines_per_job})')
     batch_group.add_argument('-tl', '--timelimit', type=int, default=time_limit, help=f'Time limit for the SLURM job in hours (default: {time_limit})')
-    batch_group.add_argument('--max_jobs', type=int, default=max_jobs, help=f'Maximum number of jobs to run simultaneously (default: {max_jobs})')
+    batch_group.add_argument('-mj', '--max_jobs', type=int, default=max_jobs, help=f'Maximum number of jobs to run simultaneously (default: {max_jobs})')
 
     # Parse the arguments
     args = parser.parse_args()

@@ -233,7 +233,7 @@ def main():
         loggers.setup_logger(log_file)
         original_command = ' '.join(sys.argv)
         logger.info(f"#######  STARTING MOLSANITIZER {__version__} #######")
-        logger.info(f"Input: {original_command}")    
+        logger.info(f"{original_command}")    
         loggers.arguments(args)
         clean_data(args)
         logger.info(f"***********  MOLSANITIZER FINISHED *****************")

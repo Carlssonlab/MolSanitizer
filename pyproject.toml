@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "MolSanitizer"
-version = "1.0"
+version = "0.2.2"
 description = "Code to clean SMILES for ML and Docking (protonation, tautomers,...)"
 readme = "README.md"
 authors = [
