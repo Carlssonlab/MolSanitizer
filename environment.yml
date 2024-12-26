@@ -13,3 +13,4 @@ dependencies:
   - openbabel
   - scipy
   - pyaml
+  - pytest

@@ -139,8 +139,8 @@ class TestMolSanitizer(unittest.TestCase):
 
     def compare_relative(self, newfile: str, goldenfile: str):
         # Read the files into dataframes
-        df1 = pd.read_csv(newfile, header=None, sep=' ')
-        df2 = pd.read_csv(goldenfile, header=None, sep=' ')
+        df1 = pd.read_csv(newfile, header=None, sep=r'\s+')
+        df2 = pd.read_csv(goldenfile, header=None, sep=r'\s+')
 
         # Extract the first column from both dataframes
         column1_df1 = df1.iloc[:, 0]

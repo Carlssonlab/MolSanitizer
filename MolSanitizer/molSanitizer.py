@@ -5,7 +5,7 @@ MolSanitizer.
 __author__ = "Thua-Phong Lam, Israel Cabeza de Vaca Lopez, Szymon Pach"
 __place__ = "Jens Carlsson lab, Uppsala University, Sweden"
 __license__ = "GPLv2"
-__version__ = "0.2.1"
+__version__ = "0.2.2"
 
 import logging
 logger = logging.getLogger('molsani')
@@ -114,9 +114,9 @@ def process_files(args, start_time: int):
             chunk = apply_filters(chunk, args, rejected_file)
             if not chunk.empty:
                 if args.synthon:
-                    chunk.to_csv(output_file, index=False, mode='a', columns=['smiles', 'ids', 'highlights'], header=False, sep='\t')
+                    chunk.to_csv(output_file, index=False, mode='a', columns=['smiles', 'ids', 'highlights'], header=False, sep=' ')
                 else:
-                    chunk.to_csv(output_file, index=False, mode='a', columns=['smiles', 'ids'], header=False, sep='\t')
+                    chunk.to_csv(output_file, index=False, mode='a', columns=['smiles', 'ids'], header=False, sep=' ')
 
 
             if args.db2:
@@ -218,7 +218,9 @@ def main():
 
     args = parsers.parseArguments(sys.argv[1:])
     args = Sanitycheck(args)
-
+    if args.version: 
+        print(f"MolSanitizer version: {__version__}")
+        sys.exit()
    
     if args.create_custom: 
         generateCustomTemplate(args)
@@ -230,11 +232,11 @@ def main():
         else: log_file = 'molsani.log'
         loggers.setup_logger(log_file)
         original_command = ' '.join(sys.argv)
-        logger.info(f"#######  STARTING MOLSANITIZER  #######")
+        logger.info(f"#######  STARTING MOLSANITIZER {__version__} #######")
         logger.info(f"Input: {original_command}")    
         loggers.arguments(args)
         clean_data(args)
-        logger.info(f"*******  MOLSANITIZER FINISHED *******")
+        logger.info(f"***********  MOLSANITIZER FINISHED *****************")
 
 
 
