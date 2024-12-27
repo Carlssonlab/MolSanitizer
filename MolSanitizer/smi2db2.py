@@ -779,10 +779,11 @@ def conf_sampling(rigid_scaffolds, name, smiles, numConfs, sulfo_matches,
     """
     num_confs_by_rotbonds, match_torlib = count_confs_by_rotbonds(rigid_scaffolds[0], ignoreTorlib, VERBOSE)
     requested_num_confs = numConfs
-    mol2_obj = mol2.Mol2(mol2fileName=f'../../solv/{name}/{name}.mol2')
+    print('here')
+    mol2_obj = mol2.Mol2(mol2fileName=f'../../3d/{name}/{name}.mol2')
     mol2_obj.smiles = smiles
     mol2_obj.cleanConfs()  # Clean previous conformations if any
-
+    print('there')
     #if VERBOSE: print(f"\t{num_confs_by_rotbonds} {num_confs_H} {num_rotatable_H} {numConfs}")
     if VERBOSE: print(f"\tTheory: {num_confs_by_rotbonds} possible conformations")
 
@@ -1223,12 +1224,6 @@ def gen_conf_chunk_corina(df: pd.DataFrame, args, input_file='0'):
                 # Idea: try from the energy minimum conformer if AMSOL fails -> next conformer until reach the last
                 if VERBOSE: print(f"\tTrying conformer: {conf_id}")
                 error_signal = 0
-
-                cp = Chem.Mol(amsol_mol, confId=conf_id) #Retrieve the conf_id-th conformer of mol object
-                
-                #mol2_block = convert(Chem.MolToMolBlock(cp), "mol", "mol2")
-                #write_to_file(mol2_block, f"{name}.mol2")
-
                 run_amsol.prepare(f"{name}.mol2", name, netcharge)
                 error_signal = run_amsol.run('temp.in-hex', 'temp.o-hex', env)
                 if error_signal == -1: continue
@@ -1251,10 +1246,11 @@ def gen_conf_chunk_corina(df: pd.DataFrame, args, input_file='0'):
 
             # 3D generation
             if VERBOSE: print("3D generation...")
-            os.makedirs(f"3d/{name}", exist_ok=True)
-            shutil.copy2(os.path.join("solv", name, f"{name}_solv.mol2"), os.path.join("3d", name, f"{name}.mol2"))
-            os.chdir(f"3d/{name}")
             try:
+                os.makedirs(f"3d/{name}", exist_ok=True)
+                shutil.copy2(os.path.join("solv", name, f"{name}_solv.mol2"), os.path.join("3d", name, f"{name}.mol2"))
+                os.chdir(f"3d/{name}")
+                
                 mol2_per_rigid_scaffold = conf_sampling(rigid_scaffolds,
                                                                 name, smiles, 
                                                                 numConfs, sulfo_matches, 
@@ -1275,9 +1271,10 @@ def gen_conf_chunk_corina(df: pd.DataFrame, args, input_file='0'):
             # Mol2DB2
             if VERBOSE: print("Converting to DB2 format...")
             os.makedirs(f"db2/{name}", exist_ok=True)
-            shutil.move(os.path.join("solv", name, f"{name}_solv.solv"), os.path.join("db2", name, f"{name}.solv"))
-            os.chdir(f"db2/{name}")
+            
             try:
+                shutil.move(os.path.join("solv", name, f"{name}_solv.solv"), os.path.join("db2", name, f"{name}.solv"))
+                os.chdir(f"db2/{name}")
                 db2_data_all = ""
                 solv_obj = solv.Solv(f"{name}.solv")
                 for mol2objs in mol2_per_rigid_scaffold:

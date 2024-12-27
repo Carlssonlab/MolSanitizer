@@ -266,8 +266,9 @@ def embed_smiles_corina(smiles, name, VERBOSE):
     '''
     with open('temp.smi', 'w') as f:
         f.write(f"{smiles} {name}")
+    # rc: multiple ring confs; flapn: Flap ring nitrogen atoms, de=6: energy window, mc=1: write 1 conf, wh: write hydrogens, sanpyr: make sulfonamide pyramidal
     subprocess.run([CORINA_EXE, '-i', 't=smiles,scn=1,ncn=2', 
-                    '-o', 't=mol2', '-d', 'rc,flapn,de=6,mc=1,wh', 'temp.smi', f'{name}.mol2'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    '-o', 't=mol2', '-d', 'rc,flapn,de=6,mc=1,wh,sanpyr', 'temp.smi', f'{name}.mol2'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     if VERBOSE: print(f"\tGenerated mol2 file for {name} using CORINA")
     mol2block = ''
     with open(f"{name}.mol2", 'r') as f:
