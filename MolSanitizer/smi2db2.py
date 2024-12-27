@@ -919,7 +919,7 @@ def gen_conf_chunk(df: pd.DataFrame, args, input_file='0'):
             - enrichment (bool): If True, writes individual DB2 files directly instead of to a tarball.
 
         input_file (str): 
-            The base name of the input file being processed (default is '0').
+            The base name of the input file being processed (default is '0' for the SMILES input).
 
     Workflow:
         1. **Restart Handling**:
@@ -1082,10 +1082,10 @@ def gen_conf_chunk(df: pd.DataFrame, args, input_file='0'):
 
             # 3D generation
             if VERBOSE: print("3D generation...")
-            os.makedirs(f"3d/{name}", exist_ok=True)
-            shutil.copy2(os.path.join("solv", name, f"{name}_solv.mol2"), os.path.join("3d", name, f"{name}.mol2"))
-            os.chdir(f"3d/{name}")
             try:
+                os.makedirs(f"3d/{name}", exist_ok=True)
+                shutil.copy2(os.path.join("solv", name, f"{name}_solv.mol2"), os.path.join("3d", name, f"{name}.mol2"))
+                os.chdir(f"3d/{name}")
                 mol2_per_rigid_scaffold = conf_sampling(rigid_scaffolds,
                                                                 name, smiles, 
                                                                 numConfs, sulfo_matches, 
@@ -1105,10 +1105,10 @@ def gen_conf_chunk(df: pd.DataFrame, args, input_file='0'):
 
             # Mol2DB2
             if VERBOSE: print("Converting to DB2 format...")
-            os.makedirs(f"db2/{name}", exist_ok=True)
-            shutil.move(os.path.join("solv", name, f"{name}_solv.solv"), os.path.join("db2", name, f"{name}.solv"))
-            os.chdir(f"db2/{name}")
             try:
+                os.makedirs(f"db2/{name}", exist_ok=True)
+                shutil.move(os.path.join("solv", name, f"{name}_solv.solv"), os.path.join("db2", name, f"{name}.solv"))
+                os.chdir(f"db2/{name}")
                 db2_data_all = ""
                 solv_obj = solv.Solv(f"{name}.solv")
                 for mol2objs in mol2_per_rigid_scaffold:
