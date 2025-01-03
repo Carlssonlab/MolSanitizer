@@ -13,6 +13,10 @@ All notable changes to this project will be documented in this file.
 - Initial commit of the new self-written Mol2Writer. The Mol2 file now should be intepretable by RDKit and should not confront problem with kekulization caused by the old OpenBabel-based approach. - ([c6cc898](https://github.com/Isra3l/MolSanitizer/commit/c6cc8988b5e8094d67905fd5e1836ee21790f8bd))
 - New protonation rules and protonation method. Msani now could enumerate the protonation states at different pH values and within a range of pH. - ([9a779a2](https://github.com/Isra3l/MolSanitizer/commit/9a779a2214159a9d177491ca6b436356cfdb96cc))
 
+### 🐛 Bug Fixes
+
+- Fix a bug that CORINA generated conformer could not be processed properly by RDKit. Also make the amine in sulfonamide now pyramidal (more realistic) instead of planar. - ([640cc55](https://github.com/Isra3l/MolSanitizer/commit/640cc5561f3597ef0cb6dbb99b7448bc25a07076))
+
 ### 🚜 Refactor
 
 - Refactored huge chunks of scripts. Now MolSanitizer can continue to handle unexpectedly failed jobs without restarting from the beginning. - ([0017709](https://github.com/Isra3l/MolSanitizer/commit/0017709b92af88a57aed7a13177bb9e6e5c118d0))
