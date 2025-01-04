@@ -17,7 +17,7 @@ def setup_logger(log_file):
     stream_handler.setLevel(logging.ERROR)  # Set the logging level for the stream handler
 
     # Create a formatter with the desired format
-    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s', datefmt='%H:%M:%S')
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
 
     # Add the formatter to both handlers
     file_handler.setFormatter(formatter)
