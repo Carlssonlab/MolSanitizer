@@ -1210,8 +1210,11 @@ def gen_conf_chunk_corina(df: pd.DataFrame, args, input_file='0'):
                 amsol_mol, netcharge, rigid_scaffolds, sulfo_matches = smi2db2_utils.embed_smiles_corina(smiles, name, VERBOSE)
             except Exception as e:
                 logger.error(f"Error in generating initial conformation using Corina for {name}, skipping it {e}")
-                log_error(smiles, name)
                 os.chdir("../..")
+                try: # Clean up the folders if error occurs. This help to not overfill the disk
+                    shutil.rmtree(f"solv/{name}", ignore_errors=True)
+                except: pass
+                log_error(smiles, name)     
                 continue
             
 
