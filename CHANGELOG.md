@@ -29,6 +29,10 @@ All notable changes to this project will be documented in this file.
 
 - Improved the rules for possible dihedrals of symmetric 6-membered aromatic rings. - ([c745454](https://github.com/Isra3l/MolSanitizer/commit/c745454c8c7093f5389ecde4b883f15bc2e22c3e))
 
+### 🎨 Styling
+
+- Improved the format of the logger. - ([6ab03f7](https://github.com/Isra3l/MolSanitizer/commit/6ab03f7bc9dc2cf5b5e6f7cdcf99c7ce2b4d139a))
+
 ### 🧪 Testing
 
 - Fix a bug in unittest that triggered the wrong argument. - ([e67411e](https://github.com/Isra3l/MolSanitizer/commit/e67411ee1775e72254b613f225d0b1773aeff642))
