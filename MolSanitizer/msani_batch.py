@@ -39,6 +39,7 @@ log_file="${log_prefix}.log"
 MSANI_PATH -i $smiles_file -j 2'''
 
 cleanup_script ="""
+sleep 0.4523 # Add small delay to avoid two jobs ending at the same time
 # Get the number of tasks with the name msani_3d from the user's squeue
 task_count=$(squeue -u $(whoami) | grep -c "$ARRAY_ID")
 echo "$task_count remaining jobs in the queue."
