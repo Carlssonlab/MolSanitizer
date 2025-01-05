@@ -779,11 +779,11 @@ def conf_sampling(rigid_scaffolds, name, smiles, numConfs, sulfo_matches,
     """
     num_confs_by_rotbonds, match_torlib = count_confs_by_rotbonds(rigid_scaffolds[0], ignoreTorlib, VERBOSE)
     requested_num_confs = numConfs
-    print('here')
+
     mol2_obj = mol2.Mol2(mol2fileName=f'../../3d/{name}/{name}.mol2')
     mol2_obj.smiles = smiles
     mol2_obj.cleanConfs()  # Clean previous conformations if any
-    print('there')
+
     #if VERBOSE: print(f"\t{num_confs_by_rotbonds} {num_confs_H} {num_rotatable_H} {numConfs}")
     if VERBOSE: print(f"\tTheory: {num_confs_by_rotbonds} possible conformations")
 
@@ -1208,6 +1208,7 @@ def gen_conf_chunk_corina(df: pd.DataFrame, args, input_file='0'):
             os.chdir(f"solv/{name}")
             try:
                 amsol_mol, netcharge, rigid_scaffolds, sulfo_matches = smi2db2_utils.embed_smiles_corina(smiles, name, VERBOSE)
+                
             except Exception as e:
                 logger.error(f"Error in generating initial conformation using Corina for {name}, skipping it {e}")
                 os.chdir("../..")
@@ -1236,6 +1237,7 @@ def gen_conf_chunk_corina(df: pd.DataFrame, args, input_file='0'):
                 if error_signal == -1: continue
                 break
             os.chdir("../..")
+
             if error_signal == -1 and conf_id+1 == amsol_mol.GetNumConformers(): # AMSOL failed
                 logger.error(f"AMSOL failed for {name}, skipping it")
                 try: # Clean up the folders if error occurs. This help to not overfill the disk
