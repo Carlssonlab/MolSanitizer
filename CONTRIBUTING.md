@@ -120,7 +120,8 @@ git push origin fix-issue-123
 5. Provide the following details:
    - **Title**: A short description of the changes.
    - **Description**: A detailed explanation of your changes and the issue it addresses.
-6. Submit the pull request.
+6. Choose at least two reviewers who you think are the most suitable for your changes.
+7. Submit the pull request.
 
 ### 8. Review and Feedback
 1. Your PR will require **at least 2 reviewers** to approve the changes before it can be merged.
