@@ -27,6 +27,13 @@ More information on the installation and dependencies could be found [here](http
 
 Documentation on the theory behind MolSanitizer and how to use it can be found [here](https://msani.readthedocs.io/)
 
+# Contribution
+
+We warmly welcome contributions of all kinds, whether it's reporting a bug, suggesting a feature, or developing new functionality. Your efforts directly improve the MolSanitizer project!
+
+To get started, please refer to our [CONTRIBUTING.md](CONTRIBUTING.md) guide, which details the steps for contributing, from opening an issue to submitting a pull request.
+
+Once your contribution is accepted, we would be delighted to recognize your effort by adding your name to MolSanitizer's development team. Join us in shaping the future of molecular sanitization!
 
 # Notes about AMSOL
 
