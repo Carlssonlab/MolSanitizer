@@ -29,13 +29,18 @@ If you find a bug, have a question, or want to suggest a new feature, please ope
 
 ## Contributing via Forks and Pull Requests
 
-We welcome your contributions via pull requests (PRs). Please follow the steps below:
+We welcome your contributions via pull requests (PRs). For more information on Pull requests, refer to: https://github.com/orgs/community/discussions/146509. Please follow the steps below:
 
 ### 1. Fork the Repository
 1. Go to the MolSanitizer GitHub repository.
 2. Click the **Fork** button at the top-right corner to create a copy of the repository under your account.
+![image](https://github.com/user-attachments/assets/7f9bc5a1-66b7-4bee-b9c2-697f7d15a37c)
 
 ### 2. Clone Your Fork
+
+In your forked repository, clone the fork to your local machine, changing <your-username> in the link below to your Github account.
+![image](https://github.com/user-attachments/assets/bea698ce-bdb8-4d1e-955b-95e0f92cae4a)
+
 ```bash
 # Clone your fork to your local machine
 git clone https://github.com/<your-username>/MolSanitizer.git
@@ -49,16 +54,42 @@ git checkout -b fix-issue-123
 ```
 
 ### 4. Make Changes
-1. Implement your changes in the code or documentation.
-2. Run the tests to ensure everything works correctly.
-   ```bash
-   # Install dependencies
-   pip install -r requirements.txt
 
-   # Run tests
-   pytest
+1. Make Your Changes
+   Implement your proposed changes in the code or documentation. Make sure to follow the project's coding style and structure.  
+
+2. Set Up Your Development Environment
+   Ensure you have all the dependencies and environment configured.  
+
+   ```bash
+   # Create and activate the conda environment
+   conda env create -f MolSanitizer/environment.yml
+   conda activate msani
+   
+   # Install the package in editable mode
+   pip install -e MolSanitizer
    ```
-3. Add or update documentation as needed.
+
+3. Run Tests Before Submitting
+   Verify that all tests pass successfully to ensure your changes do not introduce regressions.  
+
+   ```bash
+   # Run tests
+   python -m pytest test/
+   ```
+
+4. Update or Add Documentation  
+   If your changes impact the functionality or introduce new features, make sure to update the relevant documentation.  
+
+5. Run Tests Again After Changes  
+   Re-run the tests to verify that your changes do not break any existing functionality. If your changes were intended to modify test results (e.g., by updating the `goldenData` for pytest), ensure these updates are included in your pull request.  
+
+   ```bash
+   # Run tests after making changes
+   python -m pytest test/
+   ```
+---
+
 
 ### 5. Commit Your Changes
 1. Stage your changes:
@@ -77,6 +108,8 @@ git push origin fix-issue-123
 ```
 
 ### 7. Open a Pull Request
+![image](https://github.com/user-attachments/assets/d65ac4b0-6b03-4459-b6d8-85baf9251489)
+
 1. Go to the original MolSanitizer repository.
 2. Click on the **Pull Requests** tab, then click **New Pull Request**.
 3. Choose your branch from your fork and compare it with the main branch of the original repository.
