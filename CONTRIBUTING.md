@@ -108,15 +108,19 @@ git push origin fix-issue-123
 ```
 
 ### 7. Open a Pull Request
-![image](https://github.com/user-attachments/assets/d65ac4b0-6b03-4459-b6d8-85baf9251489)
-
 1. Go to the original MolSanitizer repository.
 2. Click on the **Pull Requests** tab, then click **New Pull Request**.
-3. Choose your branch from your fork and compare it with the main branch of the original repository.
-4. Provide the following details:
+   
+![image](https://github.com/user-attachments/assets/88da4eb0-4013-47b7-96f9-4975728ad58e)
+
+4. Choose your branch from your fork and compare it with the main branch of the original repository.
+
+![image](https://github.com/user-attachments/assets/d65ac4b0-6b03-4459-b6d8-85baf9251489)
+
+5. Provide the following details:
    - **Title**: A short description of the changes.
    - **Description**: A detailed explanation of your changes and the issue it addresses.
-5. Submit the pull request.
+6. Submit the pull request.
 
 ### 8. Review and Feedback
 1. Your PR will require **at least 2 reviewers** to approve the changes before it can be merged.
