@@ -66,7 +66,10 @@ def stripSMILESsalt(mol, molRemover, debug = False):
     res, deleted = molRemover.StripMolWithDeleted(mol)
 
     if debug and len(deleted) > 0: logger.info(f"Stripped salt {Chem.MolToSmiles(mol)}:  Salts:{' '.join([Chem.MolToSmiles(m) for m in deleted])}")
-
+    
+    if len(Chem.rdmolops.GetMolFrags(res)) > 1:
+        # If still contains more than one fragment, retains the largest one
+        rdMolStandardize.FragmentParentInPlace(res)
     return res
 
 def removesalts(df: pd.DataFrame, debug = False) -> pd.DataFrame:
@@ -89,7 +92,7 @@ def removesalts(df: pd.DataFrame, debug = False) -> pd.DataFrame:
     df['mol'] = df['mol'].apply(lambda x: stripSMILESsalt(x, remover))
 
     # If still contains more than one fragment, retains the largest one
-    df['mol'].apply(lambda x: rdMolStandardize.FragmentParentInPlace(x))
+    #df['mol'].apply(lambda x: rdMolStandardize.FragmentParentInPlace(x))
 
     df['smiles'] = df['mol'].apply(lambda x: Chem.MolToSmiles(x))
     df=df[df['smiles']!=''] #Remove purely salt molecules
