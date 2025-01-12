@@ -35,13 +35,12 @@ ARRAY_ID=${SLURM_ARRAY_JOB_ID}
 log_prefix=$(basename "$smiles_file")
 log_prefix="${log_prefix%.*}"  # Remove the extension
 log_file="${log_prefix}.log"
-
-MSANI_PATH -i $smiles_file -j 2'''
+MSANI_PATH -i $smiles_file -j 2
+rm -f ${log_prefix}.lock'''
 
 cleanup_script ="""
-sleep 0.4523 # Add small delay to avoid two jobs ending at the same time
 # Get the number of tasks with the name msani_3d from the user's squeue
-task_count=$(squeue -u $(whoami) | grep -c "$ARRAY_ID")
+task_count=$(ls "*.lock" | wc -l)
 echo "$task_count remaining jobs in the queue."
 
 # Remove the SLURM output file for this array task
@@ -49,8 +48,8 @@ slurm_out_file="slurm-${ARRAY_ID}_${TASK_ID}.out"
 cat $slurm_out_file >> "$log_file"
 rm -f "$slurm_out_file"
 
-# If the count is equal to 1 (last job in the array), perform cleanup and check for failed tasks
-if [ "$task_count" -eq 1 ]; then
+# If the count is equal to 0 (last job in the array), perform cleanup and check for failed tasks
+if [ "$task_count" -eq 0 ]; then
     echo "Proceeding with cleanup..."
 
     # Find and delete empty directories in the 3d directory
@@ -248,6 +247,11 @@ def Split_Submit_jobs(args: dict):
         os.chdir(prefix)
         subprocess.run(f"ls in* > dirlista", shell=True)
         n_jobs = sum(1 for line in open('dirlista'))
+        with open('dirlista') as f:
+            for line in f:
+                jobname = line.strip().split('.')[0]
+                with open(f'{jobname}.lock', 'w') as lock:
+                    lock.write('')
         print(f"Submitting {n_jobs} jobs\n")
         write_single_job_script(slurm_header, slurm_script)
         subprocess.run(f"sbatch --array=0-{n_jobs-1}%{args.max_jobs} submit_msani.sh", shell=True)
