@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### 🚀 Features
 
+- Added the flag '--conformal' (or '-cp') for preparing the format for Conformal Predictor script. Only standardize molecules using RDKit original function and skip all other flags. - ([0eb2678](https://github.com/Isra3l/MolSanitizer/commit/0eb2678b8b6cc8cf1a23485a6707cde9d20c688b))
 - Added the --version flag, as well as better versioning control strategy. - ([eae5fa0](https://github.com/Isra3l/MolSanitizer/commit/eae5fa0128a4fbcc64bdf66208e47d4f8d775a0a))
 - Now the final job in the batch array will also check whether all the jobs are finished. A file called RESUBMIT_FAILED_JOBS.txt will be generated to guide the user resubmitting unfinished jobs. - ([e51f7ce](https://github.com/Isra3l/MolSanitizer/commit/e51f7cefb88d6d6160bf6c9a62ff8fd0869eab00))
 - Msani in batch mode will now check if the number of jobs to be submitted will exceed the quota and warn the user. This is to avoid potential loss of the DB2 generation. - ([4e9bf80](https://github.com/Isra3l/MolSanitizer/commit/4e9bf80aed657afaa11f7a3c09b68ce91f73d106))
