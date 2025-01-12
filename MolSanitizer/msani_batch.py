@@ -88,6 +88,9 @@ if [ "$task_count" -eq 0 ]; then
 fi
 """
 
+remove_lock_files = '''
+rm -f "${log_prefix}.lock"
+'''
 with open(os.path.join(os.path.dirname(__file__), 'msani_configurations.yaml')) as confFile:
     configurations = yaml.full_load(confFile)
     slurm_account = configurations['SLURM_ACCOUNT']
@@ -188,9 +191,7 @@ def Split_Submit_jobs(args: dict):
     slurm_header = slurm_header.replace('TIME_LIMIT', f'{args.timelimit}:00:00')
     flags = parse_flags_single_job(args)
     global slurm_script
-    slurm_script = slurm_script + flags
-    slurm_script += '''rm -f ${log_prefix}.lock''' # Remove the lock file after the job is done
-    if args.cleanup: slurm_script = slurm_script + cleanup_script
+    if args.cleanup: slurm_script += cleanup_script
     
     print(f"\nStarting MolSanitizer in batch mode\n")
     print(f"Using project name (-p): {args.proj_name}")
