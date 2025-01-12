@@ -39,7 +39,7 @@ MSANI_PATH -i $smiles_file -j 2'''
 
 cleanup_script ="""
 # Get the number of tasks with the name msani_3d from the user's squeue
-task_count=$(ls "*.lock" | wc -l)
+task_count=$(ls *.lock 2>/dev/null | wc -l)
 echo "$task_count remaining jobs in the queue."
 
 # Remove the SLURM output file for this array task
@@ -191,6 +191,8 @@ def Split_Submit_jobs(args: dict):
     slurm_header = slurm_header.replace('TIME_LIMIT', f'{args.timelimit}:00:00')
     flags = parse_flags_single_job(args)
     global slurm_script
+    slurm_script = slurm_script + flags + remove_lock_files
+
     if args.cleanup: slurm_script += cleanup_script
     
     print(f"\nStarting MolSanitizer in batch mode\n")
