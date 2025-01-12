@@ -650,6 +650,6 @@ def standarizeFilters(df: pd.DataFrame) -> pd.DataFrame:
     params.tautomerRemoveIsotopicHs = False
 
     filtered_df['mol'] = filtered_df['mol'].apply(lambda x:  applyStandarizeFilters(x, params))
-
+    filtered_df['smiles'] = filtered_df['mol'].apply(lambda x: Chem.MolToSmiles(x))
 
     return filtered_df

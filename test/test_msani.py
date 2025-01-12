@@ -198,7 +198,8 @@ class TestMolSanitizer(unittest.TestCase):
             "timing":False,
             'corina': False,
             "synthon": False,
-            "taurdkit": True
+            "taurdkit": True,
+            "conformal": False
          } 
         for mode in modes: 
             if (mode not in ['unwanted','custom']): args[mode] = True

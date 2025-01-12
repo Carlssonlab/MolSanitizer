@@ -94,6 +94,7 @@ def parseArguments(args = None):
     smiles_group.add_argument('--protonation', action='store_true', help='Apply protonation to the structures')
     smiles_group.add_argument('--pH', '-p', type=int, default=pH, help='pH for the protonation (default: 7)')
     smiles_group.add_argument('--pH_range', '-r', type=int, default=pH_range, help='pH range for the protonation (default: 0)')
+    smiles_group.add_argument('--conformal', '-cp', action='store_true', help='Standardize structures for conformal predictors using RDKit')
 
     # Group 4: DB2 related options
     db2_group = parser.add_argument_group("DB2 related options")
@@ -179,6 +180,7 @@ def parseArguments_batch(args = None):
     smiles_group.add_argument('--protonation', action='store_true', help='Apply protonation to the structures')
     smiles_group.add_argument('--pH', '-p', type=int, default=pH, help='pH for the protonation (default: 7)')
     smiles_group.add_argument('--pH_range', '-r', type=int, default=pH_range, help='pH range for the protonation (default: 0)')
+    smiles_group.add_argument('--conformal', '-cp', action='store_true', help='Standardize structures for conformal predictors using RDKit')
 
     # Group 4: DB2 related options
     db2_group = parser.add_argument_group("DB2 related options")

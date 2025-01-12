@@ -35,6 +35,13 @@ def apply_filters(chunk, args, rejected_file):
 
     if args.removesalts:
         chunk = filters.removesalts(chunk, args.debug)
+    if args.conformal:
+        # Will standardize the molecules using RDKit default functions 
+        # and skip other rule-based filters/transformations of MolSanitizer.
+        # Mainly for producing the format for Conformal Predictor scripts.
+        chunk = filters.standarizeFilters(chunk)
+        return chunk
+    
     if args.tautomers or args.protonation:
         if args.neutralize:
             chunk = filters.neutralize(chunk, args.debug)
@@ -96,6 +103,8 @@ def read_input_file(input_file, is_enamine, is_synthon):
         return pd.read_csv(input_file, sep=r'\s+', names=['smiles', 'ids'], usecols=[0, 1], header=None, chunksize=500_000)
 
 def process_files(args, start_time: int):
+    if args.conformal:
+        logger.warning('Conformal predictor format preparation selected. Will skip all other flags and only standardize the molecules using RDKit default functions.')
     for input_file in args.input_files:
         input_file_path = pathlib.Path(input_file)
         logger.info(f'Processing: {input_file}')
@@ -113,7 +122,7 @@ def process_files(args, start_time: int):
             if args.synthon: chunk['highlights'] = chunk['highlights'].astype(str)
             chunk = apply_filters(chunk, args, rejected_file)
             if not chunk.empty:
-                if args.synthon:
+                if args.synthon and not(args.conformal):
                     chunk.to_csv(output_file, index=False, mode='a', columns=['smiles', 'ids', 'highlights'], header=False, sep=' ')
                 else:
                     chunk.to_csv(output_file, index=False, mode='a', columns=['smiles', 'ids'], header=False, sep=' ')
