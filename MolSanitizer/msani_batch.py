@@ -58,8 +58,9 @@ if [ "$task_count" -eq 1 ]; then
 
     # Find and delete empty directories in the solv directory
     find solv -type d -empty -delete
-    mkdir -p in/processed log
+    mkdir -p in/processed in/removed log
     mv *.log log
+    mv in*_rejected* in/removed -f 2>/dev/null
     mv in*_clean* in/processed
 
     # Check for failed tasks using sacct
@@ -190,7 +191,7 @@ def Split_Submit_jobs(args: dict):
     flags = parse_flags_single_job(args)
     global slurm_script
     slurm_script = slurm_script + flags
-    if args.db2 and args.cleanup: slurm_script = slurm_script + cleanup_script
+    if args.cleanup: slurm_script = slurm_script + cleanup_script
     
     print(f"\nStarting MolSanitizer in batch mode\n")
     print(f"Using project name (-p): {args.proj_name}")
@@ -243,7 +244,7 @@ def Split_Submit_jobs(args: dict):
                 print(f"Exitting MolSanitizer...\n")
                 return
         subprocess.run(f"mkdir -p {prefix}", shell=True)
-        subprocess.run(f"split -l {args.lines} -d -a 3 --additional-suffix=.{suffix} {file} {prefix}/in", shell=True)
+        subprocess.run(f"split -l {args.lines} -d -a 3 --additional-suffix=.smi {file} {prefix}/in", shell=True)
         os.chdir(prefix)
         subprocess.run(f"ls in* > dirlista", shell=True)
         n_jobs = sum(1 for line in open('dirlista'))
