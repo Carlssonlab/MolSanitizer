@@ -91,9 +91,6 @@ def removesalts(df: pd.DataFrame, debug = False) -> pd.DataFrame:
     # Remove salts in the list
     df['mol'] = df['mol'].apply(lambda x: stripSMILESsalt(x, remover))
 
-    # If still contains more than one fragment, retains the largest one
-    #df['mol'].apply(lambda x: rdMolStandardize.FragmentParentInPlace(x))
-
     df['smiles'] = df['mol'].apply(lambda x: Chem.MolToSmiles(x))
     df=df[df['smiles']!=''] #Remove purely salt molecules
     return df
