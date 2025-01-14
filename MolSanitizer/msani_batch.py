@@ -24,6 +24,7 @@ slurm_header = '''#!/bin/bash
 #SBATCH -J msani_3d
 #SBATCH -t TIME_LIMIT
 #SBATCH --mail-type=FAIL
+#SBATCH --mem=64G
 '''
 
 slurm_script='''
@@ -128,7 +129,8 @@ def parse_flags_single_job(args: dict):
     if not(args.taurdkit): flags += ' --notaurdkit'
     if args.pains: flags += ' --pains'
     if args.unwanted is not None: flags += f' --unwanted {" ".join(args.unwanted)}'
-
+    if args.ha is not None: flags += f' --ha {args.ha}'
+    if args.logp is not None: flags += f' --logp {args.logp}'
     if args.stereoisomers: 
         flags += ' --stereoisomers'
         if args.max_stereoisomers != max_stereoisomers: flags += f' --max_stereoisomers {args.max_stereoisomers}'
