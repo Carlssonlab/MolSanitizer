@@ -61,6 +61,7 @@ if [ "$task_count" -eq 0 ]; then
     mv *.log log
     mv in*_rejected* in/removed -f 2>/dev/null
     mv in*_clean* in/processed
+    find in/removed -type d -empty -delete
 
     # Check for failed tasks using sacct
     failed_tasks=$(sacct -j "${ARRAY_ID}" --format='JobID%30,State' --noheader | grep 'NODE_FAIL' | awk -F_ '{print $2}' | awk '{print $1}' | tr '\n' ',' | sed 's/,$//')
