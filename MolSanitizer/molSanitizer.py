@@ -35,6 +35,13 @@ def apply_filters(chunk, args, rejected_file):
 
     if args.removesalts:
         chunk = filters.removesalts(chunk, args.debug)
+
+    if args.ha is not None:
+        chunk = filters.filter_by_ha(chunk, args.ha, rejected_file, args.debug)
+
+    if args.logp is not None:
+        chunk = filters.filter_by_logp(chunk, args.logp, rejected_file, args.debug)
+
     if args.conformal:
         # Will standardize the molecules using RDKit default functions 
         # and skip other rule-based filters/transformations of MolSanitizer.
@@ -95,12 +102,12 @@ def get_output_files(args, input_file_path):
 def read_input_file(input_file, is_enamine, is_synthon):
     if is_synthon:
         logger.info('Using Synthon format for parsing')
-        return pd.read_csv(input_file, sep=r'\s+', names=['smiles', 'ids', 'highlights'], usecols=[0, 1, 2], header=None, chunksize=500_000)
+        return pd.read_csv(input_file, sep=r'\s+', names=['smiles', 'ids', 'highlights'], usecols=[0, 1, 2], header=None, chunksize=250_000)
     if is_enamine:
         logger.info('Using Enamine format for parsing')
-        return pd.read_csv(input_file, sep='\t', names=['smiles', 'ids'], usecols=[0, 1], header=None, chunksize=500_000)
+        return pd.read_csv(input_file, sep='\t', names=['smiles', 'ids'], usecols=[0, 1], header=None, chunksize=250_000)
     else:
-        return pd.read_csv(input_file, sep=r'\s+', names=['smiles', 'ids'], usecols=[0, 1], header=None, chunksize=500_000)
+        return pd.read_csv(input_file, sep=r'\s+', names=['smiles', 'ids'], usecols=[0, 1], header=None, chunksize=250_000)
 
 def process_files(args, start_time: int):
     if args.conformal:
@@ -110,7 +117,8 @@ def process_files(args, start_time: int):
         logger.info(f'Processing: {input_file}')
 
         output_file, rejected_file = get_output_files(args, input_file_path)
-
+        if os.path.exists(rejected_file): os.remove(rejected_file)
+        
         df_input = read_input_file(input_file, args.enamine, args.synthon)
 
         for step, chunk in enumerate(df_input, start=1):

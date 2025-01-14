@@ -52,7 +52,6 @@ class TestMolSanitizer(unittest.TestCase):
             # Test all filters work together
             args.unwanted = ['Regular','Special','Optional']
             molSanitizer.clean_data(args)
-            os.system(f'ls {temp_dir}')
             #self.compareFiles(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_unwanted_all_clean.txt')
             self.compare_relative(f'{temp_dir}/dummy_output_rejected.txt', f'{self.path}/out_unwanted_all_rejected.txt')
          
@@ -80,7 +79,36 @@ class TestMolSanitizer(unittest.TestCase):
             molSanitizer.clean_data(args)
             self.compareFiles(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_unwanted_optional_clean.txt')
             self.compareFiles(f'{temp_dir}/dummy_output_rejected.txt', f'{self.path}/out_unwanted_optional_rejected.txt')
- 
+
+    def test_descriptor_filter(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            args = self.generate_mock_arguments([f'{self.path}/in_data100.txt'], ['test'], temp_dir)
+            # Test all filters work together
+            args.ha = '17-25'
+            molSanitizer.clean_data(args)
+
+            self.compareFiles(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_ha1725_clean.txt')
+            self.compare_relative(f'{temp_dir}/dummy_output_rejected.txt', f'{self.path}/out_ha1725_rejected.txt')
+         
+            args.ha = '>24'
+            system(f'rm {temp_dir}/*.txt')
+            molSanitizer.clean_data(args)
+            self.compare_relative(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_ha_over24_clean.txt')
+            self.compare_relative(f'{temp_dir}/dummy_output_rejected.txt', f'{self.path}/out_ha_over24_rejected.txt')
+
+            args.ha = None
+            system(f'rm {temp_dir}/*.txt')
+            args.logp = '100-200'
+            molSanitizer.clean_data(args)
+            self.compare_relative(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_logp_100200_clean.txt')
+            self.compare_relative(f'{temp_dir}/dummy_output_rejected.txt', f'{self.path}/out_logp_100200_rejected.txt')
+
+            args.logp = '<=350'
+            system(f'rm {temp_dir}/*.txt')
+            molSanitizer.clean_data(args)
+            self.compare_relative(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_logp_350_clean.txt')
+            self.compare_relative(f'{temp_dir}/dummy_output_rejected.txt', f'{self.path}/out_logp_350_rejected.txt')
+            
     def test_create_customfile(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             args = self.generate_mock_arguments([f'{self.path}/in_unwanted.txt'], ['create_custom', 'test'], temp_dir)
@@ -199,7 +227,9 @@ class TestMolSanitizer(unittest.TestCase):
             'corina': False,
             "synthon": False,
             "taurdkit": True,
-            "conformal": False
+            "conformal": False,
+            "ha": None,
+            "logp": None,
          } 
         for mode in modes: 
             if (mode not in ['unwanted','custom']): args[mode] = True

@@ -83,6 +83,8 @@ def parseArguments(args = None):
     filter_group.add_argument('--custom', default=None, type=str, help='Filter out unwanted substructures using the customized list. To generate an example list, use --create_custom')
     filter_group.add_argument('--unwanted', choices=['all', 'regular', 'special', 'optional'], default=None, nargs='*', help='Filter out unwanted substructures using the default list (choose from all, regular, special, optional)')
     filter_group.add_argument('--pains', action='store_true', help='Remove PAINS violations from the structures')
+    filter_group.add_argument('--ha', '-ha', default=None, type=str, help='Retain only compounds with a specified number of heavy atoms. Supported formats: range (e.g., 17-25), less than or equal to (<=25), greater than (>17), etc.')
+    filter_group.add_argument('--logp', '-lp', default = None, type = str, help='Retain only the compounds with a specified value of cLogP (UCSF format: cLogP 3.5->350). Supported formats: range (e.g., -350-500), less than or equal to (<=350 or single value 350), greater than (>=200), etc.')
 
     # Group 3: SMILES processing options
     smiles_group = parser.add_argument_group("SMILES processing options")
@@ -169,7 +171,9 @@ def parseArguments_batch(args = None):
     filter_group.add_argument('--custom', default=None, type=str, help='Filter out unwanted substructures using the customized list. To generate an example list, use --create_custom')
     filter_group.add_argument('--unwanted', choices=['all', 'regular', 'special', 'optional'], default=None, nargs='*', help='Filter out unwanted substructures using the default list (choose from all, regular, special, optional)')
     filter_group.add_argument('--pains', action='store_true', help='Remove PAINS violations from the structures')
-    
+    filter_group.add_argument('--ha', '-ha', default=None, type=str, help='Retain only compounds with a specified number of heavy atoms. Supported formats: range (e.g., 17-25), less than or equal to (<=25), greater than (>17), etc.')
+    filter_group.add_argument('--logp', '-lp', default = None, type = str, help='Retain only the compounds with a specified value of cLogP (UCSF format: cLogP 3.5->350). Supported formats: range (e.g., -350-500), less than or equal to (<=350 or single value 350), greater than (>=200), etc.')
+
     # Group 3: SMILES processing options
     smiles_group = parser.add_argument_group("SMILES processing options")
     smiles_group.add_argument('--tautomers', action='store_true', help='Tautomers enumeration')

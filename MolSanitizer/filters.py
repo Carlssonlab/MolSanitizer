@@ -4,8 +4,8 @@ import pandas as pd
 
 from rdkit import Chem, RDLogger
 
-from rdkit.Chem import AllChem
-from rdkit.Chem import SaltRemover
+from rdkit.Chem import AllChem, SaltRemover
+from rdkit.Chem.Descriptors import MolLogP
 from rdkit.Chem.MolStandardize import rdMolStandardize
 from rdkit.Chem.FilterCatalog import FilterCatalog, FilterCatalogParams
 from rdkit.Chem.EnumerateStereoisomers import EnumerateStereoisomers, StereoEnumerationOptions
@@ -93,6 +93,57 @@ def removesalts(df: pd.DataFrame, debug = False) -> pd.DataFrame:
 
     df['smiles'] = df['mol'].apply(lambda x: Chem.MolToSmiles(x))
     df=df[df['smiles']!=''] #Remove purely salt molecules
+    return df
+
+def convert_to_query(condition: str, column: str) -> str:
+    if "-" in condition:  # Range condition
+        lower, upper = map(int, condition.split('-'))
+        return f"{column} >= {lower} and {column} <= {upper}"
+    elif '>' in condition or '<' in condition:  # Single value condition
+        return column + condition
+    elif column == 'ha':  # Exact value condition for heavy atoms
+        return f"{column} == {condition}"
+    elif column == 'logp':  # Filter out molecules with logP value upto the defined value
+        return f"{column} <= {condition}"
+    
+def filter_by_ha(df, filter_query, rejectedFile, debug = False) -> pd.DataFrame:
+    """Filter out molecules with heavy atoms only using the RDKit Mol.GetNumHeavyAtoms() function.
+
+    Args:
+        df (pd.DataFrame): Input DataFrame with 'mol' column containing RDKit molecule objects.
+        debug (bool, optional): Debug mode. Defaults to False.
+
+    Returns:
+        pd.DataFrame: A new DataFrame chunk with molecules containing heavy atoms.
+    """
+    df['ha'] = df['mol'].apply(lambda x: x.GetNumHeavyAtoms())
+    query = convert_to_query(filter_query, 'ha')
+    rejected_df = df.query(f'not ({query})').copy()
+    rejected_df['ha'] = rejected_df['ha'].apply(lambda x: f'ha{x}')
+    rejected_df.to_csv(rejectedFile, index=False, mode='a', columns=['smiles','ids','ha'], sep = ' ', header=False)
+
+    df.query(query, inplace=True)
+    return df
+
+def filter_by_logp(df, filter_query, rejectedFile, debug = False) -> pd.DataFrame:
+    """Filter out molecules with a logP value upto the defined value using the RDKit Crippen logP calculation.
+
+    Args:
+        df (pd.DataFrame): Input DataFrame with 'mol' column containing RDKit molecule objects.
+        rejectedFile (_type_): Path to the file to save rejected molecules.
+        debug (bool, optional): Debug mode. Defaults to False.
+
+    Returns:
+        pd.DataFrame: A new DataFrame chunk with molecules containing the specified logP value.
+    """
+    df['logp'] = df['mol'].apply(lambda x: (MolLogP(x))*100)
+    query = convert_to_query(filter_query, 'logp')
+    rejected_df = df.query(f'not ({query})').copy()
+    rejected_df['logp'] = rejected_df['logp'].apply(lambda x: f'logp {x/100:.2f}')
+    rejected_df.to_csv(rejectedFile, index=False, mode='a', columns=['smiles','ids','logp'], sep = ' ', header=False)
+ 
+    df.query(query, inplace=True)
+
     return df
 
 def neutralize_atoms(mol):
@@ -236,7 +287,7 @@ def detectPAINS(mol, catalog):
     else:
         return 'OK'
 
-def pains(df: pd.DataFrame, rejectedFile, debug = False) -> pd.DataFrame:
+def pains(df, rejectedFile, debug = False) -> pd.DataFrame:
     """Filter out PAINS functional groups using the RDKit PAINS catalog.
 
     Args:

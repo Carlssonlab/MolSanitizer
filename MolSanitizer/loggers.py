@@ -67,6 +67,10 @@ def arguments(args):
         temp_df = loadSMARTSdata(smartsFile.resolve(), args.unwanted)
         logger.info(f'Parsed {len(temp_df)} substructures from: {smartsFile}')
     
+    if args.ha: logger.info(f"HA filter: {args.ha}")
+    
+    if args.logp: logger.info(f"LogP filter: {args.logp}")
+
     if args.custom is not None: 
         logger.info(f"Customized filter: {args.custom}")
         temp_df = loadSMARTSdata(args.custom)
