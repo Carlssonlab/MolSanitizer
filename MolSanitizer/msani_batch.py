@@ -99,6 +99,7 @@ with open(os.path.join(os.path.dirname(__file__), 'msani_configurations.yaml')) 
     time_limit = configurations['TIME_LIMIT']
     lines_per_job = configurations['LINES_PER_JOB']
     max_jobs = configurations['MAX_JOBS']
+    max_array_size = configurations['MAX_ARRAY_SIZE']
     max_limit_project = configurations['MAX_LIMIT_PROJECT']
     timeout = configurations['TIMEOUT']
     use_corina = configurations['USE_CORINA']
@@ -220,7 +221,7 @@ def Split_Submit_jobs(args: dict):
         line_count = count_lines_bash(file)
         n_jobs += math.ceil(line_count/args.lines)
     print(f"Total number of jobs to submit: {n_jobs}\n")
-    if n_jobs > 1000:
+    if n_jobs > max_array_size:
         print(f"Too many jobs to submit ({n_jobs}). Please increase the number of lines per job or decrease the number of input files")
         print(f"Exitting MolSanitizer...")
         return
@@ -239,7 +240,6 @@ def Split_Submit_jobs(args: dict):
     
     for file in args.input_files:
         prefix = file.split('.')[0]
-        suffix = file.split('.')[-1]
         if os.path.exists(prefix):
             remove_folder = input(f"Folder {prefix} already exists. Do you want to remove it? (y/n): ")
             if remove_folder.lower() == 'y' or remove_folder.lower() == 'yes':
