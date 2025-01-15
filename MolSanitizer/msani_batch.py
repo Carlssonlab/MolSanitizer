@@ -202,6 +202,7 @@ def Split_Submit_jobs(args: dict):
     print(f"\nStarting MolSanitizer in batch mode\n")
     print(f"Using project name (-p): {args.proj_name}")
     print(f"Time limit for each job (-t): {args.timelimit} hours")
+    print(f"Maximum number of jobs in an array (--max_array_size): {max_array_size} jobs")
     print(f"Maximum number of jobs running parallelly (--max_jobs): {args.max_jobs} jobs")
     print(f"Number of compounds per job (-l): {args.lines} lines\n")
 
@@ -237,7 +238,7 @@ def Split_Submit_jobs(args: dict):
     # Wait for 5 seconds before proceeding
     print("Waiting 5 seconds to review the configurations...")
     time.sleep(5)
-    
+    print('Submitting jobs...\n')
     for file in args.input_files:
         prefix = file.split('.')[0]
         if os.path.exists(prefix):
@@ -249,7 +250,7 @@ def Split_Submit_jobs(args: dict):
                 print(f"Exitting MolSanitizer...\n")
                 return
         subprocess.run(f"mkdir -p {prefix}", shell=True)
-        subprocess.run(f"split -l {args.lines} -d -a 3 --additional-suffix=.smi {file} {prefix}/in", shell=True)
+        subprocess.run(f"split -l {args.lines} -d -a 4 --additional-suffix=.smi {file} {prefix}/in", shell=True)
         os.chdir(prefix)
         subprocess.run(f"ls in* > dirlista", shell=True)
         n_jobs = sum(1 for line in open('dirlista'))
