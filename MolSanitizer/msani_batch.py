@@ -193,7 +193,7 @@ def Split_Submit_jobs(args: dict):
     global slurm_header
     slurm_header = slurm_header.replace('PROJECT_NAME', args.proj_name)
     slurm_header = slurm_header.replace('TIME_LIMIT', f'{args.timelimit}:00:00')
-    if args.line > 250_000: slurm_header = slurm_header.replace('MEMORY', '16G')
+    if args.lines > 250_000: slurm_header = slurm_header.replace('MEMORY', '16G')
     else: slurm_header = slurm_header.replace('MEMORY', '8G')
     flags = parse_flags_single_job(args)
     global slurm_script
