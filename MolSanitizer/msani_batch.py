@@ -24,7 +24,7 @@ slurm_header = '''#!/bin/bash
 #SBATCH -J msani_3d
 #SBATCH -t TIME_LIMIT
 #SBATCH --mail-type=FAIL
-#SBATCH --mem=64G
+#SBATCH --mem=MEMORY
 '''
 
 slurm_script='''
@@ -193,6 +193,8 @@ def Split_Submit_jobs(args: dict):
     global slurm_header
     slurm_header = slurm_header.replace('PROJECT_NAME', args.proj_name)
     slurm_header = slurm_header.replace('TIME_LIMIT', f'{args.timelimit}:00:00')
+    if args.line > 250_000: slurm_header = slurm_header.replace('MEMORY', '16G')
+    else: slurm_header = slurm_header.replace('MEMORY', '8G')
     flags = parse_flags_single_job(args)
     global slurm_script
     slurm_script = slurm_script + flags + remove_lock_files
