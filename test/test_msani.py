@@ -164,6 +164,18 @@ class TestMolSanitizer(unittest.TestCase):
                 first_line = db2_file.readline()
                 self.assertEqual(first_line.split()[7],'2', "DB2 file was not created correctly.")   
 
+    def test_pdbqt_generation(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            args = self.generate_mock_arguments([f'{self.path}/in_pdbqt.smi'], ['protonation', 'pdbqt', 'test'], temp_dir)
+            args.prefix = Path(temp_dir)
+            molSanitizer.clean_data(args)
+            os.listdir(f"{temp_dir}")
+            self.assertTrue(Path(f"{temp_dir}/pdbqt/salicylic_acid.pdbqt").exists(), "PDBQT file was not created.")
+
+            with open(f"{temp_dir}/pdbqt/salicylic_acid.pdbqt") as pdbqt_file:
+                lines = pdbqt_file.readlines()
+                self.assertEqual(lines[0],"REMARK SMILES O=C([O-])c1ccccc1O\n", "PDBQT file was not created correctly.")
+                self.assertEqual(lines[-1],"TORSDOF 2\n", "PDBQT file was not created correctly.")
 
     def compare_relative(self, newfile: str, goldenfile: str):
         # Read the files into dataframes
@@ -230,6 +242,8 @@ class TestMolSanitizer(unittest.TestCase):
             "conformal": False,
             "ha": None,
             "logp": None,
+            "pdbqt": False,
+            "nringconfs": 1,
          } 
         for mode in modes: 
             if (mode not in ['unwanted','custom']): args[mode] = True

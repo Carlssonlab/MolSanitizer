@@ -21,6 +21,7 @@ from . import parsers
 from . import loggers
 from . import filters
 from . import smi2db2
+from . import smi2pdbqt
 
 from rdkit import Chem
 from rdkit import rdBase
@@ -141,7 +142,9 @@ def process_files(args, start_time: int):
                     smi2db2.gen_conf_chunk_corina(chunk, args, input_file_path.stem)
                 else:
                     smi2db2.gen_conf_chunk(chunk, args, input_file_path.stem)
-                       
+            
+            if args.pdbqt:
+                smi2pdbqt.gen_conf_chunk(chunk, args)
             if not args.test:
                 if step == 1: time_step1 = time.time()-start_time
                 if step == 2:
@@ -165,6 +168,9 @@ def process_smiles(args):
             smi2db2.gen_conf_chunk_corina(chunk, args)
         else:
             smi2db2.gen_conf_chunk(chunk, args)
+
+    if args.pdbqt:
+        smi2pdbqt.gen_conf_chunk(chunk, args)
     
     print('Processed SMILES:')
     for i, row in chunk.iterrows():
@@ -209,8 +215,8 @@ def Sanitycheck(args: dict):
         if not args.unwanted: args.unwanted=['regular']
         if 'all' in args.unwanted: args.unwanted=['regular','special','optional']
         args.unwanted=[word.title() for word in args.unwanted]
-    if args.db2:
-        # Always enumerate stereoisomers for before generating DB2 files
+    if args.db2 or args.pdbqt:
+        # Always enumerate stereoisomers for before generating DB2 and PDBQT files
         # Maximum number of stereoisomers is set to in parser
         args.stereoisomers = True
     
