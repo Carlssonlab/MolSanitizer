@@ -324,12 +324,11 @@ class SmilesSanitizer:
             mol = row['mol'] if rdkit_chiral_centers < initial_chiral_centers else rdkit_canonical
 
             if debug:
-                print(f"Using RDKit tautomerizer for {row['ids']}...\nTurned to {Chem.MolToSmiles(mol)}")
+                print(f"Using RDKit tautomerizer for {row['ids']}...\n\tTurned to {Chem.MolToSmiles(mol)}")
         else:
             mol = row['mol']
 
-        if debug:
-            logger.info(f"Processing tautomer: {row['ids']}, {Chem.MolToSmiles(mol)}")
+        if debug: logger.info(f"Processing tautomer: {row['ids']}, {Chem.MolToSmiles(mol)}")
 
         # Step 2: Apply corrections
         updates = list(SmilesSanitizer.recursive_reaction(mol, reactions, set(), set(), debug))
@@ -628,7 +627,7 @@ class SmilesSanitizer:
             outcomes = rxn.RunReactants((mol,))
             if outcomes:  # Check if there are any outcomes            
                 reactive = True
-                if debug: print(f"Applying reaction: {name} to {Chem.MolToSmiles(mol)}")
+                if debug: print(f"\tApplying reaction: {name} to {Chem.MolToSmiles(mol)}")
                 if name in SmilesSanitizer.enumerating_reactions:
                     for outcome in outcomes:
                         product = outcome[0]
@@ -636,8 +635,8 @@ class SmilesSanitizer:
                             Chem.SanitizeMol(product)
                             SmilesSanitizer.recursive_reaction(product, reactions, collection, visited, debug)  # Recurse with the new product
                         except:
-                            print(f"Error sanitizing molecule: {Chem.MolToSmiles(mol)} to {Chem.MolToSmiles(product)}")
-                            logger.info(f"Error sanitizing molecule: {Chem.MolToSmiles(mol)} to {Chem.MolToSmiles(product)}")
+                            print(f"\tError sanitizing molecule: {Chem.MolToSmiles(mol)} to {Chem.MolToSmiles(product)}")
+                            logger.info(f"\tError sanitizing molecule: {Chem.MolToSmiles(mol)} to {Chem.MolToSmiles(product)}")
                             pass
                 else:
                     product = outcomes[0][0]

@@ -37,7 +37,9 @@
 [OH:1]-[c:2]1[c;$(c(:[a&r6])(:c):c):3][c;$(c(:[a&r6])(:c):c):4][c&z0:5][c;$(c(:[a&r6])(:c):c):6][c;$(c(:[a&r6])(:c):c):7]1>>[O&H0:1]=[C:2]1[c:3][c:4][CH:5][c:6][c:7]1	anthracene-9-ol_to_anthrone
 [C;$(C-[N+](=O)[O-]):1]-[C:2](=[NX2&+0:3])-[NX3&+0:4]>>[C:1]=[C:2](-[N:3])-[N:4]	nitro-imino-ethanamine_to_vinyl
 [NH&X3;$(N-S(=O)=O):1]-[C:2]=[NX2:3]>>[N&H0:1]=[C:2]-[N:3]	restore_sulfamoylimidamide
-[C&!H0:1]-[C:2]=[A;$(N-[C;!$(C-[CH]-[NH]-O-C)]=[O,S]),$([C&r3]):3]>>[C:1]=[C:2]-[A:3]	strained-alkylidene_to_vinyl
+[CH3:1]-[C:2]=[A;$(N-[C;!$(C-[CH]-[NH]-O-C)]=[O,S]),$([C&r3]):3]>>[CH2:1]=[C:2]-[A:3]	strained-alkylidene_to_vinyl-H3
+[CH2:1]-[C:2]=[A;$(N-[C;!$(C-[CH]-[NH]-O-C)]=[O,S]),$([C&r3]):3]>>[CH:1]=[C:2]-[A:3]	strained-alkylidene_to_vinyl-H2
+[CH:1]-[C:2]=[A;$(N-[C;!$(C-[CH]-[NH]-O-C)]=[O,S]),$([C&r3]):3]>>[C&H0:1]=[C:2]-[A:3]	strained-alkylidene_to_vinyl-H1
 [a;!$(a~[#8]):1]1[a;!$(a~[#8]):2][a:3](=[C:7]-[#6!H0:8])[a;!$(a~[#8]):4][a;!$(a~[#8]):5][a:6]1=[C:9]>>[a:1]1[a:2][a:3](-[C:7]=[#6:8])[a:4][a:5][a:6]1-[C:9]	p-carboquinone_to_hydro
 [a;!$(a~[#8]):1]1[a;!$(a~[#8]):2][a;!$(a~[#8]):3][a;!$(a~[#8]):4][a:5](=[C:7]-[#6!H0:8])[a:6]1=[C:9]>>[a:1]1[a:2][a:3][a:4][a:5](-[C:7]=[#6:8])[a:6]1-[C:9]	o-carboquinone_to_hydro
 [a;!$(a~[#8]):1]1[a;!$(a~[#8]):2][a;!$(a~[#8]):3][a:4](=[C:7]-[#6!H0:8])[a:5]1=[C:6]>>[a:1]1[a:2][a:3][a:4](-[C:7]=[#6:8])[a:5]1-[C:6]	12-carbo-5-quinone_to_hydro
