@@ -32,7 +32,7 @@ def process_enamine_name(chunk):
 
 def apply_filters(chunk, args, rejected_file):
     sanitizer = filters.SmilesSanitizer(removesalts=args.removesalts, pains=args.pains, tautomers=args.tautomers, 
-                                        unwanted=args.unwanted, ha=args.ha, logp=args.logp, 
+                                        unwanted=args.unwanted, ha=args.ha, logp=args.logp, taurdkit=args.taurdkit,
                                         protonation=args.protonation, pH=args.pH, pH_range=args.pH_range, 
                                         conformal=args.conformal, stereoisomers=args.stereoisomers, 
                                         max_stereoisomers=args.max_stereoisomers, numcores=args.numcores, debug=args.debug)

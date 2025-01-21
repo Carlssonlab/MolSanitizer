@@ -324,7 +324,7 @@ class SmilesSanitizer:
             mol = row['mol'] if rdkit_chiral_centers < initial_chiral_centers else rdkit_canonical
 
             if debug:
-                print(f"Using RDKit tautomerizer...\nTurned to {Chem.MolToSmiles(mol)}")
+                print(f"Using RDKit tautomerizer for {row['ids']}...\nTurned to {Chem.MolToSmiles(mol)}")
         else:
             mol = row['mol']
 
