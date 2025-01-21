@@ -1,6 +1,6 @@
 import logging
 from pathlib import Path
-from .filters import loadSMARTSdata, load_reactions
+from .smiles_sanitizer import loadSMARTSdata
 logger = logging.getLogger('molsani')
 
 def setup_logger(log_file):

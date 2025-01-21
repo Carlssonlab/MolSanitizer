@@ -19,7 +19,7 @@ import sys
 
 from . import parsers
 from . import loggers
-from . import filters
+from . import smiles_sanitizer
 from . import smi2db2
 
 from rdkit import Chem
@@ -31,7 +31,7 @@ def process_enamine_name(chunk):
     return chunk
 
 def apply_filters(chunk, args, rejected_file):
-    sanitizer = filters.SmilesSanitizer(removesalts=args.removesalts, pains=args.pains, tautomers=args.tautomers, 
+    sanitizer = smiles_sanitizer.SmilesSanitizer(removesalts=args.removesalts, pains=args.pains, tautomers=args.tautomers, 
                                         unwanted=args.unwanted, ha=args.ha, logp=args.logp, taurdkit=args.taurdkit,
                                         protonation=args.protonation, pH=args.pH, pH_range=args.pH_range, 
                                         conformal=args.conformal, stereoisomers=args.stereoisomers, 
