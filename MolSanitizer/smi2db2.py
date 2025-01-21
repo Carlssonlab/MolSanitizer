@@ -519,7 +519,7 @@ def embed_smiles_rdkit(smiles, name, randomSeed=42, VERBOSE=False):
             conf_ring_descriptors_df = smi2db2_utils.classify_confs(conformer, energy, non_planar_rings, flippable_Ns, sulfo_matches, conf_ring_descriptors_df)
 
     conf_ring_descriptors_df.sort_values('Energy', inplace=True)
-    # Keep a reservoir as the lowest energy possible conformer in case no confor
+    # Keep a reservoir as the lowest energy possible conformer in case no good ring conformers are found.
     reservoir = conf_ring_descriptors_df.iloc[0, 0]
     # Keep the top 10 conformers for further processing (e.g., AMSOL)
     for idx in range(min(10, len(conf_ring_descriptors_df))):

@@ -31,40 +31,12 @@ def process_enamine_name(chunk):
     return chunk
 
 def apply_filters(chunk, args, rejected_file):
-    chunk = filters.remove_invalid_SMILES(chunk)
-
-    if args.removesalts:
-        chunk = filters.removesalts(chunk, args.debug)
-
-    if args.ha is not None:
-        chunk = filters.filter_by_ha(chunk, args.ha, rejected_file, args.debug)
-
-    if args.logp is not None:
-        chunk = filters.filter_by_logp(chunk, args.logp, rejected_file, args.debug)
-
-    if args.conformal:
-        # Will standardize the molecules using RDKit default functions 
-        # and skip other rule-based filters/transformations of MolSanitizer.
-        # Mainly for producing the format for Conformal Predictor scripts.
-        chunk = filters.standarizeFilters(chunk)
-        return chunk
-    
-    if args.tautomers or args.protonation:
-        if args.neutralize:
-            chunk = filters.neutralize(chunk, args.debug)
-    if args.tautomers:
-        chunk = filters.tautomers(chunk, args.taurdkit, args.numcores, args.debug)
-    if args.pains:
-        chunk = filters.pains(chunk, rejected_file, args.debug)
-    if args.unwanted:
-        chunk = filters.unwanted(chunk, rejected_file, args.unwanted, args.debug)
-    if args.custom:
-        chunk = filters.custom(chunk, rejected_file, args.custom, args.debug)
-    if args.protonation:
-        chunk = filters.protonation(chunk, args.pH, args.pH_range, args.debug)
-    if args.stereoisomers:
-        chunk = filters.stereoisomers(chunk, args.max_stereoisomers, args.numcores, args.debug)
-
+    sanitizer = filters.SmilesSanitizer(removesalts=args.removesalts, pains=args.pains, tautomers=args.tautomers, 
+                                        unwanted=args.unwanted, ha=args.ha, logp=args.logp, 
+                                        protonation=args.protonation, pH=args.pH, pH_range=args.pH_range, 
+                                        conformal=args.conformal, stereoisomers=args.stereoisomers, 
+                                        max_stereoisomers=args.max_stereoisomers, numcores=args.numcores, debug=args.debug)
+    chunk = sanitizer.Sanitize(chunk, rejected_file)
     return chunk
 
 def log_step_time(elapsed_time, step):
@@ -102,16 +74,41 @@ def get_output_files(args, input_file_path):
 def read_input_file(input_file, is_enamine, is_synthon):
     if is_synthon:
         logger.info('Using Synthon format for parsing')
-        return pd.read_csv(input_file, sep=r'\s+', names=['smiles', 'ids', 'highlights'], usecols=[0, 1, 2], header=None, chunksize=250_000)
+        return pd.read_csv(
+            input_file,
+            sep=r'\s+',
+            names=['smiles', 'ids', 'highlights'],
+            usecols=[0, 1, 2],
+            header=None,
+            chunksize=250_000,
+            dtype={'smiles': str, 'ids': str, 'highlights': str}  # Enforce string types
+        )
     if is_enamine:
         logger.info('Using Enamine format for parsing')
-        return pd.read_csv(input_file, sep='\t', names=['smiles', 'ids'], usecols=[0, 1], header=None, chunksize=250_000)
+        return pd.read_csv(
+            input_file,
+            sep='\t',
+            names=['smiles', 'ids'],
+            usecols=[0, 1],
+            header=None,
+            chunksize=250_000,
+            dtype={'smiles': str, 'ids': str}  # Enforce string types
+        )
     else:
-        return pd.read_csv(input_file, sep=r'\s+', names=['smiles', 'ids'], usecols=[0, 1], header=None, chunksize=250_000)
-
+        return pd.read_csv(
+            input_file,
+            sep=r'\s+',
+            names=['smiles', 'ids'],
+            usecols=[0, 1],
+            header=None,
+            chunksize=250_000,
+            dtype={'smiles': str, 'ids': str}  # Enforce string types
+        )
+    
 def process_files(args, start_time: int):
     if args.conformal:
         logger.warning('Conformal predictor format preparation selected. Will skip all other flags and only standardize the molecules using RDKit default functions.')
+
     for input_file in args.input_files:
         input_file_path = pathlib.Path(input_file)
         logger.info(f'Processing: {input_file}')
@@ -122,12 +119,7 @@ def process_files(args, start_time: int):
         df_input = read_input_file(input_file, args.enamine, args.synthon)
 
         for step, chunk in enumerate(df_input, start=1):
-            if args.enamine:
-                chunk = process_enamine_name(chunk)
-            
-            chunk['mol'] = chunk['smiles'].apply(Chem.MolFromSmiles)
-            chunk['ids'] = chunk['ids'].astype(str)
-            if args.synthon: chunk['highlights'] = chunk['highlights'].astype(str)
+            if args.enamine: chunk = process_enamine_name(chunk)
             chunk = apply_filters(chunk, args, rejected_file)
             if not chunk.empty:
                 if args.synthon and not(args.conformal):
@@ -141,7 +133,10 @@ def process_files(args, start_time: int):
                     smi2db2.gen_conf_chunk_corina(chunk, args, input_file_path.stem)
                 else:
                     smi2db2.gen_conf_chunk(chunk, args, input_file_path.stem)
-                       
+            
+            if args.pdbqt:
+                from . import smi2pdbqt
+                smi2pdbqt.gen_conf_chunk(chunk, args)
             if not args.test:
                 if step == 1: time_step1 = time.time()-start_time
                 if step == 2:
@@ -165,6 +160,10 @@ def process_smiles(args):
             smi2db2.gen_conf_chunk_corina(chunk, args)
         else:
             smi2db2.gen_conf_chunk(chunk, args)
+
+    if args.pdbqt:
+        from . import smi2pdbqt
+        smi2pdbqt.gen_conf_chunk(chunk, args)
     
     print('Processed SMILES:')
     for i, row in chunk.iterrows():
@@ -209,8 +208,8 @@ def Sanitycheck(args: dict):
         if not args.unwanted: args.unwanted=['regular']
         if 'all' in args.unwanted: args.unwanted=['regular','special','optional']
         args.unwanted=[word.title() for word in args.unwanted]
-    if args.db2:
-        # Always enumerate stereoisomers for before generating DB2 files
+    if args.db2 or args.pdbqt:
+        # Always enumerate stereoisomers for before generating DB2 and PDBQT files
         # Maximum number of stereoisomers is set to in parser
         args.stereoisomers = True
     
@@ -225,9 +224,9 @@ def generateCustomTemplate(args):
     """
     file = os.path.join(os.path.dirname(__file__), 'Data', 'filter_out.csv')
     if args.prefix is not None: os.system(f"cp {file} {args.prefix}.tsv") 
-    else: os.system(f"cp {file} template.tsv")
+    else: os.system(f"cp {file} template.txt")
     if not (args.test): 
-        print(f"Generated template substructure list as template.tsv")
+        print(f"Generated template substructure list as template.txt")
         print(f"The first two columns (SMARTS and LABEL) are required for substructure filtering.")
         print(f"Other arguments are skipped, the program exitted normally.")
 

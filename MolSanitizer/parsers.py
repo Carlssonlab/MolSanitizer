@@ -109,8 +109,13 @@ def parseArguments(args = None):
     db2_group.add_argument('--timeout', '-t', type=int, default=2, help='Timeout for the initial embedding for each SMILES entry before using OpenBabel in minutes (default: 2)')
     db2_group.add_argument('--nocleanup', action='store_false', dest='cleanup', default = True, help='Do not clean up the temporary files')
     db2_group.add_argument('--energywindow', '-w', type=float, default=energy_window, help=f'Energy window for sampling the conformations (default: {energy_window} kcal/mol)')
-
-    # Group 5: Miscellaneous
+    
+    # Group 5: PDBQT related options
+    pdbqt_group = parser.add_argument_group("AutoDock PDBQT related options")
+    pdbqt_group.add_argument('--pdbqt', '-pdbqt', action='store_true', help='Generate PDBQT files for AutoDock Vina and AutoDock4')
+    pdbqt_group.add_argument('--nringconfs', '-nr', type=int, default=1, help='Maximum number of ring conformers to generate (default: 1)')
+    
+    # Group 6: Miscellaneous
     misc_group = parser.add_argument_group("Miscellaneous")
     misc_group.add_argument("--debug", "-d", action="store_true", help="Enable debugging mode")
     misc_group.add_argument('--lazy', action='store_true', help='Implement all the processing and preparation steps')
@@ -198,7 +203,12 @@ def parseArguments_batch(args = None):
     db2_group.add_argument('--nocleanup', action='store_false', dest='cleanup', default = True, help='Do not clean up the temporary files')
     db2_group.add_argument('--energywindow', '-w', type=float, default=energy_window, help=f'Energy window for sampling the conformations (default: {energy_window} kcal/mol)')
 
-    # Group 5: Miscellaneous
+    # Group 5: PDBQT related options
+    pdbqt_group = parser.add_argument_group("AutoDock PDBQT related options")
+    pdbqt_group.add_argument('--pdbqt', '-pdbqt', action='store_true', help='Generate PDBQT files for AutoDock Vina and AutoDock4')
+    pdbqt_group.add_argument('--nringconfs', '-nr', type=int, default=1, help='Maximum number of ring conformers to generate (default: 1)')
+
+    # Group 6: Miscellaneous
     misc_group = parser.add_argument_group("Miscellaneous")
     misc_group.add_argument("--debug", "-d", action="store_true", help="Enable debugging mode")
     misc_group.add_argument('--lazy', action='store_true', help='Implement all the processing and preparation steps (default: False)')
