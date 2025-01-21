@@ -23,6 +23,7 @@ All notable changes to this project will be documented in this file.
 
 ### 🚜 Refactor
 
+- Refactored the whole filters.py into the SmilesStandardizer class. Now MolSanitizer Smiles section could be used as a Python library. - ([17ee8dc](https://github.com/Isra3l/MolSanitizer/commit/17ee8dcc3e223d98e2a8dff95c8b1008a58dee97))
 - Refactored huge chunks of scripts. Now MolSanitizer can continue to handle unexpectedly failed jobs without restarting from the beginning. - ([0017709](https://github.com/Isra3l/MolSanitizer/commit/0017709b92af88a57aed7a13177bb9e6e5c118d0))
 
 ### 📚 Documentation
