@@ -538,7 +538,7 @@ def loadSMARTSdata(smartsFile: str, unwanted_option=None) -> pd.DataFrame:
             smarts_df = smarts_df[smarts_df["mode"].isin(unwanted_option)]
         else:
             # Using customized substructure file
-            has_header = SmilesSanitizer.check_header(smartsFile)
+            has_header = Filters.check_header(smartsFile)
             if has_header:
                 logger.info(f'Found header in {smartsFile}')
                 smarts_df = pd.read_csv(smartsFile, sep='\s+', header=0, usecols=[0,1], names=['smarts','label'])
