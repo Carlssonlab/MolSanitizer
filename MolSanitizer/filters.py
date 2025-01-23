@@ -4,7 +4,7 @@ import pandas as pd
 
 from rdkit import Chem, RDLogger
 
-from rdkit.Chem import  SaltRemover
+from rdkit.Chem import  SaltRemover, rdMolDescriptors
 from rdkit.Chem.Descriptors import MolLogP
 from rdkit.Chem.MolStandardize import rdMolStandardize
 from rdkit.Chem.FilterCatalog import FilterCatalog, FilterCatalogParams
@@ -90,10 +90,14 @@ class Filters():
             return f"{column} >= {lower} and {column} <= {upper}"
         elif '>' in condition or '<' in condition:  # Single value condition
             return column + condition
-        elif column == 'ha':  # Exact value condition for heavy atoms
+        elif condition.startswith('='):  # Exact value condition
+            return f"{column} == {condition.split('=')[1]}"
+        elif column != 'logp':  # Exact value condition for heavy atoms
             return f"{column} == {condition}"
         elif column == 'logp':  # Filter out molecules with logP value upto the defined value
             return f"{column} <= {condition}"
+        else:
+            raise ValueError(f"Invalid condition: {condition}, supported formats: range (e.g. 1-5), greater than (or equal to) (e.g. >= 5), less than or equal to (e.g. <= 5), equal to (e.g. 5).")
 
     @staticmethod    
     def filter_by_ha(df, filter_query, rejectedFile, debug = False) -> pd.DataFrame:
@@ -137,6 +141,62 @@ class Filters():
 
         return df
     
+    def filter_by_hba(df, filter_query, rejectedFile, debug = False) -> pd.DataFrame:
+        """Filter out molecules with required number of H-bond acceptors using the RDKit CalcNumHBA().
+        NOTE: It is by intention that the function uses CalcNumHBA() instead of CalcNumLipinskiHBA() was used as we believe that it better represents the chemistry.
+        Args:
+            df (pd.DataFrame): Input DataFrame with 'mol' column containing RDKit molecule objects.
+            debug (bool, optional): Debug mode. Defaults to False.
+
+        Returns:
+            pd.DataFrame: A new DataFrame chunk with molecules containing heavy atoms.
+        """
+        df['hba'] = df['mol'].apply(lambda x: rdMolDescriptors.CalcNumHBA(x))
+        query = Filters.convert_to_query(filter_query, 'hba')
+        rejected_df = df.query(f'not ({query})').copy()
+        rejected_df['hba'] = rejected_df['hba'].apply(lambda x: f'hba {x}')
+        rejected_df.to_csv(rejectedFile, index=False, mode='a', columns=['smiles','ids','hba'], sep = ' ', header=False)
+        if debug: logger.info(f"Removed {len(rejected_df)} molecules with number of H-bond acceptors requirements: {rejected_df['hba'].values}")
+        df.query(query, inplace=True)
+        return df
+    
+    def filter_by_hbd(df, filter_query, rejectedFile, debug = False) -> pd.DataFrame:
+        """Filter out molecules with required number of H-bond donors using the RDKit CalcNumLipinskiHBD().
+        NOTE: It is by intention that the function uses CalcNumLipinskiHBD() instead of CalcNumHBD() was used as we believe that it better represents the chemistry.
+        Args:
+            df (pd.DataFrame): Input DataFrame with 'mol' column containing RDKit molecule objects.
+            debug (bool, optional): Debug mode. Defaults to False.
+
+        Returns:
+            pd.DataFrame: A new DataFrame chunk with molecules containing heavy atoms.
+        """
+        df['hbd'] = df['mol'].apply(lambda x: rdMolDescriptors.CalcNumLipinskiHBD(x))
+        query = Filters.convert_to_query(filter_query, 'hbd')
+        rejected_df = df.query(f'not ({query})').copy()
+        rejected_df['hbd'] = rejected_df['hbd'].apply(lambda x: f'hbd {x}')
+        rejected_df.to_csv(rejectedFile, index=False, mode='a', columns=['smiles','ids','hbd'], sep = ' ', header=False)
+        if debug: logger.info(f"Removed {len(rejected_df)} molecules with number of H-bond donors requirements: {rejected_df['hbd'].values}")
+        df.query(query, inplace=True)
+        return df
+
+    def filter_by_mw(df, filter_query, rejectedFile, debug = False) -> pd.DataFrame:
+        """Filter out molecules with required molecular weight using the RDKit GetMolWt().
+        Args:
+            df (pd.DataFrame): Input DataFrame with 'mol' column containing RDKit molecule objects.
+            debug (bool, optional): Debug mode. Defaults to False.
+
+        Returns:
+            pd.DataFrame: A new DataFrame chunk with molecules containing heavy atoms.
+        """
+        df['mw'] = df['mol'].apply(lambda x: rdMolDescriptors.CalcExactMolWt(x))
+        query = Filters.convert_to_query(filter_query, 'mw')
+        rejected_df = df.query(f'not ({query})').copy()
+        rejected_df['mw'] = rejected_df['mw'].apply(lambda x: f'mw {x:.2f}')
+        rejected_df.to_csv(rejectedFile, index=False, mode='a', columns=['smiles','ids','mw'], sep = ' ', header=False)
+        if debug: logger.info(f"Removed {len(rejected_df)} molecules with molecular weight requirements: {rejected_df['mw'].values}")
+        df.query(query, inplace=True)
+        return df
+
     @staticmethod
     def applyStandarizeFilters(mol, params):
 
@@ -312,7 +372,7 @@ class Filters():
 
         # Load smarts to clean  from file
         unwanted_df = Filters.loadSMARTSdata(smartsFile.resolve(), unwanted_option)
-
+        logger.info(f'Parsed {len(unwanted_df)} substructures from: {smartsFile}')
         # Apply reactions to each SMILES in the DataFrame
         df['reason'] = df['mol'].apply(lambda x: Filters.filterbysmarts(x, unwanted_df))
         rejected_df=df[df['reason']!='OK']

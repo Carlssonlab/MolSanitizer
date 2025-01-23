@@ -109,11 +109,30 @@ class TestMolSanitizer(unittest.TestCase):
             self.compare_relative(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_logp_350_clean.txt')
             self.compare_relative(f'{temp_dir}/dummy_output_rejected.txt', f'{self.path}/out_logp_350_rejected.txt')
             
-    def test_create_customfile(self):
+            args.logp = None
+            args.mw = '>=300'
+            system(f'rm {temp_dir}/*.txt')
+            molSanitizer.clean_data(args)
+            self.compare_relative(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_mw_300_clean.txt')
+            self.compare_relative(f'{temp_dir}/dummy_output_rejected.txt', f'{self.path}/out_mw_300_rejected.txt')
+
+            args.mw = None
+            args.hba = '<=4'
+            args.hbd = '<=2'
+            system(f'rm {temp_dir}/*.txt')
+            molSanitizer.clean_data(args)
+            self.compare_relative(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_hba4_hbd2_clean.txt')
+            self.compare_relative(f'{temp_dir}/dummy_output_rejected.txt', f'{self.path}/out_hba4_hbd2_rejected.txt')
+
+    def test_create_filter_customfile(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             args = self.generate_mock_arguments([f'{self.path}/in_unwanted.txt'], ['create_custom', 'test'], temp_dir)
             molSanitizer.generateCustomTemplate(args)
-            self.assertTrue(Path(f"{args.prefix}.tsv").exists(), "Output file was not created.")
+            self.assertTrue(Path(f"{args.prefix}.txt").exists(), "Output file was not created.")
+            args.create_custom = False
+            args.custom = f"{args.prefix}.txt"
+            molSanitizer.clean_data(args)
+            self.compare_relative(f'{temp_dir}/dummy_output_rejected.txt', f'{self.path}/out_unwanted_all_rejected.txt')
 
     def test_stereoisomers(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -242,6 +261,9 @@ class TestMolSanitizer(unittest.TestCase):
             "conformal": False,
             "ha": None,
             "logp": None,
+            "hba": None,
+            "hbd": None,
+            "mw": None,
             "pdbqt": False,
             "nringconfs": 1,
          } 
