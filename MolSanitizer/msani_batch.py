@@ -114,7 +114,7 @@ def count_lines_bash(file_path):
     result = subprocess.run(['wc', '-l', file_path], stdout=subprocess.PIPE)
     return int(result.stdout.split()[0])
 
-def parse_flags_single_job(args: dict):
+def parse_flags_single_job(args: dict, parser):
     """Parse the flags for a single job
 
     Args:
@@ -123,40 +123,40 @@ def parse_flags_single_job(args: dict):
     Returns:
         str: The flags for a single job
     """
-    flags = ''
-    if args.enamine: flags += ' --enamine'
-    if args.lazy: flags += ' --lazy'
-    if args.removesalts: flags += ' --removesalts'
-    if args.tautomers: flags += ' --tautomers'
-    if not(args.taurdkit): flags += ' --notaurdkit'
-    if args.pains: flags += ' --pains'
-    if args.unwanted is not None: flags += f' --unwanted {" ".join(args.unwanted)}'
-    if args.ha is not None: flags += f' --ha {args.ha}'
-    if args.logp is not None: flags += f' --logp {args.logp}'
-    if args.stereoisomers: 
-        flags += ' --stereoisomers'
-        if args.max_stereoisomers != max_stereoisomers: flags += f' --max_stereoisomers {args.max_stereoisomers}'
+    flags = []
+    omitted_args = ["input_files", "smiles", "proj_name", "timelimit", "lines", "max_jobs", "help"]
 
-    if args.protonation: 
-        flags += ' --protonation'
-        if args.pH != pH: flags += f' --pH {args.pH}'
-        if args.pH_range != pH_range: flags += f' --pH_range {args.pH_range}'
+    for action in parser._actions:
+        arg = action.dest  # Argument name
+        if not hasattr(args, arg) or arg in omitted_args:  # Skip help and internal arguments
+            continue
+        current_value = getattr(args, arg)  # Current value in the Namespace
+        default_value = action.default      # Default value from the parser
+        
+        # Skip if the value is the same as the default or if the argument isn't specified
+        if current_value == default_value:
+            continue
 
-    if args.db2: flags += ' --db2'
-    if not(args.cleanup): flags += ' --nocleanup'
-    if args.debug: flags += ' --debug'
-    if args.timing: flags += ' --timing'
-    if args.custom is not None: flags += f' --custom ../{args.custom}'
-    if args.energywindow != energy_window: flags += f' --energywindow {args.energywindow}'
-    if args.numconfs != numconfs: flags += f' --numconfs {args.numconfs}'
-    if args.randomSeed != 42: flags += f' --randomSeed {args.randomSeed}'
-    if args.timeout != timeout: flags += f' --timeout {args.timeout}'
-    if args.enrichment: flags += ' --enrichment'
-    if args.corina: flags += f' --corina'
-    if args.ignoretorlib: flags += ' -igtor'
-    if not(args.neutralize): flags += ' --noneutralize'
-    if args.synthon: flags += ' --synthon'
-    if args.conformal: flags += ' --conformal'
+        if isinstance(current_value, bool):
+            # Boolean flags
+            # Handle the counterintuitive flags
+            if arg in ["taurdkit", "cleanup", "neutralize"] and not current_value:
+                flags.append(f"--no{arg}")
+            # Handle the rest of the flags
+            elif current_value:
+                flags.append(f"--{arg}")
+        elif isinstance(current_value, list):
+            # List arguments
+            value_str = " ".join(map(str, current_value))
+            # Add one more level to the custom argument to link to the file
+            if arg == "custom": value_str = "../" + value_str
+            flags.append(f"--{arg} {value_str}")
+        else:
+            # Other arguments
+            flags.append(f"--{arg} {current_value}")
+
+    
+    flags = " " + " ".join(flags)
     return flags
 
 def write_single_job_script(slurm_header: str, slurm_script: str):
@@ -181,7 +181,7 @@ def write_single_job_script(slurm_header: str, slurm_script: str):
         f.write(slurm_header)
         f.write(slurm_script)
 
-def Split_Submit_jobs(args: dict):
+def Split_Submit_jobs(args: dict, parser):
     """Split the input files into chunks and submit jobs to the cluster
 
     Args:
@@ -194,10 +194,10 @@ def Split_Submit_jobs(args: dict):
     global slurm_header
     slurm_header = slurm_header.replace('PROJECT_NAME', args.proj_name)
     slurm_header = slurm_header.replace('TIME_LIMIT', f'{args.timelimit}:00:00')
-    if args.lines >= 500_000: slurm_header = slurm_header.replace('MEMORY', '16G')
-    elif args.lines >= 250_000: slurm_header = slurm_header.replace('MEMORY', '8G')
+    if args.lines >= 250_000: slurm_header = slurm_header.replace('MEMORY', '12G')
+    elif args.lines >= 100_000: slurm_header = slurm_header.replace('MEMORY', '6G')
     else: slurm_header = slurm_header.replace('MEMORY', '4G')
-    flags = parse_flags_single_job(args)
+    flags = parse_flags_single_job(args, parser)
     global slurm_script
     slurm_script = slurm_script + flags + remove_lock_files
 
@@ -247,7 +247,7 @@ def Split_Submit_jobs(args: dict):
         prefix = file.split('.')[0]
         if os.path.exists(prefix):
             remove_folder = input(f"Folder {prefix} already exists. Do you want to remove it? (y/n): ")
-            if remove_folder.lower() == 'y' or remove_folder.lower() == 'yes':
+            if remove_folder.lower() in ['y','yes']:
                 print(f"Removing folder {prefix}...\n")
                 subprocess.run(f"rm -rf {prefix}", shell=True)
             else:
@@ -270,7 +270,7 @@ def Split_Submit_jobs(args: dict):
         
 def main():
 
-    args = parsers.parseArguments_batch(sys.argv[1:])
+    args, parser = parsers.parseArguments(sys.argv[1:], batch_mode=True)
     rdkit_version = rdBase.rdkitVersion
     if rdkit_version != '2024.09.1':
         print('\n###########################################################')
@@ -278,7 +278,11 @@ def main():
         print("Use 'conda install rdkit==2024.9.1' to avoid potential issues.")
         print('##############################################################\n')
         time.sleep(2)
-    Split_Submit_jobs(args)
+    if args.version:
+        print(f"MolSanitizer version: {__version__}")
+        print(f"RDKit version: {rdkit_version}")
+        return
+    Split_Submit_jobs(args, parser)
 
 
 if __name__=="__main__":

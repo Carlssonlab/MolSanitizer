@@ -234,9 +234,10 @@ def main():
 
     args = parsers.parseArguments(sys.argv[1:])
     args = Sanitycheck(args)
-    if args.version: 
+    if args.version:
         print(f"MolSanitizer version: {__version__}")
-        sys.exit()
+        print(f"RDKit version: {rdBase.rdkitVersion}")
+        return
    
     if args.create_custom: 
         generateCustomTemplate(args)
