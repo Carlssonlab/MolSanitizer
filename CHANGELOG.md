@@ -18,6 +18,7 @@ All notable changes to this project will be documented in this file.
 
 ### 🐛 Bug Fixes
 
+- Fixed a bug that the customized filters and neutralize flags are not processed. This is an error from the newly refactored script SmilesSanitizer on Jan 21 and should not be a problem for the msani version before that commit. - ([d643b73](https://github.com/Isra3l/MolSanitizer/commit/d643b73fa7b648a597737aa950fb72cea0244b33))
 - Fix a bug in applying reactions to modify molecules that once the sanitization fail, the molecule is omitted. Now the latest valid version of the molecule will be kept. - ([f32403b](https://github.com/Isra3l/MolSanitizer/commit/f32403b918a93ee85dbb7c09348fe1804105ed8d))
 - Only apply GetLargestFragment when there are more than 1 fragment in the RDKit Mol object. This could avoid the problem of detaching covalently bound metal atoms. - ([95862a6](https://github.com/Isra3l/MolSanitizer/commit/95862a6ce2c3d09bd9c1b3b58c424c1e0680a426))
 - Fix a bug that CORINA generated conformer could not be processed properly by RDKit. Also make the amine in sulfonamide now pyramidal (more realistic) instead of planar. - ([640cc55](https://github.com/Isra3l/MolSanitizer/commit/640cc5561f3597ef0cb6dbb99b7448bc25a07076))
