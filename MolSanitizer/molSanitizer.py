@@ -31,11 +31,13 @@ def process_enamine_name(chunk):
     return chunk
 
 def apply_filters(chunk, args, rejected_file):
-    sanitizer = smiles_sanitizer.SmilesSanitizer(removesalts=args.removesalts, pains=args.pains, tautomers=args.tautomers, 
-                                        unwanted=args.unwanted, ha=args.ha, logp=args.logp, taurdkit=args.taurdkit,
-                                        protonation=args.protonation, pH=args.pH, pH_range=args.pH_range, 
-                                        conformal=args.conformal, stereoisomers=args.stereoisomers, 
-                                        max_stereoisomers=args.max_stereoisomers, numcores=args.numcores, debug=args.debug)
+    sanitizer = smiles_sanitizer.SmilesSanitizer(
+        removesalts=args.removesalts, custom= args.custom, unwanted=args.unwanted,
+        pains=args.pains, ha=args.ha, logp=args.logp, hba=args.hba, hbd=args.hbd, 
+        mw=args.mw, tautomers=args.tautomers, taurdkit=args.taurdkit, neutralize=args.neutralize,
+        stereoisomers=args.stereoisomers, max_stereoisomers=args.max_stereoisomers,
+        protonation=args.protonation, pH=args.pH, pH_range=args.pH_range, 
+        numcores=args.numcores, conformal=args.conformal, debug=args.debug)
     chunk = sanitizer.Sanitize(chunk, rejected_file)
     return chunk
 
@@ -223,7 +225,7 @@ def generateCustomTemplate(args):
     by copying the default template to the current directory.
     """
     file = os.path.join(os.path.dirname(__file__), 'Data', 'filter_out.csv')
-    if args.prefix is not None: os.system(f"cp {file} {args.prefix}.tsv") 
+    if args.prefix is not None: os.system(f"cp {file} {args.prefix}.txt") 
     else: os.system(f"cp {file} template.txt")
     if not (args.test): 
         print(f"Generated template substructure list as template.txt")

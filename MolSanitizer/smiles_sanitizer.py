@@ -47,11 +47,14 @@ class SmilesSanitizer:
                 pains = False,
                 ha = None,
                 logp = None,
+                hba = None,
+                hbd = None,
+                mw = None,
                 tautomers = False,
                 neutralize = True,
                 taurdkit = True,
                 stereoisomers = False,
-                max_stereoisomers = 3,
+                max_stereoisomers = 8,
                 protonation = False,
                 pH = 7,
                 pH_range = 0,
@@ -62,6 +65,9 @@ class SmilesSanitizer:
         self.removesalts = removesalts
         self.ha = ha
         self.logp = logp
+        self.hba = hba
+        self.hbd = hbd
+        self.mw = mw
         self.custom = custom
         self.unwanted = unwanted
         self.pains = pains
@@ -507,6 +513,9 @@ class SmilesSanitizer:
         if self.removesalts: df = Filters.saltstripping(df, debug=self.debug)
         if self.ha is not None: df = Filters.filter_by_ha(df, self.ha, rejectedFile=rejected_file, debug=self.debug)
         if self.logp is not None: df = Filters.filter_by_logp(df, self.logp, rejectedFile=rejected_file, debug=self.debug)
+        if self.hba is not None: df = Filters.filter_by_hba(df, self.hba, rejectedFile=rejected_file, debug=self.debug)
+        if self.hbd is not None: df = Filters.filter_by_hbd(df, self.hbd, rejectedFile=rejected_file, debug=self.debug)
+        if self.mw is not None: df = Filters.filter_by_mw(df, self.mw, rejectedFile=rejected_file, debug=self.debug)
         if self.conformal: 
             df = Filters.standarizeFilters(df)
             return df
@@ -516,7 +525,7 @@ class SmilesSanitizer:
         if self.tautomers: df = SmilesSanitizer.tautomerization(df, taurdkit=self.taurdkit, num_cores=self.numcores, debug=self.debug)
         if self.pains: df = Filters.painsFilter(df, rejectedFile=rejected_file, debug=self.debug)
         if self.unwanted is not None: df = Filters.unwantedFilter(df, rejectedFile=rejected_file, unwanted_option=self.unwanted, debug=self.debug)
-        if self.custom is not None: df = Filters.customFilter(df, self.custom, rejectedFile=rejected_file, debug=self.debug)
+        if self.custom is not None: df = Filters.customFilter(df, rejectedFile=rejected_file, smartsFile = self.custom,  debug=self.debug)
         if self.protonation: df = SmilesSanitizer.ionization(df, pH=self.pH, pH_range=self.pH_range, debug=self.debug)
         if self.stereoisomers: df = SmilesSanitizer.enum_stereoisomers(df, max_isomers=self.max_stereoisomers, debug=self.debug)
         return df
