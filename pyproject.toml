@@ -8,8 +8,8 @@ version = "0.2.2"
 description = "Code to clean SMILES for ML and Docking (protonation, tautomers,...)"
 readme = "README.md"
 authors = [
-    {name = "Israel Cabeza de Vaca Lopez", email = "israel.cabezadevaca@icm.uu.se"},
     {name = "Thua-Phong Lam", email = "lamthuaphong@gmail.com"},
+    {name = "Israel Cabeza de Vaca Lopez", email = "israel.cabezadevaca@icm.uu.se"},
     {name = "Szymon Pach", email = "szymon.pach@icm.uu.se"}
 ]
 license = {text = "GPL 2.0"}
@@ -28,11 +28,13 @@ dependencies = [
     "pandas",
     "numpy",
     "rdkit>=2024.09.1",
-    "meeko"
+    "meeko",
+    "pyaml",
+    "pytest"
 ]
 
 [project.urls]
-Homepage = "https://github.com/Isra3l/MolSanitizer.git"
+Homepage = "https://github.com/phonglam3103/MolSanitizer.git"
 
 [project.scripts]
 msani = "MolSanitizer.molSanitizer:main"

@@ -13,7 +13,7 @@ MolSanitizer is a package for preparation (remove salts, stereoisomers enumerati
 We will set up the environment using [Anaconda](https://docs.anaconda.com/anaconda/install/index.html). Clone the
 current repository:
 
-    git clone https://github.com/Isra3l/MolSanitizer.git
+    git clone https://github.com/phonglam3103/MolSanitizer.git
     
 Example of how to set up a working conda environment to run the code:
 
@@ -24,15 +24,20 @@ Example of how to set up a working conda environment to run the code:
 More information on the installation and dependencies could be found [here](https://msani.readthedocs.io/en/latest/installation.html).
 
 
+## Documentation
+
+To start to use MolSanitizer, use the `-h` or `--help` flag for available options:
+
+    msani -h
+
+Documentation on the theory behind MolSanitizer and how to use it can be found [here](https://msani.readthedocs.io/)
+
 ## Notes about AMSOL
 
 By default, all the dependencies are automatically installed by conda and pip, except for AMSOL. The user is asked to place the compiled version of (named `amsol7.1`) to [MolSanitizer/amsol](MolSanitizer/amsol). In that folder, there will be a README on how to compile it on the modern Linux systems.
 
 *As for the current evaluation version, the precompiled AMSOL version is provided. It will be removed once the repository is publicly available.*
 
-## Documentation
-
-Documentation on the theory behind MolSanitizer and how to use it can be found [here](https://msani.readthedocs.io/)
 
 ## Contribution
 
