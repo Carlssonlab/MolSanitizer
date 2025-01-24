@@ -204,10 +204,10 @@ def Split_Submit_jobs(args: dict, parser):
     if args.cleanup: slurm_script += cleanup_script
     
     print(f"\nStarting MolSanitizer in batch mode\n")
-    print(f"Using project name (-p): {args.proj_name}")
-    print(f"Time limit for each job (-t): {args.timelimit} hours")
-    print(f"Maximum number of jobs in an array (--max_array_size): {max_array_size} jobs")
-    print(f"Maximum number of jobs running parallelly (--max_jobs): {args.max_jobs} jobs")
+    print(f"Using project name (-A): {args.proj_name}")
+    print(f"Time limit for each job (-tl): {args.timelimit} hours")
+    print(f"Maximum number of jobs in an array: {max_array_size} jobs")
+    print(f"Maximum number of jobs running parallelly (-mj): {args.max_jobs} jobs")
     print(f"Number of compounds per job (-l): {args.lines} lines\n")
 
     result = subprocess.run(f'squeue -A {args.proj_name} -r | wc -l', shell=True, stdout=subprocess.PIPE, text=True)

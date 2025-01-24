@@ -155,7 +155,7 @@ def parseArguments(args = None, batch_mode = False):
     if batch_mode:
         # Group 6: Batch mode options
         batch_group = parser.add_argument_group("Batch mode options")
-        batch_group.add_argument('--projectName', '-n', default=slurm_account, dest='proj_name', type=str, help=f'Project name for the SLURM script (default: {slurm_account})')
+        batch_group.add_argument('--projectName', '-A', default=slurm_account, dest='proj_name', type=str, help=f'Project name for the SLURM script (default: {slurm_account})')
         batch_group.add_argument('--lines_per_job', '-l', dest='lines', type=int, default=lines_per_job, help=f'Number of lines to process per job (default: {lines_per_job})')
         batch_group.add_argument('--timelimit', '-tl', type=int, default=time_limit, help=f'Time limit for the SLURM job in hours (default: {time_limit})')
         batch_group.add_argument('--max_jobs','-mj', type=int, default=max_jobs, help=f'Maximum number of jobs to run simultaneously (default: {max_jobs})')
