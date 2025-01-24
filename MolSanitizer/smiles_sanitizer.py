@@ -543,16 +543,16 @@ def loadSMARTSdata(smartsFile: str, unwanted_option=None) -> pd.DataFrame:
         """
         if unwanted_option is not None: 
             # Using default substructure file 
-            smarts_df = pd.read_csv(smartsFile, sep='\s+', header=0, names=['smarts','label', 'reason', 'mode', 'ref'])
+            smarts_df = pd.read_csv(smartsFile, sep=r'\s+', header=0, names=['smarts','label', 'reason', 'mode', 'ref'])
             smarts_df = smarts_df[smarts_df["mode"].isin(unwanted_option)]
         else:
             # Using customized substructure file
             has_header = Filters.check_header(smartsFile)
             if has_header:
                 logger.info(f'Found header in {smartsFile}')
-                smarts_df = pd.read_csv(smartsFile, sep='\s+', header=0, usecols=[0,1], names=['smarts','label'])
+                smarts_df = pd.read_csv(smartsFile, sep=r'\s+', header=0, usecols=[0,1], names=['smarts','label'])
             else:
-                smarts_df = pd.read_csv(smartsFile, sep='\s+', header=None, usecols=[0,1], names=['smarts','label'])
+                smarts_df = pd.read_csv(smartsFile, sep=r'\s+', header=None, usecols=[0,1], names=['smarts','label'])
 
         smarts_df['mol'] = smarts_df['smarts'].apply(lambda x: Chem.MolFromSmarts(x)) #do we need mergeHs here?
         
