@@ -172,6 +172,11 @@ def parseArguments(args = None, batch_mode = False):
     if args.corina:
         if not Path(corina_exe).is_file:
             parser.error('Corina path is not correct or corina not found. Please check the configuration file.')
+    if args.custom:
+        if not Path(args.custom).is_file():
+            parser.error(f'The custom file: {args.custom} does not exist.')
+        else:
+            args.custom = Path(args.custom).resolve()
     if batch_mode: return args, parser
     else: return args
 
