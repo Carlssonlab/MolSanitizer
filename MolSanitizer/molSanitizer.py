@@ -1,5 +1,5 @@
 """
-MolSanitizer.
+MolSanitizer in a standalone mode.
 """
 
 __author__ = "Thua-Phong Lam, Israel Cabeza de Vaca Lopez, Szymon Pach"

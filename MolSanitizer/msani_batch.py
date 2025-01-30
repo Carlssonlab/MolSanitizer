@@ -14,6 +14,7 @@ import sys
 import time
 import math
 import yaml
+from pathlib import Path
 from . import parsers
 import subprocess
 from rdkit import rdBase
@@ -179,6 +180,18 @@ def write_single_job_script(slurm_header: str, slurm_script: str):
         f.write(slurm_header)
         f.write(slurm_script)
 
+def test_batch_mode(args: dict):
+    global slurm_header
+    global slurm_script
+    file = Path(args.prefix) / args.input_files[0]
+    prefix = Path(args.prefix) / file.stem  # Ensure prefix is within temp_dir
+
+    subprocess.run(f"mkdir -p {prefix}", shell=True)
+    subprocess.run(f"split -l {args.lines} -d -a 4 --additional-suffix=.smi {file} {prefix}/in", shell=True)
+    os.chdir(prefix)
+    subprocess.run(f"ls in* > dirlista", shell=True)
+    write_single_job_script(slurm_header, slurm_script)
+
 def Split_Submit_jobs(args: dict, parser):
     """Split the input files into chunks and submit jobs to the cluster
 
@@ -189,6 +202,7 @@ def Split_Submit_jobs(args: dict, parser):
         None
     """
     # Replace the PROJECT_NAME with the project name and time limit for SLURM
+    
     global slurm_header
     slurm_header = slurm_header.replace('PROJECT_NAME', args.proj_name)
     slurm_header = slurm_header.replace('TIME_LIMIT', f'{args.timelimit}:00:00')
@@ -201,71 +215,73 @@ def Split_Submit_jobs(args: dict, parser):
     slurm_script = slurm_script + flags + remove_lock_files
 
     if args.cleanup: slurm_script += cleanup_script
-    
-    print(f"\nStarting MolSanitizer in batch mode\n")
-    print(f"Using project name (-A): {args.proj_name}")
-    print(f"Time limit for each job (-tl): {args.timelimit} hours")
-    print(f"Maximum number of jobs in an array: {max_array_size} jobs")
-    print(f"Maximum number of jobs running parallelly (-mj): {args.max_jobs} jobs")
-    print(f"Number of compounds per job (-l): {args.lines} lines\n")
+    if args.test: 
+        test_batch_mode(args)
+    else:
+        print(f"\nStarting MolSanitizer in batch mode\n")
+        print(f"Using project name (-A): {args.proj_name}")
+        print(f"Time limit for each job (-tl): {args.timelimit} hours")
+        print(f"Maximum number of jobs in an array: {max_array_size} jobs")
+        print(f"Maximum number of jobs running parallelly (-mj): {args.max_jobs} jobs")
+        print(f"Number of compounds per job (-l): {args.lines} lines\n")
 
-    result = subprocess.run(f'squeue -A {args.proj_name} -r | wc -l', shell=True, stdout=subprocess.PIPE, text=True)
-    try: 
-        current_running_jobs = int(result.stdout.strip())
-    except:
-        current_running_jobs = 0
-        pass
-    
-    n_jobs = 0
-    for file in args.input_files:
-        if not os.path.exists(file):
-            print(f"File {file} does not exist. Please check the path and try again.")
+        result = subprocess.run(f'squeue -A {args.proj_name} -r | wc -l', shell=True, stdout=subprocess.PIPE, text=True)
+        try: 
+            current_running_jobs = int(result.stdout.strip())
+        except:
+            current_running_jobs = 0
+            pass
+        
+        n_jobs = 0
+        for file in args.input_files:
+            if not os.path.exists(file):
+                print(f"File {file} does not exist. Please check the path and try again.")
+                print(f"Exitting MolSanitizer...")
+                return
+            line_count = count_lines_bash(file)
+            n_jobs += math.ceil(line_count/args.lines)
+        print(f"Total number of jobs to submit: {n_jobs}\n")
+        if n_jobs > max_array_size:
+            print(f"Too many jobs to submit ({n_jobs}). Please increase the number of lines per job or decrease the number of input files")
             print(f"Exitting MolSanitizer...")
             return
-        line_count = count_lines_bash(file)
-        n_jobs += math.ceil(line_count/args.lines)
-    print(f"Total number of jobs to submit: {n_jobs}\n")
-    if n_jobs > max_array_size:
-        print(f"Too many jobs to submit ({n_jobs}). Please increase the number of lines per job or decrease the number of input files")
-        print(f"Exitting MolSanitizer...")
-        return
-    
-    if current_running_jobs + n_jobs > max_limit_project:
-        print(f"Current number of jobs running in the project {args.proj_name}: {current_running_jobs}")
-        print(f"Total number of jobs to submit: {n_jobs}")
-        print(f"Total number of jobs will exceed the limit of {max_limit_project} jobs in the project {args.proj_name}")
-        print(f"Please wait for the current jobs to finish before submitting new jobs.")
-        print(f"Exitting MolSanitizer...")
-        return
+        
+        if current_running_jobs + n_jobs > max_limit_project:
+            print(f"Current number of jobs running in the project {args.proj_name}: {current_running_jobs}")
+            print(f"Total number of jobs to submit: {n_jobs}")
+            print(f"Total number of jobs will exceed the limit of {max_limit_project} jobs in the project {args.proj_name}")
+            print(f"Please wait for the current jobs to finish before submitting new jobs.")
+            print(f"Exitting MolSanitizer...")
+            return
 
-    # Wait for 5 seconds before proceeding
-    print("Waiting 5 seconds to review the configurations...")
-    time.sleep(5)
-    print('Submitting jobs...\n')
-    for file in args.input_files:
-        prefix = file.split('.')[0]
-        if os.path.exists(prefix):
-            remove_folder = input(f"Folder {prefix} already exists. Do you want to remove it? (y/n): ")
-            if remove_folder.lower() in ['y','yes']:
-                print(f"Removing folder {prefix}...\n")
-                subprocess.run(f"rm -rf {prefix}", shell=True)
-            else:
-                print(f"Exitting MolSanitizer...\n")
-                return
-        subprocess.run(f"mkdir -p {prefix}", shell=True)
-        subprocess.run(f"split -l {args.lines} -d -a 4 --additional-suffix=.smi {file} {prefix}/in", shell=True)
-        os.chdir(prefix)
-        subprocess.run(f"ls in* > dirlista", shell=True)
-        n_jobs = sum(1 for line in open('dirlista'))
-        with open('dirlista') as f:
-            for line in f:
-                jobname = line.strip().split('.')[0]
-                with open(f'{jobname}.lock', 'w') as lock:
-                    lock.write('')
-        print(f"Submitting {n_jobs} jobs\n")
-        write_single_job_script(slurm_header, slurm_script)
-        subprocess.run(f"sbatch --array=0-{n_jobs-1}%{args.max_jobs} submit_msani.sh", shell=True)
-        os.chdir('..')
+        # Wait for 5 seconds before proceeding
+        print("Waiting 5 seconds to review the configurations...")
+        time.sleep(5)
+        print('Submitting jobs...\n')
+        for file in args.input_files:
+            prefix = file.split('.')[0]
+            if os.path.exists(prefix):
+                remove_folder = input(f"Folder {prefix} already exists. Do you want to remove it? (y/n): ")
+                if remove_folder.lower() in ['y','yes']:
+                    print(f"Removing folder {prefix}...\n")
+                    subprocess.run(f"rm -rf {prefix}", shell=True)
+                else:
+                    print(f"Exitting MolSanitizer...\n")
+                    return
+            subprocess.run(f"mkdir -p {prefix}", shell=True)
+            subprocess.run(f"split -l {args.lines} -d -a 4 --additional-suffix=.smi {file} {prefix}/in", shell=True)
+            os.chdir(prefix)
+            subprocess.run(f"ls in* > dirlista", shell=True)
+            n_jobs = sum(1 for line in open('dirlista'))
+            with open('dirlista') as f:
+                for line in f:
+                    jobname = line.strip().split('.')[0]
+                    with open(f'{jobname}.lock', 'w') as lock:
+                        lock.write('')
+            print(f"Submitting {n_jobs} jobs\n")
+            write_single_job_script(slurm_header, slurm_script)
+            subprocess.run(f"sbatch --array=0-{n_jobs-1}%{args.max_jobs} submit_msani.sh", shell=True)
+            os.chdir('..')
         
 def main():
 

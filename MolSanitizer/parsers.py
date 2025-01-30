@@ -162,7 +162,7 @@ def parseArguments(args = None, batch_mode = False):
 
     
     # Parse the arguments
-    args = parser.parse_args()
+    args = parser.parse_args(args if args is not None else [])
     if args.input_files and args.smiles:
         parser.error('Please provide either input files or SMILES strings, not both.')
     if args.input_files is not None:

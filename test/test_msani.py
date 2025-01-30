@@ -5,11 +5,13 @@ import os
 from pathlib import Path
 from types import SimpleNamespace
 from os import system
-import shutil
+import platform
+
 
 import pandas as pd
 import MolSanitizer.molSanitizer as molSanitizer
-
+from MolSanitizer.msani_batch import Split_Submit_jobs
+from MolSanitizer import parsers
 class TestMolSanitizer(unittest.TestCase):
     if os.path.basename(os.getcwd()) == 'test':
         path = os.path.join(os.getcwd(), 'goldenData')
@@ -86,53 +88,60 @@ class TestMolSanitizer(unittest.TestCase):
             # Test all filters work together
             args.ha = '17-25'
             molSanitizer.clean_data(args)
-
-            self.compareFiles(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_ha1725_clean.txt')
-            self.compare_relative(f'{temp_dir}/dummy_output_rejected.txt', f'{self.path}/out_ha1725_rejected.txt')
-         
+            with self.subTest(msg="Checking HA 17-25:"):
+                self.compareFiles(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_ha1725_clean.txt')
+                self.compare_relative(f'{temp_dir}/dummy_output_rejected.txt', f'{self.path}/out_ha1725_rejected.txt')
+            
             args.ha = '>24'
             system(f'rm {temp_dir}/*.txt')
             molSanitizer.clean_data(args)
-            self.compare_relative(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_ha_over24_clean.txt')
-            self.compare_relative(f'{temp_dir}/dummy_output_rejected.txt', f'{self.path}/out_ha_over24_rejected.txt')
+            with self.subTest(msg="Checking HA >24:"):
+                self.compare_relative(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_ha_over24_clean.txt')
+                self.compare_relative(f'{temp_dir}/dummy_output_rejected.txt', f'{self.path}/out_ha_over24_rejected.txt')
 
             args.ha = None
             system(f'rm {temp_dir}/*.txt')
             args.logp = '100-200'
             molSanitizer.clean_data(args)
-            self.compare_relative(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_logp_100200_clean.txt')
-            self.compare_relative(f'{temp_dir}/dummy_output_rejected.txt', f'{self.path}/out_logp_100200_rejected.txt')
+            with self.subTest(msg="Checking logP 100-200:"):
+                self.compare_relative(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_logp_100200_clean.txt')
+                self.compare_relative(f'{temp_dir}/dummy_output_rejected.txt', f'{self.path}/out_logp_100200_rejected.txt')
 
             args.logp = '<=350'
             system(f'rm {temp_dir}/*.txt')
             molSanitizer.clean_data(args)
-            self.compare_relative(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_logp_350_clean.txt')
-            self.compare_relative(f'{temp_dir}/dummy_output_rejected.txt', f'{self.path}/out_logp_350_rejected.txt')
+            with self.subTest(msg="Checking logP <=350:"):
+                self.compare_relative(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_logp_350_clean.txt')
+                self.compare_relative(f'{temp_dir}/dummy_output_rejected.txt', f'{self.path}/out_logp_350_rejected.txt')
             
             args.logp = None
             args.mw = '>=300'
             system(f'rm {temp_dir}/*.txt')
             molSanitizer.clean_data(args)
-            self.compare_relative(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_mw_300_clean.txt')
-            self.compare_relative(f'{temp_dir}/dummy_output_rejected.txt', f'{self.path}/out_mw_300_rejected.txt')
+            with self.subTest(msg="Checking MW >=300:"):
+                self.compare_relative(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_mw_300_clean.txt')
+                self.compare_relative(f'{temp_dir}/dummy_output_rejected.txt', f'{self.path}/out_mw_300_rejected.txt')
 
             args.mw = None
             args.hba = '<=4'
             args.hbd = '<=2'
             system(f'rm {temp_dir}/*.txt')
             molSanitizer.clean_data(args)
-            self.compare_relative(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_hba4_hbd2_clean.txt')
-            self.compare_relative(f'{temp_dir}/dummy_output_rejected.txt', f'{self.path}/out_hba4_hbd2_rejected.txt')
+            with self.subTest(msg="Checking HBA <=4 HBD <=2:"):
+                self.compare_relative(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_hba4_hbd2_clean.txt')
+                self.compare_relative(f'{temp_dir}/dummy_output_rejected.txt', f'{self.path}/out_hba4_hbd2_rejected.txt')
 
     def test_create_filter_customfile(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             args = self.generate_mock_arguments([f'{self.path}/in_unwanted.txt'], ['create_custom', 'test'], temp_dir)
             molSanitizer.generateCustomTemplate(args)
-            self.assertTrue(Path(f"{args.prefix}.txt").exists(), "Output file was not created.")
+            with self.subTest(msg="Checking creation of customized filter file:"):
+                self.assertTrue(Path(f"{args.prefix}.txt").exists(), "Output file was not created.")
             args.create_custom = False
             args.custom = f"{args.prefix}.txt"
             molSanitizer.clean_data(args)
-            self.compare_relative(f'{temp_dir}/dummy_output_rejected.txt', f'{self.path}/out_unwanted_all_rejected.txt')
+            with self.subTest(msg="Checking if customized filter file is applied:"):
+                self.compare_relative(f'{temp_dir}/dummy_output_rejected.txt', f'{self.path}/out_unwanted_all_rejected.txt')
 
     def test_stereoisomers(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -146,17 +155,21 @@ class TestMolSanitizer(unittest.TestCase):
             args = self.generate_mock_arguments([f'{self.path}/in_protonation.txt'], ['protonation', 'test'], temp_dir)
             args.pH = 7
             molSanitizer.clean_data(args)
-            self.compare_relative(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/ph7_clean.txt')
+            with self.subTest(msg="Checking pH 7:"):
+                self.compare_relative(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/ph7_clean.txt')
+
             system(f'rm {temp_dir}/*.txt')
             
             args.pH = 5
             molSanitizer.clean_data(args)
-            self.compare_relative(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/ph5_clean.txt')
+            with self.subTest(msg="Checking pH 5:"):
+                self.compare_relative(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/ph5_clean.txt')
             system(f'rm {temp_dir}/*.txt')
 
             args.pH = 9
             molSanitizer.clean_data(args)
-            self.compare_relative(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/ph9_clean.txt')
+            with self.subTest(msg="Checking pH 9:"):
+                self.compare_relative(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/ph9_clean.txt')
             system(f'rm {temp_dir}/*.txt')
     
     def test_integrity(self):
@@ -195,6 +208,54 @@ class TestMolSanitizer(unittest.TestCase):
                 lines = pdbqt_file.readlines()
                 self.assertEqual(lines[0],"REMARK SMILES O=C([O-])c1ccccc1O\n", "PDBQT file was not created correctly.")
                 self.assertEqual(lines[-1],"TORSDOF 2\n", "PDBQT file was not created correctly.")
+    
+    @unittest.skipIf(platform.system() == "Windows", "Skipping test on Windows due to incompatible `split` command.")
+    def test_batch(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            args, parser = parsers.parseArguments([], batch_mode=True)
+            applied_flags = ['protonation', 'tautomers', 'db2', 'test']
+
+            # Generate arguments
+            args = self.generate_mock_arguments([f'{self.path}/in_data100.txt'], applied_flags, temp_dir)
+            args.prefix = Path(temp_dir)
+            args.proj_name = 'dummy_output'
+            args.max_jobs = 2
+            args.lines = 50
+            args.timelimit = 96
+
+            # Run batch submission
+            Split_Submit_jobs(args, parser)
+
+            batch_dir = Path(temp_dir) / 'in_data100'
+            os.chdir(batch_dir)
+
+            # Check for required files
+            required_files = ['submit_msani.sh', 'in0000.smi', 'in0001.smi']
+            for file in required_files:
+                with self.subTest(file=file):
+                    self.assertTrue(os.path.exists(file), f"{file} was not created.")
+
+            # Validate submit_msani.sh content
+            expected_template = [
+                '#!/bin/bash\n',
+                '#SBATCH -A dummy_output\n',
+                '#SBATCH -n 1\n',
+                '#SBATCH -J msani_3d\n',
+                '#SBATCH -t 96:00:00\n',
+                '#SBATCH --mail-type=FAIL\n'
+            ]
+
+            with open('submit_msani.sh', 'r') as f:
+                file_contents = f.readlines()
+                self.assertEqual(file_contents[:6], expected_template, "submit_msani.sh header is incorrect.")
+
+                # Extract and verify flags
+                command_line = file_contents[16].strip()
+                extracted_flags = command_line.split('/msani -i $smiles_file ')[-1].split(' --')
+
+                # Ensure applied_flags match extracted_flags
+                with self.subTest(msg="Checking applied flags"):
+                    self.assertTrue(set(applied_flags).issubset(set(extracted_flags)), "Flags were not passed correctly.")            
 
     def compare_relative(self, newfile: str, goldenfile: str):
         # Read the files into dataframes
@@ -238,7 +299,7 @@ class TestMolSanitizer(unittest.TestCase):
             'protonation': False,
             'pH': 7,
             'pH_range': 0,
-            "neutralize": False, 
+            "neutralize": True, 
             "debug": False, 
             "custom":None, 
             "prefix":output_prefix, 
