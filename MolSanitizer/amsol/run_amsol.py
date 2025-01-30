@@ -191,7 +191,7 @@ def process_amsol_file(file, outputprefix, solvent, VERBOSE=False):
 
     outputfilename = f"{outputprefix}{solvent}.log"
     lines = input_file.readlines()
-    
+    input_file.close()
     with open(outputfilename, 'w') as output:
         name = ''
         numatoms = 0

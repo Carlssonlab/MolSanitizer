@@ -63,8 +63,8 @@ class Mol2(object):
       self.origXyzCount = self.xyzCount
       while len(self.inputEnergy) < self.xyzCount:
         self.inputEnergy.append(9999.99)
-        self.inputTotalStrain.append(9999.99)
-        self.inputMaxStrain.append(9999.99)
+        self.inputTotalStrain.append(0) #As we sampling in relaxed and tolerable space, we can safely ignore these
+        self.inputMaxStrain.append(0) #As we sampling in relaxed and tolerable space, we can safely ignore these
         self.inputHydrogens.append(0)
     #read the name.txt file which is one line and is made by the toolchain
     if nameFileName is not None:
@@ -137,14 +137,15 @@ class Mol2(object):
       except StopIteration:
         mol2file.close()
       finally:
+        mol2file.close()
         self.xyzCount += 1 #really this needs to be done
         self.origXyzCount = self.xyzCount
         while len(self.inputEnergy) < self.xyzCount:
           self.inputEnergy.append(9999.99)
         while len(self.inputTotalStrain) < self.xyzCount:
-          self.inputTotalStrain.append(9999.99)
+          self.inputTotalStrain.append(0)
         while len(self.inputMaxStrain) < self.xyzCount:
-          self.inputMaxStrain.append(9999.99)
+          self.inputMaxStrain.append(0)
         while len(self.inputHydrogens) < self.xyzCount:
           self.inputHydrogens.append(0)
     #print self.atomName,    self.atomType, self.atomCharge
