@@ -24,6 +24,7 @@ All developers past and present
 
 Scientific input
 ~~~~~~~~~~~~~~~~
-
-* Jens Carlsson
+* Israel Cabeza de Vaca Lopez
 * Ruth Brenk
+* Jens Carlsson
+
