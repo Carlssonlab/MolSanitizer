@@ -29,8 +29,7 @@ dependencies = [
     "numpy",
     "rdkit>=2024.09.1",
     "meeko",
-    "pyaml",
-    "pytest"
+    "pyaml"
 ]
 
 [project.urls]

@@ -12,11 +12,19 @@ import pandas as pd
 import MolSanitizer.molSanitizer as molSanitizer
 from MolSanitizer.msani_batch import Split_Submit_jobs
 from MolSanitizer import parsers
+
+
+
 class TestMolSanitizer(unittest.TestCase):
-    if os.path.basename(os.getcwd()) == 'test':
-        path = os.path.join(os.getcwd(), 'goldenData')
-    else:
-        path = os.path.join(os.getcwd(), 'test', 'goldenData')
+    @classmethod
+    def setUpClass(cls):
+        """Set up class-level paths before running tests."""
+        cls.path = Path(__file__).parent / "goldenData"
+        try:
+            os.chdir(cls.path)  # Ensure test runs in the correct directory
+        except FileNotFoundError:
+            print(f"Warning: Directory {cls.path} not found, using default")
+
     
     def test_single_input(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -54,33 +62,38 @@ class TestMolSanitizer(unittest.TestCase):
             # Test all filters work together
             args.unwanted = ['Regular','Special','Optional']
             molSanitizer.clean_data(args)
+            with self.subTest(msg="Checking unwanted all:"):
             #self.compareFiles(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_unwanted_all_clean.txt')
-            self.compare_relative(f'{temp_dir}/dummy_output_rejected.txt', f'{self.path}/out_unwanted_all_rejected.txt')
+                self.compare_relative(f'{temp_dir}/dummy_output_rejected.txt', f'{self.path}/out_unwanted_all_rejected.txt')
          
             args.unwanted = ['Regular','Optional']
             system(f'rm {temp_dir}/*.txt')
             molSanitizer.clean_data(args)
-            self.compare_relative(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_unwanted_regular_optional_clean.txt')
-            self.compare_relative(f'{temp_dir}/dummy_output_rejected.txt', f'{self.path}/out_unwanted_regular_optional_rejected.txt')
+            with self.subTest(msg="Checking unwanted Regular and Optional:"):
+                self.compare_relative(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_unwanted_regular_optional_clean.txt')
+                self.compare_relative(f'{temp_dir}/dummy_output_rejected.txt', f'{self.path}/out_unwanted_regular_optional_rejected.txt')
 
             # Test if filters works together
             args.unwanted = ['Regular']
             system(f'rm {temp_dir}/*.txt')
             molSanitizer.clean_data(args)
-            self.compareFiles(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_unwanted_regular_clean.txt')
-            self.compareFiles(f'{temp_dir}/dummy_output_rejected.txt', f'{self.path}/out_unwanted_regular_rejected.txt')
+            with self.subTest(msg="Checking unwanted Regular:"):
+                self.compareFiles(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_unwanted_regular_clean.txt')
+                self.compareFiles(f'{temp_dir}/dummy_output_rejected.txt', f'{self.path}/out_unwanted_regular_rejected.txt')
 
             args.unwanted = ['Special']
             system(f'rm {temp_dir}/*.txt')
             molSanitizer.clean_data(args)
-            self.compareFiles(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_unwanted_special_clean.txt')
-            self.compareFiles(f'{temp_dir}/dummy_output_rejected.txt', f'{self.path}/out_unwanted_special_rejected.txt')
+            with self.subTest(msg="Checking unwanted Special:"):
+                self.compareFiles(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_unwanted_special_clean.txt')
+                self.compareFiles(f'{temp_dir}/dummy_output_rejected.txt', f'{self.path}/out_unwanted_special_rejected.txt')
 
             args.unwanted = ['Optional']
             system(f'rm {temp_dir}/*.txt')
             molSanitizer.clean_data(args)
-            self.compareFiles(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_unwanted_optional_clean.txt')
-            self.compareFiles(f'{temp_dir}/dummy_output_rejected.txt', f'{self.path}/out_unwanted_optional_rejected.txt')
+            with self.subTest(msg="Checking unwanted Optional:"):
+                self.compareFiles(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_unwanted_optional_clean.txt')
+                self.compareFiles(f'{temp_dir}/dummy_output_rejected.txt', f'{self.path}/out_unwanted_optional_rejected.txt')
 
     def test_descriptor_filter(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -131,6 +144,7 @@ class TestMolSanitizer(unittest.TestCase):
                 self.compare_relative(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_hba4_hbd2_clean.txt')
                 self.compare_relative(f'{temp_dir}/dummy_output_rejected.txt', f'{self.path}/out_hba4_hbd2_rejected.txt')
 
+
     def test_create_filter_customfile(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             args = self.generate_mock_arguments([f'{self.path}/in_unwanted.txt'], ['create_custom', 'test'], temp_dir)
@@ -143,12 +157,14 @@ class TestMolSanitizer(unittest.TestCase):
             with self.subTest(msg="Checking if customized filter file is applied:"):
                 self.compare_relative(f'{temp_dir}/dummy_output_rejected.txt', f'{self.path}/out_unwanted_all_rejected.txt')
 
+
     def test_stereoisomers(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             args = self.generate_mock_arguments([f'{self.path}/in_stereo.txt'], ['stereoisomers', 'test', ], temp_dir)
             args.max_stereoisomers = 128
             molSanitizer.clean_data(args)
             self.compare_relative(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_stereo.txt')
+
 
     def test_protonation(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -171,7 +187,7 @@ class TestMolSanitizer(unittest.TestCase):
             with self.subTest(msg="Checking pH 9:"):
                 self.compare_relative(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/ph9_clean.txt')
             system(f'rm {temp_dir}/*.txt')
-    
+
     def test_integrity(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             args = self.generate_mock_arguments([f'{self.path}/in_enamine.txt'], ['enamine','lazy', 'test'], temp_dir)
@@ -179,7 +195,8 @@ class TestMolSanitizer(unittest.TestCase):
             molSanitizer.clean_data(args)
             self.compare_relative(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_enamine_clean.txt')
             self.compare_relative(f'{temp_dir}/dummy_output_rejected.txt', f'{self.path}/out_enamine_rejected.txt')
-    
+        os.chdir(self.path)
+
     def test_db2_generation(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             args = self.generate_mock_arguments([f'{self.path}/in_db2.smi'], ['db2', 'test', 'enrichment'], temp_dir)
@@ -195,6 +212,7 @@ class TestMolSanitizer(unittest.TestCase):
             with open(f"{temp_dir}/db2/3,4-diclorophenol.db2") as db2_file:
                 first_line = db2_file.readline()
                 self.assertEqual(first_line.split()[7],'2', "DB2 file was not created correctly.")   
+        os.chdir(self.path)
 
     def test_pdbqt_generation(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -208,6 +226,7 @@ class TestMolSanitizer(unittest.TestCase):
                 lines = pdbqt_file.readlines()
                 self.assertEqual(lines[0],"REMARK SMILES O=C([O-])c1ccccc1O\n", "PDBQT file was not created correctly.")
                 self.assertEqual(lines[-1],"TORSDOF 2\n", "PDBQT file was not created correctly.")
+        os.chdir(self.path)
     
     @unittest.skipIf(platform.system() == "Windows", "Skipping test on Windows due to incompatible `split` command.")
     def test_batch(self):
@@ -256,6 +275,7 @@ class TestMolSanitizer(unittest.TestCase):
                 # Ensure applied_flags match extracted_flags
                 with self.subTest(msg="Checking applied flags"):
                     self.assertTrue(set(applied_flags).issubset(set(extracted_flags)), "Flags were not passed correctly.")            
+            os.chdir(self.path)
 
     def compare_relative(self, newfile: str, goldenfile: str):
         # Read the files into dataframes

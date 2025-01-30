@@ -441,7 +441,7 @@ class SmilesSanitizer:
                             'highlights': highlights})
         else:
             if max_isomers > 0 and num_possible_isomers > max_isomers:
-                logger.warning(f"{row_data['ids']}: Not all the stereoisomers are written out (capped at {max_isomers}/{num_possible_isomers}).")
+                logger.info(f"{row_data['ids']}: Not all the stereoisomers are written out (capped at {max_isomers}/{num_possible_isomers}).")
                 isomers = isomers[:max_isomers]
             two_digits = len(isomers) >= 10
             for i, isomer in enumerate(isomers):
