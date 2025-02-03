@@ -68,6 +68,31 @@
 
      Dec 9 24
      Disabled minor "peaks" for the rule [a:1][c:2]!@[CX3:3]([NX3H1,NX3H2])=[O:4]
+
+     Feb 3 25
+     Modified the following rules:
+      [O:1]=[CX3:2]([NH1])!@[CH2:3][CX3:4]=O: merged: 10.0, -10.0 to 0.0 +- 20.0 / +- 20.0
+      [O:1]=[CX3:2]([NH1])!@[CH2:3][C:4] skipped peak: 180.0
+      [$([CX3]([C])([H])):1]=[CX3:2]([C])!@[CH2:3][C:4] merged: 120.0, 90.0 to 100.0 +- 20.0; -90 , -120.0 to  -100.0 +- 20.0 
+      [$([cH0]([$([NX3H2]),$([NX3H1])])):1][c:2]!@[c:3][nX2:4] merged to 0 +- 10/ +-40
+      [nX2H0:1][$([cr6]([cH0][NH2])):2]!@[$([cr6]([cH0][NH2])):3][nX2H0:4] disabled  peak 0
+      [cH0:1][c:2]!@[CX4H2:3][a:4] changed 120.0, -120.0 to 90.0 +- 20.0 /+- 40.0
+      [O:1]=[C:2]([O-])!@[c:3][nX2H0:4] disabled  +-90
+      [O:1]=[C:2]([O-])!@[c:3]([cH1])[cH0:4] +-90 to +-100 +- 10/+- 20
+      [O:1]=[C:2]([O-])!@[c:3][a:4] disabled  60, -60
+      [cH0:1]([NH1,NH2,OH1])[c:2]([cH1])!@[CX3:3](c)=[O:4] disabled  +-120
+      [a:1]([NH1,NH2,OH1])[c:2]!@[CX3:3](a)=[O:4] merged to 0+-30/+-40; disabled  150
+      [$([cH0]F):1][c:2]([cH1])!@[CX3:3]=[O:4] added 0+-20/+-50
+      [$([cH0](Cl)):1][c:2]([cH1])!@[CX3:3]([CX2])=[O:4] disabled  +-60 peaks
+      [H:1][CX4H1:2]!@[O:3][CX4:4] 60.0, 0.0, -60.0 to 30.0 +- 10/ +- 30
+      [C:1][CH2:2]!@[O:3][CX4:4] disabled  +-90.0
+      [cH0:1][c:2]([cH0])!@[O:3][!C;!H:4] changed to +-100 +-20/+-50
+      [cH0:1][c:2]([cH0])!@[O:3][!#1:4] changed to +-100 +-20/+-50
+      [$(C=O):1][NX3H0:2]!@[CX3:3]=[*H0:4] disabled  +-90
+      [$(C=O):1][NX3:2]!@[c:3]([nX2H0])[cH1:4] disabled  +-150
+      [$(C=O):1][NX3H1:2]!@[c:3]([cH0])[cH0:4] disabled  0, 180
+      [!#1:1][CX4H2:2]!@[NX3:3][!#1:4] disabled  0
+      [*:1]~[OX2:2]!@[SX3:3]~[*:4] disabled  0
 -->
 <library>
  <hierarchyClass id1="G" id2="G" name="GG" smarts="[*:2]!@[*:3]">
@@ -11647,7 +11672,7 @@
     <angle score="8.33" tolerance1="20" tolerance2="30" value="-70" />
     <angle score="5.21" tolerance1="20" tolerance2="30" value="180" />
     <angle score="1.04" tolerance1="20" tolerance2="30" value="70" />
-    <angle score="0" tolerance1="10" tolerance2="10" value="0" />
+    <!--<angle score="0" tolerance1="10" tolerance2="10" value="0" />-->
    </angleList>
    <histogram>
     <bin count="3" />
@@ -15930,9 +15955,15 @@
      <angleList>
       <angle score="13.76" tolerance1="30" tolerance2="40" value="-70" />
       <angle score="3.67" tolerance1="30" tolerance2="40" value="70" />
-      <angle score="2.75" tolerance1="10" tolerance2="10" value="10" />
       <angle score="1.83" tolerance1="10" tolerance2="10" value="180" />
+      <!--
+      <angle score="2.75" tolerance1="10" tolerance2="10" value="10" />
       <angle score="1.83" tolerance1="10" tolerance2="10" value="-10" />
+      Merged to 0 +- 20 / +-20
+      The below is newly created
+      -->
+      <angle score="2.75" tolerance1="20" tolerance2="20" value="0" />
+
      </angleList>
      <histogram>
       <bin count="4" />
@@ -16090,7 +16121,8 @@
     <torsionRule smarts="[O:1]=[CX3:2]([NH1])!@[CH2:3][C:4]">
      <angleList>
       <angle score="8.109999999999999" tolerance1="70" tolerance2="120" value="0" />
-      <angle score="0.24" tolerance1="10" tolerance2="30" value="180" />
+      <!-- Skip this rule
+      <angle score="0.24" tolerance1="10" tolerance2="30" value="180" />-->
      </angleList>
      <histogram>
       <bin count="5" />
@@ -16248,10 +16280,14 @@
     <torsionRule smarts="[$([CX3]([C])([H])):1]=[CX3:2]([C])!@[CH2:3][C:4]">
      <angleList>
       <angle score="15.87" tolerance1="20" tolerance2="30" value="0" />
+      <!--
       <angle score="7.72" tolerance1="10" tolerance2="10" value="120" />
       <angle score="5.64" tolerance1="15" tolerance2="20" value="-90" />
       <angle score="3.34" tolerance1="15" tolerance2="20" value="90" />
       <angle score="2.71" tolerance1="10" tolerance2="10" value="-120" />
+      Merged: 120.0, 90.0 to 100.0 +- 20.0; -90 , -120.0 to -100.0 +- 20.0-->
+      <angle score="3.5" tolerance1="20" tolerance2="20" value="100" />
+      <angle score="3.5" tolerance1="20" tolerance2="20" value="100" />
      </angleList>
      <histogram>
       <bin count="0" />
@@ -21341,9 +21377,11 @@
   <hierarchySubClass name="" smarts="[c:2]!@[c:3]">
    <torsionRule smarts="[$([cH0]([$([NX3H2]),$([NX3H1])])):1][c:2]!@[c:3][nX2:4]">
     <angleList>
-     <angle score="31.56" tolerance1="10" tolerance2="11.25" value="0" />
+     <!--<angle score="31.56" tolerance1="10" tolerance2="11.25" value="0" />
      <angle score="3.32" tolerance1="15" tolerance2="18.75" value="30" />
-     <angle score="2.99" tolerance1="15" tolerance2="17.5" value="-30" />
+     <angle score="2.99" tolerance1="15" tolerance2="17.5" value="-30" />-->
+      <angle score="31.56" tolerance1="10" tolerance2="40" value="0" />
+
     </angleList>
     <histogram>
      <bin count="9" />
@@ -23505,7 +23543,7 @@
    <torsionRule smarts="[nX2H0:1][$([cr6]([cH0][NH2])):2]!@[$([cr6]([cH0][NH2])):3][nX2H0:4]">
     <angleList>
      <angle score="100" tolerance1="10" tolerance2="15" value="180" />
-     <angle score="0" tolerance1="10" tolerance2="15" value="0" />
+     <!--<angle score="0" tolerance1="10" tolerance2="15" value="0" />-->
     </angleList>
     <histogram>
      <bin count="0" />
@@ -26228,11 +26266,17 @@
     </torsionRule>
     <torsionRule smarts="[cH0:1][c:2]!@[CX4H2:3][a:4]">
      <angleList>
-      <angle score="9.640000000000001" tolerance1="20" tolerance2="25" value="-80" />
+      <!--<angle score="9.640000000000001" tolerance1="20" tolerance2="25" value="-80" />
       <angle score="6.42" tolerance1="20" tolerance2="25" value="80" />
-      <angle score="3.58" tolerance1="10" tolerance2="40" value="180" />
       <angle score="3.47" tolerance1="15" tolerance2="15" value="120" />
       <angle score="2.15" tolerance1="15" tolerance2="15" value="-120" />
+      Merged 80/120 and -80/-120 to 90.0 +- 20.0 /+- 40.0-->
+      <angle score="3.58" tolerance1="10" tolerance2="40" value="180" />
+      <angle score="6.42" tolerance1="20" tolerance2="40" value="90" />
+      <angle score="6.42" tolerance1="20" tolerance2="40" value="90" />
+
+
+
      </angleList>
      <histogram>
       <bin count="113" />
@@ -31831,8 +31875,8 @@
       <angle score="14.29" tolerance1="20" tolerance2="22.5" value="0" />
       <angle score="9.52" tolerance1="30" tolerance2="40" value="180" />
       <angle score="9.52" tolerance1="8.75" tolerance2="8.75" value="-45" />
-      <angle score="0" tolerance1="32.5" tolerance2="36.25" value="-90" />
-      <angle score="0" tolerance1="32.5" tolerance2="32.5" value="90" />
+      <!--<angle score="0" tolerance1="32.5" tolerance2="36.25" value="-90" />
+      <angle score="0" tolerance1="32.5" tolerance2="32.5" value="90" />-->
       <angle score="0" tolerance1="12.5" tolerance2="12.5" value="45" />
      </angleList>
      <histogram>
@@ -32084,8 +32128,10 @@
      <angleList>
       <angle score="12.86" tolerance1="30" tolerance2="40" value="180" />
       <angle score="10" tolerance1="30" tolerance2="40" value="0" />
-      <angle score="0" tolerance1="30" tolerance2="40" value="90" />
-      <angle score="0" tolerance1="30" tolerance2="40" value="-90" />
+      <!--<angle score="0" tolerance1="30" tolerance2="40" value="90" />
+      <angle score="0" tolerance1="30" tolerance2="40" value="-90" />-->
+      <angle score="1" tolerance1="10" tolerance2="20" value="100" />
+      <angle score="1" tolerance1="10" tolerance2="20" value="-100" />
      </angleList>
      <histogram>
       <bin count="17" />
@@ -32250,10 +32296,10 @@
      <angleList>
       <angle score="13.03" tolerance1="20" tolerance2="30" value="0" />
       <angle score="12.61" tolerance1="20" tolerance2="30" value="180" />
-      <angle score="0.5700000000000001" tolerance1="20" tolerance2="30" value="60" />
+      <!--<angle score="0.5700000000000001" tolerance1="20" tolerance2="30" value="60" />-->
       <angle score="0.5700000000000001" tolerance1="20" tolerance2="30" value="-120" />
       <angle score="0.42" tolerance1="20" tolerance2="30" value="120" />
-      <angle score="0.14" tolerance1="20" tolerance2="30" value="-60" />
+      <!--<angle score="0.14" tolerance1="20" tolerance2="30" value="-60" />-->
      </angleList>
      <histogram>
       <bin count="85" />
@@ -33134,8 +33180,8 @@
     <torsionRule smarts="[cH0:1]([NH1,NH2,OH1])[c:2]([cH1])!@[CX3:3](c)=[O:4]">
      <angleList>
       <angle score="25.29" tolerance1="40" tolerance2="60" value="0" />
-      <angle score="0.29" tolerance1="20" tolerance2="30" value="120" />
-      <angle score="0.29" tolerance1="20" tolerance2="30" value="-120" />
+      <!--<angle score="0.29" tolerance1="20" tolerance2="30" value="120" />
+      <angle score="0.29" tolerance1="20" tolerance2="30" value="-120" />-->
      </angleList>
      <histogram>
       <bin count="0" />
@@ -33292,10 +33338,11 @@
     </torsionRule>
     <torsionRule smarts="[a:1]([NH1,NH2,OH1])[c:2]!@[CX3:3](a)=[O:4]">
      <angleList>
-      <angle score="6.7" tolerance1="30" tolerance2="30" value="30" />
+      <!--<angle score="6.7" tolerance1="30" tolerance2="30" value="30" />
       <angle score="1.76" tolerance1="30" tolerance2="30" value="-30" />
       <angle score="0.18" tolerance1="30" tolerance2="30" value="-150" />
-      <angle score="0.18" tolerance1="30" tolerance2="30" value="150" />
+      <angle score="0.18" tolerance1="30" tolerance2="30" value="150" />-->
+      <angle score="6.7" tolerance1="30" tolerance2="40" value="0" />
      </angleList>
      <histogram>
       <bin count="2" />
@@ -36160,6 +36207,9 @@
     <torsionRule smarts="[$([cH0]F):1][c:2]([cH1])!@[CX3:3]=[O:4]">
      <angleList>
       <angle score="9.120000000000001" tolerance1="40" tolerance2="60" value="180" />
+      <!--added 0+-20/+-50-->
+      <angle score="4.56" tolerance1="20" tolerance2="50" value="0" />
+
      </angleList>
      <histogram>
       <bin count="24" />
@@ -36402,8 +36452,8 @@
      <angleList>
       <angle score="0" tolerance1="20" tolerance2="25" value="0" />
       <angle score="0" tolerance1="30" tolerance2="30" value="-110" />
-      <angle score="0" tolerance1="20" tolerance2="20" value="-60" />
-      <angle score="0" tolerance1="17.5" tolerance2="17.5" value="60" />
+      <!--<angle score="0" tolerance1="20" tolerance2="20" value="-60" />
+      <angle score="0" tolerance1="17.5" tolerance2="17.5" value="60" />-->
       <angle score="0" tolerance1="30" tolerance2="32.5" value="110" />
      </angleList>
      <histogram>
@@ -41263,9 +41313,11 @@
   <hierarchySubClass name="Ether" smarts="[*,#1:1][CX4,CX3:2]!@[O:3]([CX4,CX3:4])">
    <torsionRule smarts="[H:1][CX4H1:2]!@[O:3][CX4:4]">
     <angleList>
-     <angle score="9.66" tolerance1="10" tolerance2="20" value="60" />
+     <!--<angle score="9.66" tolerance1="10" tolerance2="20" value="60" />
      <angle score="4.1" tolerance1="40" tolerance2="40" value="0" />
-     <angle score="1.67" tolerance1="10" tolerance2="20" value="-60" />
+     <angle score="1.67" tolerance1="10" tolerance2="20" value="-60" />-->
+     <angle score="4.1" tolerance1="10" tolerance2="30" value="30" />
+     <angle score="4.1" tolerance1="10" tolerance2="30" value="-30" />
     </angleList>
     <histogram>
      <bin count="94" />
@@ -41423,8 +41475,8 @@
    <torsionRule smarts="[C:1][CH2:2]!@[O:3][CX4:4]">
     <angleList>
      <angle score="30.74" tolerance1="30" tolerance2="40" value="180" />
-     <angle score="1.43" tolerance1="20" tolerance2="30" value="90" />
-     <angle score="0.55" tolerance1="20" tolerance2="30" value="-90" />
+     <!--<angle score="1.43" tolerance1="20" tolerance2="30" value="90" />
+     <angle score="0.55" tolerance1="20" tolerance2="30" value="-90" />-->
     </angleList>
     <histogram>
      <bin count="1743" />
@@ -43110,10 +43162,13 @@ All the angles here were added to make the hydroxyl coplanar with the ring-->
    </torsionRule>
    <torsionRule smarts="[cH0:1][c:2]([cH0])!@[O:3][!C;!H:4]">
     <angleList>
-     <angle score="0.29" tolerance1="20" tolerance2="30" value="160" />
+     <!--<angle score="0.29" tolerance1="20" tolerance2="30" value="160" />
      <angle score="0.24" tolerance1="20" tolerance2="20" value="-20" />
      <angle score="0.1" tolerance1="20" tolerance2="30" value="-160" />
-     <angle score="0.05" tolerance1="20" tolerance2="20" value="20" />
+     <angle score="0.05" tolerance1="20" tolerance2="20" value="20" />-->
+     <angle score="1" tolerance1="20" tolerance2="50" value="100" />
+     <angle score="1" tolerance1="20" tolerance2="50" value="-100" />
+
     </angleList>
     <histogram>
      <bin count="0" />
@@ -46121,10 +46176,13 @@ All the angles here were added to make the hydroxyl coplanar with the ring-->
    </torsionRule>
    <torsionRule smarts="[cH0:1][c:2]([cH0])!@[O:3][!#1:4]">
     <angleList>
-     <angle score="0.58" tolerance1="15" tolerance2="20" value="-135" />
+     <!--<angle score="0.58" tolerance1="15" tolerance2="20" value="-135" />
      <angle score="0.51" tolerance1="15" tolerance2="20" value="135" />
      <angle score="0.36" tolerance1="15" tolerance2="20" value="45" />
-     <angle score="0.34" tolerance1="15" tolerance2="20" value="-45" />
+     <angle score="0.34" tolerance1="15" tolerance2="20" value="-45" />-->
+     <angle score="1" tolerance1="20" tolerance2="50" value="100" />
+     <angle score="1" tolerance1="20" tolerance2="50" value="-100" />
+
     </angleList>
     <histogram>
      <bin count="64" />
@@ -55657,8 +55715,8 @@ All the angles here were added to make the hydroxyl coplanar with the ring-->
     <angleList>
      <angle score="15.69" tolerance1="30" tolerance2="55.00000000000001" value="180" />
      <angle score="3.73" tolerance1="20" tolerance2="40" value="0" />
-     <angle score="0.7000000000000001" tolerance1="20" tolerance2="35" value="90" />
-     <angle score="0.62" tolerance1="20" tolerance2="40" value="-90" />
+     <!--<angle score="0.7000000000000001" tolerance1="20" tolerance2="35" value="90" />
+     <angle score="0.62" tolerance1="20" tolerance2="40" value="-90" />-->
     </angleList>
     <histogram>
      <bin count="616" />
@@ -59650,8 +59708,8 @@ All the angles here were added to make the hydroxyl coplanar with the ring-->
    <torsionRule smarts="[$(C=O):1][NX3:2]!@[c:3]([nX2H0])[cH1:4]">
     <angleList>
      <angle score="22.77" tolerance1="70" tolerance2="80" value="0" />
-     <angle score="0.77" tolerance1="20" tolerance2="35" value="150" />
-     <angle score="0.29" tolerance1="20" tolerance2="35" value="-150" />
+     <!--<angle score="0.77" tolerance1="20" tolerance2="35" value="150" />
+     <angle score="0.29" tolerance1="20" tolerance2="35" value="-150" />-->
     </angleList>
     <histogram>
      <bin count="23" />
@@ -60442,8 +60500,8 @@ All the angles here were added to make the hydroxyl coplanar with the ring-->
      <angle score="6.86" tolerance1="20" tolerance2="40" value="-70" />
      <angle score="6.21" tolerance1="20" tolerance2="40" value="110" />
      <angle score="4.66" tolerance1="20" tolerance2="40" value="-110" />
-     <angle score="0.25" tolerance1="10" tolerance2="30" value="0" />
-     <angle score="0.16" tolerance1="10" tolerance2="30" value="180" />
+     <!--<angle score="0.25" tolerance1="10" tolerance2="30" value="0" />
+     <angle score="0.16" tolerance1="10" tolerance2="30" value="180" />-->
     </angleList>
     <histogram>
      <bin count="3" />
@@ -70402,7 +70460,7 @@ All the angles here were added to make the hydroxyl coplanar with the ring-->
      <angle score="9.06" tolerance1="20" tolerance2="30" value="-80" />
      <angle score="8.07" tolerance1="20" tolerance2="30" value="80" />
      <angle score="3.44" tolerance1="30" tolerance2="70" value="180" />
-     <angle score="0.03" tolerance1="30" tolerance2="50" value="0" />
+     <!--<angle score="0.03" tolerance1="30" tolerance2="50" value="0" />-->
     </angleList>
     <histogram>
      <bin count="2227" />
