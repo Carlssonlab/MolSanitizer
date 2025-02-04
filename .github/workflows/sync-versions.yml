@@ -12,10 +12,16 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v3
+      with:
+        fetch-depth: 0  # Ensure all history is fetched
+
+    - name: Switch to default branch
+      run: |
+        DEFAULT_BRANCH=$(git remote show origin | awk '/HEAD branch/ {print $NF}')
+        git checkout $DEFAULT_BRANCH
 
     - name: Extract tag and update version
       run: |
-        # Extract the latest tag
         VERSION=$(git describe --tags --abbrev=0)
         echo "Updating version to $VERSION"
 
@@ -32,4 +38,4 @@ jobs:
         git config user.email "github-actions[bot]@users.noreply.github.com"
         git add pyproject.toml MolSanitizer/molSanitizer.py MolSanitizer/msani_batch.py
         git commit -m "Update version to $VERSION"
-        git push
+        git push origin HEAD:$DEFAULT_BRANCH
