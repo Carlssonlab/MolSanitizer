@@ -39,6 +39,18 @@ class Filters():
     
     @staticmethod
     def remove_exotic_chem_to_db2(df:pd.DataFrame) -> pd.DataFrame:
+        '''
+        These are substructures that are not supported by either MMFF94(s)
+        and Mol2 format so could not be DB2-compatible.
+        It mainly includes: hypervalent atoms, halogens with more than 1 bond, atoms with more than 5 bonds,
+        and atom types not supported by the Mol2 format.
+
+        Args:
+            df (pd.DataFrame): Input DataFrame with 'mol' column containing RDKit molecule objects.
+        Returns:
+            pd.DataFrame: A new DataFrame chunk with molecules that are DB2-compatible.
+
+        '''
         exotic_chems = Chem.MolFromSmarts('[$([*X{5-}]),$([#35!X1]),$([#53!X1]),$([*;!$([#1,#6,#7,#8,#9,#14,#15,#16,#17,#35,#53,#26,#3,#11,#19,#30,#20,#29,#12])])]')
         df_cleaned = df.copy()
         df_cleaned['mol'] = df['mol'].apply(lambda x: x if x.HasSubstructMatch(exotic_chems) == False else None)
