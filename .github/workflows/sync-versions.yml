@@ -1,4 +1,4 @@
-name: Update Version on Tag Push
+name: Update Version and Generate Changelog on Tag Push
 
 on:
   push:
@@ -11,30 +11,76 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
-        fetch-depth: 0  # Ensure all branches and history are available
+        fetch-depth: 0  # Fetch full history
 
     - name: Checkout main branch
       run: |
         git checkout main
 
-    - name: Extract tag and update version
+    - name: Extract tag version
       run: |
         VERSION=$(git describe --tags --abbrev=0)
-        echo "Updating version to $VERSION"
+        echo "Extracted VERSION: $VERSION"
+        echo "VERSION=$VERSION" >> $GITHUB_ENV  # Persist across steps
 
-        # Update version in pyproject.toml
+    - name: Update version in files
+      run: |
         sed -i "s/^version = \".*\"/version = \"$VERSION\"/" pyproject.toml
-
-        # Update __version__ in Python files
         sed -i "s/^__version__ = \".*\"/__version__ = \"$VERSION\"/" MolSanitizer/molSanitizer.py
         sed -i "s/^__version__ = \".*\"/__version__ = \"$VERSION\"/" MolSanitizer/msani_batch.py
 
-    - name: Commit and push changes
+    - name: Generate Changelog
+      uses: orhun/git-cliff-action@v4
+      with:
+        config: cliff.toml
+        args: --verbose
+      env:
+        OUTPUT: CHANGELOG.md
+        GITHUB_REPO: ${{ github.repository }}
+
+    - name: Commit updated files selectively
       run: |
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
-        git add pyproject.toml MolSanitizer/molSanitizer.py MolSanitizer/msani_batch.py
-        git commit -m "Update version to $VERSION"
-        git push origin HEAD:main
+
+        CHANGED_FILES=0
+
+        if ! git diff --quiet pyproject.toml; then
+          git add pyproject.toml
+          CHANGED_FILES=1
+        fi
+
+        if ! git diff --quiet MolSanitizer/molSanitizer.py; then
+          git add MolSanitizer/molSanitizer.py
+          CHANGED_FILES=1
+        fi
+
+        if ! git diff --quiet MolSanitizer/msani_batch.py; then
+          git add MolSanitizer/msani_batch.py
+          CHANGED_FILES=1
+        fi
+
+        if ! git diff --quiet CHANGELOG.md; then
+          git add CHANGELOG.md
+          CHANGED_FILES=1
+        fi
+
+        if [ $CHANGED_FILES -eq 1 ]; then
+          git commit -m "Update version to $VERSION and changelog"
+          git push origin HEAD:main
+        else
+          echo "No changes detected, skipping commit."
+        fi
+      env:
+        VERSION: ${{ env.VERSION }}
+
+    - name: Delete and recreate the tag
+      run: |
+        git tag -d $VERSION || true
+        git push origin --delete $VERSION || true
+        git tag $VERSION
+        git push origin --tags
+      env:
+        VERSION: ${{ env.VERSION }}
