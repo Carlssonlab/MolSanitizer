@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### 🚀 Features
 
+- Disabled minor peaks and corrected the wrongly assigned peaks. Resolved TODO list: disable minor peaks of the Torsion Library #6 - ([d9bcfec](https://github.com/phonglam3103/MolSanitizer/commit/d9bcfecc2bc51eb52b3bfcc06b2aa087aaf75556))
 - Updated three new descriptor-based filters, hba, hbd, and mw for better drug-like and lead-like characterization. - ([5015d6e](https://github.com/phonglam3103/MolSanitizer/commit/5015d6ebc35105a07eda3897db2bef7c9a1de63c))
 - Bring PDBQT to MolSanitizer, thanks to the Meeko Library from the Forli's Lab. The user now can trigger it by --pdbqt flag. - ([05904d2](https://github.com/phonglam3103/MolSanitizer/commit/05904d2850df9ec04543af8b08671aa93cfff537))
 - Added the filters by 2D descriptors: number of heavy atoms (HA; --ha) and cLogP (--logp) for MolSanitizer. - ([fd61e7e](https://github.com/phonglam3103/MolSanitizer/commit/fd61e7e9d52a779da54395143b0a19086540b753))
