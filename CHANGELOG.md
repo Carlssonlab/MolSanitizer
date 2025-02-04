@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### 🚀 Features
 
+- By default will filter out the DB2-incompatible atoms such as hypervalence S, P as they are not supported by Mol2, and MMFF94. This can reduce the power necessary to handle these entries. - ([a003301](https://github.com/phonglam3103/MolSanitizer/commit/a0033010d266f676eeeef514c74c0ae3924b9c39))
 - Disabled minor peaks and corrected the wrongly assigned peaks. Resolved TODO list: disable minor peaks of the Torsion Library #6 - ([d9bcfec](https://github.com/phonglam3103/MolSanitizer/commit/d9bcfecc2bc51eb52b3bfcc06b2aa087aaf75556))
 - Updated three new descriptor-based filters, hba, hbd, and mw for better drug-like and lead-like characterization. - ([5015d6e](https://github.com/phonglam3103/MolSanitizer/commit/5015d6ebc35105a07eda3897db2bef7c9a1de63c))
 - Bring PDBQT to MolSanitizer, thanks to the Meeko Library from the Forli's Lab. The user now can trigger it by --pdbqt flag. - ([05904d2](https://github.com/phonglam3103/MolSanitizer/commit/05904d2850df9ec04543af8b08671aa93cfff537))
