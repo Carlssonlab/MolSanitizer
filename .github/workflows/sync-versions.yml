@@ -3,7 +3,7 @@ name: Update Version on Tag Push
 on:
   push:
     tags:
-      - "*"  # Trigger on any tag
+      - "*"  # Trigger on any tag push
 
 jobs:
   update-version:
@@ -13,12 +13,11 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v3
       with:
-        fetch-depth: 0  # Ensure all history is fetched
+        fetch-depth: 0  # Ensure all branches and history are available
 
-    - name: Switch to default branch
+    - name: Checkout main branch
       run: |
-        DEFAULT_BRANCH=$(git remote show origin | awk '/HEAD branch/ {print $NF}')
-        git checkout $DEFAULT_BRANCH
+        git checkout main
 
     - name: Extract tag and update version
       run: |
@@ -38,4 +37,4 @@ jobs:
         git config user.email "github-actions[bot]@users.noreply.github.com"
         git add pyproject.toml MolSanitizer/molSanitizer.py MolSanitizer/msani_batch.py
         git commit -m "Update version to $VERSION"
-        git push origin HEAD:$DEFAULT_BRANCH
+        git push origin HEAD:main
