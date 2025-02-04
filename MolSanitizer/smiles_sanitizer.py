@@ -512,7 +512,7 @@ class SmilesSanitizer:
         """
         df['mol'] = df['smiles'].apply(lambda x: Chem.MolFromSmiles(x))
         df = Filters.remove_invalid_SMILES(df)
-        if self.db2: df = Filters.remove_exotic_chem_to_db2(df)
+        if self.db2 or self.conformal: df = Filters.remove_exotic_chem_to_db2(df)
         if self.removesalts: df = Filters.saltstripping(df, debug=self.debug)
         if self.ha is not None: df = Filters.filter_by_ha(df, self.ha, rejectedFile=rejected_file, debug=self.debug)
         if self.logp is not None: df = Filters.filter_by_logp(df, self.logp, rejectedFile=rejected_file, debug=self.debug)
