@@ -4,8 +4,6 @@ on:
   push:
     branches:
       - '**'
-    tags:
-      - '**'  # Triggers the workflow on all tag pushes
 
 jobs:
   changelog:
