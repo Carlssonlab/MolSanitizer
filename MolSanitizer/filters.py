@@ -30,13 +30,24 @@ class Filters():
         # Log rows where 'mol' is None before dropping
         invalid_rows = df[df['mol'].isna()]
         for index, row in invalid_rows.iterrows():
-            logger.warning(f"INVALID SMILES: Removing row at index {index}: {row.to_dict()}")
+            logger.warning(f"INVALID SMILES: Removing row at index {index}: SMILES: {row['smiles']} - ID: {row['ids']}")
 
         # Remove rows where 'mol' is None
         df_cleaned = df.dropna(subset=['mol'])
 
         return df_cleaned
     
+    @staticmethod
+    def remove_exotic_chem_to_db2(df:pd.DataFrame) -> pd.DataFrame:
+        exotic_chems = Chem.MolFromSmarts('[$([*X{5-}]),$([#35!X1]),$([#53!X1]),$([*;!$([#1,#6,#7,#8,#9,#14,#15,#16,#17,#35,#53,#26,#3,#11,#19,#30,#20,#29,#12])])]')
+        df_cleaned = df.copy()
+        df_cleaned['mol'] = df['mol'].apply(lambda x: x if x.HasSubstructMatch(exotic_chems) == False else None)
+        exotic_chem_df = df_cleaned[df_cleaned['mol'].isna()]
+        for _, row in exotic_chem_df.iterrows():
+            logger.warning(f"Removed entries that are not DB2-compatible: SMILES: {row['smiles']} - ID: {row['ids']}")
+        df_cleaned = df_cleaned.dropna(subset=['mol'])
+        return df_cleaned
+
     @staticmethod
     def stripSMILESsalt(mol, molRemover, debug = False):
         """Strip salts from the input molecule using the RDKit SaltRemover class.
@@ -361,7 +372,7 @@ class Filters():
             Args:
                 df (pd.DataFrame): Input DataFrame with 'mol' column containing RDKit molecule objects.
                 rejectedFile (str): Path to the file to save rejected molecules.
-                unwanted_option (list): The mode input by the user.
+                unwanted_option (list): The mode input by thle user.
                 debug (bool, optional): Debug mode. Defaults to False.
 
             Returns:
@@ -374,11 +385,12 @@ class Filters():
         unwanted_df = Filters.loadSMARTSdata(smartsFile.resolve(), unwanted_option)
         logger.info(f'Parsed {len(unwanted_df)} substructures from: {smartsFile}')
         # Apply reactions to each SMILES in the DataFrame
-        df['reason'] = df['mol'].apply(lambda x: Filters.filterbysmarts(x, unwanted_df))
-        rejected_df=df[df['reason']!='OK']
+        df_clean = df.copy()
+        df_clean['reason'] = df['mol'].apply(lambda x: Filters.filterbysmarts(x, unwanted_df))
+        rejected_df=df_clean[df_clean['reason']!='OK']
         rejected_df.to_csv(rejectedFile, index=False, mode='a', columns=['smiles','ids','reason'], sep = ' ', header=False)
-        df=df[df['reason']=='OK']
-        return df
+        return df_clean[df_clean['reason']=='OK']
+
 
     @staticmethod
     def customFilter(df: pd.DataFrame, rejectedFile, smartsFile, debug = False) -> pd.DataFrame:
@@ -397,9 +409,9 @@ class Filters():
         unwanted_df = Filters.loadSMARTSdata(smartsFile)
 
         # Apply reactions to each SMILES in the DataFrame
-        df['reason'] = df['mol'].apply(lambda x: Filters.filterbysmarts(x, unwanted_df))
-        rejected_df=df[df['reason']!='OK']
+        df_clean = df.copy()
+        df_clean['reason'] = df['mol'].apply(lambda x: Filters.filterbysmarts(x, unwanted_df))
+        rejected_df=df_clean[df_clean['reason']!='OK']
         rejected_df.to_csv(rejectedFile, index=False, mode='a', columns=['smiles','ids','reason'], sep = ' ', header=False)
-        df=df[df['reason']=='OK']
-        return df
+        return df_clean[df_clean['reason']=='OK']
     

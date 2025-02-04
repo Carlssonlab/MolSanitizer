@@ -37,7 +37,7 @@ def apply_filters(chunk, args, rejected_file):
         mw=args.mw, tautomers=args.tautomers, taurdkit=args.taurdkit, neutralize=args.neutralize,
         stereoisomers=args.stereoisomers, max_stereoisomers=args.max_stereoisomers,
         protonation=args.protonation, pH=args.pH, pH_range=args.pH_range, 
-        numcores=args.numcores, conformal=args.conformal, debug=args.debug)
+        numcores=args.numcores, conformal=args.conformal, db2 = args.db2, debug=args.debug)
     chunk = sanitizer.Sanitize(chunk, rejected_file)
     return chunk
 
