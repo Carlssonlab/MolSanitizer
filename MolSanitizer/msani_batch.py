@@ -152,7 +152,7 @@ def parse_flags_single_job(args: dict, parser):
             flags.append(f"--{arg} {value_str}")
         else:
             # Other arguments
-            flags.append(f"--{arg} {current_value}")
+            flags.append(f"--{arg} '{current_value}'")
 
     
     flags = " " + " ".join(flags)
