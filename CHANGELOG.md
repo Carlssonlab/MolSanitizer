@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [unreleased - most recent changes come first]
+
+### 🐛 Bug Fixes
+
+- Fix a bug in msani_batch that string arguments are not passed to the single script properly. - ([16df3eb](https://github.com/phonglam3103/MolSanitizer/commit/16df3eb8041000348e4a0de40da9471c4fcc26fb))
+
 ## [0.2.3] - 2025-02-04
 
 ### 🚀 Features
