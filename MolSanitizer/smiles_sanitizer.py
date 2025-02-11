@@ -121,7 +121,7 @@ class SmilesSanitizer:
         '''Neutralize the input molecules using the neutralize_atoms() function. 
         Turn on by default if the user trigger the tautomers or protonation flag.'''
         
-        def neutralize_atoms(mol):
+        def neutralize_atoms(mol, smiles):
             """Neutralize the input molecule by balancing the charges on atoms.
             Adapted from RDKit Cookbook: https://rdkit.org/docs/Cookbook.html"""
 
@@ -136,14 +136,16 @@ class SmilesSanitizer:
                     atom.SetFormalCharge(0)
                     atom.SetNumExplicitHs(hcount - chg)
                     atom.UpdatePropertyCache()
-            return mol
+                smiles = Chem.MolToSmiles(mol)
+                return Chem.MolFromSmiles(smiles), smiles
+            else: return mol, smiles
         
         if debug: print('Neutralizing molecules...')
         logger.info('Neutralizing molecules...')
         for i, row in df.iterrows():
             try:
-                row['mol'] = neutralize_atoms(row['mol'])
-                row['smiles'] = Chem.MolToSmiles(row['mol'])
+                row['mol'], row['smiles'] = neutralize_atoms(row['mol'], row['smiles'])
+                
             except:
                 logger.error(f"Error neutralizing molecule: {Chem.MolToSmiles(row['mol'])}")
                 pass
