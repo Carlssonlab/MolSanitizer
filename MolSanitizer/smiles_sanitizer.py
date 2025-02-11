@@ -144,8 +144,7 @@ class SmilesSanitizer:
         logger.info('Neutralizing molecules...')
         for i, row in df.iterrows():
             try:
-                row['mol'], row['smiles'] = neutralize_atoms(row['mol'], row['smiles'])
-                
+                df.at[i, 'mol'], df.at[i, 'smiles'] = neutralize_atoms(row['mol'], row['smiles'])
             except:
                 logger.error(f"Error neutralizing molecule: {Chem.MolToSmiles(row['mol'])}")
                 pass
