@@ -425,6 +425,8 @@ class SmilesSanitizer:
         results (list): List of expanded stereoisomers dictionaries with 'smiles', 'ids', 'mol', and optionally 'highlights'.
         """
         mol = Chem.MolFromSmiles(row_data['smiles'])
+        # If max_isomers is set to 1, return the original molecule and let the RDKit/CORINA guess it.
+        #if max_isomers == 1: return [row_data]
         try:
             isomers = SmilesSanitizer._generate_stereoisomers(mol, max_isomers=max_isomers)
         except Exception as e:
