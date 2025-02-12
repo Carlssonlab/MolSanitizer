@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### 🐛 Bug Fixes
 
+- Fix a bug in smi2db2 that in rare cases with AMSOL, the script runs into a ValueError and stop the whole script. This fix puts that part into a Try-except so that it would not crash the whole program. - ([4ee6675](https://github.com/phonglam3103/MolSanitizer/commit/4ee66751b8c9b87b1136a82c99c86b9dd4ce328b))
 - Fix a unexplainable bug in neutralizing molecules make the atoms cannot receive or delete substituents ([N+],...) - ([089ec52](https://github.com/phonglam3103/MolSanitizer/commit/089ec52db8ff7540b5ade1f946dbdcf78708e229))
 - Fix a bug in msani_batch that string arguments are not passed to the single script properly. - ([16df3eb](https://github.com/phonglam3103/MolSanitizer/commit/16df3eb8041000348e4a0de40da9471c4fcc26fb))
 
