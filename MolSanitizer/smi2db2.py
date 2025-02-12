@@ -1049,26 +1049,30 @@ def gen_conf_chunk(df: pd.DataFrame, args, input_file='0'):
             os.makedirs(f"solv/{name}", exist_ok=True)
             os.chdir(f"solv/{name}")
             for conf_id in range(amsol_mol.GetNumConformers()):
-                # Idea: try from the energy minimum conformer if AMSOL fails -> next conformer until reach the last
-                if VERBOSE: print(f"\tTrying conformer: {conf_id}")
-                error_signal = 0
+                try:
+                    # Idea: try from the energy minimum conformer if AMSOL fails -> next conformer until reach the last
+                    if VERBOSE: print(f"\tTrying conformer: {conf_id}")
+                    error_signal = 0
 
-                cp = Chem.Mol(amsol_mol, confId=conf_id) #Retrieve the conf_id-th conformer of mol object
-                #mol2_block = convert(Chem.MolToMolBlock(cp), "mol", "mol2")
-                #write_to_file(mol2_block, f"{name}.mol2")
-                
-                #print(Chem.MolToSmiles(cp))
-                mol2_obj = smi2db2_utils.Mol2Writer(cp)
-                mol2_obj.write_mol2(f"{name}.mol2")
+                    cp = Chem.Mol(amsol_mol, confId=conf_id) #Retrieve the conf_id-th conformer of mol object
+                    #mol2_block = convert(Chem.MolToMolBlock(cp), "mol", "mol2")
+                    #write_to_file(mol2_block, f"{name}.mol2")
+                    
+                    #print(Chem.MolToSmiles(cp))
+                    mol2_obj = smi2db2_utils.Mol2Writer(cp)
+                    mol2_obj.write_mol2(f"{name}.mol2")
 
-                run_amsol.prepare(f"{name}.mol2", name, netcharge)
-                error_signal = run_amsol.run('temp.in-hex', 'temp.o-hex', env)
-                if error_signal == -1: continue
-                error_signal = run_amsol.run('temp.in-wat', 'temp.o-wat', env)
-                if error_signal == -1: continue
-                error_signal = run_amsol.process_output('temp.o-wat', 'temp.o-hex', "temp.mol2", "output")#, VERBOSE=VERBOSE)
-                if error_signal == -1: continue
-                break
+                    run_amsol.prepare(f"{name}.mol2", name, netcharge)
+                    error_signal = run_amsol.run('temp.in-hex', 'temp.o-hex', env)
+                    if error_signal == -1: continue
+                    error_signal = run_amsol.run('temp.in-wat', 'temp.o-wat', env)
+                    if error_signal == -1: continue
+                    error_signal = run_amsol.process_output('temp.o-wat', 'temp.o-hex', "temp.mol2", "output")#, VERBOSE=VERBOSE)
+                    if error_signal == -1: continue
+                    break
+                except Exception as e:
+                    error_signal = -1
+                    continue
             os.chdir("../..")
             if error_signal == -1 and conf_id+1 == amsol_mol.GetNumConformers(): # AMSOL failed
                 logger.error(f"AMSOL failed for {name}, skipping it")
@@ -1226,16 +1230,20 @@ def gen_conf_chunk_corina(df: pd.DataFrame, args, input_file='0'):
             
             for conf_id in range(amsol_mol.GetNumConformers()):
                 # Idea: try from the energy minimum conformer if AMSOL fails -> next conformer until reach the last
-                if VERBOSE: print(f"\tTrying conformer: {conf_id}")
-                error_signal = 0
-                run_amsol.prepare(f"{name}.mol2", name, netcharge)
-                error_signal = run_amsol.run('temp.in-hex', 'temp.o-hex', env)
-                if error_signal == -1: continue
-                error_signal = run_amsol.run('temp.in-wat', 'temp.o-wat', env)
-                if error_signal == -1: continue
-                error_signal = run_amsol.process_output('temp.o-wat', 'temp.o-hex', "temp.mol2", "output")#, VERBOSE=VERBOSE)
-                if error_signal == -1: continue
-                break
+                try:
+                    if VERBOSE: print(f"\tTrying conformer: {conf_id}")
+                    error_signal = 0
+                    run_amsol.prepare(f"{name}.mol2", name, netcharge)
+                    error_signal = run_amsol.run('temp.in-hex', 'temp.o-hex', env)
+                    if error_signal == -1: continue
+                    error_signal = run_amsol.run('temp.in-wat', 'temp.o-wat', env)
+                    if error_signal == -1: continue
+                    error_signal = run_amsol.process_output('temp.o-wat', 'temp.o-hex', "temp.mol2", "output")#, VERBOSE=VERBOSE)
+                    if error_signal == -1: continue
+                    break
+                except Exception as e:
+                    error_signal = -1
+                    continue
             os.chdir("../..")
 
             if error_signal == -1 and conf_id+1 == amsol_mol.GetNumConformers(): # AMSOL failed
