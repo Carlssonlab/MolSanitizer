@@ -47,11 +47,13 @@
 [*:1](~[*,#1:5])(~[*,#1:6])=[C:2](-[OH,SH:3])-[N&+0:4]>>[*:1](-[*,#1:5])(-[*,#1:6])-[C:2](=[O&H0,S&H0:3])-[N:4]	enol_to_amide
 [c;!$(c~[#8]):1]1[c;!$(c~[#8]):2][c;!$(c~[#8]):3][c:4]2[nX2:5][nH:6][c;!$(c~[#8]):7][c:8]2[c;!$(c~[#8]):9]1>>[c:1]1[c:2][c:3][c:4]2[nH:5][n&H0:6][c:7][c:8]2[c:9]1	2H-indazole_to_1H
 [c;$(c=O):1]1[nH:2][c:3](-[NX3&+0:4])[c;!$(c~[#8]):5][c;!$(c~[#8]):6][nX2:7]1>>[c:1]1[n&H0:2][c:3](-[N:4])[c:5][c:6][nH:7]1	3H-cytosine_to_1H
-[O:1]=[C:2]-[CX4&!H0;$(C-C#N),$(C(-C=O)(-C=O)-!@C=O):3]>>[OH:1][C:2]=[C;$(C-C#N),$(C(-C=O)(-C=O)-!@C=O):3]	diacyl/cyano-carbonyl_to_enol
+[O:1]=[C;!$(C1[CH1](-!@C(=O)-N)C(=O)[CX4](-N)[CX4][CX4]1):2]-[CX4&!H0;$(C-C#N),$(C(-C=O)(-C=O)-!@C=O):3]>>[OH:1][C:2]=[C;$(C-C#N),$(C(-C=O)(-C=O)-!@C=O):3]	diacyl/cyano-carbonyl_to_enol
 [O,SX2,CX4:1]-@[C:2](=!@[N+0:3])-@[NH:4]>>[O,S,C:1][C:2](-!@[N:3])=[N&H0:4]	exo-imino-oxa/thia/azoline_to_amino
 [c:1]1[nX2:2][c:3](~[SH,SX1:10])[c:4]2[n:5][c;!$(c~O):6][n:7][c:8]2[nH,nX2:9]1>>[c:1]1[nH:2][c:3](=[S&H0:10])[c:4]2[n:5][c:6][n:7][c:8]2[n&H0:9]1	SH/4H-purine_to_2H-thion
 [NX3&+0:1][c:2]1[nX2:3][c:4](-[OH:5])[c;!$(c!@~O):6][o:7]1>>[N:1][C:2]1=[N:3][C:4](=[O&H0:5])[C:6][O:7]1	2-aminooxazole-4-ol_to_on
 [nX3:1]1[nH:2][c;!$(c~O):3][c:4](-[N:5]=[NX2:6])[c;$(c=O):7]1>>[N:1]1[N&H0:2]=[C:3][C:4](=[N:5]-[NH:6])[C:7]1	azopyrazolone_to_hydrazo
 [a:1]-[C&!H0:2]-!@[C:3](=[N;!$(N-[*^2]):4])-[a:5]>>[a:1]-[C:2]=[C:3](-[N:4])-[a:5]	diarylethanimine_to_enamine
-[O:1]=[c:2]1[c;!$(c~O):3][c:4](-[OH:5])[nH:6][c;!$(c~O):7][c;!$(c~O):8]1>>[OH:1][c:2]1[c:3][c:4](=[O&H0:5])[nH:6][c:7][c:8]1	2-OH-4-pyridone_to_4-OH-2-pyridone
+[O:1]=[c:2]1[c;!$(c~O):3][c:4](-[OH:5])[nH:6][c;!$(c~O):7][c;!$(c~O):8]1>>[OH:1][c:2]1[c:3][c:4](=[O&H0:5])[nH:6][c:7][c:8]1  2-OH-4-pyridone_to_4-OH-2-pyridone
 [N&!H0,C&!H0:1]-[*:2]=,:[a:3][a:4]=,:[*:5]-,:[#6:6]=[N;$(N-C=O):7]>>[N:1]=[*:2]-[a:3][a:4]-[*:5]=[#6:6]-[NH:7]	12:34-exo-acylimine
+[nH:1]1[c;!$(c~O):2][nX2:3][nX2:4][c;!$(c~O):5]1>>[n&H0:1]1[c:2][nH:3][n:4][c:5]1	124-triazole_H4-H1
+[c;$(cC(=O)[NH,NH2]),$(cN(=O)O):1]1[nH:2][c;!$(c~O):3][nX2:4][c;!$(c(a)(a)a)!$(c~O):5]1>>[c:1]1[n&H0:2][c:3][nH:4][c:5]1	nitro_amido-imidazole
