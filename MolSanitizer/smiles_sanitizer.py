@@ -4,10 +4,9 @@ import pandas as pd
 
 from rdkit import Chem, RDLogger
 
-from rdkit.Chem import AllChem, SaltRemover
-from rdkit.Chem.Descriptors import MolLogP
+from rdkit.Chem import AllChem
+
 from rdkit.Chem.MolStandardize import rdMolStandardize
-from rdkit.Chem.FilterCatalog import FilterCatalog, FilterCatalogParams
 from rdkit.Chem.EnumerateStereoisomers import EnumerateStereoisomers, StereoEnumerationOptions
 import multiprocessing as mp
 from functools import partial
@@ -144,7 +143,12 @@ class SmilesSanitizer:
         logger.info('Neutralizing molecules...')
         for i, row in df.iterrows():
             try:
-                df.at[i, 'mol'], df.at[i, 'smiles'] = neutralize_atoms(row['mol'], row['smiles'])
+                new_mol, new_smiles = neutralize_atoms(row['mol'], row['smiles'])
+                # Only reassign if the molecule has been changed
+                if new_smiles != row['smiles']: 
+                    df.at[i, 'mol'] = new_mol
+                    df.at[i, 'smiles'] = new_smiles
+            
             except:
                 logger.error(f"Error neutralizing molecule: {Chem.MolToSmiles(row['mol'])}")
                 pass
@@ -503,7 +507,7 @@ class SmilesSanitizer:
 
         return pd.DataFrame(results)
 
-    def Sanitize(self, df: pd.DataFrame, rejected_file) -> pd.DataFrame:
+    def Sanitize(self, df: pd.DataFrame, rejected_file = None) -> pd.DataFrame:
         """
         Sanitize the input DataFrame using the specified filters and rule-based chemical modifications.
         
