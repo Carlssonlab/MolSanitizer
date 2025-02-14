@@ -11,6 +11,7 @@ from rdkit.Chem.EnumerateStereoisomers import EnumerateStereoisomers, StereoEnum
 import multiprocessing as mp
 from functools import partial
 from .filters import Filters
+from .tautomerizer import Tautomerizer
 import logging
 logger = logging.getLogger('molsani')
 RDLogger.DisableLog('rdApp.*') # To disable error messages with kekulizing tautomers from RDKit
@@ -116,7 +117,7 @@ class SmilesSanitizer:
         return reactions
 
     @staticmethod
-    def neutralization(df: pd.DataFrame, debug = False) -> pd.DataFrame:
+    def neutralize_df(df: pd.DataFrame, debug = False) -> pd.DataFrame:
         '''Neutralize the input molecules using the neutralize_atoms() function. 
         Turn on by default if the user trigger the tautomers or protonation flag.'''
         
@@ -153,7 +154,9 @@ class SmilesSanitizer:
                 logger.error(f"Error neutralizing molecule: {Chem.MolToSmiles(row['mol'])}")
                 pass
         return df
+
     
+
     @staticmethod
     def _tautomerize_step1(mol, params):
         """Tautomerize the input molecule using the RDKit TautomerEnumerator class."""
@@ -531,13 +534,18 @@ class SmilesSanitizer:
             return df
         
         if self.tautomers or self.protonation:
-            if self.neutralize: df = SmilesSanitizer.neutralization(df)
-        if self.tautomers: df = SmilesSanitizer.tautomerization(df, taurdkit=self.taurdkit, num_cores=self.numcores, debug=self.debug)
+            if self.neutralize: df = SmilesSanitizer.neutralize_df(df)
+        if self.tautomers: 
+            tautomerizer = Tautomerizer(taurdkit=self.taurdkit, 
+                                        debug=self.debug, 
+                                        neutralize=False,
+                                        numcores=self.numcores) # Already neutralized
+            df = tautomerizer.tautomerize_df(df)
         if self.pains: df = Filters.painsFilter(df, rejectedFile=rejected_file, debug=self.debug)
         if self.unwanted is not None: df = Filters.unwantedFilter(df, rejectedFile=rejected_file, unwanted_option=self.unwanted, debug=self.debug)
         if self.custom is not None: df = Filters.customFilter(df, rejectedFile=rejected_file, smartsFile = self.custom,  debug=self.debug)
         if self.protonation: df = SmilesSanitizer.ionization(df, pH=self.pH, pH_range=self.pH_range, debug=self.debug)
-        if self.stereoisomers: df = SmilesSanitizer.enum_stereoisomers(df, max_isomers=self.max_stereoisomers, debug=self.debug)
+        if self.stereoisomers: df = SmilesSanitizer.enum_stereoisomers(df, max_isomers=self.max_stereoisomers, debug=self.debug, numcores=self.numcores)
         return df
     
 
@@ -584,3 +592,4 @@ def load_reactions(file_path):
                 if smarts:
                     reactions.append([AllChem.ReactionFromSmarts(smarts[0]), smarts[1]])
         return reactions
+
