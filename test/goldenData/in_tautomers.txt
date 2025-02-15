@@ -58,3 +58,8 @@ O=c1cc(O)[nH]cc1Cl	4-ketogimeracil
 COc1c(OCCCN2CCOCC2)ccc2c3n(c(=NC(=O)c4cnc(N)nc4)nc12)CCN3	acylimine-copanlisib
 Clc1[nH]c(C)nn1	4H_triazole
 [nH]1c([N+](=O)[O-])c(nc1)	4-nitro-3-imidazole
+[nH]1c(Cl)c(nc1)C	enum_imidazole
+[nH]1c(C)c(nc1)C(=O)NN=Cc2ccccc2	imidazole_hydrazone
+c1c(Cl)c(n[nH]1)C	enum_pyrazole
+Clc1nc(C)n[nH]1	enum_124-triazole
+O=c1[nH]c(C)ccn1    enum_2-pyrimidone
