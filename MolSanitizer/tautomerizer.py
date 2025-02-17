@@ -219,60 +219,65 @@ class Tautomerizer:
         unique_tautomers = self.enumerate(standardized_mol)
         return unique_tautomers
     
-    def tautomerize_df(self, df: pd.DataFrame,
-                    smiles_column: str = 'smiles',
-                    mol_column: str = 'mol',
-                    name_column: str = 'ids') -> pd.DataFrame:
+    def tautomerize_df_mp(self, 
+                          df: pd.DataFrame,
+                          smiles_column: str = 'smiles',
+                          mol_column: str = 'mol',
+                          name_column: str = 'ids') -> pd.DataFrame:
         """
-        Tautomerize a dataframe of molecules using multiprocessing.
-
-        Args:
-            df (pd.DataFrame): The input dataframe containing the molecules.
-            smiles_column (str): The name of the column containing SMILES strings.
-            mol_column (str): The name of the column containing RDKit molecule objects.
-            name_column (str): The name of the column containing molecule names.
-
-        Returns:
-            pd.DataFrame: The expanded dataframe with tautomers.
+        Tautomerize a dataframe of molecules using multiprocessing with chunked processing.
         """
-
-        # Ensure mol_column is populated
         if mol_column not in df.columns:
             df[mol_column] = df[smiles_column].apply(Chem.MolFromSmiles)
 
-        # Create a partial function to pass self and other parameters
-        process_func = partial(_process_tautomer, tautomerizer=self,
-                            smiles_column=smiles_column,
-                            mol_column=mol_column,
-                            name_column=name_column)
+        num_cores = min(self.numcores, len(df))  # Avoid using more cores than data chunks
+        chunks = [df.iloc[i::num_cores] for i in range(num_cores)]
+
+        process_func = partial(_process_tautomer_rows, tautomerizer=self,
+                               smiles_column=smiles_column,
+                               mol_column=mol_column,
+                               name_column=name_column)
 
         results = []
-        
-        # Use multiprocessing Pool
-        num_cores = self.numcores if self.numcores > 1 else 1  # Ensure at least 1 core
         with mp.Pool(processes=num_cores) as pool:
-            # Submit tasks asynchronously
-            async_results = [pool.apply_async(process_func, (row,)) for _, row in df.iterrows()]
+            async_results = [pool.apply_async(process_func, (chunk,)) for chunk in chunks]
 
-            # Collect results
             for async_result in async_results:
                 try:
-                    results.extend(async_result.get(timeout=60))  # Get result with a timeout
-                except mp.TimeoutError:
-                    logger.warning("Timeout occurred while tautomerizing a molecule. Skipping.")
+                    results.extend(async_result.get())  # Timeout for safety
                 except Exception as e:
-                    logger.error(f"Error processing a molecule: {str(e)}")
+                    logger.error(f"Error processing a tautomer batch: {str(e)}")
 
         return pd.DataFrame(results)
 
+    def tautomerize_df(self, 
+                       df: pd.DataFrame,
+                       smiles_column: str = 'smiles',
+                       mol_column: str = 'mol',
+                       name_column: str = 'ids') -> pd.DataFrame:
+        """
+        Tautomerize a dataframe of molecules using multiprocessing or single-core based on `num_cores`.
+        """
+        if df.empty:
+            return df
 
-def _process_tautomer(row, tautomerizer, smiles_column, mol_column, name_column):
-        """ A helper to pickle and run tautomer enumeration in multiprocessing """
+        if self.numcores > 1:
+            return self.tautomerize_df_mp(df, smiles_column, mol_column, name_column)
+        else:
+            return pd.DataFrame(_process_tautomer_rows(df, self, smiles_column, mol_column, name_column))
+
+                       
+
+def _process_tautomer_rows(df, tautomerizer, smiles_column, mol_column, name_column):
+    """
+    Common function to process tautomerization for both single-core and multiprocessing.
+    """
+    results = []
+    for _, row in df.iterrows():
         mol = row[mol_column]
         highlights = row.get('highlights', None)
         tautomers_smiles = tautomerizer.tautomerize(mol=mol)
 
-        results = []
         if len(tautomers_smiles) == 1:
             results.append({name_column: row[name_column],
                             mol_column: Chem.MolFromSmiles(tautomers_smiles[0]),
@@ -281,11 +286,12 @@ def _process_tautomer(row, tautomerizer, smiles_column, mol_column, name_column)
         else:
             two_digits = len(tautomers_smiles) >= 10
             for i, tautomer in enumerate(tautomers_smiles):
-                results.append({name_column: row[name_column] + '_' + (f"{i+1:02}" if two_digits else f"{i+1}"),
+                results.append({name_column: f"{row[name_column]}_{i+1:02}" if two_digits else f"{row[name_column]}_{i+1}",
                                 mol_column: Chem.MolFromSmiles(tautomer),
                                 smiles_column: tautomer,
                                 'highlights': highlights})
-        return results
+
+    return results
 
 def main():
     parser = argparse.ArgumentParser(description='Tautomerize a molecule')
