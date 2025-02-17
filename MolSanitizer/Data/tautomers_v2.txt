@@ -58,10 +58,10 @@ diarylethanimine_to_enamine	0	[a:1]-[C&!H0:2]-!@[C:3](=[N;!$(N-[*^2]):4])-[a:5]>
 12:34-exo-acylimine	0	[N&!H0,C&!H0:1]-[*:2]=,:[a:3][a:4]=,:[*:5]-,:[#6:6]=[N;$(N-C=O):7]>>[N:1]=[*:2]-[a:3][a:4]-[*:5]=[#6:6]-[NH:7]	PDB_5G2N
 124-triazole_H4-H1	0	[nH:1]1[c;!$(c~[OX1,OH]):2][nX2:3][nX2:4][c;!$(c~[OX1,OH]):5]1>>[n&H0:1]1[c:2][nH:3][n:4][c:5]1	10.1007/s11224-022-02057-0
 nitro_amido-imidazole	0	[c;$(cC(=O)[NH,NH2]),$(cN(=O)O):1]1[nH:2][c;!$(c~[OX1,OH]):3][nX2:4][c;!$(c(a)(a)a)!$(c~[OX1,OH]):5]1>>[c:1]1[n&H0:2][c:3][nH:4][c:5]1	10.3390/molecules28020838
-nitro_amido-pyrazole	0	[c;$(cC(=O)[NH,NH2]),$(cN(=O)O):1]1[nH:2][nX2:3][c;!$(c(:a)(:a):a)!$(c~[OX1,OH]):4][c;!$(c(:a)(:a):a)!$(c~[OX1,OH]):5]1>>[c:1]1[n&H0:2][nH:3][c:4][c:5]1	10.3390/molecules24142632
+nitro_amido-pyrazole	0	[c;$(cC(=O)),$(cN(=O)O):1]1[nH:2][nX2:3][c;!$(c(:a)(:a):a)!$(c~[OX1,OH]):4][c;!$(c(:a)(:a):a)!$(c~[OX1,OH]):5]1>>[c:1]1[n&H0:2][nH:3][c:4][c:5]1	10.3390/molecules24142632
 NH-pyrazolone_to_CH-pyrazolone	0	[nX3:1]1[nH:2][c;!$(c~[OX1,OH]):3][c&H0;!$(c~[OX1,OH])!$(c-N=[NX2]):4][c;$(c=O):5]1>>[N:1]1[N&H0:2]=[C:3][CH1:4][C:5]1
 NH-pyrazolone_to_CH2-pyrazolone	0	[nX3:1]1[nH:2][c;!$(c~[OX1,OH]):3][cH1;!$(c~[OX1,OH])!$(c-N=[NX2]):4][c;$(c=O):5]1>>[N:1]1[N&H0:2]=[C:3][CH2:4][C:5]1
 imidazole   1   [c;!$(c(:a)(:a):a)!$(c~[OX1,OH])!$(cC(=O)[NH,NH2])!$(cN(=O)O):1]1[nX2:2][c;!$(c~[OX1,OH]):3][nH&+0:4][c;!$(c(:a)(:a):a)!$(c~[OX1,OH]):5]1>>[c:1]1[nH:2][c:3][n&H0:4][c:5]1	10.3390/molecules28020838
-pyrazole   1   [c;!$(c(:a)(:a):a)!$(c~[OX1,OH]):1]1[c;!$(c(:a)(:a):a)!$(c~[OX1,OH])!$(cC(=O)[NH,NH2])!$(cN(=O)O):2][nX2:3][nH&+0:4][c;!$(c(:a)(:a):a)!$(c~[OX1,OH]):5]1>>[c:1]1[c:2][nH:3][n&H0:4][c:5]1	10.3390/molecules24142632
+pyrazole   1   [c;!$(c(:a)(:a):a)!$(c~[OX1,OH]):1]1[c;!$(c(:a)(:a):a)!$(c~[OX1,OH])!$(cC=O)!$(cN(=O)O):2][nX2:3][nH&+0:4][c;!$(c(:a)(:a):a)!$(c~[OX1,OH])!$(cC=O)!$(cN(=O)O):5]1>>[c:1]1[c:2][nH:3][n&H0:4][c:5]1	10.3390/molecules24142632
 124-triazole_H1-H2   1   [nX2:1]1[c;!$(c~[OX1,OH]):2][nX2:3][nH&+0:4][c;!$(c~[OX1,OH]):5]1>>[n:1]1[c:2][nH:3][n&H0:4][c:5]1	10.1002/mrc.1260241013,10.1007/s11224-022-02057-0
 pyrimidinone_H1-H3   1   [c;!$(c(:a)(:a):a)!$(c~[OX1,OH])!$(c-[NX3&+0]):1]1[nX2:2][c:3](=[O:7])[nH&+0:4][c;!$(c(:a)(:a):a)!$(c~[OX1,OH]):5][c;!$(c(:a)(:a):a)!$(c~[OX1,OH]):6]1>>[c:1]1[nH:2][c:3](=[O:7])[n&H0:4][c:5][c:6]1
