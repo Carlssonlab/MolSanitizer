@@ -42,6 +42,7 @@ class Tautomerizer:
         Print debug message
 
     Example use:
+    ----------
     
     >>> from MolSanitizer.tautomerizer import Tautomerizer\n
     >>> tautomerizer = Tautomerizer(numcores= 4, neutralize= False)\n
@@ -138,7 +139,7 @@ class Tautomerizer:
         for name, _, rxn in self.standardizing_reactions:
             rxn.Initialize()
             while mol.HasSubstructMatch(rxn.GetReactantTemplate(0)):
-                if self.debug: print(f"Applying {name} to {Chem.MolToSmiles(mol)}")
+                if self.debug: print(f"\tApplying {name} to {Chem.MolToSmiles(mol)}")
                 new_mol = rxn.RunReactants((mol,))[0][0]
                 error = Chem.SanitizeMol(new_mol, catchErrors=True)
                 if error == 0:
@@ -166,6 +167,7 @@ class Tautomerizer:
                 current_mol = Chem.MolFromSmiles(current_smiles)
                 products = rxn.RunReactants((current_mol,))
                 if products:
+                    if self.debug: print(f"\tApplying {name} to {current_smiles}")
                     for product in products:
                         new_mol = product[0]
                         error = Chem.SanitizeMol(new_mol, catchErrors=True)
@@ -213,7 +215,7 @@ class Tautomerizer:
         # Step 2: Standardize the molecule
         standardized_mol = self.standardize(mol)
         if self.debug:
-            print(f"Standardized to {Chem.MolToSmiles(standardized_mol)}")
+            print(f"\tStandardized to {Chem.MolToSmiles(standardized_mol)}")
         unique_tautomers = self.enumerate(standardized_mol)
         return unique_tautomers
     
@@ -285,12 +287,13 @@ def _process_tautomer(row, tautomerizer, smiles_column, mol_column, name_column)
                                 'highlights': highlights})
         return results
 
-
-if __name__=="__main__":
+def main():
     parser = argparse.ArgumentParser(description='Tautomerize a molecule')
     parser.add_argument('-i', '--input', default=None, type=str, help='Input file containing SMILES strings and names')
     parser.add_argument('-s', '--smiles', default=None, type=str, help='SMILES string of the molecule')
     parser.add_argument('-d', '--debug', action='store_true', help='Enable debug mode')
+    parser.add_argument('-o', '--output', default='tautomers_output.smi', type=str, help='Output file')
+    parser.add_argument('-j', '--numcores', default=4, type=int, help='Number of cores to use for multiprocessing')
     args = parser.parse_args()
     if args.smiles and args.input:
         raise ValueError("Either SMILES or input file must be provided.")
@@ -301,4 +304,8 @@ if __name__=="__main__":
     elif args.input:
         df = pd.read_csv(args.input, names = ['smiles', 'ids'], sep = r'\s+', header=None)
         tautomers = tautomerizer.tautomerize_df(df)
-        tautomers[['smiles', 'ids']].to_csv('tautomers_output.smi', header=False, sep = ' ', index=False)
+        tautomers[['smiles', 'ids']].to_csv(args.output, header=False, sep = ' ', index=False)
+
+
+if __name__=="__main__":
+    main()
