@@ -48,7 +48,7 @@ class TestMolSanitizer(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             args = self.generate_mock_arguments([f'{self.path}/in_tautomers.txt'], ['tautomers', 'test'], temp_dir)
             molSanitizer.clean_data(args)
-            self.compareFiles(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_tautomers.txt')
+            self.compare_relative(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_tautomers.txt')
 
     def test_painsfilter(self):
         with tempfile.TemporaryDirectory() as temp_dir:
