@@ -57,8 +57,7 @@ class Ionizer:
         self.enumerating_rules = self.rules[self.rules['Enumerate'] == 1]['FUNCTIONAL_GROUP'].to_list()
         self.neutralize = neutralize
         if self.debug: 
-            print(f'Loaded {len(self.rules)} protonation rules')
-            print(f'In these, {len(self.enumerating_rules)} rules are enumerating')
+            print(f'Loaded {len(self.rules)} protonation rules. Of these, {len(self.enumerating_rules)} rules are enumerating')
 
 
         self.pH_values = (self.pH,) if self.pH_range == 0\
@@ -134,7 +133,7 @@ class Ionizer:
             return Chem.MolFromSmiles(smiles)
         else: return mol
 
-    def recursive_reaction(self, mol, reactions, collection, visited=None, debug=False):
+    def recursive_reaction(self, mol, reactions, collection, visited=None):
         """
         Recursively apply reactions to the molecule until no new products are generated.
 
@@ -143,8 +142,7 @@ class Ionizer:
             reactions (list): A list of reactions in the form [(rdkit.Chem.rdChem.Reaction object, name), ...].
             collection (set): A set of unique products (in SMILES) generated from the reaction.
             visited (set): A set of SMILES strings for molecules already processed to avoid redundancy.
-            debug (bool): Enable debug logging.
-
+            
         Returns:
             set: A set of unique products (in SMILES) generated from the reaction.
         """
@@ -165,8 +163,8 @@ class Ionizer:
             outcomes = rxn.RunReactants((mol,))
             if outcomes:  # Check if there are any outcomes            
                 reactive = True
-                if debug:
-                    print(f"\tApplying reaction: {name} to {Chem.MolToSmiles(mol)}")
+                if self.debug:
+                    print(f"\tApplying reaction {name} to {Chem.MolToSmiles(mol)}")
                 if name in self.enumerating_rules:
                     for outcome in outcomes:
                         product = outcome[0]
@@ -174,9 +172,9 @@ class Ionizer:
                             error = Chem.SanitizeMol(product, catchErrors=True)
                             if error == 0:
                                 last_successful_smiles = Chem.MolToSmiles(product)
-                                self.recursive_reaction(product, reactions, collection, visited, debug)
+                                self.recursive_reaction(product, reactions, collection, visited)
                             else:
-                                if debug: print(f"Sanitization error for molecule: {Chem.MolToSmiles(product)}")
+                                if self.debug: print(f"Sanitization error for molecule: {Chem.MolToSmiles(product)}")
                                 reactive = False
                                 continue
                         except Exception as e:
@@ -187,9 +185,9 @@ class Ionizer:
                         error = Chem.SanitizeMol(product, catchErrors=True)
                         if error == 0:
                             last_successful_smiles = Chem.MolToSmiles(product)
-                            self.recursive_reaction(product, reactions, collection, visited, debug)
+                            self.recursive_reaction(product, reactions, collection, visited)
                         else:
-                            if debug: print(f"Sanitization error for molecule: {Chem.MolToSmiles(product)}")
+                            if self.debug: print(f"Sanitization error for molecule: {Chem.MolToSmiles(product)}")
                             reactive = False
                             continue
                     except Exception as e:
@@ -224,6 +222,7 @@ class Ionizer:
 
         variation_sets = set()
         for pH in self.pH_values:
+            if self.debug: print('Processing pH:', pH)
             variations = list(self.recursive_reaction(mol, self.rules_across_pH[pH], set()))
             variation_sets.update(variations)
         return list(variation_sets)
@@ -308,7 +307,7 @@ def _process_ionization_rows(df, ionizer, smiles_column, mol_column, name_column
     return results
 
 def main():
-    parser = argparse.ArgumentParser(description='Tautomerize a molecule')
+    parser = argparse.ArgumentParser(description='Protonate a molecule')
     parser.add_argument('-i', '--input', default=None, type=str, help='Input file containing SMILES strings and names')
     parser.add_argument('-s', '--smiles', default=None, type=str, help='SMILES string of the molecule')
     parser.add_argument('-p', '--pH', default=7, type=int, help='pH value to use for ionization')
