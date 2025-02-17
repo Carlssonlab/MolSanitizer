@@ -50,7 +50,7 @@ def arguments(args):
 
     if args.tautomers:
         logger.info(f"Tautomers enumeration: {args.tautomers}")
-        smartsFile = Path(__file__).parent / 'Data' / 'tautomers.txt'
+        smartsFile = Path(__file__).parent / 'Data' / 'tautomers_v2.txt'
         temp_df = loadSMARTSdata(smartsFile.resolve())
         logger.info(f'Parsed {len(temp_df)} tautomerization rules from: {smartsFile}')
 

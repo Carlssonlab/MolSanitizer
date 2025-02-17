@@ -12,6 +12,7 @@ import multiprocessing as mp
 from functools import partial
 from .filters import Filters
 from .tautomerizer import Tautomerizer
+from .ionizer import Ionizer
 import logging
 logger = logging.getLogger('molsani')
 RDLogger.DisableLog('rdApp.*') # To disable error messages with kekulizing tautomers from RDKit
@@ -35,10 +36,6 @@ class SmilesSanitizer:
 
     """
     tautomer_params = None  # Define as a class variable
-    enumerating_reactions = [
-    'amine', 'vinylog_acid', 'squaric_acid', 'vinyl_acid', 'vanillin_like',
-    'hydrazine', 'p-phenyldiamine', 'biguanides', 'cycloguanil-like'
-    ]
 
     def __init__(self, 
                 removesalts=False,
@@ -155,256 +152,6 @@ class SmilesSanitizer:
                 pass
         return df
 
-    
-
-    @staticmethod
-    def _tautomerize_step1(mol, params):
-        """Tautomerize the input molecule using the RDKit TautomerEnumerator class."""
-        te = rdMolStandardize.TautomerEnumerator(params)
-
-        try:
-            canonical_tautomer = te.Canonicalize(mol)
-            if te.ScoreTautomer(mol) == te.ScoreTautomer(canonical_tautomer):
-                return mol
-        except Exception:
-            logger.info(f"Error tautomerizing molecule: {Chem.MolToSmiles(mol)}")
-            return mol
-        return canonical_tautomer
-
-    @staticmethod
-    def _process_molecule_tautomer( row, reactions, taurdkit, debug=False):
-        """Process individual molecule: tautomerize and clean with SMARTS reactions."""
-        if taurdkit:
-            # Step 1: Use RDKit TautomerEnumerator to canonicalize the input molecule
-            rdkit_canonical = SmilesSanitizer._tautomerize_step1(row['mol'], SmilesSanitizer.tautomer_params)
-            initial_chiral_centers = len(Chem.FindMolChiralCenters(row['mol']))
-            rdkit_chiral_centers = len(Chem.FindMolChiralCenters(rdkit_canonical))
-            mol = row['mol'] if rdkit_chiral_centers < initial_chiral_centers else rdkit_canonical
-
-            if debug:
-                print(f"Using RDKit tautomerizer for {row['ids']}...\n\tTurned to {Chem.MolToSmiles(mol)}")
-        else:
-            mol = row['mol']
-
-        if debug:
-            logger.info(f"Processing tautomer: {row['ids']}, {Chem.MolToSmiles(mol)}")
-
-        # Step 2: Apply corrections
-        updates = list(SmilesSanitizer.recursive_reaction(mol, reactions, set(), set(), debug))
-        updated_rows = []
-        highlights = row.get('highlights', None)
-
-        if len(updates) == 1:
-            updated_rows.append({'smiles': updates[0],
-                                 'ids': row['ids'],
-                                 'mol': Chem.MolFromSmiles(updates[0]),
-                                 'highlights': highlights})
-        else:
-            two_digits = len(updates) >= 10
-            for i, update in enumerate(updates):
-                updated_rows.append({
-                    'smiles': update,
-                    'ids': row['ids'] + '_' + (f"{i+1:02}" if two_digits else f"{i+1}"),
-                    'mol': Chem.MolFromSmiles(update),
-                    'highlights': highlights
-                })
-
-        return updated_rows
-
-    @staticmethod
-    def tautomerization(df: pd.DataFrame, taurdkit=True, num_cores=4, debug=False) -> pd.DataFrame:
-        """
-        High-level method for tautomers enumeration. Encapsulates all tautomerization logic.
-        """
-        smartsFile = Path(__file__).parent / 'Data' / 'tautomers.txt'
-        reactions = SmilesSanitizer.load_reactions(smartsFile)
-
-        # Parallel processing setup
-        process_func = partial(SmilesSanitizer._process_molecule_tautomer, reactions=reactions, taurdkit=taurdkit, debug=debug)
-        results = []
-
-        with mp.Pool(processes=num_cores) as pool:
-            # Submit all tasks to the pool in parallel
-            async_results = [(row, pool.apply_async(process_func, (row,))) for _, row in df.iterrows()]
-
-            # Collect results as they complete
-            for row_data, async_result in async_results:
-                try:
-                    chunk_result = async_result.get(timeout=60)
-                    results.extend(chunk_result)
-                except (mp.TimeoutError, Exception) as e:
-                    # Handle exceptions during processing
-                    if isinstance(e, mp.TimeoutError):
-                        logger.warning(f"Timeout occurred for compound {row_data['ids']}. Using original molecule.")
-                    else:
-                        logger.error(f"Error processing compound {row_data['ids']}: {str(e)}. Using original molecule.")
-
-                    highlights = row_data.get('highlights', None)
-                    results.append({
-                        'smiles': row_data['smiles'],
-                        'ids': row_data['ids'],
-                        'mol': row_data['mol'],
-                        'highlights': highlights
-                    })
-
-        return pd.DataFrame(results)
-
-    
-    
-    @staticmethod
-    def load_protonation_rules(file_path):
-        '''
-        Load the protonation rules from a file containing SMARTS strings.'''
-
-        rules = pd.read_csv(file_path, sep=r"\s+")
-        rules['Mol'] = rules['REACTION'].apply(lambda x: AllChem.ReactionFromSmarts(x))
-        return rules
-
-    @staticmethod
-    def extract_necessary_rules(rule_library, pH):
-        """
-        Processes ionization rules from a file and filters them based on pH.
-        
-        Parameters:
-            file_path (str): Path to the ionization rules file.
-            pH (float): The pH value to filter the rules.
-            
-        Returns:
-            pd.DataFrame: Filtered rules based on the pH.
-        """
-
-
-        # Filter based on pH for ACID and BASE rules
-        filtered_rules = rule_library[
-            ((rule_library['TYPE'] == 'ACID') & (rule_library['pKa'] < pH)) |
-            ((rule_library['TYPE'] == 'BASE') & (rule_library['pKa'] > pH))
-        ]
-
-        reaction_list = []
-
-        for i, row in filtered_rules.iterrows():
-            reaction_list.append((row['Mol'], row['FUNCTIONAL_GROUP']))
-        logger.info(f'Parsed {len(reaction_list)} rules for pH {pH}')    
-        return reaction_list
-
-    @staticmethod
-    def recursive_reaction(mol, reactions, collection, visited=None, debug=False):
-        """
-        Recursively apply reactions to the molecule until no new products are generated.
-
-        Args:
-            mol (rdkit.Chem.rdchem.Mol): The reactant molecule.
-            reactions (list): A list of reactions in the form [(rdkit.Chem.rdChem.Reaction object, name), ...].
-            collection (set): A set of unique products (in SMILES) generated from the reaction.
-            visited (set): A set of SMILES strings for molecules already processed to avoid redundancy.
-            debug (bool): Enable debug logging.
-
-        Returns:
-            set: A set of unique products (in SMILES) generated from the reaction.
-        """
-        if visited is None:
-            visited = set()
-        
-        mol_smiles = Chem.MolToSmiles(mol)
-        last_successful_smiles = mol_smiles  # Keep track of the last valid molecule
-        
-        # Check if the molecule has already been visited
-        if mol_smiles in visited:
-            return collection  # Skip redundant processing
-
-        visited.add(mol_smiles)  # Mark the molecule as visited
-
-        reactive = False
-        for rxn, name in reactions:
-            outcomes = rxn.RunReactants((mol,))
-            if outcomes:  # Check if there are any outcomes            
-                reactive = True
-                if debug:
-                    print(f"\tApplying reaction: {name} to {Chem.MolToSmiles(mol)}")
-                if name in SmilesSanitizer.enumerating_reactions:
-                    for outcome in outcomes:
-                        product = outcome[0]
-                        try:
-                            error = Chem.SanitizeMol(product, catchErrors=True)
-                            if error == 0:
-                                last_successful_smiles = Chem.MolToSmiles(product)
-                                SmilesSanitizer.recursive_reaction(product, reactions, collection, visited, debug)
-                            else:
-                                if debug: print(f"Sanitization error for molecule: {Chem.MolToSmiles(product)}")
-                                reactive = False
-                                continue
-                        except Exception as e:
-                            logger.info(f"Error sanitizing molecule: {Chem.MolToSmiles(product)}. Exception: {e}")
-                else:
-                    product = outcomes[0][0]
-                    try:
-                        error = Chem.SanitizeMol(product, catchErrors=True)
-                        if error == 0:
-                            last_successful_smiles = Chem.MolToSmiles(product)
-                            SmilesSanitizer.recursive_reaction(product, reactions, collection, visited, debug)
-                        else:
-                            if debug: print(f"Sanitization error for molecule: {Chem.MolToSmiles(product)}")
-                            reactive = False
-                            continue
-                    except Exception as e:
-                        logger.info(f"Error sanitizing molecule: {Chem.MolToSmiles(product)}. Exception: {e}")
-        
-        if not reactive: 
-            collection.add(last_successful_smiles)  # Add the last valid molecule if it is not reactive
-        return collection  # Return the collection of products
-
-    def ionization(df: pd.DataFrame, pH: int = 7, pH_range: int = 0, debug = False) -> pd.DataFrame:
-        """Protonate the input molecules using a set of predefined reactions.
-        The reactions are stored in a file with the following format:
-        SMARTS reactants >> products [name]
-        Default file: MolSanitizer/Data/ionizations_v2.txt
-
-        Args:
-            df (pd.DataFrame): Input DataFrame with 'mol' column containing RDKit molecule objects.
-            pH (int, optional): The pH value to use for protonation. Defaults to 7.
-            pH_range (int, optional): The range of pH values to consider. Defaults to 0.
-            debug (bool, optional): Debug mode. Defaults to False.
-
-        Returns:
-            pd.DataFrame: A new DataFrame chunk with protonated molecules.
-        """
-        # Get the absolute path to the template SMARTS file using pathlib
-        smartsFile = Path(__file__).parent / 'Data' / 'ionizations_v2.txt'
-
-        # Load reactions from file
-        rule_library = SmilesSanitizer.load_protonation_rules(smartsFile)
-        pH_values = (pH,) if pH_range == 0\
-                    else (max(0, pH - pH_range), pH, min(14, pH + pH_range))
-
-        all_rules = {}
-        for pH in pH_values:
-            rules = SmilesSanitizer.extract_necessary_rules(rule_library, pH)
-            all_rules[pH] = rules
-        # Apply reactions to each SMILES in the DataFrame
-        charged_df = []
-        for _, row in df.iterrows():
-            if debug: print(f"Protonating: {row['ids']}, {Chem.MolToSmiles(row['mol'])}")
-            variation_sets = set() 
-            highlights = row.get('highlights', None)   
-            for pH in pH_values:
-                variations = list(SmilesSanitizer.recursive_reaction(row['mol'], all_rules[pH], set()))
-                variation_sets.update(variations)
-            if (len(variation_sets) == 1): 
-                charged_df.append(
-                    {'smiles': list(variation_sets)[0], 
-                    'ids': row['ids'],
-                    'mol': Chem.MolFromSmiles(list(variation_sets)[0]),
-                    'highlights': highlights})
-            else:
-                for i, variation in enumerate(variation_sets):
-                    charged_df.append({
-                        'smiles': variation,
-                        'ids': row['ids']+'_'+str(i+1),
-                        'mol': Chem.MolFromSmiles(variation),
-                        'highlights': highlights
-                    })
-        return pd.DataFrame(charged_df)
-    
     @staticmethod
     def _generate_stereoisomers(mol, max_isomers):
         """
@@ -544,7 +291,14 @@ class SmilesSanitizer:
         if self.pains: df = Filters.painsFilter(df, rejectedFile=rejected_file, debug=self.debug)
         if self.unwanted is not None: df = Filters.unwantedFilter(df, rejectedFile=rejected_file, unwanted_option=self.unwanted, debug=self.debug)
         if self.custom is not None: df = Filters.customFilter(df, rejectedFile=rejected_file, smartsFile = self.custom,  debug=self.debug)
-        if self.protonation: df = SmilesSanitizer.ionization(df, pH=self.pH, pH_range=self.pH_range, debug=self.debug)
+        if self.protonation: 
+            ionizer = Ionizer(pH = self.pH,
+                              pH_range = self.pH_range,
+                              num_cores=self.numcores,
+                              neutralize=False,
+                              debug=self.debug)
+            df = ionizer.ionize_df(df)
+            
         if self.stereoisomers: df = SmilesSanitizer.enum_stereoisomers(df, max_isomers=self.max_stereoisomers, debug=self.debug, numcores=self.numcores)
         return df
     

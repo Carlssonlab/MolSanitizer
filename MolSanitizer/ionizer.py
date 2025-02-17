@@ -230,93 +230,106 @@ class Ionizer:
 
 
 
-    def ionize_df(self,
-                df: pd.DataFrame,
-                smiles_column: str = 'smiles',
-                name_column: str = 'ids',
-                mol_column: str = 'mol') -> pd.DataFrame:
+ 
+    def ionize_df_mp(self,
+                     df: pd.DataFrame,
+                     smiles_column: str = 'smiles',
+                     name_column: str = 'ids',
+                     mol_column: str = 'mol') -> pd.DataFrame:
         """
-        Protonate the input molecules using multiprocessing.
-
-        Args:
-            df (pd.DataFrame): Input DataFrame with 'mol' column containing RDKit molecule objects.
-            smiles_column (str): The name of the column containing SMILES strings.
-            mol_column (str): The name of the column containing RDKit molecule objects.
-            name_column (str): The name of the column containing molecule names.
-
-        Returns:
-            pd.DataFrame: The expanded DataFrame with protonated molecules.
+        Protonate the input molecules using multiprocessing with chunked DataFrame processing.
         """
         # Ensure mol_column exists
         if mol_column not in df.columns:
             df[mol_column] = df[smiles_column].apply(Chem.MolFromSmiles)
 
+        # Determine number of cores
+        num_cores = min(self.num_cores, len(df))  # Prevent using more cores than data chunks
+
+        # Split DataFrame into chunks
+        chunks = [df.iloc[i::num_cores] for i in range(num_cores)]
+
         # Create a partial function for multiprocessing
-        process_func = partial(_process_ionization, ionizer=self,
-                            smiles_column=smiles_column,
-                            mol_column=mol_column,
-                            name_column=name_column)
+        process_func = partial(_process_ionization_rows, ionizer=self,
+                               smiles_column=smiles_column,
+                               mol_column=mol_column,
+                               name_column=name_column)
 
         results = []
-
-        # Use multiprocessing Pool
-        num_cores = self.num_cores if self.num_cores > 1 else 1  # Ensure at least 1 core
         with mp.Pool(processes=num_cores) as pool:
-            # Submit tasks asynchronously
-            async_results = [pool.apply_async(process_func, (row,)) for _, row in df.iterrows()]
+            async_results = [pool.apply_async(process_func, (chunk,)) for chunk in chunks]
 
-            # Collect results
             for async_result in async_results:
                 try:
-                    results.extend(async_result.get(timeout=60))  # Get result with a timeout
-                except mp.TimeoutError:
-                    logger.warning("Timeout occurred while ionizing a molecule. Skipping.")
+                    results.extend(async_result.get())  # Timeout for safety
                 except Exception as e:
-                    logger.error(f"Error processing a molecule: {str(e)}")
+                    logger.error(f"Error processing a molecule batch: {str(e)}")
 
         return pd.DataFrame(results)
-
-
-
-def _process_ionization(row, ionizer, smiles_column, mol_column, name_column):
-    """ A helper to pickle and run ionization in multiprocessing """
     
-    mol = row[mol_column]
-    highlights = row.get('highlights', None)
-    protonated_smiles = ionizer.ionize(mol=mol)
+    def ionize_df(self, 
+                  df: pd.DataFrame,
+                  smiles_column: str = 'smiles',
+                  name_column: str = 'ids',
+                  mol_column: str = 'mol') -> pd.DataFrame:
+        """
+        Protonate the input molecules using multiprocessing or single core based on `num_cores`.
+        """
+        if len(df) == 0:
+            return df
+        if self.num_cores > 1:
+            return self.ionize_df_mp(df, smiles_column, name_column, mol_column)
+        else:
+            return pd.DataFrame(_process_ionization_rows(df, self, smiles_column, mol_column, name_column))
 
+
+def _process_ionization_rows(df, ionizer, smiles_column, mol_column, name_column):
+    """
+    Common function to process ionization for both single-core and multiprocessing.
+    """
     results = []
-    if len(protonated_smiles) == 1:
-        results.append({name_column: row[name_column],
-                        mol_column: Chem.MolFromSmiles(protonated_smiles[0]),
-                        smiles_column: protonated_smiles[0],
-                        'highlights': highlights})
-    else:
-        for i, smile in enumerate(protonated_smiles):
-            results.append({name_column: f"{row[name_column]}_{i+1}",
-                            mol_column: Chem.MolFromSmiles(smile),
-                            smiles_column: smile,
-                            'highlights': highlights})
+    for _, row in df.iterrows():
+        highlights = row.get('highlights', None)
+        protonated_smiles = ionizer.ionize(mol=row[mol_column])
 
+        if len(protonated_smiles) == 1:
+            results.append({name_column: row[name_column],
+                            mol_column: Chem.MolFromSmiles(protonated_smiles[0]),
+                            smiles_column: protonated_smiles[0],
+                            'highlights': highlights})
+        else:
+            two_digits = len(protonated_smiles) >= 10
+            for i, smile in enumerate(protonated_smiles):
+                results.append({name_column: f"{row[name_column]}_{i+1:02}" if two_digits else f"{row[name_column]}_{i+1}",
+                                mol_column: Chem.MolFromSmiles(smile),
+                                smiles_column: smile,
+                                'highlights': highlights})
+    
     return results
 
-if __name__ == '__main__':
+def main():
     parser = argparse.ArgumentParser(description='Tautomerize a molecule')
     parser.add_argument('-i', '--input', default=None, type=str, help='Input file containing SMILES strings and names')
     parser.add_argument('-s', '--smiles', default=None, type=str, help='SMILES string of the molecule')
     parser.add_argument('-p', '--pH', default=7, type=int, help='pH value to use for ionization')
     parser.add_argument('-r', '--pH_range', default=2, type=int, help='Range of pH values to consider for ionization')
     parser.add_argument('-d', '--debug', action='store_true', help='Enable debug mode')
+    parser.add_argument('-j', '--num_cores', default=4, type=int, help='Number of cores to use for multiprocessing')
+    parser.add_argument('-o', '--output', default='protonated_molecules.smi', type=str, help='Output file to save protonated molecules')
     args = parser.parse_args()
     if args.smiles and args.input:
         raise ValueError("Either SMILES or input file must be provided.")
 
-    ionizer = Ionizer(pH = args.pH, pH_range = args.pH_range, debug = args.debug)
+    ionizer = Ionizer(pH = args.pH, 
+                      pH_range = args.pH_range, 
+                      num_cores = args.num_cores,
+                      debug = args.debug)
     if args.smiles:
         print(ionizer.ionize(smiles = args.smiles))
     else:
         df = pd.read_csv(args.input, sep =r'\s+', header=None, names=['smiles', 'ids'])
         ionized_df = ionizer.ionize_df(df)
-        ionized_df[['smiles', 'ids']].to_csv('protonated_molecules.smi', index=False, header=False, sep =' ')
-    #print(ionizer.ionize(smiles = sys.argv[1]))
-    #print(ionizer.rules_across_pH)
+        ionized_df[['smiles', 'ids']].to_csv(args.output, index=False, header=False, sep =' ')
+
+if __name__ == '__main__':
+    main()
