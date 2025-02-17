@@ -15,7 +15,7 @@ six_membered_aliphatic_substructure = Chem.MolFromSmarts("[A;!$(N-*=*)]1-[A;!$(N
 sulfonamide_like_substructure = Chem.MolFromSmarts("[*:1][S;$(S(=*)=*):2]-!@[N&+0;!$([NH2]):3](-[*,#1:4])-[*,#1:5]")
 aliphatic_nitrogen_substructure = Chem.MolFromSmarts("[A:1]@[N&+0;!$(N-*=*):2](@[A:3])!@[*,#1:4]")
 conjugated_substituted_nitrogen = Chem.MolFromSmarts('[a:1]:[a:2]:[a:3]:[nX3&+0:4]-*')
-additional_substituted_nitrogen = Chem.MolFromSmarts('[!#1]-[nX3&+0:1]:[a:2]:[a:3]')
+additional_substituted_nitrogen = Chem.MolFromSmarts('*-[nX3&+0:1]:[a:2]:[a:3]')
 amide_substructure = Chem.MolFromSmarts('[O:1]=[CX3:2]!@[N&+0:3](-[!#1:4])-[#1:5]')
 symmetric_ring = Chem.MolFromSmarts('*!@-a1[cH][cH][a][cH][cH]1')
 
@@ -38,7 +38,7 @@ class Mol2Writer:
             'amide': Chem.MolFromSmarts("[C;X3](=O)N"),             # CONH (amide)
             'phosphate': Chem.MolFromSmarts("[P](=O)(O)(O)(O)"), # H3PO4 or H2PO4- or HPO4-- or C-PO4*
             'so2': Chem.MolFromSmarts("[S;X4](=O)(=O)"),             # SO2
-            'so': Chem.MolFromSmarts("[S;X3;!$(S(=O)=O)]=O")                     # SO (sulfoxide)
+            'so': Chem.MolFromSmarts("[S;X3;!$(S(=O)=O)]=O")   # SO (sulfoxide)
         }
 
     def set_mol(self, mol):

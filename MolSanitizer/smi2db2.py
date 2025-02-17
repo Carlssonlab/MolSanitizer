@@ -488,6 +488,7 @@ def embed_smiles_rdkit(smiles, name, randomSeed=42, VERBOSE=False):
             if conjugated_substituted_Ns:
                 for a, b, c, d in conjugated_substituted_Ns: ff.MMFFAddTorsionConstraint(a, b, c, d, False, 0, 0, 5)
                 for a, b, c, d in additional_conjugated_substituted_Ns: ff.MMFFAddTorsionConstraint(a, b, c, d, False, 178, 182, 1)
+            if amide_linkages:
                 for a, b, c, d, e in amide_linkages: # O=C-N(-C)-H should be coplanar.
                     ff.MMFFAddTorsionConstraint(a, b, c, d, False, 0, 0, 1)
                     ff.MMFFAddTorsionConstraint(a, b, c, e, False, 180, 180, 1)
@@ -510,6 +511,7 @@ def embed_smiles_rdkit(smiles, name, randomSeed=42, VERBOSE=False):
             if conjugated_substituted_Ns:
                 for a, b, c, d in conjugated_substituted_Ns: ff.MMFFAddTorsionConstraint(a, b, c, d, False, 0, 0, 5)
                 for a, b, c, d in additional_conjugated_substituted_Ns: ff.MMFFAddTorsionConstraint(a, b, c, d, False, 178, 182, 1)
+            if amide_linkages:
                 for a, b, c, d, e in amide_linkages: # O=C-N(-C)-H should be coplanar.
                     ff.MMFFAddTorsionConstraint(a, b, c, d, False, 0, 0, 1)
                     ff.MMFFAddTorsionConstraint(a, b, c, e, False, 180, 180, 1)
@@ -649,6 +651,7 @@ def embed_smiles_babel(smiles, name, VERBOSE=False):
     if conjugated_substituted_Ns:
         for a, b, c, d in conjugated_substituted_Ns: ff.MMFFAddTorsionConstraint(a, b, c, d, False, 0, 0, 5)
         for a, b, c, d in additional_conjugated_substituted_Ns: ff.MMFFAddTorsionConstraint(a, b, c, d, False, 178, 182, 1)
+    if amide_linkages:
         for a, b, c, d, e in amide_linkages: # O=C-N(-C)-H should be coplanar.
             ff.MMFFAddTorsionConstraint(a, b, c, d, False, 0, 0, 1)
             ff.MMFFAddTorsionConstraint(a, b, c, e, False, 180, 180, 1)
@@ -659,7 +662,7 @@ def embed_smiles_babel(smiles, name, VERBOSE=False):
 
 
 def stochastic_sampling(mol, tolerance_level, match_torlib, numConfs,
-                        total_possible_solutions, window = 25, max_attempts=100,
+                        total_possible_solutions, window = 25, max_attempts=15000,
                         product=list(), unvisited = None, visited=None):
     """
     Perform stochastic sampling of the conformational space of a molecule.
