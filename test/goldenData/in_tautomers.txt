@@ -63,3 +63,4 @@ Clc1[nH]c(C)nn1	4H_triazole
 c1c(Cl)c(n[nH]1)C	enum_pyrazole
 Clc1nc(C)n[nH]1	enum_124-triazole
 O=c1[nH]c(C)ccn1    enum_2-pyrimidone
+Cc1cc(=O)n(-c2ccccc2)[nH]1 NH-edaravone
