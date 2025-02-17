@@ -27,7 +27,7 @@ dependencies = [
     "markdown",
     "pandas",
     "numpy",
-    "rdkit>=2024.09.1",
+    "rdkit==2024.09.1",
     "meeko",
     "pyaml"
 ]
@@ -39,6 +39,8 @@ Homepage = "https://github.com/phonglam3103/MolSanitizer.git"
 msani = "MolSanitizer.molSanitizer:main"
 msani_batch = "MolSanitizer.msani_batch:main"
 strain = "MolSanitizer.strain_filter:main"
+charger = "MolSanitizer.ionizer:main"
+tautomerizer = "MolSanitizer.tautomerizer:main"
 
 [tool.setuptools]
 packages = ["MolSanitizer"]
