@@ -139,12 +139,15 @@ class Tautomerizer:
         for name, _, rxn in self.standardizing_reactions:
             rxn.Initialize()
             while mol.HasSubstructMatch(rxn.GetReactantTemplate(0)):
-                if self.debug: print(f"\tApplying {name} to {Chem.MolToSmiles(mol)}")
+                if self.debug: 
+                    logger.info(f"\tApplying {name} to {Chem.MolToSmiles(mol)}")
+                    print(f"\tApplying {name} to {Chem.MolToSmiles(mol)}")
                 new_mol = rxn.RunReactants((mol,))[0][0]
                 error = Chem.SanitizeMol(new_mol, catchErrors=True)
                 if error == 0:
                     mol = new_mol
                 else:
+                    if self.debug: print(f"\tError sanitizing molecule: {Chem.MolToSmiles(mol)}")
                     logger.info(f"Error sanitizing molecule: {Chem.MolToSmiles(mol)}")
                     break
 
@@ -197,7 +200,11 @@ class Tautomerizer:
         
         if mol is None and smiles:
             mol = Chem.MolFromSmiles(smiles)
-        
+        else:
+            smiles = Chem.MolToSmiles(mol)
+        if self.debug:
+            print(f"Tautomerizing {smiles}...")
+            logger.info(f"Tautomerizing {smiles}...")
         if self.neutralize:
             mol = Tautomerizer.neutralize_mol(mol)
         if self.taurdkit:
@@ -211,7 +218,7 @@ class Tautomerizer:
 
             if self.debug:
                 print(f"Using RDKit tautomerizer for {smiles}...\n\tTurned to {Chem.MolToSmiles(mol)}")
-        
+                logger.info(f"Using RDKit tautomerizer for {smiles}...\n\tTurned to {Chem.MolToSmiles(mol)}")
         # Step 2: Standardize the molecule
         standardized_mol = self.standardize(mol)
         if self.debug:
