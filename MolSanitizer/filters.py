@@ -14,8 +14,25 @@ logger = logging.getLogger('molsani')
 RDLogger.DisableLog('rdApp.*') # To disable error messages with kekulizing tautomers from RDKit
 
 class Filters():
-    def __init__(self):
-        pass
+    def __init__(self, 
+                 removesalts = False, 
+                 ha = None,
+                 logp = None,
+                 hba = None,
+                 hbd = None,
+                 mw = None,
+                 custom = None,
+                 unwanted = None,
+                 pains = None):
+        self.removesalts = removesalts
+        self.ha = ha
+        self.logp = logp
+        self.hba = hba
+        self.hbd = hbd
+        self.mw = mw
+        self.custom = custom
+        self.unwanted = unwanted
+        self.pains = pains
 
     @staticmethod
     def remove_invalid_SMILES(df:pd.DataFrame) -> pd.DataFrame:
@@ -263,7 +280,8 @@ class Filters():
 
         # Filter out rows where 'smiles' contains any organometallics
         filtered_df = df[~df['smiles'].apply(lambda x: any(om in x for om in organometallics))]
-
+        if filtered_df.empty:
+            return filtered_df
         params = rdMolStandardize.CleanupParameters()
         params.tautomerRemoveSp3Stereo = False
         params.tautomerRemoveBondStereo = False
@@ -427,3 +445,33 @@ class Filters():
         rejected_df.to_csv(rejectedFile, index=False, mode='a', columns=['smiles','ids','reason'], sep = ' ', header=False)
         return df_clean[df_clean['reason']=='OK']
     
+    def filter_df(self, df: pd.DataFrame, rejectedFile: str, debug: bool = False) -> pd.DataFrame:
+        """Apply the filters to the input DataFrame.
+
+        Args:
+            df (pd.DataFrame): Input DataFrame with 'mol' column containing RDKit molecule objects.
+            rejectedFile (str): Path to the file to save rejected molecules.
+            debug (bool, optional): Debug mode. Defaults to False.
+
+        Returns:
+            pd.DataFrame: A new DataFrame chunk with molecules that passed all the filters.
+        """
+        if self.removesalts:
+            df = Filters.saltstripping(df, debug)
+        if self.ha:
+            df = Filters.filter_by_ha(df, self.ha, rejectedFile, debug)
+        if self.logp:
+            df = Filters.filter_by_logp(df, self.logp, rejectedFile, debug)
+        if self.hba:
+            df = Filters.filter_by_hba(df, self.hba, rejectedFile, debug)
+        if self.hbd:
+            df = Filters.filter_by_hbd(df, self.hbd, rejectedFile, debug)
+        if self.mw:
+            df = Filters.filter_by_mw(df, self.mw, rejectedFile, debug)
+        if self.custom:
+            df = Filters.customFilter(df, rejectedFile, self.custom, debug)
+        if self.unwanted:
+            df = Filters.unwantedFilter(df, rejectedFile, self.unwanted, debug)
+        if self.pains:
+            df = Filters.painsFilter(df, rejectedFile, debug)
+        return df
