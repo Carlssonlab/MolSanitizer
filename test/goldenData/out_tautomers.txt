@@ -69,3 +69,5 @@ Cc1nc(Cl)n[nH]1 enum_124-triazole_2
 Cc1ccnc(=O)[nH]1 enum_2-pyrimidone_1
 Cc1cc[nH]c(=O)n1 enum_2-pyrimidone_2
 CC1=NN(c2ccccc2)C(=O)C1 NH-edaravone
+CCCC(O)=CC#N diacyl/cyano-carbonyl_to_enol-CH1
+O=C1Cc2ccccc2N1 2-OH-indole_to_oxindole-CH2

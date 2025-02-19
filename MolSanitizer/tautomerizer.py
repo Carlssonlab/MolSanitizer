@@ -184,13 +184,14 @@ class Tautomerizer:
 
     def tautomerize(self, 
                     smiles:str = None, 
-                    mol: Chem.Mol = None) -> list:
+                    mol: Chem.Mol = None,
+                    name: str = None) -> list:
         """
         Tautomerize the input molecule.
         Args: (Either SMILES or RDKit molecule object must be provided)
             smiles (str): SMILES string of the molecule.
             mol (rdkit.Chem.rdchem.Mol): RDKit molecule object.
-        
+            name (str): Name of the molecule. - mainly for debugging purposes.
         Returns:
             Returns a list SMILES strings of the tautomers.
         """
@@ -203,8 +204,8 @@ class Tautomerizer:
         else:
             smiles = Chem.MolToSmiles(mol)
         if self.debug:
-            print(f"Tautomerizing {smiles}...")
-            logger.info(f"Tautomerizing {smiles}...")
+            print(f"Tautomerizing {name}...")
+            logger.info(f"Tautomerizing {name}...")
         if self.neutralize:
             mol = Tautomerizer.neutralize_mol(mol)
         if self.taurdkit:
@@ -283,7 +284,7 @@ def _process_tautomer_rows(df, tautomerizer, smiles_column, mol_column, name_col
     for _, row in df.iterrows():
         mol = row[mol_column]
         highlights = row.get('highlights', None)
-        tautomers_smiles = tautomerizer.tautomerize(mol=mol)
+        tautomers_smiles = tautomerizer.tautomerize(mol=mol, name = row[name_column])
 
         if len(tautomers_smiles) == 1:
             results.append({name_column: row[name_column],
