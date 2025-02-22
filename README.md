@@ -32,6 +32,8 @@ To start to use MolSanitizer, use the `-h` or `--help` flag for available option
 
 Documentation on the theory behind MolSanitizer and how to use it can be found [here](https://msani.readthedocs.io/)
 
+<img src="./plots/Workflow.png" width="1000">
+
 ## Notes about AMSOL
 
 By default, all the dependencies are automatically installed by conda and pip, except for AMSOL. The user is asked to place the compiled version of (named `amsol7.1`) to [MolSanitizer/amsol](MolSanitizer/amsol). In that folder, there will be a README on how to compile it on the modern Linux systems.
