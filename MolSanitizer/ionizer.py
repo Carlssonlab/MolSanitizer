@@ -60,7 +60,7 @@ class Ionizer:
             print(f'Loaded {len(self.rules)} protonation rules. Of these, {len(self.enumerating_rules)} rules are enumerating')
 
 
-        self.pH_values = (self.pH,) if self.pH_range == 0\
+        self.pH_values = (self.pH-0.5, self.pH+0.5) if self.pH_range == 0\
             else (max(0, self.pH - self.pH_range), self.pH, min(14, self.pH + self.pH_range))
 
         self.rules_across_pH = {}
@@ -94,8 +94,8 @@ class Ionizer:
 
         # Filter based on pH for ACID and BASE rules
         filtered_rules = self.rules[
-            ((self.rules['TYPE'] == 'ACID') & (self.rules['pKa'] < pH)) |
-            ((self.rules['TYPE'] == 'BASE') & (self.rules['pKa'] > pH))
+            ((self.rules['TYPE'] == 'ACID') & (self.rules['pKa'] <= pH)) |
+            ((self.rules['TYPE'] == 'BASE') & (self.rules['pKa'] >= pH))
         ]
 
         reaction_list = []
@@ -276,6 +276,8 @@ class Ionizer:
         """
         if len(df) == 0:
             return df
+        if mol_column not in df.columns:
+            df[mol_column] = df[smiles_column].apply(lambda x: Chem.MolFromSmiles(x))
         if self.num_cores > 1:
             return self.ionize_df_mp(df, smiles_column, name_column, mol_column)
         else:
@@ -307,11 +309,11 @@ def _process_ionization_rows(df, ionizer, smiles_column, mol_column, name_column
     return results
 
 def main():
-    parser = argparse.ArgumentParser(description='Protonate a molecule')
+    parser = argparse.ArgumentParser(description='Protonate a molecule or a file of SMILES')
     parser.add_argument('-i', '--input', default=None, type=str, help='Input file containing SMILES strings and names')
     parser.add_argument('-s', '--smiles', default=None, type=str, help='SMILES string of the molecule')
     parser.add_argument('-p', '--pH', default=7, type=int, help='pH value to use for ionization')
-    parser.add_argument('-r', '--pH_range', default=2, type=int, help='Range of pH values to consider for ionization')
+    parser.add_argument('-r', '--pH_range', default=0, type=int, help='Range of pH values to consider for ionization')
     parser.add_argument('-d', '--debug', action='store_true', help='Enable debug mode')
     parser.add_argument('-j', '--num_cores', default=4, type=int, help='Number of cores to use for multiprocessing')
     parser.add_argument('-o', '--output', default='protonated_molecules.smi', type=str, help='Output file to save protonated molecules')
@@ -324,7 +326,9 @@ def main():
                       num_cores = args.num_cores,
                       debug = args.debug)
     if args.smiles:
-        print(ionizer.ionize(smiles = args.smiles))
+        results = ionizer.ionize(smiles = args.smiles)
+        for result in results:
+            print(result)
     else:
         df = pd.read_csv(args.input, sep =r'\s+', header=None, names=['smiles', 'ids'])
         ionized_df = ionizer.ionize_df(df)
