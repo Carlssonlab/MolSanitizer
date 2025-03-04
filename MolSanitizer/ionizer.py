@@ -103,7 +103,7 @@ class Ionizer:
         for i, row in filtered_rules.iterrows():
             reaction_list.append((row['Mol'], row['FUNCTIONAL_GROUP']))
         if self.debug:
-            print(f'Parsed {len(reaction_list)} rules for pH {round(pH)}')    
+            print(f'Parsed {len(reaction_list)} rules for pH {round(pH, 1)}')    
         return reaction_list
 
     @staticmethod
@@ -222,7 +222,7 @@ class Ionizer:
 
         variation_sets = set()
         for pH in self.pH_values:
-            if self.debug: print('Processing pH:', round(pH))
+            if self.debug: print('Processing pH:', round(pH, 1))
             variations = list(self.recursive_reaction(mol, self.rules_across_pH[pH], set()))
             variation_sets.update(variations)
         return list(variation_sets)
