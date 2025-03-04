@@ -23,7 +23,8 @@ class Filters():
                  mw = None,
                  custom = None,
                  unwanted = None,
-                 pains = None):
+                 pains = None,
+                 rejectedFile = 'rejected_entries.txt'):
         self.removesalts = removesalts
         self.ha = ha
         self.logp = logp
@@ -33,6 +34,7 @@ class Filters():
         self.custom = custom
         self.unwanted = unwanted
         self.pains = pains
+        self.rejectedFile = rejectedFile
 
     @staticmethod
     def remove_invalid_SMILES(df:pd.DataFrame) -> pd.DataFrame:
@@ -114,14 +116,14 @@ class Filters():
         if debug: logger.info(f'Parsing salts SMARTS file: {smartsFile.resolve()}')
 
         remover = SaltRemover.SaltRemover(defnFilename=smartsFile)
-
+        filtered_df = df.copy()
         # Remove salts in the list
-        df['mol'] = df['mol'].apply(lambda x: Filters.stripSMILESsalt(x, remover))
+        filtered_df['mol'] = df['mol'].apply(lambda x: Filters.stripSMILESsalt(x, remover))
 
-        df['smiles'] = df['mol'].apply(lambda x: Chem.MolToSmiles(x))
-        df=df[df['smiles']!=''] #Remove purely salt molecules
-        df['mol'].apply(lambda x: Chem.SanitizeMol(x))
-        return df
+        filtered_df['smiles'] = filtered_df['mol'].apply(lambda x: Chem.MolToSmiles(x))
+        filtered_df=filtered_df[filtered_df['smiles']!=''] #Remove purely salt molecules
+        filtered_df['mol'].apply(lambda x: Chem.SanitizeMol(x))
+        return filtered_df
     
     @staticmethod
     def convert_to_query(condition: str, column: str) -> str:
