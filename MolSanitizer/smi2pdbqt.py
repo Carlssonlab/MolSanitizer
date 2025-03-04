@@ -1,7 +1,7 @@
 try:
     from meeko import MoleculePreparation, PDBQTWriterLegacy
 except ImportError:
-    print("Please install the meeko package to use this script.")
+    print("""Please install the meeko package using "pip install meeko" to use this script.""")
 from MolSanitizer import smi2db2_utils, strain_filter
 from rdkit import Chem
 from rdkit.Chem import rdDistGeom, rdForceFieldHelpers

@@ -33,7 +33,7 @@ rotatable_pattern=r'[*]~[*;!$(*#*)]-&!@[*;!$(*#*)]~[*]'
 
 Torlib = strain_filter.parse_torlib()
 rigid_rule_files = Path(__file__).parent / 'Data' / 'rigid_part_rules.txt'
-rigid_rules = pd.read_csv(rigid_rule_files, header=None, sep ='\s+', names=['SMARTS','label'])
+rigid_rules = pd.read_csv(rigid_rule_files, header=None, sep =r'\s+', names=['SMARTS','label'])
 rigid_rules['mol'] = rigid_rules['SMARTS'].apply(lambda x: Chem.MolFromSmarts(x))
 
 planar_lib, non_planar_lib = strain_filter.parse_sr_confs_library()
