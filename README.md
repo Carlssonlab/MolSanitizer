@@ -6,7 +6,7 @@
 [![license](https://img.shields.io/badge/license-GPLv2-yellow)]()
 
 
-MolSanitizer is a package for preparation (remove salts, stereoisomers enumeration, protonation, ...) and filtering undesirable substructures (PAINS, reactive functional groups, ...) for drug discovery projects.
+Apollo is a package for preparation (remove salts, stereoisomers enumeration, protonation, ...) and filtering undesirable substructures (PAINS, reactive functional groups, ...) for drug discovery projects.
 
 ## Installation and getting started
 
@@ -21,7 +21,7 @@ Example of how to set up a working conda environment to run the code:
     conda activate msani
     pip install -e MolSanitizer
 
-More information on the installation and dependencies could be found [here](https://msani.readthedocs.io/en/latest/installation.html).
+More information on the installation and dependencies could be found [here](https://apollo-chem.readthedocs.io/en/latest/installation.html).
 
 
 ## Documentation
