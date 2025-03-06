@@ -99,7 +99,7 @@ def embed_smiles_rdkit(smiles, name, randomSeed = 42, num_ring_confs = 1, VERBOS
             conformer = mol_H.GetConformer(cid)
             energy = ff.CalcEnergy()
             conf_ring_descriptors_df = smi2db2_utils.classify_confs(conformer, energy, non_planar_rings, flippable_Ns, sulfo_matches, conf_ring_descriptors_df)
-    if num_ring_confs == 1:
+    if numConfs == 1: # If only aromatic rings
         empty_mol.AddConformer(conformer, assignId=True)
         return [empty_mol]
     else:
