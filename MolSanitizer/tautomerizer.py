@@ -225,6 +225,9 @@ class Tautomerizer:
         if self.debug:
             print(f"\tStandardized to {Chem.MolToSmiles(standardized_mol)}")
         unique_tautomers = self.enumerate(standardized_mol)
+        for _, tautomer in enumerate(unique_tautomers):
+            unique_tautomers[_] = tautomer.replace('[C]', 'C').replace('[H]', 'H').replace('[CH]', 'C')\
+                .replace('[N]', 'N').replace('[O]', 'O').replace('[S]', 'S').replace('[cH]', 'c').replace('[n]', 'n')
         return unique_tautomers
     
     def tautomerize_df_mp(self, 
@@ -268,7 +271,8 @@ class Tautomerizer:
         """
         if df.empty:
             return df
-
+        if mol_column not in df.columns:
+            df[mol_column] = df[smiles_column].apply(Chem.MolFromSmiles)
         if self.numcores > 1:
             return self.tautomerize_df_mp(df, smiles_column, mol_column, name_column)
         else:
