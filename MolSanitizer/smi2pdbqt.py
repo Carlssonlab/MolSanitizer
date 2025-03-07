@@ -12,7 +12,7 @@ logger = logging.getLogger('molsani')
 
 planar_lib, non_planar_lib = strain_filter.parse_sr_confs_library()
 
-def embed_smiles_rdkit(smiles, name, randomSeed = 42, num_ring_confs = 1, VERBOSE = False) -> list:
+def embed_smiles_rdkit(smiles, name, randomSeed = 42, num_ring_confs = 1, numThreads = 1, VERBOSE = False) -> list:
     '''
     Adopt a similar method to smi2db2, but don't need to store redundant conformations just for AMSOL.
     If no aliphatic ring, embed 1 conformation. If multiple conformations, embed multiple ring conformations
@@ -117,7 +117,7 @@ def embed_smiles_rdkit(smiles, name, randomSeed = 42, num_ring_confs = 1, VERBOS
             temp_list = smi2db2_utils.ring_conf_clusters(current_descriptors, temp_list)
         if VERBOSE: print(f'\tBefore: {len(mol_H.GetConformers())}, after: {len(rigid_scaffolds)}')
         return rigid_scaffolds
-def smi2pdbqt(smiles, name, randomSeed = 42, num_ring_confs = 1, VERBOSE = False):
+def smi2pdbqt(smiles, name, randomSeed = 42, num_ring_confs = 1, numThreads = 1, VERBOSE = False):
     '''
     Convert a SMILES string to a PDBQT file.
     '''
@@ -127,7 +127,7 @@ def smi2pdbqt(smiles, name, randomSeed = 42, num_ring_confs = 1, VERBOSE = False
         print(f"\tNumber of ring conformers: {num_ring_confs}")
 
     try:
-        mols = embed_smiles_rdkit(smiles, name, randomSeed, num_ring_confs, VERBOSE)
+        mols = embed_smiles_rdkit(smiles, name, randomSeed, num_ring_confs, numThreads, VERBOSE)
         mkprep = MoleculePreparation()
 
         if not mols:
@@ -166,5 +166,5 @@ def gen_conf_chunk(df: pd.DataFrame, args):
     for i, row in df.iterrows():
         name = row['ids']
         smiles = row['smiles']
-        smi2pdbqt(smiles, name, args.randomSeed, args.nringconfs, args.debug)
+        smi2pdbqt(smiles, name, args.randomSeed, args.nringconfs, args.numcores, args.debug)
     os.chdir('..')
