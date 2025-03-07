@@ -26,12 +26,12 @@ hydroxylamine	5	BASE	0	[N&+0;!$(N=,:,#*)!$(N~[+1])!$(N~*~[+1,#7,#8,#9,#16,#17,#3
 imidazole	7	BASE	0	[nX2&+0:1]1[c;!$(c(n)(n)~[*^1,*^2,#8,#9,#17,#35,#53])!$(c~[*&+]):2][n;!$(n(c)(c)~[*^1,*^2])!$(n~[*&+])!$(n(c)(c)~*~[*&+]):3][c;!$(c(n)(c)~[*^1,*^2,#8,#9,#17,#35,#53])!$(c~[*&+]):4][c;!$(c(n)(c)~[*^1,*^2,#8,#9,#17,#35,#53])!$(c~[*&+]):5]1>>[n+:1]1[c:2][n:3][c:4][c:5]1
 N-acyl,halo_arosulfonamides	4	ACID	0	[NH1&+0;$(N(-[$([F,Cl,Br,I]),$(C=[O,SX1])])-[SX4](=O)(=O)-a)!$(N~*~[*-;!$([O-]-[N+]=O)]):1]>>[NH0&-:1]
 N-acyl,halo_sulfonamides	5	ACID	0	[NH1&+0;$(N(-[$([F,Cl,Br,I]),$(C=[O,SX1])])-[SX4](=O)(=O)-A)!$(N~*~[*-;!$([O-]-[N+]=O)]):1]>>[NH0&-:1]
-N-aro,vinyl_arosulfonamides	8	ACID	0	[NH1&+0;$(N(-[$([a;!$(aa-[$(N(=O)-O),$([F,Cl,Br,I])])!$(a1aaa(-N(=O)-O)aa1)]),$(C=C)])-[SX4](=O)(=O)-[a;!$(aa-[$(N(=O)-O),$([F,Cl,Br,I])])!$(a1aaa(-N(=O)-O)aa1)!$(a1[a;!$(c)]aa[a;!$(c)]1)!$(a1[a;!$(c)][a;!$(c)]aa1)])!$(N~*~[*-;!$([O-]-[N+]=O)]):1]>>[NH0&-:1]
-N-ali_halo,nitro_arosulfonamides-NH	8	ACID	0	[NH1&+0;$([N;$(N(-[a;$(aa-[$(N(=O)-O),$([F,Cl,Br,I])]),$(a1aaa(-N(=O)-O)aa1)])-[SX4](=O)(=O)-[a;!$(a1[a;!$(c)]aa[a;!$(c)]1)!$(a1[a;!$(c)][a;!$(c)]aa1)]),$(N(-[A^3])-[SX4](=O)(=O)-[a;$(aa-[$(N(=O)-O),$([F,Cl,Br,I])]),$(a1aaa(-N(=O)-O)aa1)])])!$(N~*~[*-;!$([O-]-[N+]=O)]):1]>>[NH0&-:1]
-halo,nitro_arosulfonamides-NH2	8	ACID	0	[NH2&+0;$(N-[SX4](=O)(=O)-[a;$(aa-[$(N(=O)-O),$([F,Cl,Br,I])]),$(a1aaa(-N(=O)-O)aa1)])!$(N~*~[*-;!$([O-]-[N+]=O)]):1]>>[NH&-:1]
+N-aro,vinyl_arosulfonamides	8	ACID	0	[NH1&+0;$(N(-[$([a;!$(aa-[$(N(=O)-O),$([F,Cl,Br,I])])!$(a1aaa(-N(=O)-O)aa1)!$(a1[a;!$(c)]aa[a;!$(c)]1)!$(a1[a;!$(c)][a;!$(c)]aa1)]),$(C=C)])-[SX4](=O)(=O)-[a;!$(aa-[$(N(=O)-O),$([F,Cl,Br,I])])!$(a1aaa(-N(=O)-O)aa1)!$(a1[a;!$(c)]aa[a;!$(c)]1)!$(a1[a;!$(c)][a;!$(c)]aa1)])!$(N~*~[*-;!$([O-]-[N+]=O)]):1]>>[NH0&-:1]
+N-ali_halo,acyl-like_sulfonamides-NH	8	ACID	0	[NH1&+0;$([N;$(N(-[a;$(aa[$(*=O),$([F,Cl,Br,I])]),$(a1aaa(*=O)aa1)])-[SX4](=O)(=O)-[*;!$(a1[a;!$(c)]aa[a;!$(c)]1)!$(a1[a;!$(c)][a;!$(c)]aa1)]),$(N(-[A^3])-[SX4](=O)(=O)-[a;$(aa[$(*=O),$([F,Cl,Br,I])]),$(a1aaa(*=O)aa1)])])!$(N~*~[*-;!$([O-]-[N+]=O)]):1]>>[NH0&-:1]
+halo,acyl-like_arosulfonamides-NH2	8	ACID	0	[NH2&+0;$(N-[SX4](=O)(=O)-[a;$(aa[$(*=O),$([F,Cl,Br,I])]),$(a1aaa(*=O)aa1)])!$(N~*~[*-;!$([O-]-[N+]=O)]):1]>>[NH&-:1]
 N-ali_5-mem-diheteroarosulfonamides-NH	8	ACID	0	[NH&+0;$(N(-[A^3])-[SX4](=O)(=O)-[a;$(a1[a;!$(c)]aa[a;!$(c)]1),$(a1[a;!$(c)][a;!$(c)]aa1)]):1]>>[NH0&-:1]
 5-mem-diheteroarosulfonamides-NH2	8	ACID	0	[NH2&+0;$(N-[SX4](=O)(=O)-[a;$(a1[a;!$(c)]aa[a;!$(c)]1),$(a1[a;!$(c)][a;!$(c)]aa1)]):1]>>[NH&-:1]
-N-aro_5-mem-diheteroarosulfonamides	4	ACID	0	[NH&+0;$(N(-a)-[SX4](=O)(=O)-[a;$(a1[a;!$(c)]aa[a;!$(c)]1),$(a1[a;!$(c)][a;!$(c)]aa1)]):1]>>[NH0&-:1]
+N-aro_5-mem-diheteroarosulfonamides	4	ACID	0	[NH&+0;$(N(-a)-[SX4](=O)(=O)-[a;$(a1[a;!$(c)]aa[a;!$(c)]1),$(a1[a;!$(c)][a;!$(c)]aa1)]),$(N(-[a;$(a1[a;!$(c)]aa[a;!$(c)]1),$(a1[a;!$(c)][a;!$(c)]aa1)])-[SX4](=O)(=O)-a):1]>>[NH0&-:1]
 N-haloamides	7	ACID	0	[NH1&+0;$(N(-C=O)-[F,Cl,Br,I]):1]>>[NH0&-:1]
 nitro_phenols	7	ACID	0	[OH1&+0;$(O-[$(a1a(-N(=O)O)aaa[a;!$(a[F,Cl,Br,I])]1),$(a1[a;!$(a[F,Cl,Br,I])]aa(-N(=O)O)a[a;!$(a[F,Cl,Br,I])]1),$(a1[a;!$(a[F,Cl,Br,I])]a(-N(=O)O)aa(-N(=O)O)[a;!$(a[F,Cl,Br,I])]1)])!$(O~*~*~[-1]):1]>>[OH0&-:1]
 trihalo_phenols	6	ACID	0	[OH1&+0;$(O-a1a(-[F,Cl,Br])[a;!$(a-N(=O)O)]a(-[F,Cl,Br])[a;!$(a-N(=O)O)]a1(-[F,Cl,Br])):1]>>[OH0&-:1]
@@ -50,6 +50,11 @@ squaric_acid	4	ACID	1	[OH1&+0;$(O-c:c:c=O)!$(O~*~[-1])!$(O~*~*~[-1]):1]>>[OH0&-:
 tetrazole	4	ACID	0	[nH1&+0;$([$(n1nncn1),$(n1nnnc1)]):1]>>[nH0&-:1]
 thiazolidinedione-like	6	ACID	0	[#7H&+0;$([#7]1[#6](=[O,SX1])[#6][#8,#16][#6]1(=[O,SX1])):1]>>[#7H0&-:1]
 tropolone	7	ACID	0	[OH1&+0;$(O-c1c(=O)ccccc1)!$(O~*~*~[-1])!$(O-cc-!@*~[*-;!$([O-]-[N+]=O)]):1]>>[OH0&-:1]
-vanillin_like	8	ACID	1	[OH1&+0;$(O-c1ccc(-[C;$([CH]),$(C-C)]=O)cc1)!$(O~*~*~[-1]):1]>>[OH0&-:1]
-vinyl_acid	7	ACID	1	[OH1&+0;$(O-[$(C=C-C(=O)aa[OH]),$(C(-C=O)=C-C=O)])!$(O~*~[-1])!$(O~*~*~[-1]):1]>>[OH0&-:1]
-vinylog_acid	4	ACID	1	[OH1&+0;$(O-[C;$(C(~a)=C-C=O),$(C=[Cz1]-C=O),$(C=C(-*=O)-C=O),$(C=@C-@C=O)])!$(O-C=C-C(=O)aa[OH])!$(O-C(-C=O)=C-C=O)!$(O~*~[-1])!$(O~*~*~[-1]):1]>>[OH0&-:1]
+vanillin_like	8	ACID	1	[OH1&+0;$(O-c1[c;!$(cN(=O)O)!$(c[F,Cl,Br,I])][c;!$(cN(=O)O)!$(c[F,Cl,Br,I])]c(~[#6;$([CH]),$([#6]~[#6])]=O)[c;!$(cN(=O)O)!$(c[F,Cl,Br,I])][c;!$(cN(=O)O)!$(c[F,Cl,Br,I])]1)!$(O~*~*~[-1]):1]>>[OH0&-:1]
+vinyl_acid	7	ACID	1	[OH1&+0;$(O-[$(C=C-C(=O)aa[OH]),$([#6](-,:[#6]=O)=,:[#6]-,:[#6]=O)])!$(O~*~[-1])!$(O~*~*~[-1]):1]>>[OH0&-:1]
+vinylog_acid	4	ACID	1	[OH1&+0;$(O-[C;$(C(~a)=C-C=O),$(C=[Cz1]-C=O),$(C=C(-*=O)-C=O),$(C=@C-@C=O)])!$(O-C=C-C(=O)aa[OH])!$(O-[#6](-,:[#6]=O)=,:[#6]-,:[#6]=O)!$(O~*~[-1])!$(O~*~*~[-1]):1]>>[OH0&-:1]
+xanthine_N1,3	8	ACID	1	[nH1&+0;$([n;$(n1c(=[O,SX1])nc(=[O,SX1])a2a1n[a;$([c;!$(c~[OX1,SX1])]),$([!c](:n)(:n)~*)]n2),$(n1c(=[O,SX1])a2a(n[a;$([c;!$(c~[OX1,SX1])]),$([!c](:n)(:n)~*)]n2)nc1=[O,SX1])])!$(n1c(=[O,SX1])a2a(n(*)an2)n(*)c1=[O,SX1])!$(n1c(=[O,SX1])a2a(nan2(*))n(*)c1=[O,SX1])!$(n~*~[-1]):1]>>[nH0&-:1]	PMID_15218545,10.1016/j.jphotochem.2005.08.027,10.1046/j.1432-1033.2002.03097.x
+uric_acid-like	5	ACID	1	[nH1&+0;$([n;$(n1c(=[O,SX1])nc(=[O,SX1])a2a1[a;$([!c])][a+0;$(c~[OX1,SX1]),$([!c;!$(a(:n)(:n)~*)!$([nH])])][a;$([!c])]2),$(n1c(=[O,SX1])a2a([a;$([!c])][a+0;$(c~[OX1,SX1]),$([!c;!$(a(:n)(:n)~*)!$([nH])])][a;$([!c])]2)nc1=[O,SX1]),$(n1[a+0;$(c~[OX1,SX1]),$([!c;!$(a(:n)(:n)~*)])][a;$([!c])]a2a1(n(*)c(=[O,SX1])n(*)c2=[O,SX1]))])!$(n~*~[-1]):1]>>[nH0&-:1]
+triazolopyrimidine	5	ACID	0	[nH1&+0;$(n1na(anan2)a2n1):1]>>[nH0&-:1]	10.1016/j.jphotochem.2005.08.027
+theophylline_like	8	ACID	1	[nH1&+0;$([n;$(n1[a;$([c;!$(c~[OX1,SX1])]),$([!c](:n)(:n)~*)]na2a1(n(*)c(=[O,SX1])n(*)c2=[O,SX1])),$(n1[a;$([c;!$(c~[OX1,SX1])]),$([!c](:n)(:n)~*)]na2a1(c(=[O,SX1])n(*)c(=[O,SX1])n2(*)))]):1]>>[nH0&-:1]	PMID_15218545
+purine	9	ACID	1	[nH1&+0;$(n1[c;!$(c~[OX1,SX1])!$(c~[N;!$(N(=O)O)])]na2a1(n[c;!$(c~[OX1,SX1])!$(c~[N;!$(N(=O)O)])]n[c;!$(c~[OX1,SX1])!$(c~[N;!$(N(=O)O)])]2)):1]>>[nH0&-:1]	R-Williams-ACS-Organic-Division
