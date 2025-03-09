@@ -123,7 +123,7 @@ class Tautomerizer:
             if te.ScoreTautomer(mol) == te.ScoreTautomer(canonical_tautomer):
                 return mol
         except Exception:
-            logger.info(f"Error tautomerizing molecule: {Chem.MolToSmiles(mol)}")
+            logger.info(f"Error canonicalizing molecule: {Chem.MolToSmiles(mol)}")
             return mol
         return canonical_tautomer
 
@@ -138,7 +138,9 @@ class Tautomerizer:
         """
         for name, _, rxn in self.standardizing_reactions:
             rxn.Initialize()
-            while mol.HasSubstructMatch(rxn.GetReactantTemplate(0)):
+            runs = 0
+            # 100 is likely enough to avoid infinite loops
+            while mol.HasSubstructMatch(rxn.GetReactantTemplate(0)) and runs < 100:
                 if self.debug: 
                     logger.info(f"\tApplying {name} to {Chem.MolToSmiles(mol)}")
                     print(f"\tApplying {name} to {Chem.MolToSmiles(mol)}")
@@ -150,6 +152,7 @@ class Tautomerizer:
                     if self.debug: print(f"\tError sanitizing molecule: {Chem.MolToSmiles(mol)}")
                     logger.info(f"Error sanitizing molecule: {Chem.MolToSmiles(mol)}")
                     break
+                runs += 1
 
         return mol
 
@@ -225,9 +228,9 @@ class Tautomerizer:
         if self.debug:
             print(f"\tStandardized to {Chem.MolToSmiles(standardized_mol)}")
         unique_tautomers = self.enumerate(standardized_mol)
-        for _, tautomer in enumerate(unique_tautomers):
-            unique_tautomers[_] = tautomer.replace('[C]', 'C').replace('[H]', 'H').replace('[CH]', 'C')\
-                .replace('[N]', 'N').replace('[O]', 'O').replace('[S]', 'S').replace('[cH]', 'c').replace('[n]', 'n')
+        # for _, tautomer in enumerate(unique_tautomers):
+        #     unique_tautomers[_] = tautomer.replace('[C]', 'C').replace('[H]', 'H').replace('[CH]', 'C')\
+        #         .replace('[N]', 'N').replace('[O]', 'O').replace('[S]', 'S').replace('[cH]', 'c').replace('[n]', 'n')
         return unique_tautomers
     
     def tautomerize_df_mp(self, 
