@@ -11,6 +11,7 @@ All notable changes to this project will be documented in this file.
 
 ### 🐛 Bug Fixes
 
+- :bug: Fix a bug in tautomerizing accessing an infinite loop by limit to maximum 100 steps of standardization only. - ([a250cde](https://github.com/phonglam3103/MolSanitizer/commit/a250cded2d20908f8ca43a8f61a3dc85d1f5f034))
 - Fix a bug so that in smi2pdbqt, it produces boat conformations. - ([30d30b9](https://github.com/phonglam3103/MolSanitizer/commit/30d30b98429d735e99e70664db8de2d8831b9cec))
 - Fix typos in constrained minimization so that the hydrogen attached to the aromatic nitrogen not being planarized correctly. - ([6f3c43f](https://github.com/phonglam3103/MolSanitizer/commit/6f3c43fb83a75d5dbb8399a8015cca0121414abc))
 - Fix a bug in smi2db2 that in rare cases with AMSOL, the script runs into a ValueError and stop the whole script. This fix puts that part into a Try-except so that it would not crash the whole program. - ([4ee6675](https://github.com/phonglam3103/MolSanitizer/commit/4ee66751b8c9b87b1136a82c99c86b9dd4ce328b))
