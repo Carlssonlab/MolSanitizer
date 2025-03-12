@@ -56,7 +56,7 @@ def embed_smiles_rdkit(smiles, name, randomSeed = 42, num_ring_confs = 1, numThr
             for match in conjugated_substituted_Ns: print(f'\t {match}')
             for match in additional_conjugated_substituted_Ns: print(f'\t {match}')
     
-    if sulfo_matches or non_planar_rings or flippable_Ns: numConfs = 100
+    if non_planar_rings: numConfs = 50
     else: numConfs = 1
     mp = rdForceFieldHelpers.MMFFGetMoleculeProperties(mol_H, mmffVariant="MMFF94s")
     mp.SetMMFFDielectricConstant(1) #1 means vacumn, 80 means water, 20 is the compromised value (still arbitrary)
