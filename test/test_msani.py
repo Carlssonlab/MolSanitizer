@@ -199,26 +199,31 @@ class TestMolSanitizer(unittest.TestCase):
         os.chdir(self.path)
 
     def test_db2_generation(self):
-        with tempfile.TemporaryDirectory() as temp_dir:
-            args = self.generate_mock_arguments([f'{self.path}/in_db2.smi'], ['db2', 'test', 'enrichment'], temp_dir)
-            args.prefix = Path(temp_dir)
+        tmp_obj = tempfile.TemporaryDirectory()
+        temp_dir = tmp_obj.name
+        args = self.generate_mock_arguments([f'{self.path}/in_db2.smi'], ['db2', 'test', 'enrichment'], temp_dir)
+        args.prefix = Path(temp_dir)
 
-            # If AMSOL is installed
-            if OS == 'Windows':
-                AMSOLEXE = Path(__file__).parent.parent / 'MolSanitizer'  / "amsol" / "amsol7.1.exe"
-            elif OS == 'Linux':    
-                AMSOLEXE = Path(__file__).parent.parent / 'MolSanitizer'  / "amsol" / "amsol7.1"                
-            
-            self.assertTrue(AMSOLEXE.exists(), "amsol7.1 file does not exist. Check the /amsol directory for AMSOL installation")
-            molSanitizer.clean_data(args)
-            # If the file was produced
-            self.assertTrue(Path(f"{temp_dir}/db2/3,4-diclorophenol.db2").exists(), "DB2 file was not created.")
+        # If AMSOL is installed
+        if OS == 'Windows':
+            AMSOLEXE = Path(__file__).parent.parent / 'MolSanitizer'  / "amsol" / "amsol7.1.exe"
+        elif OS == 'Linux':    
+            AMSOLEXE = Path(__file__).parent.parent / 'MolSanitizer'  / "amsol" / "amsol7.1"                
+        
+        self.assertTrue(AMSOLEXE.exists(), "amsol7.1 file does not exist. Check the /amsol directory for AMSOL installation")
+        molSanitizer.clean_data(args)
+        # If the file was produced
+        self.assertTrue(Path(f"{temp_dir}/db2/3,4-diclorophenol.db2").exists(), "DB2 file was not created.")
 
-            # If produce 2 conformers
-            with open(f"{temp_dir}/db2/3,4-diclorophenol.db2") as db2_file:
-                first_line = db2_file.readline()
-                self.assertEqual(first_line.split()[7],'2', "DB2 file was not created correctly.")   
+        # If produce 2 conformers
+        with open(f"{temp_dir}/db2/3,4-diclorophenol.db2") as db2_file:
+            first_line = db2_file.readline()
+            self.assertEqual(first_line.split()[7],'2', "DB2 file was not created correctly.")   
+            del db2_file
+        
         os.chdir(self.path)
+        shutil.rmtree(f"{temp_dir}")
+        tmp_obj.cleanup()
 
     def test_pdbqt_generation(self):
         #with tempfile.TemporaryDirectory() as temp_dir:
@@ -246,6 +251,7 @@ class TestMolSanitizer(unittest.TestCase):
             
             os.chdir(self.path)
             shutil.rmtree(temp_dir)
+            tmp_obj.cleanup()
     
     @unittest.skipIf(OS in ["Windows","Darwin"], "Skipping test on Windows due to incompatible `split` command.")
     def test_batch(self):
