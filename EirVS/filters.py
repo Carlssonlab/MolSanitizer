@@ -10,7 +10,7 @@ from rdkit.Chem.MolStandardize import rdMolStandardize
 from rdkit.Chem.FilterCatalog import FilterCatalog, FilterCatalogParams
 
 import logging
-logger = logging.getLogger('molsani')
+logger = logging.getLogger('eirvs')
 RDLogger.DisableLog('rdApp.*') # To disable error messages with kekulizing tautomers from RDKit
 
 class Filters():

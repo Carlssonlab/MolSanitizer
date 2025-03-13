@@ -8,7 +8,7 @@ __license__ = "GPLv2"
 __version__ = "0.2.3"
 
 import logging
-logger = logging.getLogger('molsani')
+logger = logging.getLogger('eirvs')
 
 import pandas as pd
 

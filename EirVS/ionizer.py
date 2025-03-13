@@ -10,7 +10,7 @@ from functools import partial
 
 
 RDLogger.DisableLog('rdApp.*') # To disable error messages with kekulizing tautomers from RDKit
-logger = logging.getLogger('molsani')
+logger = logging.getLogger('eirvs')
 PROTONATION_RULES_PATH = Path(__file__).parent / 'Data' / 'ionizations_v3.txt'
 
 class Ionizer:

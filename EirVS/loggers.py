@@ -1,11 +1,11 @@
 import logging
 from pathlib import Path
 from .smiles_sanitizer import loadSMARTSdata
-logger = logging.getLogger('molsani')
+logger = logging.getLogger('eirvs')
 
 def setup_logger(log_file):
     # Create a logger object
-    logger = logging.getLogger('molsani')
+    logger = logging.getLogger('eirvs')
     logger.setLevel(logging.DEBUG)  # Set the default logging level
 
     # Create a file handler for logging to a file

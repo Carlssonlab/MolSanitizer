@@ -10,13 +10,13 @@ import platform
 
 
 import pandas as pd
-import MolSanitizer.molSanitizer as molSanitizer
-from MolSanitizer.msani_batch import Split_Submit_jobs
-from MolSanitizer import parsers
+import EirVS.cli as cli
+from EirVS.batchmode import Split_Submit_jobs
+from EirVS import parsers
 
 OS = platform.system()
 
-class TestMolSanitizer(unittest.TestCase):
+class TestEirVS(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         """Set up class-level paths before running tests."""
@@ -30,31 +30,31 @@ class TestMolSanitizer(unittest.TestCase):
     def test_single_input(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             args = self.generate_mock_arguments([f'{self.path}/in_data100.txt'], ['test'], temp_dir)
-            molSanitizer.clean_data(args)
+            cli.clean_data(args)
             self.compareFiles(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_single_input.txt')
     
     def test_multiple_inputs(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             args = self.generate_mock_arguments([f'{self.path}/in_data100.txt', f'{self.path}/in_stereo.txt'], ['test'], temp_dir)
-            molSanitizer.clean_data(args)
+            cli.clean_data(args)
             self.compareFiles(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_multiple_inputs.txt')
     
     def test_removesalts(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             args = self.generate_mock_arguments([f'{self.path}/in_salt.txt'], ['removesalts', 'test'], temp_dir)
-            molSanitizer.clean_data(args)
+            cli.clean_data(args)
             self.compareFiles(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_salt_clean.txt')
 
     def test_tautomers(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             args = self.generate_mock_arguments([f'{self.path}/in_tautomers.txt'], ['tautomers', 'test'], temp_dir)
-            molSanitizer.clean_data(args)
+            cli.clean_data(args)
             self.compare_relative(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_tautomers.txt')
 
     def test_painsfilter(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             args = self.generate_mock_arguments([f'{self.path}/in_pains.txt'], ['pains', 'test'], temp_dir)
-            molSanitizer.clean_data(args)
+            cli.clean_data(args)
             self.compareFiles(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_pains.txt')
 
     def test_unwanted(self):
@@ -62,14 +62,14 @@ class TestMolSanitizer(unittest.TestCase):
             args = self.generate_mock_arguments([f'{self.path}/in_unwanted.txt'], ['test'], temp_dir)
             # Test all filters work together
             args.unwanted = ['Regular','Special','Optional']
-            molSanitizer.clean_data(args)
+            cli.clean_data(args)
             with self.subTest(msg="Checking unwanted all:"):
             #self.compareFiles(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_unwanted_all_clean.txt')
                 self.compare_relative(f'{temp_dir}/dummy_output_rejected.txt', f'{self.path}/out_unwanted_all_rejected.txt')
          
             args.unwanted = ['Regular','Optional']
             system(f'rm {temp_dir}/*.txt')
-            molSanitizer.clean_data(args)
+            cli.clean_data(args)
             with self.subTest(msg="Checking unwanted Regular and Optional:"):
                 self.compare_relative(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_unwanted_regular_optional_clean.txt')
                 self.compare_relative(f'{temp_dir}/dummy_output_rejected.txt', f'{self.path}/out_unwanted_regular_optional_rejected.txt')
@@ -77,21 +77,21 @@ class TestMolSanitizer(unittest.TestCase):
             # Test if filters works together
             args.unwanted = ['Regular']
             system(f'rm {temp_dir}/*.txt')
-            molSanitizer.clean_data(args)
+            cli.clean_data(args)
             with self.subTest(msg="Checking unwanted Regular:"):
                 self.compareFiles(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_unwanted_regular_clean.txt')
                 self.compareFiles(f'{temp_dir}/dummy_output_rejected.txt', f'{self.path}/out_unwanted_regular_rejected.txt')
 
             args.unwanted = ['Special']
             system(f'rm {temp_dir}/*.txt')
-            molSanitizer.clean_data(args)
+            cli.clean_data(args)
             with self.subTest(msg="Checking unwanted Special:"):
                 self.compareFiles(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_unwanted_special_clean.txt')
                 self.compareFiles(f'{temp_dir}/dummy_output_rejected.txt', f'{self.path}/out_unwanted_special_rejected.txt')
 
             args.unwanted = ['Optional']
             system(f'rm {temp_dir}/*.txt')
-            molSanitizer.clean_data(args)
+            cli.clean_data(args)
             with self.subTest(msg="Checking unwanted Optional:"):
                 self.compareFiles(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_unwanted_optional_clean.txt')
                 self.compareFiles(f'{temp_dir}/dummy_output_rejected.txt', f'{self.path}/out_unwanted_optional_rejected.txt')
@@ -101,14 +101,14 @@ class TestMolSanitizer(unittest.TestCase):
             args = self.generate_mock_arguments([f'{self.path}/in_data100.txt'], ['test'], temp_dir)
             # Test all filters work together
             args.ha = '17-25'
-            molSanitizer.clean_data(args)
+            cli.clean_data(args)
             with self.subTest(msg="Checking HA 17-25:"):
                 self.compareFiles(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_ha1725_clean.txt')
                 self.compare_relative(f'{temp_dir}/dummy_output_rejected.txt', f'{self.path}/out_ha1725_rejected.txt')
             
             args.ha = '>24'
             system(f'rm {temp_dir}/*.txt')
-            molSanitizer.clean_data(args)
+            cli.clean_data(args)
             with self.subTest(msg="Checking HA >24:"):
                 self.compare_relative(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_ha_over24_clean.txt')
                 self.compare_relative(f'{temp_dir}/dummy_output_rejected.txt', f'{self.path}/out_ha_over24_rejected.txt')
@@ -116,14 +116,14 @@ class TestMolSanitizer(unittest.TestCase):
             args.ha = None
             system(f'rm {temp_dir}/*.txt')
             args.logp = '100-200'
-            molSanitizer.clean_data(args)
+            cli.clean_data(args)
             with self.subTest(msg="Checking logP 100-200:"):
                 self.compare_relative(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_logp_100200_clean.txt')
                 self.compare_relative(f'{temp_dir}/dummy_output_rejected.txt', f'{self.path}/out_logp_100200_rejected.txt')
 
             args.logp = '<=350'
             system(f'rm {temp_dir}/*.txt')
-            molSanitizer.clean_data(args)
+            cli.clean_data(args)
             with self.subTest(msg="Checking logP <=350:"):
                 self.compare_relative(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_logp_350_clean.txt')
                 self.compare_relative(f'{temp_dir}/dummy_output_rejected.txt', f'{self.path}/out_logp_350_rejected.txt')
@@ -131,7 +131,7 @@ class TestMolSanitizer(unittest.TestCase):
             args.logp = None
             args.mw = '>=300'
             system(f'rm {temp_dir}/*.txt')
-            molSanitizer.clean_data(args)
+            cli.clean_data(args)
             with self.subTest(msg="Checking MW >=300:"):
                 self.compare_relative(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_mw_300_clean.txt')
                 self.compare_relative(f'{temp_dir}/dummy_output_rejected.txt', f'{self.path}/out_mw_300_rejected.txt')
@@ -140,7 +140,7 @@ class TestMolSanitizer(unittest.TestCase):
             args.hba = '<=4'
             args.hbd = '<=2'
             system(f'rm {temp_dir}/*.txt')
-            molSanitizer.clean_data(args)
+            cli.clean_data(args)
             with self.subTest(msg="Checking HBA <=4 HBD <=2:"):
                 self.compare_relative(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_hba4_hbd2_clean.txt')
                 self.compare_relative(f'{temp_dir}/dummy_output_rejected.txt', f'{self.path}/out_hba4_hbd2_rejected.txt')
@@ -149,12 +149,12 @@ class TestMolSanitizer(unittest.TestCase):
     def test_create_filter_customfile(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             args = self.generate_mock_arguments([f'{self.path}/in_unwanted.txt'], ['create_custom', 'test'], temp_dir)
-            molSanitizer.generateCustomTemplate(args)
+            cli.generateCustomTemplate(args)
             with self.subTest(msg="Checking creation of customized filter file:"):
                 self.assertTrue(Path(f"{args.prefix}.txt").exists(), "Output file was not created.")
             args.create_custom = False
             args.custom = f"{args.prefix}.txt"
-            molSanitizer.clean_data(args)
+            cli.clean_data(args)
             with self.subTest(msg="Checking if customized filter file is applied:"):
                 self.compare_relative(f'{temp_dir}/dummy_output_rejected.txt', f'{self.path}/out_unwanted_all_rejected.txt')
 
@@ -163,7 +163,7 @@ class TestMolSanitizer(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             args = self.generate_mock_arguments([f'{self.path}/in_stereo.txt'], ['stereoisomers', 'test', ], temp_dir)
             args.max_stereoisomers = 128
-            molSanitizer.clean_data(args)
+            cli.clean_data(args)
             self.compare_relative(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_stereo.txt')
 
 
@@ -171,20 +171,20 @@ class TestMolSanitizer(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             args = self.generate_mock_arguments([f'{self.path}/in_protonation.txt'], ['protonation', 'test'], temp_dir)
             args.pH = 7
-            molSanitizer.clean_data(args)
+            cli.clean_data(args)
             with self.subTest(msg="Checking pH 7:"):
                 self.compare_relative(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/ph7_clean.txt')
 
             system(f'rm {temp_dir}/*.txt')
             
             args.pH = 5
-            molSanitizer.clean_data(args)
+            cli.clean_data(args)
             with self.subTest(msg="Checking pH 5:"):
                 self.compare_relative(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/ph5_clean.txt')
             system(f'rm {temp_dir}/*.txt')
 
             args.pH = 9
-            molSanitizer.clean_data(args)
+            cli.clean_data(args)
             with self.subTest(msg="Checking pH 9:"):
                 self.compare_relative(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/ph9_clean.txt')
             system(f'rm {temp_dir}/*.txt')
@@ -192,8 +192,8 @@ class TestMolSanitizer(unittest.TestCase):
     def test_integrity(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             args = self.generate_mock_arguments([f'{self.path}/in_enamine.txt'], ['enamine','lazy', 'test'], temp_dir)
-            args = molSanitizer.Sanitycheck(args)
-            molSanitizer.clean_data(args)
+            args = cli.Sanitycheck(args)
+            cli.clean_data(args)
             self.compare_relative(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_enamine_clean.txt')
             self.compare_relative(f'{temp_dir}/dummy_output_rejected.txt', f'{self.path}/out_enamine_rejected.txt')
         os.chdir(self.path)
@@ -211,7 +211,7 @@ class TestMolSanitizer(unittest.TestCase):
             AMSOLEXE = Path(__file__).parent.parent / 'MolSanitizer'  / "amsol" / "amsol7.1"                
         
         self.assertTrue(AMSOLEXE.exists(), "amsol7.1 file does not exist. Check the /amsol directory for AMSOL installation")
-        molSanitizer.clean_data(args)
+        cli.clean_data(args)
         # If the file was produced
         self.assertTrue(Path(f"{temp_dir}/db2/3,4-diclorophenol.db2").exists(), "DB2 file was not created.")
 
@@ -236,7 +236,7 @@ class TestMolSanitizer(unittest.TestCase):
             temp_dir = tmp_obj.name
             args = self.generate_mock_arguments([f'{self.path}/in_pdbqt.smi'], ['protonation', 'pdbqt', 'test'], temp_dir)
             args.prefix = Path(temp_dir)
-            molSanitizer.clean_data(args)
+            cli.clean_data(args)
             self.assertTrue(Path(f"{temp_dir}/pdbqt/salicylic_acid.pdbqt").exists(), "PDBQT file was not created.")
 
             with open(f"{temp_dir}/pdbqt/salicylic_acid.pdbqt") as pdbqt_file:

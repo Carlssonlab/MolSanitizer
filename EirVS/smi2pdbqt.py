@@ -2,13 +2,13 @@ try:
     from meeko import MoleculePreparation, PDBQTWriterLegacy
 except ImportError:
     print("""Please install the meeko package using "pip install meeko" to use this script.""")
-from MolSanitizer import smi2db2_utils, strain_filter
+from EirVS import smi2db2_utils, strain_filter
 from rdkit import Chem
 from rdkit.Chem import rdDistGeom, rdForceFieldHelpers
 import pandas as pd
 import logging
 import os
-logger = logging.getLogger('molsani')
+logger = logging.getLogger('eirvs')
 
 planar_lib, non_planar_lib = strain_filter.parse_sr_confs_library()
 

@@ -1,7 +1,7 @@
-# MolSanitizer - A package to prepare SMILES databases
+# Apollo - A package to prepare SMILES databases
 [![python](https://img.shields.io/badge/python-v3.11-blue)]()
 [![anaconda](https://img.shields.io/badge/Anaconda.org-2.1.0-green.svg?style=flat-square)]()
-[![Documentation](https://img.shields.io/badge/docs-0.2.2-orange)](https://msani.readthedocs.io/)
+[![Documentation](https://img.shields.io/badge/docs-0.2.2-orange)](https://apollo-chem.readthedocs.io/)
 ![GitHub forks](https://img.shields.io/github/forks/:user/:repo)
 [![license](https://img.shields.io/badge/license-GPLv2-yellow)]()
 
@@ -13,30 +13,30 @@ Apollo is a package for preparation (remove salts, stereoisomers enumeration, pr
 We will set up the environment using [Anaconda](https://docs.anaconda.com/anaconda/install/index.html). Clone the
 current repository:
 
-    git clone https://github.com/phonglam3103/MolSanitizer.git
+    git clone https://github.com/phonglam3103/Apollo.git
     
 Example of how to set up a working conda environment to run the code:
 
-    conda env create -f MolSanitizer/environment.yml
-    conda activate msani
-    pip install -e MolSanitizer
+    conda env create -f Apollo/environment.yml
+    conda activate apollo
+    pip install -e Apollo
 
 More information on the installation and dependencies could be found [here](https://apollo-chem.readthedocs.io/en/latest/installation.html).
 
 
 ## Documentation
 
-To start to use MolSanitizer, use the `-h` or `--help` flag for available options:
+To start to use Apollo, use the `-h` or `--help` flag for available options:
 
-    msani -h
+    apollo -h
 
-Documentation on the theory behind MolSanitizer and how to use it can be found [here](https://msani.readthedocs.io/)
+Documentation on the theory behind Apollo and how to use it can be found [here](https://apollo-chem.readthedocs.io)
 
 <img src="./plots/Workflow.png" width="1000">
 
 ## Notes about AMSOL
 
-By default, all the dependencies are automatically installed by conda and pip, except for AMSOL. The user is asked to place the compiled version of (named `amsol7.1`) to [MolSanitizer/amsol](MolSanitizer/amsol). In that folder, there will be a README on how to compile it on the modern Linux systems.
+By default, all the dependencies are automatically installed by conda and pip, except for AMSOL. The user is asked to place the compiled version of (named `amsol7.1`) to [Apollo`/amsol](Apollo/amsol). In that folder, there will be a README on how to compile it on the modern Linux systems.
 
 *As for the current evaluation version, the precompiled AMSOL version is provided. It will be removed once the repository is publicly available.*
 
@@ -47,7 +47,7 @@ We warmly welcome contributions of all kinds, whether it's reporting a bug, sugg
 
 
 ## Feedback
-MolSanitizer is a rule-based program that relies on our experience from previous drug discovery projects. We are committed to continuously improving the program's performance by adding more rules to the filters and tautomers/protonation. If you have any ideas or suggestions, please don't hesitate to open an issue or contact us.
+Apollo is a rule-based program that relies on our experience from previous drug discovery projects. We are committed to continuously improving the program's performance by adding more rules to the filters and tautomers/protonation. If you have any ideas or suggestions, please don't hesitate to open an issue or contact us.
 
 ## Contact
 1. Thua-Phong Lam, phong.lam@icm.uu.se

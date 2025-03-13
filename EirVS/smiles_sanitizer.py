@@ -14,7 +14,7 @@ from .filters import Filters
 from .tautomerizer import Tautomerizer
 from .ionizer import Ionizer
 import logging
-logger = logging.getLogger('molsani')
+logger = logging.getLogger('eirvs')
 RDLogger.DisableLog('rdApp.*') # To disable error messages with kekulizing tautomers from RDKit
 
 class SmilesSanitizer:

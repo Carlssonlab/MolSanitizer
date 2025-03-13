@@ -8,7 +8,7 @@ import logging
 from pathlib import Path
 from rdkit.Chem.MolStandardize import rdMolStandardize
 RDLogger.DisableLog('rdApp.*') # To disable error messages with kekulizing tautomers from RDKit
-logger = logging.getLogger('molsani')
+logger = logging.getLogger('eirvs')
 
 TAUTOMER_RULES_PATH = Path(__file__).parent / 'Data' / 'tautomers_v2.txt'
 

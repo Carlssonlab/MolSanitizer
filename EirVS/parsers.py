@@ -2,17 +2,14 @@ import argparse
 
 import os
 from pathlib import Path
-try:
-    import yaml
-except ImportError:
-    print("Please install pyaml using 'pip install pyaml'")
-    exit(1)
+import yaml
+
 
 import logging
-logger = logging.getLogger('molsani')
+logger = logging.getLogger('eirvs')
 
 
-with open(os.path.join(os.path.dirname(__file__), 'msani_configurations.yaml')) as confFile:
+with open(os.path.join(os.path.dirname(__file__), 'eirvs_configurations.yaml')) as confFile:
     configurations = yaml.full_load(confFile)
     slurm_account = configurations['SLURM_ACCOUNT']
     time_limit = configurations['TIME_LIMIT']

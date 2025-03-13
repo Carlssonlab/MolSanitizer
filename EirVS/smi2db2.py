@@ -16,9 +16,9 @@ import os,  shutil
 import copy
 from pathlib import Path
 from scipy.spatial.distance import pdist, squareform
-from MolSanitizer.amsol import run_amsol
-from MolSanitizer.db2 import mol2db2, mol2, solv
-from MolSanitizer import strain_filter, smi2db2_utils
+from EirVS.amsol import run_amsol
+from EirVS.db2 import mol2db2, mol2, solv
+from EirVS import strain_filter, smi2db2_utils
 import random
 import time
 import multiprocessing
@@ -26,7 +26,7 @@ import tarfile, io
 import platform
 
 import logging
-logger = logging.getLogger('molsani')
+logger = logging.getLogger('eirvs')
 
 #rotatable_pattern=r'[*]~[*;!$(*#*)!$([!#6&X2H])!$([!#6&X3H2])]-&!@[*;!$(*#*)!$([!#6&X2H])!$([!#6&X3H2])]~[*]'
 rotatable_pattern=r'[*]~[*;!$(*#*)]-&!@[*;!$(*#*)]~[*]'
