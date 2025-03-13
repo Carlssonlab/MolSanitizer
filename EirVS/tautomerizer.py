@@ -44,7 +44,7 @@ class Tautomerizer:
     Example use:
     ----------
     
-    >>> from MolSanitizer.tautomerizer import Tautomerizer\n
+    >>> from EirVS.tautomerizer import Tautomerizer\n
     >>> tautomerizer = Tautomerizer(numcores= 4, neutralize= False)\n
     >>> tautomers = tautomerizer.tautomerize(smiles='c1ccccc1O')\n
     >>> tautomers = tautomerizer.tautomerize(mol = RDKit Mol object)\n

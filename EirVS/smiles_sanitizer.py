@@ -19,7 +19,7 @@ RDLogger.DisableLog('rdApp.*') # To disable error messages with kekulizing tauto
 
 class SmilesSanitizer:
     """
-    A class to store the filter options and conduct chemical modifications for molSanitizer. 
+    A class to store the filter options and conduct chemical modifications for EirVS. 
     Initialize the class with the desired filter options and apply the filters to the input DataFrame.
     
     Example use:

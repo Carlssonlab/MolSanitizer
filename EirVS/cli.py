@@ -1,5 +1,5 @@
 """
-MolSanitizer in a standalone mode.
+EirVS in a standalone mode.
 """
 
 __author__ = "Thua-Phong Lam, Israel Cabeza de Vaca Lopez, Szymon Pach"
@@ -56,9 +56,9 @@ def log_execution_time(start_time, is_test):
         elapsed_time = time.time() - start_time
         minutes, seconds = divmod(elapsed_time, 60)
         if minutes != 0:
-            print(f"MolSanitizer took {int(minutes):02}:{int(seconds):02} minutes to complete.")
+            print(f"EirVS took {int(minutes):02}:{int(seconds):02} minutes to complete.")
         else:
-            print(f"MolSanitizer took {elapsed_time:.2f} seconds to complete.")
+            print(f"EirVS took {elapsed_time:.2f} seconds to complete.")
 
 def get_output_files(args, input_file_path):
     if args.prefix:
@@ -149,7 +149,7 @@ def process_files(args, start_time: int):
                 start_time = time.time()
 
 def process_smiles(args):
-    rejected_file = "msani_rejected.txt"
+    rejected_file = "eirvs_rejected.txt"
     chunk = pd.DataFrame({'smiles': args.smiles, 'ids': range(len(args.smiles))})
     chunk['ids'] = chunk['ids'].astype(str)
     chunk['mol'] = chunk['smiles'].apply(Chem.MolFromSmiles)
@@ -177,7 +177,7 @@ def clean_data(args):
     logger.info(f'RDKit version: {rdkit_version}')
     if rdkit_version != '2024.09.1':
         print('\n########################################################')
-        print('RDKit version 2024.09.1 is recommended for MolSanitizer.')
+        print('RDKit version 2024.09.1 is recommended for EirVS.')
         print("Use 'conda install rdkit==2024.9.1' to avoid potential issues.")
         print('########################################################\n')
         
@@ -237,7 +237,7 @@ def main():
     args = parsers.parseArguments(sys.argv[1:])
     args = Sanitycheck(args)
     if args.version:
-        print(f"MolSanitizer version: {__version__}")
+        print(f"EirVS version: {__version__}")
         print(f"RDKit version: {rdBase.rdkitVersion}")
         return
    
@@ -251,11 +251,11 @@ def main():
         else: log_file = 'molsani.log'
         loggers.setup_logger(log_file)
         original_command = ' '.join(sys.argv)
-        logger.info(f"#######  STARTING MOLSANITIZER {__version__} #######")
+        logger.info(f"#######  STARTING EirVS {__version__} #######")
         logger.info(f"{original_command}")    
         loggers.arguments(args)
         clean_data(args)
-        logger.info(f"***********  MOLSANITIZER FINISHED *****************")
+        logger.info(f"***********  EirVS FINISHED *****************")
 
 
 

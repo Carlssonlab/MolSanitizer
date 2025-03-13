@@ -64,7 +64,7 @@ git checkout -b fix-issue-123
    ```bash
    # Create and activate the conda environment
    conda env create -f EirVS/environment.yml
-   conda activate msani
+   conda activate eirvs
    
    # Install the package in editable mode
    pip install -e EirVS

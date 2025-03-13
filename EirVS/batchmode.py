@@ -1,5 +1,5 @@
 """
-MolSanitizer in the batch mode.
+EirVS in the batch mode.
 """
 
 __author__ = "Thua-Phong Lam, Israel Cabeza de Vaca Lopez, Szymon Pach"
@@ -22,7 +22,7 @@ from rdkit import rdBase
 slurm_header = '''#!/bin/bash
 #SBATCH -A PROJECT_NAME
 #SBATCH -n 1
-#SBATCH -J msani_3d
+#SBATCH -J eirvs_3d
 #SBATCH -t TIME_LIMIT
 #SBATCH --mail-type=FAIL
 #SBATCH --mem=MEMORY
@@ -37,10 +37,9 @@ ARRAY_ID=${SLURM_ARRAY_JOB_ID}
 log_prefix=$(basename "$smiles_file")
 log_prefix="${log_prefix%.*}"  # Remove the extension
 log_file="${log_prefix}.log"
-MSANI_PATH -i $smiles_file -j 2'''
+EIRVS_PATH -i $smiles_file -j 2'''
 
 cleanup_script ="""
-# Get the number of tasks with the name msani_3d from the user's squeue
 task_count=$(ls *.lock 2>/dev/null | wc -l)
 echo "$task_count remaining jobs in the queue."
 
@@ -69,7 +68,7 @@ if [ "$task_count" -eq 0 ]; then
 
     if [ -n "$failed_tasks" ]; then
         echo "Failed tasks detected: $failed_tasks"
-        echo "sbatch --array=${failed_tasks} submit_msani.sh" > RESUBMIT_FAILED_JOBS.txt
+        echo "sbatch --array=${failed_tasks} submit_eirvs.sh" > RESUBMIT_FAILED_JOBS.txt
         echo "Instructions for resubmitting failed jobs written to RESUBMIT_FAILED_JOBS.txt"
 
         # Create a pattern to exclude failed task files with zero-padded IDs
@@ -94,7 +93,7 @@ fi
 remove_lock_files = '''
 rm -f "${log_prefix}.lock"
 '''
-with open(os.path.join(os.path.dirname(__file__), 'msani_configurations.yaml')) as confFile:
+with open(os.path.join(os.path.dirname(__file__), 'eirvs_configurations.yaml')) as confFile:
     configurations = yaml.full_load(confFile)
     slurm_account = configurations['SLURM_ACCOUNT']
     time_limit = configurations['TIME_LIMIT']
@@ -168,15 +167,14 @@ def write_single_job_script(slurm_header: str, slurm_script: str):
     Returns:
         None
     """
-    result = subprocess.run(['which', 'msani'], stdout=subprocess.PIPE, text=True)
+    result = subprocess.run(['which', 'eirvs'], stdout=subprocess.PIPE, text=True)
 
     # Get the stdout from the result and strip any extra whitespace
-    msani_path = result.stdout.strip()
+    eirvs_path = result.stdout.strip()
 
-    #print(f"msani_path: {msani_path}")
-    slurm_script = slurm_script.replace('MSANI_PATH', msani_path)
+    slurm_script = slurm_script.replace('EIRVS_PATH', eirvs_path)
 
-    with open('submit_msani.sh', 'w') as f:
+    with open('submit_eirvs.sh', 'w') as f:
         f.write(slurm_header)
         f.write(slurm_script)
 
@@ -206,7 +204,7 @@ def Split_Submit_jobs(args: dict, parser):
     global slurm_header
     slurm_header = slurm_header.replace('PROJECT_NAME', args.proj_name)
     slurm_header = slurm_header.replace('TIME_LIMIT', f'{args.timelimit}:00:00')
-    if not(args.db2) and not(args.pdbqt): slurm_header = slurm_header.replace('msani_3d', 'msani_2d')
+    if not(args.db2) and not(args.pdbqt): slurm_header = slurm_header.replace('eirvs_3d', 'eirvs_2d')
     if args.lines >= 250_000: slurm_header = slurm_header.replace('MEMORY', '12G')
     elif args.lines >= 100_000: slurm_header = slurm_header.replace('MEMORY', '6G')
     else: slurm_header = slurm_header.replace('MEMORY', '4G')
@@ -218,7 +216,7 @@ def Split_Submit_jobs(args: dict, parser):
     if args.test: 
         test_batch_mode(args)
     else:
-        print(f"\nStarting MolSanitizer in batch mode\n")
+        print(f"\nStarting EirVS in batch mode\n")
         print(f"Using project name (-A): {args.proj_name}")
         print(f"Time limit for each job (-tl): {args.timelimit} hours")
         print(f"Maximum number of jobs in an array: {max_array_size} jobs")
@@ -236,14 +234,14 @@ def Split_Submit_jobs(args: dict, parser):
         for file in args.input_files:
             if not os.path.exists(file):
                 print(f"File {file} does not exist. Please check the path and try again.")
-                print(f"Exitting MolSanitizer...")
+                print(f"Exitting EirVS...")
                 return
             line_count = count_lines_bash(file)
             n_jobs += math.ceil(line_count/args.lines)
         print(f"Total number of jobs to submit: {n_jobs}\n")
         if n_jobs > max_array_size:
             print(f"Too many jobs to submit ({n_jobs}). Please increase the number of lines per job or decrease the number of input files")
-            print(f"Exitting MolSanitizer...")
+            print(f"Exitting EirVS...")
             return
         
         if current_running_jobs + n_jobs > max_limit_project:
@@ -251,7 +249,7 @@ def Split_Submit_jobs(args: dict, parser):
             print(f"Total number of jobs to submit: {n_jobs}")
             print(f"Total number of jobs will exceed the limit of {max_limit_project} jobs in the project {args.proj_name}")
             print(f"Please wait for the current jobs to finish before submitting new jobs.")
-            print(f"Exitting MolSanitizer...")
+            print(f"Exitting EirVS...")
             return
 
         # Wait for 5 seconds before proceeding
@@ -266,7 +264,7 @@ def Split_Submit_jobs(args: dict, parser):
                     print(f"Removing folder {prefix}...\n")
                     subprocess.run(f"rm -rf {prefix}", shell=True)
                 else:
-                    print(f"Exitting MolSanitizer...\n")
+                    print(f"Exitting EirVS...\n")
                     return
             subprocess.run(f"mkdir -p {prefix}", shell=True)
             subprocess.run(f"split -l {args.lines} -d -a 4 --additional-suffix=.smi {file} {prefix}/in", shell=True)
@@ -280,7 +278,7 @@ def Split_Submit_jobs(args: dict, parser):
                         lock.write('')
             print(f"Submitting {n_jobs} jobs\n")
             write_single_job_script(slurm_header, slurm_script)
-            subprocess.run(f"sbatch --array=0-{n_jobs-1}%{args.max_jobs} submit_msani.sh", shell=True)
+            subprocess.run(f"sbatch --array=0-{n_jobs-1}%{args.max_jobs} submit_eirvs.sh", shell=True)
             os.chdir('..')
         
 def main():
@@ -289,12 +287,12 @@ def main():
     rdkit_version = rdBase.rdkitVersion
     if rdkit_version != '2024.09.1':
         print('\n###########################################################')
-        print('RDKit version 2024.09.1 is recommended for MolSanitizer.')
+        print('RDKit version 2024.09.1 is recommended for EirVS.')
         print("Use 'conda install rdkit==2024.9.1' to avoid potential issues.")
         print('##############################################################\n')
         time.sleep(2)
     if args.version:
-        print(f"MolSanitizer version: {__version__}")
+        print(f"EirVS version: {__version__}")
         print(f"RDKit version: {rdkit_version}")
         return
     Split_Submit_jobs(args, parser)

@@ -38,7 +38,7 @@ class Ionizer:
         Example use:
         ----------
         
-        >>> from MolSanitizer.ionizer import Ionizer\n
+        >>> from EirVS.ionizer import Ionizer\n
         >>> ionizer = Ionizer(pH = 7, pH_range = 2)\n
         >>> results = ionizer.ionize(smiles = 'CCc1ccc(CCOc2ccc(CC3SC(=O)NC3=O)cc2)nc1')\n
         >>> df = ionizer.ionize_df(mol_df, pH=7, pH_range=0, num_cores=1, debug=False)\n

@@ -204,13 +204,6 @@ class TestEirVS(unittest.TestCase):
         args = self.generate_mock_arguments([f'{self.path}/in_db2.smi'], ['db2', 'test', 'enrichment'], temp_dir)
         args.prefix = Path(temp_dir)
 
-        # If AMSOL is installed
-        if OS == 'Windows':
-            AMSOLEXE = Path(__file__).parent.parent / 'MolSanitizer'  / "amsol" / "amsol7.1.exe"
-        elif OS == 'Linux':    
-            AMSOLEXE = Path(__file__).parent.parent / 'MolSanitizer'  / "amsol" / "amsol7.1"                
-        
-        self.assertTrue(AMSOLEXE.exists(), "amsol7.1 file does not exist. Check the /amsol directory for AMSOL installation")
         cli.clean_data(args)
         # If the file was produced
         self.assertTrue(Path(f"{temp_dir}/db2/3,4-diclorophenol.db2").exists(), "DB2 file was not created.")
@@ -274,28 +267,28 @@ class TestEirVS(unittest.TestCase):
             os.chdir(batch_dir)
 
             # Check for required files
-            required_files = ['submit_msani.sh', 'in0000.smi', 'in0001.smi']
+            required_files = ['submit_eirvs.sh', 'in0000.smi', 'in0001.smi']
             for file in required_files:
                 with self.subTest(file=file):
                     self.assertTrue(os.path.exists(file), f"{file} was not created.")
 
-            # Validate submit_msani.sh content
+            # Validate submit_eirvs.sh content
             expected_template = [
                 '#!/bin/bash\n',
                 '#SBATCH -A dummy_output\n',
                 '#SBATCH -n 1\n',
-                '#SBATCH -J msani_3d\n',
+                '#SBATCH -J eirvs_3d\n',
                 '#SBATCH -t 96:00:00\n',
                 '#SBATCH --mail-type=FAIL\n'
             ]
 
-            with open('submit_msani.sh', 'r') as f:
+            with open('submit_eirvs.sh', 'r') as f:
                 file_contents = f.readlines()
-                self.assertEqual(file_contents[:6], expected_template, "submit_msani.sh header is incorrect.")
+                self.assertEqual(file_contents[:6], expected_template, "submit_eirvs.sh header is incorrect.")
 
                 # Extract and verify flags
                 command_line = file_contents[16].strip()
-                extracted_flags = command_line.split('/msani -i $smiles_file ')[-1].split(' --')
+                extracted_flags = command_line.split('/eirvs -i $smiles_file ')[-1].split(' --')
 
                 # Ensure applied_flags match extracted_flags
                 with self.subTest(msg="Checking applied flags"):

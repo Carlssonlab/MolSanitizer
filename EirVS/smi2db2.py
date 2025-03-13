@@ -419,7 +419,7 @@ def find_rigid_part(mol, rigid_rules):
     
 
 def log_error(smiles, name):
-    with open('msani_error.log', 'a') as f:
+    with open('eirvs_error.log', 'a') as f:
         f.write(f"{smiles} \t {name}\n")
 
 
@@ -782,7 +782,7 @@ def conf_sampling(rigid_scaffolds, name, smiles, numConfs, sulfo_matches,
         List[List[mol2.Mol2]]: A nested list containing Mol2 objects for each rigid scaffold, each with their respective conformers.
     
     Notes:
-        For assymetric sulfonamides, there would be two versions of rigid scaffolds handled by MolSanitizer.
+        For assymetric sulfonamides, there would be two versions of rigid scaffolds handled by EirVS.
     """
     num_confs_by_rotbonds, match_torlib = count_confs_by_rotbonds(rigid_scaffolds[0], ignoreTorlib, VERBOSE)
     requested_num_confs = numConfs
@@ -964,8 +964,8 @@ def gen_conf_chunk(df: pd.DataFrame, args, input_file='0'):
         args.numconfs, args.debug, args.cleanup, args.energywindow, args.timeout , args.ignoretorlib
     env = setup_env()
     if args.timing: 
-        if not(os.path.exists('msani_timing.csv')): 
-            with open('msani_timing.csv', 'w') as f: f.write('Name,Initial embedding,AMSOL,Torsional sampling,Mol2DB2,Total\n')
+        if not(os.path.exists('eirvs_timing.csv')): 
+            with open('eirvs_timing.csv', 'w') as f: f.write('Name,Initial embedding,AMSOL,Torsional sampling,Mol2DB2,Total\n')
         logging_time = ""
     
     # Test mode in unittest, not to produce redundant files here
@@ -1162,7 +1162,7 @@ def gen_conf_chunk(df: pd.DataFrame, args, input_file='0'):
                     os.rmdir(folder)
                 except: pass
     if args.timing:
-        with open('msani_timing.csv', 'a') as f:
+        with open('eirvs_timing.csv', 'a') as f:
             f.write(logging_time)
 
 def gen_conf_chunk_corina(df: pd.DataFrame, args, input_file='0'):
@@ -1170,8 +1170,8 @@ def gen_conf_chunk_corina(df: pd.DataFrame, args, input_file='0'):
         args.numconfs, args.debug, args.cleanup, args.energywindow, args.timeout , args.ignoretorlib
     env = setup_env()
     if args.timing: 
-        if not(os.path.exists('msani_timing.csv')): 
-            with open('msani_timing.csv', 'w') as f: f.write('Name,Initial embedding,AMSOL,Torsional sampling,Mol2DB2,Total\n')
+        if not(os.path.exists('eirvs_timing.csv')): 
+            with open('eirvs_timing.csv', 'w') as f: f.write('Name,Initial embedding,AMSOL,Torsional sampling,Mol2DB2,Total\n')
         logging_time = ""
     processed_mols = set()
     os.makedirs(f"db2", exist_ok=True)
@@ -1332,5 +1332,5 @@ def gen_conf_chunk_corina(df: pd.DataFrame, args, input_file='0'):
                     os.rmdir(folder)
                 except: pass
     if args.timing:
-        with open('msani_timing.csv', 'a') as f:
+        with open('eirvs_timing.csv', 'a') as f:
             f.write(logging_time)
