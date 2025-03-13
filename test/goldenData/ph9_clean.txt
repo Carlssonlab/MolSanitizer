@@ -2,11 +2,12 @@ C[NH+]1CCC[C@H]1c1cccnc1 0
 Nc1ccc(S(=O)(=O)c2ccc(N)cc2)cc1 1
 CCc1ccc(CCOc2ccc(CC3SC(=O)[N-]C3=O)cc2)nc1 2
 O[B-]1(O)OCc2cc(F)ccc21 3
-C[C@@H]1O[C@@H]1P(=O)([O-])O 4
+C[C@@H]1O[C@@H]1P(=O)([O-])[O-] 4
 C[C@]12CC[C@@H]3c4ccc(OS(=O)(=O)[O-])cc4CC[C@H]3[C@@H]1CCC2=O 5
 O=C([O-])c1cccnc1 6
 C[N+](=O)[O-] 7
-CCCCOc1ccc(CC(=O)N[O-])cc1 8
+CCCCOc1ccc(CC(=O)NO)cc1 8_1
+CCCCOc1ccc(CC(=O)N[O-])cc1 8_2
 Nc1ccc(S(=O)(=O)[N-]c2ncccn2)cc1 9
 C=C[N-]S(=O)(=O)c1ccccc1 10
 CCCCNC(=O)[N-]S(=O)(=O)c1ccc(C)cc1 11
@@ -38,8 +39,8 @@ COc1cc(Cc2cnc(N)nc2N)cc(OC)c1OC 35
 CNc1ccnnc1 36
 NC(=[NH2+])N1CCc2ccccc2C1 37
 c1ccc(CC2=[NH+]CCN2)cc1 38
-N=C(N)NC(=[NH2+])NCCc1ccccc1 39_1
-N=C(NCCc1ccccc1)NC(N)=[NH2+] 39_2
+N=C(NCCc1ccccc1)NC(N)=[NH2+] 39_1
+N=C(N)NC(=[NH2+])NCCc1ccccc1 39_2
 CC1(C)[NH+]=C(N)N=C(N)N1c1ccc(Cl)cc1 40
 O=S(=O)([O-])c1c(O)ccc2ccccc12 41
 O=S(=O)([O-])c1ccc([O-])c2ccccc12 42
