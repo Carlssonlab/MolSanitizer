@@ -1,6 +1,7 @@
 import unittest
 import tempfile
 import os
+import shutil
 
 from pathlib import Path
 from types import SimpleNamespace
@@ -13,7 +14,7 @@ import MolSanitizer.molSanitizer as molSanitizer
 from MolSanitizer.msani_batch import Split_Submit_jobs
 from MolSanitizer import parsers
 
-
+OS = platform.system()
 
 class TestMolSanitizer(unittest.TestCase):
     @classmethod
@@ -203,7 +204,12 @@ class TestMolSanitizer(unittest.TestCase):
             args.prefix = Path(temp_dir)
 
             # If AMSOL is installed
-            self.assertTrue((Path(__file__).parent.parent / 'MolSanitizer' / 'amsol' / 'amsol7.1').exists(), "amsol7.1 file does not exist. Check MolSanitizer/amsol directory for AMSOL installation")
+            if OS == 'Windows':
+                AMSOLEXE = Path(__file__).parent.parent / 'MolSanitizer'  / "amsol" / "amsol7.1.exe"
+            elif OS == 'Linux':    
+                AMSOLEXE = Path(__file__).parent.parent / 'MolSanitizer'  / "amsol" / "amsol7.1"                
+            
+            self.assertTrue(AMSOLEXE.exists(), "amsol7.1 file does not exist. Check the /amsol directory for AMSOL installation")
             molSanitizer.clean_data(args)
             # If the file was produced
             self.assertTrue(Path(f"{temp_dir}/db2/3,4-diclorophenol.db2").exists(), "DB2 file was not created.")
@@ -215,20 +221,33 @@ class TestMolSanitizer(unittest.TestCase):
         os.chdir(self.path)
 
     def test_pdbqt_generation(self):
-        with tempfile.TemporaryDirectory() as temp_dir:
+        #with tempfile.TemporaryDirectory() as temp_dir:
+            try:
+                import meeko
+            except ImportError:
+                print("""The Meeko program is not installed. PDBQT options are not tested""")
+                return
+            tmp_obj = tempfile.TemporaryDirectory()
+            temp_dir = tmp_obj.name
             args = self.generate_mock_arguments([f'{self.path}/in_pdbqt.smi'], ['protonation', 'pdbqt', 'test'], temp_dir)
             args.prefix = Path(temp_dir)
             molSanitizer.clean_data(args)
-            os.listdir(f"{temp_dir}")
             self.assertTrue(Path(f"{temp_dir}/pdbqt/salicylic_acid.pdbqt").exists(), "PDBQT file was not created.")
 
             with open(f"{temp_dir}/pdbqt/salicylic_acid.pdbqt") as pdbqt_file:
                 lines = pdbqt_file.readlines()
-                self.assertEqual(lines[0],"REMARK SMILES O=C([O-])c1ccccc1O\n", "PDBQT file was not created correctly.")
-                self.assertEqual(lines[-1],"TORSDOF 2\n", "PDBQT file was not created correctly.")
-        os.chdir(self.path)
+                del pdbqt_file
+            if lines[-1] == '\n': lines.pop(-1)
+            #shutil.rmtree(f"{temp_dir}/pdbqt")
+            
+            
+            self.assertEqual(lines[0],"REMARK SMILES O=C([O-])c1ccccc1O\n", "PDBQT file was not created correctly.")
+            self.assertEqual(lines[-1],"TORSDOF 2\n", "PDBQT file was not created correctly.")
+            
+            os.chdir(self.path)
+            shutil.rmtree(temp_dir)
     
-    @unittest.skipIf(platform.system() == "Windows", "Skipping test on Windows due to incompatible `split` command.")
+    @unittest.skipIf(OS in ["Windows","Darwin"], "Skipping test on Windows due to incompatible `split` command.")
     def test_batch(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             args, parser = parsers.parseArguments([], batch_mode=True)

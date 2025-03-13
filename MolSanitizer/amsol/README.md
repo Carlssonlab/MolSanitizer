@@ -1,3 +1,10 @@
+# For Windows
+
+Download the precompiled executable AMSOL from [here](https://comp.chem.umn.edu/sds/amsol/amsol.cgi) and renamed it as amsol7.1.exe. The program automatically detects if the OS is Windows and will use this for calculation of desolvation.
+
+
+# For Linux 
+
 1. Install notes
 
 You need to download, compile & install AMSOL7.1 here. The executable should be named amsol7.1

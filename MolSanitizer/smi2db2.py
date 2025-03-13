@@ -23,7 +23,7 @@ import random
 import time
 import multiprocessing
 import tarfile, io
-
+import platform
 
 import logging
 logger = logging.getLogger('molsani')
@@ -38,7 +38,11 @@ rigid_rules['mol'] = rigid_rules['SMARTS'].apply(lambda x: Chem.MolFromSmarts(x)
 
 planar_lib, non_planar_lib = strain_filter.parse_sr_confs_library()
 
-AMSOLEXE = Path(__file__).parent / "amsol" / "amsol7.1"
+system = platform.system()
+if system == 'Windows':
+    AMSOLEXE = Path(__file__).parent / "amsol" / "amsol7.1.exe"
+elif system == 'Linux':
+    AMSOLEXE = Path(__file__).parent / "amsol" / "amsol7.1"
 if not AMSOLEXE.exists():
     raise FileNotFoundError(f"AMSOL executable not found at {AMSOLEXE}. Check the amsol directory for instruction to install amsol")
 
