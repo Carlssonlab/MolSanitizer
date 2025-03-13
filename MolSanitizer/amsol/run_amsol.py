@@ -1,6 +1,6 @@
 import os
 import subprocess
-import sys
+import platform
 from pathlib import Path
 from openbabel import openbabel as ob
 from MolSanitizer.amsol import mol2amsol
@@ -12,6 +12,14 @@ from MolSanitizer.amsol import mol2amsol
 
 """python prepare_input.py ZINC*****.mol2 1
 """
+
+system = platform.system()
+if system == 'Windows':
+    AMSOLEXE = Path(__file__).parent / "amsol7.1.exe"
+elif system == 'Linux':
+    AMSOLEXE = Path(__file__).parent / "amsol7.1"
+if not AMSOLEXE.exists():
+    raise FileNotFoundError(f"AMSOL executable not found at {AMSOLEXE}. Check the amsol directory for instruction to install amsol")
 
 
 def convert_to_ZmatMOPAC(input_file, output_file, VERBOSE=False):
@@ -141,7 +149,6 @@ def check_output_from_amsol71(output_file, VERBOSE=False):
     return 0
 
 def run(input_file, output_file, env, timeout_seconds=60, VERBOSE=False):
-    AMSOLEXE = Path(__file__).parent / "amsol7.1"
     if VERBOSE: 
         print(f"Running: {AMSOLEXE} < {input_file} > {output_file}")
     try:
