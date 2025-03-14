@@ -19,6 +19,14 @@ All notable changes to this project will be documented in this file.
 - Fix a unexplainable bug in neutralizing molecules make the atoms cannot receive or delete substituents ([N+],...) - ([089ec52](https://github.com/phonglam3103/EirVS/commit/089ec52db8ff7540b5ade1f946dbdcf78708e229))
 - Fix a bug in msani_batch that string arguments are not passed to the single script properly. - ([16df3eb](https://github.com/phonglam3103/EirVS/commit/16df3eb8041000348e4a0de40da9471c4fcc26fb))
 
+### 🚜 Refactor
+
+- Reorganized the whole package. The organization now should be more intuitive. - ([6de0647](https://github.com/phonglam3103/EirVS/commit/6de0647233345c60791cda6ea07349a44d32921a))
+
+### ⚡ Performance
+
+- Change the name of the package to EirVS. Once the branch is merged, the user is expected to use `pip uninstall molsanitizer` and `pip install -e .` again. - ([567a780](https://github.com/phonglam3103/EirVS/commit/567a78076dbb9858cc361c6aba7906e80ad03b6b))
+
 ## [0.2.3] - 2025-02-04
 
 ### 🚀 Features
