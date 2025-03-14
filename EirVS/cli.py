@@ -1,14 +1,14 @@
 """
-MolSanitizer in a standalone mode.
+EirVS in a standalone mode.
 """
 
-__author__ = "Thua-Phong Lam, Israel Cabeza de Vaca Lopez, Szymon Pach"
+__author__ = "Thua-Phong Lam, Szymon Pach, Israel Cabeza de Vaca"
 __place__ = "Jens Carlsson lab, Uppsala University, Sweden"
 __license__ = "GPLv2"
 __version__ = "0.2.3"
 
 import logging
-logger = logging.getLogger('molsani')
+logger = logging.getLogger('eirvs')
 
 import pandas as pd
 
@@ -17,10 +17,9 @@ import os
 import time
 import sys
 
-from . import parsers
-from . import loggers
-from . import smiles_sanitizer
-from . import smi2db2
+from .inout import parsers
+from .inout import loggers
+from . import api
 
 from rdkit import Chem
 from rdkit import rdBase
@@ -31,14 +30,14 @@ def process_enamine_name(chunk):
     return chunk
 
 def apply_filters(chunk, args, rejected_file):
-    sanitizer = smiles_sanitizer.SmilesSanitizer(
+    processor = api.EirVS(
         removesalts=args.removesalts, custom= args.custom, unwanted=args.unwanted,
         pains=args.pains, ha=args.ha, logp=args.logp, hba=args.hba, hbd=args.hbd, 
         mw=args.mw, tautomers=args.tautomers, taurdkit=args.taurdkit, neutralize=args.neutralize,
         stereoisomers=args.stereoisomers, max_stereoisomers=args.max_stereoisomers,
         protonation=args.protonation, pH=args.pH, pH_range=args.pH_range, 
         numcores=args.numcores, conformal=args.conformal, db2 = args.db2, debug=args.debug)
-    chunk = sanitizer.Sanitize(chunk, rejected_file)
+    chunk = processor.run(chunk, rejected_file)
     return chunk
 
 def log_step_time(elapsed_time, step):
@@ -56,9 +55,9 @@ def log_execution_time(start_time, is_test):
         elapsed_time = time.time() - start_time
         minutes, seconds = divmod(elapsed_time, 60)
         if minutes != 0:
-            print(f"MolSanitizer took {int(minutes):02}:{int(seconds):02} minutes to complete.")
+            print(f"EirVS took {int(minutes):02}:{int(seconds):02} minutes to complete.")
         else:
-            print(f"MolSanitizer took {elapsed_time:.2f} seconds to complete.")
+            print(f"EirVS took {elapsed_time:.2f} seconds to complete.")
 
 def get_output_files(args, input_file_path):
     if args.prefix:
@@ -131,13 +130,14 @@ def process_files(args, start_time: int):
 
 
             if args.db2:
+                from .conformers import smi2db2
                 if args.corina:
                     smi2db2.gen_conf_chunk_corina(chunk, args, input_file_path.stem)
                 else:
                     smi2db2.gen_conf_chunk(chunk, args, input_file_path.stem)
             
             if args.pdbqt:
-                from . import smi2pdbqt
+                from .conformers import smi2pdbqt
                 smi2pdbqt.gen_conf_chunk(chunk, args)
             if not args.test:
                 if step == 1: time_step1 = time.time()-start_time
@@ -149,7 +149,7 @@ def process_files(args, start_time: int):
                 start_time = time.time()
 
 def process_smiles(args):
-    rejected_file = "msani_rejected.txt"
+    rejected_file = "eirvs_rejected.txt"
     chunk = pd.DataFrame({'smiles': args.smiles, 'ids': range(len(args.smiles))})
     chunk['ids'] = chunk['ids'].astype(str)
     chunk['mol'] = chunk['smiles'].apply(Chem.MolFromSmiles)
@@ -157,6 +157,7 @@ def process_smiles(args):
     chunk = apply_filters(chunk, args, rejected_file)
 
     if args.db2: 
+        from .conformers import smi2db2
         if os.path.exists('db2/0.db2'): os.remove('db2/0.db2') # 0 is the default name
         if args.corina:
             smi2db2.gen_conf_chunk_corina(chunk, args)
@@ -164,7 +165,7 @@ def process_smiles(args):
             smi2db2.gen_conf_chunk(chunk, args)
 
     if args.pdbqt:
-        from . import smi2pdbqt
+        from .conformers import smi2pdbqt
         smi2pdbqt.gen_conf_chunk(chunk, args)
     
     print('Processed SMILES:')
@@ -177,7 +178,7 @@ def clean_data(args):
     logger.info(f'RDKit version: {rdkit_version}')
     if rdkit_version != '2024.09.1':
         print('\n########################################################')
-        print('RDKit version 2024.09.1 is recommended for MolSanitizer.')
+        print('RDKit version 2024.09.1 is recommended for EirVS.')
         print("Use 'conda install rdkit==2024.9.1' to avoid potential issues.")
         print('########################################################\n')
         
@@ -189,36 +190,6 @@ def clean_data(args):
     log_execution_time(start_time, args.test)
 
 
-def Sanitycheck(args: dict):
-    """Sanity check for the unwanted flag
-
-    Args:
-        args (dict): Arguments from the command line
-
-    Returns:
-        dict: The updated arguments
-    """
-    if args.lazy:
-        args.removesalts = True
-        args.tautomers = True
-        args.pains = True
-        args.unwanted = ['all']
-        args.stereoisomers = True
-        args.protonation = True
-
-    if args.unwanted is not None:
-        if not args.unwanted: args.unwanted=['regular']
-        if 'all' in args.unwanted: args.unwanted=['regular','special','optional']
-        args.unwanted=[word.title() for word in args.unwanted]
-    if args.db2 or args.pdbqt:
-        # Always enumerate stereoisomers for before generating DB2 and PDBQT files
-        # Maximum number of stereoisomers is set to in parser
-        args.stereoisomers = True
-    
-    if (args.pH != 7 or args.pH_range != 0) and not args.protonation:
-        print("It seems like you forget the --protonation flag. We turned it on for you.")
-        args.protonation = True
-    return args
 
 def generateCustomTemplate(args):
     """Generate the custom template for substructure filtering 
@@ -235,9 +206,10 @@ def generateCustomTemplate(args):
 def main():
 
     args = parsers.parseArguments(sys.argv[1:])
-    args = Sanitycheck(args)
+    args = parsers.Sanitycheck(args)
     if args.version:
-        print(f"MolSanitizer version: {__version__}")
+        print(f"Python version: {sys.version.split('|')[0]}")
+        print(f"EirVS version: {__version__}")
         print(f"RDKit version: {rdBase.rdkitVersion}")
         return
    
@@ -248,14 +220,14 @@ def main():
             input_path = pathlib.Path(args.input_files[0])
             if args.prefix is not None: log_file = f'{args.prefix}.log' 
             else: log_file = input_path.with_suffix('.log')
-        else: log_file = 'molsani.log'
+        else: log_file = 'eirvs.log'
         loggers.setup_logger(log_file)
         original_command = ' '.join(sys.argv)
-        logger.info(f"#######  STARTING MOLSANITIZER {__version__} #######")
+        logger.info(f"#######  STARTING EIRVS {__version__} #######")
         logger.info(f"{original_command}")    
         loggers.arguments(args)
         clean_data(args)
-        logger.info(f"***********  MOLSANITIZER FINISHED *****************")
+        logger.info(f"***********  EIRVS FINISHED *****************")
 
 
 

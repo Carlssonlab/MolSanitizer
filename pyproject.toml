@@ -3,14 +3,14 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "MolSanitizer"
+name = "EirVS"
 version = "0.2.3"
-description = "Code to clean SMILES for ML and Docking (protonation, tautomers,...)"
+description = "An Efficient In-silico Refinement pipeline for Virtual Screening (protonation, tautomers,...)"
 readme = "README.md"
 authors = [
-    {name = "Thua-Phong Lam", email = "lamthuaphong@gmail.com"},
-    {name = "Israel Cabeza de Vaca Lopez", email = "israel.cabezadevaca@icm.uu.se"},
-    {name = "Szymon Pach", email = "szymon.pach@icm.uu.se"}
+    {name = "Thua-Phong Lam", email = "phong.lam@icm.uu.se"},
+    {name = "Szymon Pach", email = "szymon.pach@icm.uu.se"},
+    {name = "Israel Cabeza de Vaca", email = "israel.cabezadevaca@icm.uu.se"}
 ]
 license = {text = "GPL 2.0"}
 classifiers = [
@@ -19,7 +19,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Operating System :: POSIX :: Linux",
     "Topic :: Scientific/Engineering :: Chemistry",
-    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Drug Discovery",
 ]
 keywords = ["docking", "drug design"]
 requires-python = ">=3.9"
@@ -33,16 +33,16 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/phonglam3103/MolSanitizer.git"
+Homepage = "https://github.com/phonglam3103/EirVS.git"
 
 [project.scripts]
-msani = "MolSanitizer.molSanitizer:main"
-msani_batch = "MolSanitizer.msani_batch:main"
-strain = "MolSanitizer.strain_filter:main"
-charger = "MolSanitizer.ionizer:main"
-tautomerizer = "MolSanitizer.tautomerizer:main"
+eirvs = "EirVS.cli:main"
+eirvs_batch = "EirVS.batchmode:main"
+strain = "EirVS.filtering.strain_filter:main"
+charger = "EirVS.moltransform.ionizer:main"
+tautomerizer = "EirVS.moltransform.tautomerizer:main"
 
 [tool.setuptools]
-packages = ["MolSanitizer"]
+packages = ["EirVS"]
 
 

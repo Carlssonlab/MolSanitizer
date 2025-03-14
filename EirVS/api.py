@@ -1,30 +1,31 @@
-from pathlib import Path
 
-import pandas as pd
 
 from rdkit import Chem, RDLogger
-
 from rdkit.Chem import AllChem
-
 from rdkit.Chem.MolStandardize import rdMolStandardize
 from rdkit.Chem.EnumerateStereoisomers import EnumerateStereoisomers, StereoEnumerationOptions
-import multiprocessing as mp
+
 from functools import partial
-from .filters import Filters
-from .tautomerizer import Tautomerizer
-from .ionizer import Ionizer
+
+from .filtering.filters import Filters
+from .moltransform.tautomerizer import Tautomerizer
+from .moltransform.ionizer import Ionizer
+from .moltransform.neutralizer import Neutralizer
+
+import multiprocessing as mp
+import pandas as pd
 import logging
-logger = logging.getLogger('molsani')
+logger = logging.getLogger('eirvs')
 RDLogger.DisableLog('rdApp.*') # To disable error messages with kekulizing tautomers from RDKit
 
-class SmilesSanitizer:
+class EirVS:
     """
-    A class to store the filter options and conduct chemical modifications for molSanitizer. 
+    A class to store the filter options and conduct chemical modifications for EirVS. 
     Initialize the class with the desired filter options and apply the filters to the input DataFrame.
     
     Example use:
 
-        sanitizer = SmilesSanitizer(
+        processor = EirVS(
                     removesalts=True,
                     ha='>10',
                     logp='<5',
@@ -32,7 +33,7 @@ class SmilesSanitizer:
                     protonation = True, 
                     debug=True)
 
-        santized_df = sanitizer.Sanitize(df)
+        processed_df = processor.run(df)
 
     """
     tautomer_params = None  # Define as a class variable
@@ -82,8 +83,12 @@ class SmilesSanitizer:
         self.debug = debug
         self.db2 = db2
         self.numcores = numcores
-        if SmilesSanitizer.tautomer_params is None: SmilesSanitizer.tautomer_params = self.get_tautomer_params()
-
+        if EirVS.tautomer_params is None: EirVS.tautomer_params = self.get_tautomer_params()
+    
+    def __repr__(self):
+        cls_name = self.__class__.__name__
+        attrs = ', '.join(f'{k}={v!r}' for k, v in self.__dict__.items())
+        return f'{cls_name}\n({attrs})'
     
     @staticmethod
     def get_tautomer_params():
@@ -112,45 +117,6 @@ class SmilesSanitizer:
                 if smarts:
                     reactions.append([AllChem.ReactionFromSmarts(smarts[0]), smarts[1]])
         return reactions
-
-    @staticmethod
-    def neutralize_df(df: pd.DataFrame, debug = False) -> pd.DataFrame:
-        '''Neutralize the input molecules using the neutralize_atoms() function. 
-        Turn on by default if the user trigger the tautomers or protonation flag.'''
-        
-        def neutralize_atoms(mol, smiles):
-            """Neutralize the input molecule by balancing the charges on atoms.
-            Adapted from RDKit Cookbook: https://rdkit.org/docs/Cookbook.html"""
-
-            pattern = Chem.MolFromSmarts("[+1!h0!$([*]~[-1,-2,-3,-4]),-1!$([*]~[+1,+2,+3,+4])]")
-            at_matches = mol.GetSubstructMatches(pattern)
-            at_matches_list = [y[0] for y in at_matches]
-            if len(at_matches_list) > 0:
-                for at_idx in at_matches_list:
-                    atom = mol.GetAtomWithIdx(at_idx)
-                    chg = atom.GetFormalCharge()
-                    hcount = atom.GetTotalNumHs()
-                    atom.SetFormalCharge(0)
-                    atom.SetNumExplicitHs(hcount - chg)
-                    atom.UpdatePropertyCache()
-                smiles = Chem.MolToSmiles(mol)
-                return Chem.MolFromSmiles(smiles), smiles
-            else: return mol, smiles
-        
-        if debug: print('Neutralizing molecules...')
-        logger.info('Neutralizing molecules...')
-        for i, row in df.iterrows():
-            try:
-                new_mol, new_smiles = neutralize_atoms(row['mol'], row['smiles'])
-                # Only reassign if the molecule has been changed
-                if new_smiles != row['smiles']: 
-                    df.at[i, 'mol'] = new_mol
-                    df.at[i, 'smiles'] = new_smiles
-            
-            except:
-                logger.error(f"Error neutralizing molecule: {Chem.MolToSmiles(row['mol'])}")
-                pass
-        return df
 
     @staticmethod
     def _generate_stereoisomers(mol, max_isomers):
@@ -183,7 +149,7 @@ class SmilesSanitizer:
         # If max_isomers is set to 1, return the original molecule and let the RDKit/CORINA guess it.
         if max_isomers == 1: return [row_data]
         try:
-            isomers = SmilesSanitizer._generate_stereoisomers(mol, max_isomers=max_isomers)
+            isomers = EirVS._generate_stereoisomers(mol, max_isomers=max_isomers)
         except Exception as e:
             logger.error(f"Error generating stereoisomers for compound {row_data['ids']}: {row_data['smiles']}")
             isomers = [mol]
@@ -228,7 +194,7 @@ class SmilesSanitizer:
         pd.DataFrame: Expanded DataFrame with each stereoisomer as a separate row.
         """
         # Partial function to fix max_isomers as an argument
-        process_func = partial(SmilesSanitizer._process_molecule_stereoisomer, max_isomers=max_isomers)
+        process_func = partial(EirVS._process_molecule_stereoisomer, max_isomers=max_isomers)
         results = []
 
         with mp.Pool(processes=numcores) as pool:
@@ -257,9 +223,9 @@ class SmilesSanitizer:
 
         return pd.DataFrame(results)
 
-    def Sanitize(self, df: pd.DataFrame, rejected_file = None) -> pd.DataFrame:
+    def run(self, df: pd.DataFrame, rejected_file = None) -> pd.DataFrame:
         """
-        Sanitize the input DataFrame using the specified filters and rule-based chemical modifications.
+        Perform preparation on the input DataFrame using the specified filters and rule-based chemical modifications.
         
         Args:
             df (pd.DataFrame): Input DataFrame with ['smiles', 'ids'] columns. 
@@ -281,7 +247,7 @@ class SmilesSanitizer:
             return df
         
         if self.tautomers or self.protonation:
-            if self.neutralize: df = SmilesSanitizer.neutralize_df(df)
+            if self.neutralize: df = Neutralizer.neutralize_df(df)
         if self.tautomers: 
             tautomerizer = Tautomerizer(taurdkit=self.taurdkit, 
                                         debug=self.debug, 
@@ -299,7 +265,7 @@ class SmilesSanitizer:
                               debug=self.debug)
             df = ionizer.ionize_df(df)
             
-        if self.stereoisomers: df = SmilesSanitizer.enum_stereoisomers(df, max_isomers=self.max_stereoisomers, debug=self.debug, numcores=self.numcores)
+        if self.stereoisomers: df = EirVS.enum_stereoisomers(df, max_isomers=self.max_stereoisomers, debug=self.debug, numcores=self.numcores)
         return df
     
 

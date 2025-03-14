@@ -11,8 +11,8 @@ Nc1ccc(S(=O)(=O)Nc2ncccn2)cc1 9
 C=CNS(=O)(=O)c1ccccc1 10
 CCCCNC(=O)[N-]S(=O)(=O)c1ccc(C)cc1 11
 Cc1ccc(S(=O)(=O)[N-]Cl)cc1 12
-CS(=O)(=O)NCl 13_1
-CS(=O)(=O)[N-]Cl 13_2
+CS(=O)(=O)[N-]Cl 13_1
+CS(=O)(=O)NCl 13_2
 CC1=CC(=O)NS(=O)(=O)O1 14_1
 CC1=CC(=O)[N-]S(=O)(=O)O1 14_2
 CCCCC1=NC2(CCCC2)C(=O)N1Cc1ccc(-c2ccccc2-c2nn[n-]n2)cc1 15
@@ -26,8 +26,8 @@ CC[c-]1c(=O)[nH]c(=O)[nH]c1=O 22
 CCC1(c2ccccc2)C(=O)NC(=O)NC1=O 23
 CCCC[c-]1c(=O)n(-c2ccccc2)n(-c2ccccc2)c1=O 24
 COc1cc(C=O)ccc1O 25
-CN[NH2+]Cc1ccc(C(=O)NC(C)C)cc1 26_1
-C[NH2+]NCc1ccc(C(=O)NC(C)C)cc1 26_2
+C[NH2+]NCc1ccc(C(=O)NC(C)C)cc1 26_1
+CN[NH2+]Cc1ccc(C(=O)NC(C)C)cc1 26_2
 OC[C@H]1ONC[C@@H](O)[C@@H]1O 27_1
 OC[C@H]1O[NH2+]C[C@@H](O)[C@@H]1O 27_2
 CC(C)Nc1ccc(Nc2ccccc2)cc1 28

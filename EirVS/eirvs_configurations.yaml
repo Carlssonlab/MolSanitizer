@@ -3,7 +3,7 @@
 # you run the program.
 
 #===============SINGLE MODE================
-# Configurations for MolSanitizer single mode
+# Configurations for EirVS single mode
 # USE_CORINA: Use Corina for 3D structure generation (default: False)
 # CORINA: Path to the corina executable file
 # TIMEOUT: Timeout for the initial embedding of each compound in minutes (default: 2 minutes)
@@ -12,7 +12,7 @@
 # NUMCONFS: Number of conformers to be generated for each compound (default: 2000)
 
 USE_CORINA: False
-CORINA: '/proj/carlssonlab/corina/corina-4.2/corina'
+CORINA: '/home/phonglam/corina/corina-4.2/corina'
 ENERGY_WINDOW: 25
 NUMCONFS: 2000
 MAX_STEREOISOMERS: 8
@@ -21,7 +21,7 @@ PH: 7
 PH_RANGE: 0 # 0 means choose specific pH=7 (default), 2 means will sample pH 5 and 9
 
 #================BATCH MODE=================
-# Configuration file for MolSanitizer batch mode
+# Configuration file for EirVS batch mode
 # Please approximate that each entry can take up to 2 minutes to process, but the average time could be much less. 
 # If you have ~ 5000 compounds, it will take around 3 days to process all of them. 
 # But for the safety, we recommend to set the time limit to 5 days (120 hours).

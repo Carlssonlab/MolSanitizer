@@ -1,6 +1,6 @@
-# Contributing to MolSanitizer
+# Contributing to EirVS
 
-Welcome, and thank you for considering contributing to MolSanitizer! We’re excited to have your help. Whether you’re fixing bugs, improving documentation, or proposing new features, your contributions make a huge difference.
+Welcome, and thank you for considering contributing to EirVS! We’re excited to have your help. Whether you’re fixing bugs, improving documentation, or proposing new features, your contributions make a huge difference.
 
 ---
 
@@ -32,7 +32,7 @@ If you find a bug, have a question, or want to suggest a new feature, please ope
 We welcome your contributions via pull requests (PRs). For more information on Pull requests, refer to: https://github.com/orgs/community/discussions/146509. Please follow the steps below:
 
 ### 1. Fork the Repository
-1. Go to the MolSanitizer GitHub repository.
+1. Go to the EirVS GitHub repository.
 2. Click the **Fork** button at the top-right corner to create a copy of the repository under your account.
 ![image](https://github.com/user-attachments/assets/7f9bc5a1-66b7-4bee-b9c2-697f7d15a37c)
 
@@ -43,8 +43,8 @@ In your forked repository, clone the fork to your local machine, changing <your-
 
 ```bash
 # Clone your fork to your local machine
-git clone https://github.com/<your-username>/MolSanitizer.git
-cd MolSanitizer
+git clone https://github.com/<your-username>/EirVS.git
+cd EirVS
 ```
 
 ### 3. Create a New Branch
@@ -63,11 +63,11 @@ git checkout -b fix-issue-123
 
    ```bash
    # Create and activate the conda environment
-   conda env create -f MolSanitizer/environment.yml
-   conda activate msani
+   conda env create -f EirVS/environment.yml
+   conda activate eirvs
    
    # Install the package in editable mode
-   pip install -e MolSanitizer
+   pip install -e EirVS
    ```
 
 3. Run Tests Before Submitting
@@ -108,7 +108,7 @@ git push origin fix-issue-123
 ```
 
 ### 7. Open a Pull Request
-1. Go to the original MolSanitizer repository.
+1. Go to the original EirVS repository.
 2. Click on the **Pull Requests** tab, then click **New Pull Request**.
    
 ![image](https://github.com/user-attachments/assets/88da4eb0-4013-47b7-96f9-4975728ad58e)
@@ -134,5 +134,5 @@ Once all requested changes are addressed, your PR will be merged by the maintain
 
 
 
-Thank you for contributing to MolSanitizer! Your efforts help make this project better for everyone. If you have any questions, feel free to reach out by opening an issue or contacting a maintainer.
+Thank you for contributing to EirVS! Your efforts help make this project better for everyone. If you have any questions, feel free to reach out by opening an issue or contacting a maintainer.
 

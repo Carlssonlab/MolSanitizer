@@ -9,6 +9,7 @@ from collections import defaultdict
 import numpy as np
 import pandas as pd
 import yaml, subprocess
+from pathlib import Path
 
 
 six_membered_aliphatic_substructure = Chem.MolFromSmarts("[A;!$(N-*=*)]1-[A;!$(N-*=*)]-[A;!$(N-*=*)]-[A;!$(N-*=*)]-[A;!$(N-*=*)]-[A;!$(N-*=*)]-1")
@@ -19,9 +20,9 @@ additional_substituted_nitrogen = Chem.MolFromSmarts('*-[nX3&+0:1]:[a:2]:[a:3]')
 amide_substructure = Chem.MolFromSmarts('[O:1]=[CX3:2]!@[N&+0:3](-[!#1:4])-[#1:5]')
 symmetric_ring = Chem.MolFromSmarts('*!@-a1[cH][cH][a][cH][cH]1')
 
-with open(os.path.join(os.path.dirname(__file__), 'msani_configurations.yaml')) as confFile:
-    msani_configurations = yaml.full_load(confFile)
-CORINA_EXE = msani_configurations['CORINA']
+with open(Path(__file__).parent.parent / 'eirvs_configurations.yaml') as confFile:
+    eirvs_configurations = yaml.full_load(confFile)
+CORINA_EXE = eirvs_configurations['CORINA']
 
 class Mol2Writer:
     def __init__(self, mol=None):

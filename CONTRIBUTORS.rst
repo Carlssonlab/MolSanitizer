@@ -5,7 +5,7 @@ CONTRIBUTORS
 Development
 ~~~~~~~~~~~
 
-The following have contributed by writing and/or designing the code base of MolSanitizer.
+The following have contributed by writing and/or designing the code base of EirVS.
 
 Current team
 ------------

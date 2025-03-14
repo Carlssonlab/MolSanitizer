@@ -1,16 +1,15 @@
 from pathlib import Path
 
-import pandas as pd
-
 from rdkit import Chem, RDLogger
-
 from rdkit.Chem import  SaltRemover, rdMolDescriptors
 from rdkit.Chem.Descriptors import MolLogP
 from rdkit.Chem.MolStandardize import rdMolStandardize
 from rdkit.Chem.FilterCatalog import FilterCatalog, FilterCatalogParams
 
+import pandas as pd
 import logging
-logger = logging.getLogger('molsani')
+
+logger = logging.getLogger('eirvs')
 RDLogger.DisableLog('rdApp.*') # To disable error messages with kekulizing tautomers from RDKit
 
 class Filters():
@@ -36,6 +35,11 @@ class Filters():
         self.pains = pains
         self.rejectedFile = rejectedFile
 
+    def __repr__(self):
+        cls_name = self.__class__.__name__
+        attrs = ', '.join(f'{k}={v!r}' for k, v in self.__dict__.items())
+        return f'{cls_name}({attrs})'
+    
     @staticmethod
     def remove_invalid_SMILES(df:pd.DataFrame) -> pd.DataFrame:
         """Remove rows with invalid SMILES from the input DataFrame.
@@ -112,7 +116,7 @@ class Filters():
             pd.DataFrame: A new DataFrame chunk with salt-stripped molecules.
         """
         # Get the absolute path to the template SMARTS file using pathlib
-        smartsFile = Path(__file__).parent / 'Data' / 'salt_stripping.txt'
+        smartsFile = Path(__file__).parent.parent / 'Data' / 'salt_stripping.txt'
         if debug: logger.info(f'Parsing salts SMARTS file: {smartsFile.resolve()}')
 
         remover = SaltRemover.SaltRemover(defnFilename=smartsFile)
@@ -411,7 +415,7 @@ class Filters():
                 pd.DataFrame: A new DataFrame chunk with molecules that passed the filter.
         """
         # Get the absolute path to the template SMARTS file using pathlib
-        smartsFile = Path(__file__).parent / 'Data' / 'filter_out.csv'
+        smartsFile = Path(__file__).parent.parent / 'Data' / 'filter_out.csv'
 
         # Load smarts to clean  from file
         unwanted_df = Filters.loadSMARTSdata(smartsFile.resolve(), unwanted_option)

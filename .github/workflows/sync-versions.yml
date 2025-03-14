@@ -28,8 +28,8 @@ jobs:
     - name: Update version in files
       run: |
         sed -i "s/^version = \".*\"/version = \"$VERSION\"/" pyproject.toml
-        sed -i "s/^__version__ = \".*\"/__version__ = \"$VERSION\"/" MolSanitizer/molSanitizer.py
-        sed -i "s/^__version__ = \".*\"/__version__ = \"$VERSION\"/" MolSanitizer/msani_batch.py
+        sed -i "s/^__version__ = \".*\"/__version__ = \"$VERSION\"/" EirVS/cli.py
+        sed -i "s/^__version__ = \".*\"/__version__ = \"$VERSION\"/" EirVS/batchmode.py
 
     - name: Generate Changelog
       uses: orhun/git-cliff-action@v4
@@ -52,13 +52,13 @@ jobs:
           CHANGED_FILES=1
         fi
 
-        if ! git diff --quiet MolSanitizer/molSanitizer.py; then
-          git add MolSanitizer/molSanitizer.py
+        if ! git diff --quiet EirVS/cli.py; then
+          git add EirVS/cli.py
           CHANGED_FILES=1
         fi
 
-        if ! git diff --quiet MolSanitizer/msani_batch.py; then
-          git add MolSanitizer/msani_batch.py
+        if ! git diff --quiet EirVS/batchmode.py; then
+          git add EirVS/batchmode.py
           CHANGED_FILES=1
         fi
 
