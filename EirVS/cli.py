@@ -2,7 +2,7 @@
 EirVS in a standalone mode.
 """
 
-__author__ = "Thua-Phong Lam, Israel Cabeza de Vaca Lopez, Szymon Pach"
+__author__ = "Thua-Phong Lam, Szymon Pach, Israel Cabeza de Vaca"
 __place__ = "Jens Carlsson lab, Uppsala University, Sweden"
 __license__ = "GPLv2"
 __version__ = "0.2.3"
@@ -17,10 +17,9 @@ import os
 import time
 import sys
 
-from . import parsers
-from . import loggers
-from . import smiles_sanitizer
-from . import smi2db2
+from .inout import parsers
+from .inout import loggers
+from . import api
 
 from rdkit import Chem
 from rdkit import rdBase
@@ -31,7 +30,7 @@ def process_enamine_name(chunk):
     return chunk
 
 def apply_filters(chunk, args, rejected_file):
-    sanitizer = smiles_sanitizer.SmilesSanitizer(
+    sanitizer = api.EirVS(
         removesalts=args.removesalts, custom= args.custom, unwanted=args.unwanted,
         pains=args.pains, ha=args.ha, logp=args.logp, hba=args.hba, hbd=args.hbd, 
         mw=args.mw, tautomers=args.tautomers, taurdkit=args.taurdkit, neutralize=args.neutralize,
@@ -131,13 +130,14 @@ def process_files(args, start_time: int):
 
 
             if args.db2:
+                from .conformers import smi2db2
                 if args.corina:
                     smi2db2.gen_conf_chunk_corina(chunk, args, input_file_path.stem)
                 else:
                     smi2db2.gen_conf_chunk(chunk, args, input_file_path.stem)
             
             if args.pdbqt:
-                from . import smi2pdbqt
+                from .conformers import smi2pdbqt
                 smi2pdbqt.gen_conf_chunk(chunk, args)
             if not args.test:
                 if step == 1: time_step1 = time.time()-start_time
@@ -157,6 +157,7 @@ def process_smiles(args):
     chunk = apply_filters(chunk, args, rejected_file)
 
     if args.db2: 
+        from .conformers import smi2db2
         if os.path.exists('db2/0.db2'): os.remove('db2/0.db2') # 0 is the default name
         if args.corina:
             smi2db2.gen_conf_chunk_corina(chunk, args)
@@ -164,7 +165,7 @@ def process_smiles(args):
             smi2db2.gen_conf_chunk(chunk, args)
 
     if args.pdbqt:
-        from . import smi2pdbqt
+        from .conformers import smi2pdbqt
         smi2pdbqt.gen_conf_chunk(chunk, args)
     
     print('Processed SMILES:')
@@ -189,36 +190,6 @@ def clean_data(args):
     log_execution_time(start_time, args.test)
 
 
-def Sanitycheck(args: dict):
-    """Sanity check for the unwanted flag
-
-    Args:
-        args (dict): Arguments from the command line
-
-    Returns:
-        dict: The updated arguments
-    """
-    if args.lazy:
-        args.removesalts = True
-        args.tautomers = True
-        args.pains = True
-        args.unwanted = ['all']
-        args.stereoisomers = True
-        args.protonation = True
-
-    if args.unwanted is not None:
-        if not args.unwanted: args.unwanted=['regular']
-        if 'all' in args.unwanted: args.unwanted=['regular','special','optional']
-        args.unwanted=[word.title() for word in args.unwanted]
-    if args.db2 or args.pdbqt:
-        # Always enumerate stereoisomers for before generating DB2 and PDBQT files
-        # Maximum number of stereoisomers is set to in parser
-        args.stereoisomers = True
-    
-    if (args.pH != 7 or args.pH_range != 0) and not args.protonation:
-        print("It seems like you forget the --protonation flag. We turned it on for you.")
-        args.protonation = True
-    return args
 
 def generateCustomTemplate(args):
     """Generate the custom template for substructure filtering 
@@ -235,8 +206,9 @@ def generateCustomTemplate(args):
 def main():
 
     args = parsers.parseArguments(sys.argv[1:])
-    args = Sanitycheck(args)
+    args = parsers.Sanitycheck(args)
     if args.version:
+        print(f"Python version: {sys.version}")
         print(f"EirVS version: {__version__}")
         print(f"RDKit version: {rdBase.rdkitVersion}")
         return
@@ -251,11 +223,11 @@ def main():
         else: log_file = 'molsani.log'
         loggers.setup_logger(log_file)
         original_command = ' '.join(sys.argv)
-        logger.info(f"#######  STARTING EirVS {__version__} #######")
+        logger.info(f"#######  STARTING EIRVS {__version__} #######")
         logger.info(f"{original_command}")    
         loggers.arguments(args)
         clean_data(args)
-        logger.info(f"***********  EirVS FINISHED *****************")
+        logger.info(f"***********  EIRVS FINISHED *****************")
 
 
 

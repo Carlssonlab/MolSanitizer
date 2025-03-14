@@ -1,30 +1,31 @@
-from pathlib import Path
 
-import pandas as pd
 
 from rdkit import Chem, RDLogger
-
 from rdkit.Chem import AllChem
-
 from rdkit.Chem.MolStandardize import rdMolStandardize
 from rdkit.Chem.EnumerateStereoisomers import EnumerateStereoisomers, StereoEnumerationOptions
-import multiprocessing as mp
+
 from functools import partial
-from .filters import Filters
-from .tautomerizer import Tautomerizer
-from .ionizer import Ionizer
+
+from .filtering.filters import Filters
+from .moltransform.tautomerizer import Tautomerizer
+from .moltransform.ionizer import Ionizer
+from .moltransform.neutralizer import Neutralizer
+
+import multiprocessing as mp
+import pandas as pd
 import logging
 logger = logging.getLogger('eirvs')
 RDLogger.DisableLog('rdApp.*') # To disable error messages with kekulizing tautomers from RDKit
 
-class SmilesSanitizer:
+class EirVS:
     """
     A class to store the filter options and conduct chemical modifications for EirVS. 
     Initialize the class with the desired filter options and apply the filters to the input DataFrame.
     
     Example use:
 
-        sanitizer = SmilesSanitizer(
+        processor = EirVS(
                     removesalts=True,
                     ha='>10',
                     logp='<5',
@@ -32,7 +33,7 @@ class SmilesSanitizer:
                     protonation = True, 
                     debug=True)
 
-        santized_df = sanitizer.Sanitize(df)
+        processed_df = processor.Sanitize(df)
 
     """
     tautomer_params = None  # Define as a class variable
@@ -82,7 +83,7 @@ class SmilesSanitizer:
         self.debug = debug
         self.db2 = db2
         self.numcores = numcores
-        if SmilesSanitizer.tautomer_params is None: SmilesSanitizer.tautomer_params = self.get_tautomer_params()
+        if EirVS.tautomer_params is None: EirVS.tautomer_params = self.get_tautomer_params()
 
     
     @staticmethod
@@ -183,7 +184,7 @@ class SmilesSanitizer:
         # If max_isomers is set to 1, return the original molecule and let the RDKit/CORINA guess it.
         if max_isomers == 1: return [row_data]
         try:
-            isomers = SmilesSanitizer._generate_stereoisomers(mol, max_isomers=max_isomers)
+            isomers = EirVS._generate_stereoisomers(mol, max_isomers=max_isomers)
         except Exception as e:
             logger.error(f"Error generating stereoisomers for compound {row_data['ids']}: {row_data['smiles']}")
             isomers = [mol]
@@ -228,7 +229,7 @@ class SmilesSanitizer:
         pd.DataFrame: Expanded DataFrame with each stereoisomer as a separate row.
         """
         # Partial function to fix max_isomers as an argument
-        process_func = partial(SmilesSanitizer._process_molecule_stereoisomer, max_isomers=max_isomers)
+        process_func = partial(EirVS._process_molecule_stereoisomer, max_isomers=max_isomers)
         results = []
 
         with mp.Pool(processes=numcores) as pool:
@@ -281,7 +282,7 @@ class SmilesSanitizer:
             return df
         
         if self.tautomers or self.protonation:
-            if self.neutralize: df = SmilesSanitizer.neutralize_df(df)
+            if self.neutralize: df = Neutralizer.neutralize_df(df)
         if self.tautomers: 
             tautomerizer = Tautomerizer(taurdkit=self.taurdkit, 
                                         debug=self.debug, 
@@ -299,7 +300,7 @@ class SmilesSanitizer:
                               debug=self.debug)
             df = ionizer.ionize_df(df)
             
-        if self.stereoisomers: df = SmilesSanitizer.enum_stereoisomers(df, max_isomers=self.max_stereoisomers, debug=self.debug, numcores=self.numcores)
+        if self.stereoisomers: df = EirVS.enum_stereoisomers(df, max_isomers=self.max_stereoisomers, debug=self.debug, numcores=self.numcores)
         return df
     
 

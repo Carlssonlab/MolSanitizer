@@ -1,6 +1,6 @@
 import logging
 from pathlib import Path
-from .smiles_sanitizer import loadSMARTSdata
+from EirVS.api import loadSMARTSdata
 logger = logging.getLogger('eirvs')
 
 def setup_logger(log_file):
@@ -50,7 +50,7 @@ def arguments(args):
 
     if args.tautomers:
         logger.info(f"Tautomers enumeration: {args.tautomers}")
-        smartsFile = Path(__file__).parent / 'Data' / 'tautomers_v2.txt'
+        smartsFile = Path(__file__).parent.parent / 'Data' / 'tautomers_v2.txt'
         temp_df = loadSMARTSdata(smartsFile.resolve())
         logger.info(f'Parsed {len(temp_df)} tautomerization rules from: {smartsFile}')
 
@@ -63,7 +63,7 @@ def arguments(args):
 
     if args.unwanted: 
         logger.info(f"Unwanted filter: {args.unwanted}")
-        smartsFile = Path(__file__).parent / 'Data' / 'filter_out.csv'
+        smartsFile = Path(__file__).parent.parent / 'Data' / 'filter_out.csv'
         temp_df = loadSMARTSdata(smartsFile.resolve(), args.unwanted)
         logger.info(f'Parsed {len(temp_df)} substructures from: {smartsFile}')
     

@@ -112,7 +112,7 @@ class Filters():
             pd.DataFrame: A new DataFrame chunk with salt-stripped molecules.
         """
         # Get the absolute path to the template SMARTS file using pathlib
-        smartsFile = Path(__file__).parent / 'Data' / 'salt_stripping.txt'
+        smartsFile = Path(__file__).parent.parent / 'Data' / 'salt_stripping.txt'
         if debug: logger.info(f'Parsing salts SMARTS file: {smartsFile.resolve()}')
 
         remover = SaltRemover.SaltRemover(defnFilename=smartsFile)
@@ -411,7 +411,7 @@ class Filters():
                 pd.DataFrame: A new DataFrame chunk with molecules that passed the filter.
         """
         # Get the absolute path to the template SMARTS file using pathlib
-        smartsFile = Path(__file__).parent / 'Data' / 'filter_out.csv'
+        smartsFile = Path(__file__).parent.parent / 'Data' / 'filter_out.csv'
 
         # Load smarts to clean  from file
         unwanted_df = Filters.loadSMARTSdata(smartsFile.resolve(), unwanted_option)

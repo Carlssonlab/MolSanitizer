@@ -2,7 +2,8 @@ try:
     from meeko import MoleculePreparation, PDBQTWriterLegacy
 except ImportError:
     print("""Please install the meeko package using "pip install meeko" to use this script.""")
-from EirVS import smi2db2_utils, strain_filter
+from . import smi2db2_utils
+from EirVS.filtering import strain_filter
 from rdkit import Chem
 from rdkit.Chem import rdDistGeom, rdForceFieldHelpers
 import pandas as pd
@@ -60,7 +61,6 @@ def embed_smiles_rdkit(smiles, name, randomSeed = 42, num_ring_confs = 1, numThr
     else: numConfs = 1
     mp = rdForceFieldHelpers.MMFFGetMoleculeProperties(mol_H, mmffVariant="MMFF94s")
     mp.SetMMFFDielectricConstant(1) #1 means vacumn, 80 means water, 20 is the compromised value (still arbitrary)
-    mp.SetMMFFEleTerm(False)
 
     conf_ring_descriptors_df = pd.DataFrame()
     try:

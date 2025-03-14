@@ -38,9 +38,9 @@ Homepage = "https://github.com/phonglam3103/EirVS.git"
 [project.scripts]
 eirvs = "EirVS.cli:main"
 eirvs_batch = "EirVS.batchmode:main"
-strain = "EirVS.strain_filter:main"
-charger = "EirVS.ionizer:main"
-tautomerizer = "EirVS.tautomerizer:main"
+strain = "EirVS.filtering.strain_filter:main"
+charger = "EirVS.moltransform.ionizer:main"
+tautomerizer = "EirVS.moltransform.tautomerizer:main"
 
 [tool.setuptools]
 packages = ["EirVS"]

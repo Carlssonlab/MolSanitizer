@@ -1,16 +1,19 @@
 import argparse
 import multiprocessing as mp
+import pandas as pd
+import logging
+
+from .neutralizer import Neutralizer
+from pathlib import Path
+from rdkit.Chem.MolStandardize import rdMolStandardize
 from functools import partial
 from rdkit import Chem, RDLogger
 from rdkit.Chem import AllChem
-import pandas as pd
-import logging
-from pathlib import Path
-from rdkit.Chem.MolStandardize import rdMolStandardize
+
 RDLogger.DisableLog('rdApp.*') # To disable error messages with kekulizing tautomers from RDKit
 logger = logging.getLogger('eirvs')
 
-TAUTOMER_RULES_PATH = Path(__file__).parent / 'Data' / 'tautomers_v2.txt'
+TAUTOMER_RULES_PATH = Path(__file__).parent.parent / 'Data' / 'tautomers_v2.txt'
 
 # These can be reused along multiprocessing and needs to be outside the class to resolve pickling problem.
 TAUTOMER_PARAMS = rdMolStandardize.CleanupParameters()
@@ -44,7 +47,7 @@ class Tautomerizer:
     Example use:
     ----------
     
-    >>> from EirVS.tautomerizer import Tautomerizer\n
+    >>> from EirVS.moltransform.tautomerizer import Tautomerizer\n
     >>> tautomerizer = Tautomerizer(numcores= 4, neutralize= False)\n
     >>> tautomers = tautomerizer.tautomerize(smiles='c1ccccc1O')\n
     >>> tautomers = tautomerizer.tautomerize(mol = RDKit Mol object)\n
@@ -90,25 +93,6 @@ class Tautomerizer:
             logger.info(f"Loaded {len(reactions)} reactions from {file_path}")
         return reactions
     
-    @staticmethod
-    def neutralize_mol(mol: Chem.Mol):
-        """Neutralize the input molecule by balancing the charges on atoms.
-        Adapted from RDKit Cookbook: https://rdkit.org/docs/Cookbook.html"""
-
-        pattern = Chem.MolFromSmarts("[+1!h0!$([*]~[-1,-2,-3,-4]),-1!$([*]~[+1,+2,+3,+4])]")
-        at_matches = mol.GetSubstructMatches(pattern)
-        at_matches_list = [y[0] for y in at_matches]
-        if len(at_matches_list) > 0:
-            for at_idx in at_matches_list:
-                atom = mol.GetAtomWithIdx(at_idx)
-                chg = atom.GetFormalCharge()
-                hcount = atom.GetTotalNumHs()
-                atom.SetFormalCharge(0)
-                atom.SetNumExplicitHs(hcount - chg)
-                atom.UpdatePropertyCache()
-            smiles = Chem.MolToSmiles(mol)
-            return Chem.MolFromSmiles(smiles)
-        else: return mol
         
     def tautomer_canonicalize_rdkit(self, mol: Chem.Mol):
         """Tautomerize the input molecule using the RDKit TautomerEnumerator class.
@@ -210,7 +194,7 @@ class Tautomerizer:
             print(f"Tautomerizing {name}...")
             logger.info(f"Tautomerizing {name}...")
         if self.neutralize:
-            mol = Tautomerizer.neutralize_mol(mol)
+            mol = Neutralizer.neutralize_mol(mol)
         if self.taurdkit:
             # Step 1: Use RDKit TautomerEnumerator to canonicalize the input molecule
             rdkit_canonical = self.tautomer_canonicalize_rdkit(mol)

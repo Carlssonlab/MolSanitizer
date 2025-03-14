@@ -14,9 +14,10 @@ import sys
 import time
 import math
 import yaml
-from pathlib import Path
-from . import parsers
 import subprocess
+
+from pathlib import Path
+from .inout import parsers
 from rdkit import rdBase
 
 slurm_header = '''#!/bin/bash

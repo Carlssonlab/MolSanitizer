@@ -1,17 +1,18 @@
 import argparse
-from pathlib import Path
 import pandas as pd
+import logging
+import multiprocessing as mp
+
+from pathlib import Path
 from rdkit import Chem, RDLogger
 from rdkit.Chem import AllChem
-import logging
-import sys
-import multiprocessing as mp
 from functools import partial
 
+from .neutralizer import Neutralizer
 
 RDLogger.DisableLog('rdApp.*') # To disable error messages with kekulizing tautomers from RDKit
 logger = logging.getLogger('eirvs')
-PROTONATION_RULES_PATH = Path(__file__).parent / 'Data' / 'ionizations_v3.txt'
+PROTONATION_RULES_PATH = Path(__file__).parent.parent / 'Data' / 'ionizations_v3.txt'
 
 class Ionizer:
     """
@@ -44,6 +45,7 @@ class Ionizer:
         >>> df = ionizer.ionize_df(mol_df, pH=7, pH_range=0, num_cores=1, debug=False)\n
         """
     def __init__(self,
+                 smartsFile = PROTONATION_RULES_PATH,
                  pH: int = 7,
                  pH_range: int = 0,
                  num_cores: int = 1,
@@ -53,7 +55,7 @@ class Ionizer:
         self.pH_range = pH_range
         self.num_cores = num_cores
         self.debug = debug
-        self.rules = self.load_protonation_rules(PROTONATION_RULES_PATH)
+        self.rules = self.load_protonation_rules(smartsFile)
         self.enumerating_rules = self.rules[self.rules['Enumerate'] == 1]['FUNCTIONAL_GROUP'].to_list()
         self.neutralize = neutralize
         if self.debug: 
@@ -105,33 +107,6 @@ class Ionizer:
         if self.debug:
             print(f'Parsed {len(reaction_list)} rules for pH {round(pH, 1)}')    
         return reaction_list
-
-    @staticmethod
-    def neutralize_mol(mol: Chem.Mol) -> Chem.Mol:
-        """Neutralize the input molecule by balancing the charges on atoms.
-        Adapted from RDKit Cookbook: https://rdkit.org/docs/Cookbook.html
-        Args:
-
-            mol (rdkit.Chem.rdchem.Mol): The input molecule.
-        Returns:
-
-            rdkit.Chem.rdchem.Mol: The neutralized molecule.
-        """
-
-        pattern = Chem.MolFromSmarts("[+1!h0!$([*]~[-1,-2,-3,-4]),-1!$([*]~[+1,+2,+3,+4])]")
-        at_matches = mol.GetSubstructMatches(pattern)
-        at_matches_list = [y[0] for y in at_matches]
-        if len(at_matches_list) > 0:
-            for at_idx in at_matches_list:
-                atom = mol.GetAtomWithIdx(at_idx)
-                chg = atom.GetFormalCharge()
-                hcount = atom.GetTotalNumHs()
-                atom.SetFormalCharge(0)
-                atom.SetNumExplicitHs(hcount - chg)
-                atom.UpdatePropertyCache()
-            smiles = Chem.MolToSmiles(mol)
-            return Chem.MolFromSmiles(smiles)
-        else: return mol
 
     def recursive_reaction(self, mol, reactions, collection, visited=None):
         """
@@ -217,7 +192,7 @@ class Ionizer:
             mol = Chem.MolFromSmiles(smiles)
 
         if self.neutralize:
-            mol = Ionizer.neutralize_mol(mol)
+            mol = Neutralizer.neutralize_mol(mol)
 
 
         variation_sets = set()

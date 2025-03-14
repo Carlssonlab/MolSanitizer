@@ -7,32 +7,35 @@
     Should try to sample all possible conformations based on dihedral angles sampling based on: https://github.com/dkoes/rdkit-scripts/blob/master/rdallconf.py
 """
 # Author: Thua-Phong Lam, Jens Carlsson lab, Uppsala University
-import pandas as pd
-import itertools
+
 from openbabel import openbabel as ob
 from rdkit import Chem
 from rdkit.Chem import rdDistGeom, rdForceFieldHelpers, rdMolTransforms, rdDistGeom, rdMolAlign
-import os,  shutil
-import copy
+
 from pathlib import Path
 from scipy.spatial.distance import pdist, squareform
 from EirVS.amsol import run_amsol
 from EirVS.db2 import mol2db2, mol2, solv
-from EirVS import strain_filter, smi2db2_utils
+from . import smi2db2_utils
+from EirVS.filtering import strain_filter
+
 import random
 import time
 import multiprocessing
 import tarfile, io
 import platform
-
 import logging
+import os,  shutil
+import copy
+import pandas as pd
+import itertools
 logger = logging.getLogger('eirvs')
 
 #rotatable_pattern=r'[*]~[*;!$(*#*)!$([!#6&X2H])!$([!#6&X3H2])]-&!@[*;!$(*#*)!$([!#6&X2H])!$([!#6&X3H2])]~[*]'
 rotatable_pattern=r'[*]~[*;!$(*#*)]-&!@[*;!$(*#*)]~[*]'
 
 Torlib = strain_filter.parse_torlib()
-rigid_rule_files = Path(__file__).parent / 'Data' / 'rigid_part_rules.txt'
+rigid_rule_files = Path(__file__).parent.parent / 'Data' / 'rigid_part_rules.txt'
 rigid_rules = pd.read_csv(rigid_rule_files, header=None, sep =r'\s+', names=['SMARTS','label'])
 rigid_rules['mol'] = rigid_rules['SMARTS'].apply(lambda x: Chem.MolFromSmarts(x))
 
@@ -40,15 +43,15 @@ planar_lib, non_planar_lib = strain_filter.parse_sr_confs_library()
 
 system = platform.system()
 if system == 'Windows':
-    AMSOLEXE = Path(__file__).parent / "amsol" / "amsol7.1.exe"
+    AMSOLEXE = Path(__file__).parent.parent / "amsol" / "amsol7.1.exe"
 elif system == 'Linux':
-    AMSOLEXE = Path(__file__).parent / "amsol" / "amsol7.1"
+    AMSOLEXE = Path(__file__).parent.parent / "amsol" / "amsol7.1"
 if not AMSOLEXE.exists():
     raise FileNotFoundError(f"AMSOL executable not found at {AMSOLEXE}. Check the amsol directory for instruction to install amsol")
 
 def setup_env():
     env = os.environ.copy()
-    script_dir = Path(__file__).parent
+    script_dir = Path(__file__).parent.parent
     extra_libs_path = script_dir / "libs" / "extralibs-2"
 
     if 'LD_LIBRARY_PATH' in env:

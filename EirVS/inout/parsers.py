@@ -9,7 +9,7 @@ import logging
 logger = logging.getLogger('eirvs')
 
 
-with open(os.path.join(os.path.dirname(__file__), 'eirvs_configurations.yaml')) as confFile:
+with open(Path(__file__).parent.parent / 'eirvs_configurations.yaml') as confFile:
     configurations = yaml.full_load(confFile)
     slurm_account = configurations['SLURM_ACCOUNT']
     time_limit = configurations['TIME_LIMIT']
@@ -176,4 +176,35 @@ def parseArguments(args = None, batch_mode = False):
             args.custom = Path(args.custom).resolve()
     if batch_mode: return args, parser
     else: return args
+
+def Sanitycheck(args: dict):
+    """Sanity check for the unwanted flag
+
+    Args:
+        args (dict): Arguments from the command line
+
+    Returns:
+        dict: The updated arguments
+    """
+    if args.lazy:
+        args.removesalts = True
+        args.tautomers = True
+        args.pains = True
+        args.unwanted = ['all']
+        args.stereoisomers = True
+        args.protonation = True
+
+    if args.unwanted is not None:
+        if not args.unwanted: args.unwanted=['regular']
+        if 'all' in args.unwanted: args.unwanted=['regular','special','optional']
+        args.unwanted=[word.title() for word in args.unwanted]
+    if args.db2 or args.pdbqt:
+        # Always enumerate stereoisomers for before generating DB2 and PDBQT files
+        # Maximum number of stereoisomers is set to in parser
+        args.stereoisomers = True
+    
+    if (args.pH != 7 or args.pH_range != 0) and not args.protonation:
+        print("It seems like you forget the --protonation flag. We turned it on for you.")
+        args.protonation = True
+    return args
 

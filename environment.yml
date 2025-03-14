@@ -5,7 +5,7 @@ channels:
   - rdkit
 
 dependencies:
-  - python=3.11
+  - python=3.9
   - numpy
   - pandas
   - pip

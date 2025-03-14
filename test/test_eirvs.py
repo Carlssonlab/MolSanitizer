@@ -12,7 +12,7 @@ import platform
 import pandas as pd
 import EirVS.cli as cli
 from EirVS.batchmode import Split_Submit_jobs
-from EirVS import parsers
+from EirVS.inout import parsers
 
 OS = platform.system()
 

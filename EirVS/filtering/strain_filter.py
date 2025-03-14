@@ -33,7 +33,7 @@ def get_atoms_mol(matches, template_map):
     return filtered_matches
 
 
-def parse_torlib(xml_file = Path(__file__).parent / 'Data' / 'modified_tor_lib_2020.xml'):
+def parse_torlib(xml_file = Path(__file__).parent.parent / 'Data' / 'modified_tor_lib_2020.xml'):
     """This function parse the torlib by the specific class to general class GG, 
     and return a list of tuples with the following format:
     (smarts, rdkit object of the smarts, 4_to_5_atoms_template, [(prefered, tolerance), ...])
@@ -72,7 +72,7 @@ def parse_dihedral_set(dihedral_str):
     dihedral_list = dihedral_str.replace("'", "").split(', ')
     return [int(x) for x in dihedral_list]
 
-def parse_sr_confs_library(xml_file =Path(__file__).parent /'Data/sr_confs.xml'):
+def parse_sr_confs_library(xml_file =Path(__file__).parent.parent /'Data/sr_confs.xml'):
     """
     Parse the XML file containing the SR conformer library and extract the data.
     """
