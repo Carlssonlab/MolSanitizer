@@ -1,15 +1,14 @@
 from pathlib import Path
 
-import pandas as pd
-
 from rdkit import Chem, RDLogger
-
 from rdkit.Chem import  SaltRemover, rdMolDescriptors
 from rdkit.Chem.Descriptors import MolLogP
 from rdkit.Chem.MolStandardize import rdMolStandardize
 from rdkit.Chem.FilterCatalog import FilterCatalog, FilterCatalogParams
 
+import pandas as pd
 import logging
+
 logger = logging.getLogger('eirvs')
 RDLogger.DisableLog('rdApp.*') # To disable error messages with kekulizing tautomers from RDKit
 
@@ -36,6 +35,11 @@ class Filters():
         self.pains = pains
         self.rejectedFile = rejectedFile
 
+    def __repr__(self):
+        cls_name = self.__class__.__name__
+        attrs = ', '.join(f'{k}={v!r}' for k, v in self.__dict__.items())
+        return f'{cls_name}({attrs})'
+    
     @staticmethod
     def remove_invalid_SMILES(df:pd.DataFrame) -> pd.DataFrame:
         """Remove rows with invalid SMILES from the input DataFrame.

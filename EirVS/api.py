@@ -33,7 +33,7 @@ class EirVS:
                     protonation = True, 
                     debug=True)
 
-        processed_df = processor.Sanitize(df)
+        processed_df = processor.run(df)
 
     """
     tautomer_params = None  # Define as a class variable
@@ -84,7 +84,11 @@ class EirVS:
         self.db2 = db2
         self.numcores = numcores
         if EirVS.tautomer_params is None: EirVS.tautomer_params = self.get_tautomer_params()
-
+    
+    def __repr__(self):
+        cls_name = self.__class__.__name__
+        attrs = ', '.join(f'{k}={v!r}' for k, v in self.__dict__.items())
+        return f'{cls_name}\n({attrs})'
     
     @staticmethod
     def get_tautomer_params():
@@ -113,45 +117,6 @@ class EirVS:
                 if smarts:
                     reactions.append([AllChem.ReactionFromSmarts(smarts[0]), smarts[1]])
         return reactions
-
-    @staticmethod
-    def neutralize_df(df: pd.DataFrame, debug = False) -> pd.DataFrame:
-        '''Neutralize the input molecules using the neutralize_atoms() function. 
-        Turn on by default if the user trigger the tautomers or protonation flag.'''
-        
-        def neutralize_atoms(mol, smiles):
-            """Neutralize the input molecule by balancing the charges on atoms.
-            Adapted from RDKit Cookbook: https://rdkit.org/docs/Cookbook.html"""
-
-            pattern = Chem.MolFromSmarts("[+1!h0!$([*]~[-1,-2,-3,-4]),-1!$([*]~[+1,+2,+3,+4])]")
-            at_matches = mol.GetSubstructMatches(pattern)
-            at_matches_list = [y[0] for y in at_matches]
-            if len(at_matches_list) > 0:
-                for at_idx in at_matches_list:
-                    atom = mol.GetAtomWithIdx(at_idx)
-                    chg = atom.GetFormalCharge()
-                    hcount = atom.GetTotalNumHs()
-                    atom.SetFormalCharge(0)
-                    atom.SetNumExplicitHs(hcount - chg)
-                    atom.UpdatePropertyCache()
-                smiles = Chem.MolToSmiles(mol)
-                return Chem.MolFromSmiles(smiles), smiles
-            else: return mol, smiles
-        
-        if debug: print('Neutralizing molecules...')
-        logger.info('Neutralizing molecules...')
-        for i, row in df.iterrows():
-            try:
-                new_mol, new_smiles = neutralize_atoms(row['mol'], row['smiles'])
-                # Only reassign if the molecule has been changed
-                if new_smiles != row['smiles']: 
-                    df.at[i, 'mol'] = new_mol
-                    df.at[i, 'smiles'] = new_smiles
-            
-            except:
-                logger.error(f"Error neutralizing molecule: {Chem.MolToSmiles(row['mol'])}")
-                pass
-        return df
 
     @staticmethod
     def _generate_stereoisomers(mol, max_isomers):
@@ -258,9 +223,9 @@ class EirVS:
 
         return pd.DataFrame(results)
 
-    def Sanitize(self, df: pd.DataFrame, rejected_file = None) -> pd.DataFrame:
+    def run(self, df: pd.DataFrame, rejected_file = None) -> pd.DataFrame:
         """
-        Sanitize the input DataFrame using the specified filters and rule-based chemical modifications.
+        Perform preparation on the input DataFrame using the specified filters and rule-based chemical modifications.
         
         Args:
             df (pd.DataFrame): Input DataFrame with ['smiles', 'ids'] columns. 

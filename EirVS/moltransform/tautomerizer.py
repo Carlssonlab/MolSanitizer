@@ -69,6 +69,11 @@ class Tautomerizer:
         self.enumerating_reactions = [r for r in self.reactions if r[1]]
         self.debug = debug
 
+    def __repr__(self):
+        cls_name = self.__class__.__name__
+        attrs = ', '.join(f'{k}={v!r}' for k, v in self.__dict__.items())
+        return f'{cls_name}({attrs})'
+    
     def load_reactions(self, file_path: str):
         """Load the reactions from a file containing SMARTS strings.
 

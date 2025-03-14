@@ -70,6 +70,11 @@ class Ionizer:
             rules = self.extract_necessary_rules(pH)
             self.rules_across_pH[pH] = rules
     
+    def __repr__(self):
+        cls_name = self.__class__.__name__
+        attrs = ', '.join(f'{k}={v!r}' for k, v in self.__dict__.items())
+        return f'{cls_name}({attrs})'
+        
     @staticmethod
     def load_protonation_rules(file_path: str):
         '''

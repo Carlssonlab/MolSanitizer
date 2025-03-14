@@ -30,14 +30,14 @@ def process_enamine_name(chunk):
     return chunk
 
 def apply_filters(chunk, args, rejected_file):
-    sanitizer = api.EirVS(
+    processor = api.EirVS(
         removesalts=args.removesalts, custom= args.custom, unwanted=args.unwanted,
         pains=args.pains, ha=args.ha, logp=args.logp, hba=args.hba, hbd=args.hbd, 
         mw=args.mw, tautomers=args.tautomers, taurdkit=args.taurdkit, neutralize=args.neutralize,
         stereoisomers=args.stereoisomers, max_stereoisomers=args.max_stereoisomers,
         protonation=args.protonation, pH=args.pH, pH_range=args.pH_range, 
         numcores=args.numcores, conformal=args.conformal, db2 = args.db2, debug=args.debug)
-    chunk = sanitizer.Sanitize(chunk, rejected_file)
+    chunk = processor.run(chunk, rejected_file)
     return chunk
 
 def log_step_time(elapsed_time, step):
@@ -208,7 +208,7 @@ def main():
     args = parsers.parseArguments(sys.argv[1:])
     args = parsers.Sanitycheck(args)
     if args.version:
-        print(f"Python version: {sys.version}")
+        print(f"Python version: {sys.version.split('|')[0]}")
         print(f"EirVS version: {__version__}")
         print(f"RDKit version: {rdBase.rdkitVersion}")
         return
@@ -220,7 +220,7 @@ def main():
             input_path = pathlib.Path(args.input_files[0])
             if args.prefix is not None: log_file = f'{args.prefix}.log' 
             else: log_file = input_path.with_suffix('.log')
-        else: log_file = 'molsani.log'
+        else: log_file = 'eirvs.log'
         loggers.setup_logger(log_file)
         original_command = ' '.join(sys.argv)
         logger.info(f"#######  STARTING EIRVS {__version__} #######")
