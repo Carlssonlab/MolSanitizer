@@ -191,8 +191,9 @@ class TestEirVS(unittest.TestCase):
 
     def test_integrity(self):
         with tempfile.TemporaryDirectory() as temp_dir:
+            from EirVS.inout import parsers
             args = self.generate_mock_arguments([f'{self.path}/in_enamine.txt'], ['enamine','lazy', 'test'], temp_dir)
-            args = cli.Sanitycheck(args)
+            args = parsers.Sanitycheck(args)
             cli.clean_data(args)
             self.compare_relative(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_enamine_clean.txt')
             self.compare_relative(f'{temp_dir}/dummy_output_rejected.txt', f'{self.path}/out_enamine_rejected.txt')
