@@ -1,12 +1,9 @@
 # EirVS - A package to prepare SMILES databases
-[![python](https://img.shields.io/badge/python-v3.9-blue)]()
-[![python](https://img.shields.io/badge/python-v3.10-blue)]()
-[![python](https://img.shields.io/badge/python-v3.11-blue)]()
-[![python](https://img.shields.io/badge/python-v3.12-blue)]()
-[![anaconda](https://img.shields.io/badge/Anaconda.org-2.1.0-green.svg?style=flat-square)]()
-[![Documentation](https://img.shields.io/badge/docs-0.2.2-orange)](https://EirVS-chem.readthedocs.io/)
+[![python](https://img.shields.io/badge/python-v3.9--3.12-blue)]()
+[![anaconda](https://img.shields.io/badge/Anaconda.org-2.1.0-green.svg?style=flat-square)](https://docs.anaconda.com/anaconda/install/index.html)
+[![Documentation](https://img.shields.io/badge/docs-0.2.2-orange)](https://EirVS.readthedocs.io/)
 ![GitHub forks](https://img.shields.io/github/forks/:user/:repo)
-[![license](https://img.shields.io/badge/license-GPLv2-yellow)]()
+[![license](https://img.shields.io/badge/license-GPLv2-yellow)](LICENSE)
 
 
 EirVS is a package for preparation (remove salts, stereoisomers enumeration, protonation, ...) and filtering undesirable substructures (PAINS, reactive functional groups, ...) for drug discovery projects.

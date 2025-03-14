@@ -1,5 +1,5 @@
-.. _CONTRIBUTORS:
-CONTRIBUTORS
+.. _Contributors:
+Contributors
 ============
 
 Development
@@ -12,19 +12,19 @@ Current team
 
 * Phong Lam, phong.lam@icm.uu.se (maintainer)
 * Szymon Pach, szymon.pach@icm.uu.se
-* Israel Cabeza de Vaca Lopez, israel.cabezadevaca@icm.uu.se
+* Israel Cabeza de Vaca, israel.cabezadevaca@icm.uu.se
 
 All developers past and present
 -------------------------------
 
 * Phong Lam
 * Szymon Pach
-* Israel Cabeza de Vaca Lopez
+* Israel Cabeza de Vaca 
 * Ruth Brenk
 
 Scientific input
 ~~~~~~~~~~~~~~~~
-* Israel Cabeza de Vaca Lopez
+
 * Ruth Brenk
 * Jens Carlsson
 
