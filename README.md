@@ -1,5 +1,8 @@
 # EirVS - A package to prepare SMILES databases
+[![python](https://img.shields.io/badge/python-v3.9-blue)]()
+[![python](https://img.shields.io/badge/python-v3.10-blue)]()
 [![python](https://img.shields.io/badge/python-v3.11-blue)]()
+[![python](https://img.shields.io/badge/python-v3.12-blue)]()
 [![anaconda](https://img.shields.io/badge/Anaconda.org-2.1.0-green.svg?style=flat-square)]()
 [![Documentation](https://img.shields.io/badge/docs-0.2.2-orange)](https://EirVS-chem.readthedocs.io/)
 ![GitHub forks](https://img.shields.io/github/forks/:user/:repo)
@@ -20,16 +23,16 @@ Example of how to set up a working conda environment to run the code:
     conda activate eirvs
     pip install -e EirVS
 
-More information on the installation and dependencies could be found [here](https://EirVS-chem.readthedocs.io/en/latest/installation.html).
+More information on the installation and dependencies could be found [here](https://eirvs.readthedocs.io/en/latest/installation.html).
 
 
 ## Documentation
 
 To start to use EirVS, use the `-h` or `--help` flag for available options:
 
-    EirVS -h
+    eirvs -h
 
-Documentation on the theory behind EirVS and how to use it can be found [here](https://EirVS-chem.readthedocs.io)
+Documentation on the theory behind EirVS and how to use it can be found [here](https://eirvs.readthedocs.io)
 
 <img src="./plots/Workflow.png" width="1000">
 
