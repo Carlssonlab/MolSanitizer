@@ -17,8 +17,7 @@ import os
 import time
 import sys
 
-from .inout import parsers
-from .inout import loggers
+from .inout import parsers, loggers
 from . import api
 
 from rdkit import Chem
@@ -175,13 +174,7 @@ def process_smiles(args):
 def clean_data(args):
     start_time = time.time()
     rdkit_version = rdBase.rdkitVersion
-    logger.info(f'RDKit version: {rdkit_version}')
-    if rdkit_version != '2024.09.1':
-        print('\n########################################################')
-        print('RDKit version 2024.09.1 is recommended for EirVS.')
-        print("Use 'conda install rdkit==2024.9.1' to avoid potential issues.")
-        print('########################################################\n')
-        
+    logger.info(f'RDKit version: {rdkit_version}')        
     if args.smiles:
         process_smiles(args)
     else:
