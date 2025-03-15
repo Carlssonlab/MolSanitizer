@@ -2,7 +2,6 @@
 
 from rdkit import Chem, RDLogger
 from rdkit.Chem import AllChem
-from rdkit.Chem.MolStandardize import rdMolStandardize
 from rdkit.Chem.EnumerateStereoisomers import EnumerateStereoisomers, StereoEnumerationOptions
 
 from functools import partial
@@ -83,22 +82,12 @@ class EirVS:
         self.debug = debug
         self.db2 = db2
         self.numcores = numcores
-        if EirVS.tautomer_params is None: EirVS.tautomer_params = self.get_tautomer_params()
     
     def __repr__(self):
         cls_name = self.__class__.__name__
         attrs = ', '.join(f'{k}={v!r}' for k, v in self.__dict__.items())
         return f'{cls_name}\n({attrs})'
     
-    @staticmethod
-    def get_tautomer_params():
-        params = rdMolStandardize.CleanupParameters()
-        params.tautomerRemoveSp3Stereo = False
-        params.tautomerRemoveBondStereo = False
-        params.tautomerRemoveIsotopicHs = False
-        params.maxTransforms = 1000
-        params.maxTautomers = 1000
-        return params
     
     @staticmethod
     def load_reactions(file_path):
