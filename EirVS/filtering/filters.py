@@ -4,7 +4,6 @@ from rdkit import Chem, RDLogger
 from rdkit.Chem import  SaltRemover, rdMolDescriptors
 from rdkit.Chem.Descriptors import MolLogP
 from rdkit.Chem.MolStandardize import rdMolStandardize
-from rdkit.Chem.FilterCatalog import FilterCatalog, FilterCatalogParams
 
 import pandas as pd
 import logging
@@ -328,6 +327,8 @@ class Filters():
             pd.DataFrame: A new DataFrame chunk with molecules that passed the PAINS filter.
         """
         # Set up the PAINS catalog
+        from rdkit.Chem.FilterCatalog import FilterCatalog, FilterCatalogParams
+        print('\nThe warning is expected and can be ignored.\n')
         params = FilterCatalogParams()
         params.AddCatalog(FilterCatalogParams.FilterCatalogs.PAINS)
         catalog = FilterCatalog(params)
