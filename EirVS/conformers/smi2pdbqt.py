@@ -24,7 +24,7 @@ def embed_smiles_rdkit(smiles, name, randomSeed = 42, num_ring_confs = 1, numThr
     empty_mol = Chem.Mol(mol_H)
 
     params = rdDistGeom.srETKDGv3()
-    params.numThreads = 1  # Use all available threads
+    params.numThreads = numThreads  # Use all available threads
     params.pruneRmsThresh = 0.35  # Prune conformations that are too similar, not user-definable here
     params.randomSeed = randomSeed # For reproducibility
     params.useRandomCoords = True
@@ -83,7 +83,7 @@ def embed_smiles_rdkit(smiles, name, randomSeed = 42, num_ring_confs = 1, numThr
         # we have to use the macrocyclic version.
         logger.warning(f"srETKDGv3 failed for {name}, using macrocyclic version")
         params = rdDistGeom.ETKDGv3()
-        params.numThreads = 1  # Use all available threads
+        params.numThreads = numThreads 
         params.pruneRmsThresh = 0.35  # Prune conformations that are too similar, not user-definable here
         params.randomSeed = randomSeed # For reproducibility
         params.useRandomCoords = True
