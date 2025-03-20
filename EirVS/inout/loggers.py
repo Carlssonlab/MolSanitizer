@@ -85,4 +85,10 @@ def arguments(args):
         logger.info(f"Use CORINA for initial embedding: {args.corina}")
         if not(args.corina): logger.info(f"Timelimit for initial embedding using RDKit: {args.timeout}")
         if args.enrichment: logger.info(f"Enrichment mode: {args.enrichment}")
+        if args.rigid: logger.info(f"Only align based on: {args.rigid}")
+
+    if args.pdbqt:
+        logger.info(f"Generate PDBQT files for Autodock: {args.pdbqt}")
+        logger.info(f"Random seed: {args.randomSeed}")
+        
 

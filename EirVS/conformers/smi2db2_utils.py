@@ -550,3 +550,10 @@ def remove_folders(folders_to_remove: list):
             except Exception as e:
                 print(f"Error removing folder {folder}: {e}")
 
+def canonicalize_if_smiles(query: str):
+    """Canonicalize only if it's a valid SMILES; return unchanged if SMARTS or invalid."""
+    mol = Chem.MolFromSmiles(query)
+    if mol:
+        return Chem.CanonSmiles(query)
+    else: 
+        return query  # Return SMARTS or invalid input unchanged

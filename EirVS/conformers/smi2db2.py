@@ -988,7 +988,9 @@ def gen_conf_chunk(df: pd.DataFrame, args, input_file='0'):
     """
     randomSeed, numConfs, VERBOSE, cleanup, energywindow, timeout, ignoreTorlib, request_alignment = args.randomSeed, \
         args.numconfs, args.debug, args.cleanup, args.energywindow, args.timeout , args.ignoretorlib, args.rigid
-    request_alignment = Chem.MolFromSmarts(request_alignment) if request_alignment else None
+    
+    request_alignment = Chem.MolFromSmarts(smi2db2_utils.canonicalize_if_smiles(request_alignment)) if request_alignment else None
+    
     env = setup_env()
     if args.timing: 
         if not(os.path.exists('eirvs_timing.csv')): 
@@ -1204,7 +1206,7 @@ def gen_conf_chunk(df: pd.DataFrame, args, input_file='0'):
 def gen_conf_chunk_corina(df: pd.DataFrame, args, input_file='0'):
     randomSeed, numConfs, VERBOSE, cleanup, energywindow, timeout, ignoreTorlib, request_alignment = args.randomSeed, \
         args.numconfs, args.debug, args.cleanup, args.energywindow, args.timeout , args.ignoretorlib, args.rigid
-    request_alignment = Chem.MolFromSmarts(request_alignment) if request_alignment else None
+    request_alignment = Chem.MolFromSmarts(smi2db2_utils.canonicalize_if_smiles(request_alignment)) if request_alignment else None
     env = setup_env()
     if args.timing: 
         if not(os.path.exists('eirvs_timing.csv')): 
@@ -1333,7 +1335,7 @@ def gen_conf_chunk_corina(df: pd.DataFrame, args, input_file='0'):
                     shutil.rmtree(f"3d/{name}", ignore_errors=True)
                 except: pass
                 continue
-            
+
             # Mol2DB2
             if VERBOSE: print("Converting to DB2 format...")
             os.makedirs(f"db2/{name}", exist_ok=True)
