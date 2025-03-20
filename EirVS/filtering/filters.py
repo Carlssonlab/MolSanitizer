@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from rdkit import Chem, RDLogger
+from rdkit import Chem, RDLogger, rdBase
 from rdkit.Chem import  SaltRemover, rdMolDescriptors
 from rdkit.Chem.Descriptors import MolLogP
 from rdkit.Chem.MolStandardize import rdMolStandardize
@@ -328,7 +328,8 @@ class Filters():
         """
         # Set up the PAINS catalog
         from rdkit.Chem.FilterCatalog import FilterCatalog, FilterCatalogParams
-        print('\nThe warning is expected and can be ignored.\n')
+        if rdBase.rdkitVersion != '2024.09.1':
+            print('\nThe warning is expected and can be ignored.\n')
         params = FilterCatalogParams()
         params.AddCatalog(FilterCatalogParams.FilterCatalogs.PAINS)
         catalog = FilterCatalog(params)

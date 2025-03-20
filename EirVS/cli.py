@@ -20,8 +20,7 @@ import sys
 from .inout import parsers, loggers
 from . import api
 
-from rdkit import Chem
-from rdkit import rdBase
+from rdkit import Chem, rdBase
 
 def process_enamine_name(chunk):
     # Split the 'smiles' column by space
