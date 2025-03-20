@@ -13,6 +13,7 @@ All notable changes to this project will be documented in this file.
 
 ### 🐛 Bug Fixes
 
+- Canonicalize the given --rigid flag if possible to find the correct ring. - ([4063713](https://github.com/phonglam3103/EirVS/commit/40637135b3cac9ff5cdfd990abadfcb39df606d2))
 - :bug: Fix a bug in tautomerizing accessing an infinite loop by limit to maximum 100 steps of standardization only. - ([a250cde](https://github.com/phonglam3103/EirVS/commit/a250cded2d20908f8ca43a8f61a3dc85d1f5f034))
 - Fix a bug so that in smi2pdbqt, it produces boat conformations. - ([30d30b9](https://github.com/phonglam3103/EirVS/commit/30d30b98429d735e99e70664db8de2d8831b9cec))
 - Fix typos in constrained minimization so that the hydrogen attached to the aromatic nitrogen not being planarized correctly. - ([6f3c43f](https://github.com/phonglam3103/EirVS/commit/6f3c43fb83a75d5dbb8399a8015cca0121414abc))
