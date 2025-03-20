@@ -392,12 +392,30 @@ def get_random_angle(mean, tolerance):
     return normalized_angle
 
 
-def find_rigid_part(mol, rigid_rules):
+def find_rigid_part(mol, rigid_rules, request_alignment=None):
     '''Find fused ring system of the molecule as the rigid part, 
     if none, use the hierarchical rules in rigid_part_rules.txt'''
-    ssr = [set(ring) for ring in Chem.GetSymmSSSR(mol)]
+
     rigid_part = []
     rule_label = None
+    
+    # If the user request for only a specific ring as rigid segment.
+    if request_alignment:
+        matches = mol.GetSubstructMatches((request_alignment))
+        smiles = Chem.MolToSmiles(Chem.RemoveHs(mol))
+        if len(matches) != 0:
+            if len(matches) > 1: logger.warning(f"Multiple matches found for the requested alignment: {smiles}")
+            for match in matches:
+                rigid_part.append(match)
+            rule_label = None
+        else:
+            rigid_part = []
+            rule_label = None
+        return rigid_part, rule_label
+    
+    # Find fused ring systems
+    ssr = [set(ring) for ring in Chem.GetSymmSSSR(mol)]
+
     while ssr:
         fused_set = ssr.pop(0)
         fused = True
@@ -763,7 +781,7 @@ def stochastic_sampling(mol, tolerance_level, match_torlib, numConfs,
     return product, visited, unvisited
 
 def conf_sampling(rigid_scaffolds, name, smiles, numConfs, sulfo_matches,
-                  energywindow, ignoreTorlib=False, cleanup=True, VERBOSE=False):
+                  energywindow, request_alignment, ignoreTorlib=False, cleanup=True, VERBOSE=False):
     """
     A function to prepare the input and process the output from stochastic sampling function.
     
@@ -778,6 +796,7 @@ def conf_sampling(rigid_scaffolds, name, smiles, numConfs, sulfo_matches,
         numConfs (int): The initial number of conformations to generate.
         sulfo_matches (Any): Matches related to sulfonamide groups, determining if special handling is needed.
         energywindow (float): The maximum allowed energy difference (in appropriate units) for conformers.
+        request_alignment (str): Only produce the DB2 aligned on the given SMARTS pattern.
         ignoreTorlib (bool, optional): If True, torsion library is ignored during conformer sampling. Defaults to False.
         cleanup (bool, optional): If True, cleans up intermediate conformers. Defaults to True.
         VERBOSE (bool, optional): If True, prints detailed processing information. Defaults to False.
@@ -798,10 +817,14 @@ def conf_sampling(rigid_scaffolds, name, smiles, numConfs, sulfo_matches,
     if VERBOSE: print(f"\tTheory: {num_confs_by_rotbonds} possible conformations")
 
     # Find the rigid part only once outside the loop to save processing time
-    atom_maps, label_map = find_rigid_part(rigid_scaffolds[0], rigid_rules)
+    atom_maps, label_map = find_rigid_part(rigid_scaffolds[0], rigid_rules, request_alignment)
 
     # Molecules which don't have rings are not of interest --> only sample limitedly.
     if label_map is not None: numConfs = 30
+
+    if request_alignment and not atom_maps:
+        log_error(smiles, name)
+        return []
     # For very flexible molecules, we need to sample more, then filter by energy later
     else:
         if numConfs*10 < num_confs_by_rotbonds: numConfs = min(int(numConfs * 1.5), num_confs_by_rotbonds)
@@ -963,8 +986,9 @@ def gen_conf_chunk(df: pd.DataFrame, args, input_file='0'):
         - This function ensures resilience by handling errors at each step and skipping problematic molecules.
         - It manages restarting from incomplete jobs to avoid redundant computation.
     """
-    randomSeed, numConfs, VERBOSE, cleanup, energywindow, timeout, ignoreTorlib = args.randomSeed, \
-        args.numconfs, args.debug, args.cleanup, args.energywindow, args.timeout , args.ignoretorlib
+    randomSeed, numConfs, VERBOSE, cleanup, energywindow, timeout, ignoreTorlib, request_alignment = args.randomSeed, \
+        args.numconfs, args.debug, args.cleanup, args.energywindow, args.timeout , args.ignoretorlib, args.rigid
+    request_alignment = Chem.MolFromSmarts(request_alignment) if request_alignment else None
     env = setup_env()
     if args.timing: 
         if not(os.path.exists('eirvs_timing.csv')): 
@@ -1104,7 +1128,7 @@ def gen_conf_chunk(df: pd.DataFrame, args, input_file='0'):
                 mol2_per_rigid_scaffold = conf_sampling(rigid_scaffolds,
                                                                 name, smiles, 
                                                                 numConfs, sulfo_matches, 
-                                                                energywindow, ignoreTorlib, 
+                                                                energywindow, request_alignment, ignoreTorlib, 
                                                                 cleanup, VERBOSE)
             except Exception as e:
                 logger.error(f"Error in torsional sampling for {name}: {e}")
@@ -1117,6 +1141,15 @@ def gen_conf_chunk(df: pd.DataFrame, args, input_file='0'):
                 continue
             os.chdir("../..")
             if args.timing: sampling_time = time.time()
+
+            if not(mol2_per_rigid_scaffold): 
+                logger.error(f"No conformer is found for {name}, skipping it")
+                log_error(smiles, name)
+                try:
+                    shutil.rmtree(f"solv/{name}", ignore_errors=True)
+                    shutil.rmtree(f"3d/{name}", ignore_errors=True)
+                except: pass
+                continue
 
             # Mol2DB2
             if VERBOSE: print("Converting to DB2 format...")
@@ -1169,8 +1202,9 @@ def gen_conf_chunk(df: pd.DataFrame, args, input_file='0'):
             f.write(logging_time)
 
 def gen_conf_chunk_corina(df: pd.DataFrame, args, input_file='0'):
-    randomSeed, numConfs, VERBOSE, cleanup, energywindow, timeout, ignoreTorlib = args.randomSeed, \
-        args.numconfs, args.debug, args.cleanup, args.energywindow, args.timeout , args.ignoretorlib
+    randomSeed, numConfs, VERBOSE, cleanup, energywindow, timeout, ignoreTorlib, request_alignment = args.randomSeed, \
+        args.numconfs, args.debug, args.cleanup, args.energywindow, args.timeout , args.ignoretorlib, args.rigid
+    request_alignment = Chem.MolFromSmarts(request_alignment) if request_alignment else None
     env = setup_env()
     if args.timing: 
         if not(os.path.exists('eirvs_timing.csv')): 
@@ -1277,7 +1311,7 @@ def gen_conf_chunk_corina(df: pd.DataFrame, args, input_file='0'):
                 mol2_per_rigid_scaffold = conf_sampling(rigid_scaffolds,
                                                                 name, smiles, 
                                                                 numConfs, sulfo_matches, 
-                                                                energywindow, ignoreTorlib, 
+                                                                energywindow, request_alignment,  ignoreTorlib, 
                                                                 cleanup, VERBOSE)
             except Exception as e:
                 logger.error(f"Error in torsional sampling for {name}: {e}")
@@ -1291,6 +1325,15 @@ def gen_conf_chunk_corina(df: pd.DataFrame, args, input_file='0'):
             os.chdir("../..")
             if args.timing: sampling_time = time.time()
 
+            if not(mol2_per_rigid_scaffold): 
+                logger.error(f"No conformer is found for {name}, skipping it")
+                log_error(smiles, name)
+                try:
+                    shutil.rmtree(f"solv/{name}", ignore_errors=True)
+                    shutil.rmtree(f"3d/{name}", ignore_errors=True)
+                except: pass
+                continue
+            
             # Mol2DB2
             if VERBOSE: print("Converting to DB2 format...")
             os.makedirs(f"db2/{name}", exist_ok=True)

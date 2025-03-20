@@ -134,6 +134,7 @@ def parseArguments(args = None, batch_mode = False):
     db2_group.add_argument('--timeout', '-to', type=int, default=2, help='Timeout for the initial embedding for each SMILES entry before using OpenBabel in minutes (default: 2)')
     db2_group.add_argument('--nocleanup', action='store_false', dest='cleanup', default = True, help='Do not clean up the temporary files')
     db2_group.add_argument('--energywindow', '-w', type=float, default=energy_window, help=f'Energy window for sampling the conformations (default: {energy_window} kcal/mol)')
+    db2_group.add_argument('--rigid', type = str, default = None, help='Only align the DB2 on this rigid scaffold in SMILES/SMARTS format. All rings if not provided.')
     
     # Group 5: PDBQT related options
     pdbqt_group = parser.add_argument_group("AutoDock PDBQT related options")

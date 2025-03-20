@@ -366,6 +366,7 @@ class TestEirVS(unittest.TestCase):
             "mw": None,
             "pdbqt": False,
             "nringconfs": 1,
+            "rigid": None
          } 
         for mode in modes: 
             if (mode not in ['unwanted','custom']): args[mode] = True
