@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### 🚀 Features
 
+- New --rigid flag, allowing the constrained docking concept. - ([f71b4aa](https://github.com/phonglam3103/EirVS/commit/f71b4aa40f5788774290160631f8a0a8cfa7688f))
 - Brings Smi2DB2 to Windows! Updated instructions on how to setup AMSOL for DB2 generation with Windows in the amsol folder. - ([c88df20](https://github.com/phonglam3103/EirVS/commit/c88df20e7a7c1875699fcec36a3fffddb8ef67a9))
 - Updated the new Ionizer class. This allows the Ionizer module to be used as a Python API from other programs. - ([25e698a](https://github.com/phonglam3103/EirVS/commit/25e698a89cb383309038e4cf6fa05011cac5dea1))
 - Updated new Tautomerizer class and new tautomers_v2 library, allowing for the enumeration of tautomers. - ([60a4c1a](https://github.com/phonglam3103/EirVS/commit/60a4c1abdbe035addbaa336c57726131fe2d182b))
