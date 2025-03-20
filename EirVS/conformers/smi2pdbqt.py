@@ -2,6 +2,7 @@ try:
     from meeko import MoleculePreparation, PDBQTWriterLegacy
 except ImportError:
     print("""Please install the meeko package using "pip install meeko" to use this script.""")
+    exit(1)
 from . import smi2db2_utils
 from EirVS.filtering import strain_filter
 from rdkit import Chem
