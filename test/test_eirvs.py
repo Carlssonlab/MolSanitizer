@@ -358,7 +358,7 @@ class TestEirVS(unittest.TestCase):
             'corina': False,
             "synthon": False,
             "taurdkit": True,
-            "conformal": False,
+            "standardize": False,
             "ha": None,
             "logp": None,
             "hba": None,

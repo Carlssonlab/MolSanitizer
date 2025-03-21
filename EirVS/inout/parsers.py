@@ -121,7 +121,7 @@ def parseArguments(args = None, batch_mode = False):
     smiles_group.add_argument('--pH_range', '-r', type=int, default=pH_range, help='pH range for the protonation (default: 0)')
     smiles_group.add_argument('--noneutralize',  action='store_false', dest='neutralize', default = True, help='Do not neutralize the molecule before tautomerization')
     smiles_group.add_argument('--notaurdkit', action='store_false', dest='taurdkit', default = True, help='Do not use RDKit to canonicalize the tautomeric form of the input SMILES')
-    smiles_group.add_argument('--standardize', '-cp', action='store_true', dest='conformal', help='Standardize structures for machine learning using RDKit')
+    smiles_group.add_argument('--standardize', '-std', action='store_true', dest='standardize', help='Standardize structures for machine learning using RDKit')
 
     # Group 4: DB2 related options
     db2_group = parser.add_argument_group("UCSF DOCK3.8 DB2 related options")

@@ -56,7 +56,7 @@ class EirVS:
                 pH = 7,
                 pH_range = 0,
                 numcores = 1,
-                conformal = False,
+                standardize = False,
                 db2 = False,
                 debug = False):
 
@@ -78,7 +78,7 @@ class EirVS:
         self.protonation = protonation
         self.pH = pH
         self.pH_range = pH_range
-        self.conformal = conformal    
+        self.standardize = standardize    
         self.debug = debug
         self.db2 = db2
         self.numcores = numcores
@@ -224,14 +224,14 @@ class EirVS:
         """
         df['mol'] = df['smiles'].apply(lambda x: Chem.MolFromSmiles(x))
         df = Filters.remove_invalid_SMILES(df)
-        if self.db2 or self.conformal: df = Filters.remove_exotic_chem_to_db2(df)
+        if self.db2 or self.standardize: df = Filters.remove_exotic_chem_to_db2(df)
         if self.removesalts: df = Filters.saltstripping(df, debug=self.debug)
         if self.ha is not None: df = Filters.filter_by_ha(df, self.ha, rejectedFile=rejected_file, debug=self.debug)
         if self.logp is not None: df = Filters.filter_by_logp(df, self.logp, rejectedFile=rejected_file, debug=self.debug)
         if self.hba is not None: df = Filters.filter_by_hba(df, self.hba, rejectedFile=rejected_file, debug=self.debug)
         if self.hbd is not None: df = Filters.filter_by_hbd(df, self.hbd, rejectedFile=rejected_file, debug=self.debug)
         if self.mw is not None: df = Filters.filter_by_mw(df, self.mw, rejectedFile=rejected_file, debug=self.debug)
-        if self.conformal: 
+        if self.standardize: 
             df = Filters.standarizeFilters(df)
             return df
         

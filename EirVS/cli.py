@@ -34,7 +34,7 @@ def apply_filters(chunk, args, rejected_file):
         mw=args.mw, tautomers=args.tautomers, taurdkit=args.taurdkit, neutralize=args.neutralize,
         stereoisomers=args.stereoisomers, max_stereoisomers=args.max_stereoisomers,
         protonation=args.protonation, pH=args.pH, pH_range=args.pH_range, 
-        numcores=args.numcores, conformal=args.conformal, db2 = args.db2, debug=args.debug)
+        numcores=args.numcores, standardize=args.standardize, db2 = args.db2, debug=args.debug)
     chunk = processor.run(chunk, rejected_file)
     return chunk
 
@@ -105,8 +105,8 @@ def read_input_file(input_file, is_enamine, is_synthon):
         )
     
 def process_files(args, start_time: int):
-    if args.conformal:
-        logger.warning('Conformal predictor format preparation selected. Will skip all other flags and only standardize the molecules using RDKit default functions.')
+    if args.standardize:
+        logger.warning('standardize predictor format preparation selected. Will skip all other flags and only standardize the molecules using RDKit default functions.')
 
     for input_file in args.input_files:
         input_file_path = pathlib.Path(input_file)
@@ -121,7 +121,7 @@ def process_files(args, start_time: int):
             if args.enamine: chunk = process_enamine_name(chunk)
             chunk = apply_filters(chunk, args, rejected_file)
             if not chunk.empty:
-                if args.synthon and not(args.conformal):
+                if args.synthon and not(args.standardize):
                     chunk.to_csv(output_file, index=False, mode='a', columns=['smiles', 'ids', 'highlights'], header=False, sep=' ')
                 else:
                     chunk.to_csv(output_file, index=False, mode='a', columns=['smiles', 'ids'], header=False, sep=' ')
