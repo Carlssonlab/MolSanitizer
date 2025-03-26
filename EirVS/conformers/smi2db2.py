@@ -1145,7 +1145,10 @@ def gen_conf_chunk(df: pd.DataFrame, args, input_file='0'):
             if args.timing: sampling_time = time.time()
 
             if not(mol2_per_rigid_scaffold): 
-                logger.error(f"No conformer is found for {name}, skipping it")
+                if request_alignment:
+                    logger.error(f"No substructure found given the SMARTS pattern, consider using aromatic SMARTS rather than kekulized SMARTS with double bonds?")
+                else:
+                    logger.error(f"No conformer is found for {name}, skipping it")
                 log_error(smiles, name)
                 try:
                     shutil.rmtree(f"solv/{name}", ignore_errors=True)
