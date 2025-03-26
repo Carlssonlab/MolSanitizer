@@ -12,7 +12,7 @@ import platform
 import pandas as pd
 import EirVS.cli as cli
 from EirVS.batchmode import Split_Submit_jobs
-from EirVS.inout import parsers
+from EirVS.io import parsers
 
 OS = platform.system()
 
@@ -191,7 +191,7 @@ class TestEirVS(unittest.TestCase):
 
     def test_integrity(self):
         with tempfile.TemporaryDirectory() as temp_dir:
-            from EirVS.inout import parsers
+            from EirVS.io import parsers
             args = self.generate_mock_arguments([f'{self.path}/in_enamine.txt'], ['enamine','lazy', 'test'], temp_dir)
             args = parsers.Sanitycheck(args)
             cli.clean_data(args)

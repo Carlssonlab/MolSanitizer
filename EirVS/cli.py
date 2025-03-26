@@ -17,7 +17,7 @@ import os
 import time
 import sys
 
-from .inout import parsers, loggers
+from .io import parsers, loggers
 from . import api
 
 from rdkit import Chem, rdBase

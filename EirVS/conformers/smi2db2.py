@@ -1070,7 +1070,7 @@ def gen_conf_chunk(df: pd.DataFrame, args, input_file='0'):
             elif not queue.empty():
                 amsol_mol, netcharge, rigid_scaffolds, sulfo_matches, error = queue.get()
                 if error:
-                    logger.error(f"Error in generating initial conformation using RDKIT for {name}, skipping it: {error}")
+                    logger.error(f"Error in generating initial conformation using RDKit for {name}, skipping it: {error}")
                     log_error(smiles, name)
                     continue
                 amsol_mol.SetProp("_Name", name) #By somehow this implementation loses the _Name props
@@ -1209,6 +1209,8 @@ def gen_conf_chunk(df: pd.DataFrame, args, input_file='0'):
             f.write(logging_time)
 
 def gen_conf_chunk_corina(df: pd.DataFrame, args, input_file='0'):
+    # The timeout and nr flag are not applicable for CORINA yet. 
+    # Although in theory it is possible to ask for multiple ring conformations in CORINA, it was not in high priority.
     randomSeed, numConfs, VERBOSE, cleanup, energywindow, timeout, ignoreTorlib, request_alignment = args.randomSeed, \
         args.numconfs, args.debug, args.cleanup, args.energywindow, args.timeout , args.ignoretorlib, args.rigid
     request_alignment = Chem.MolFromSmarts(smi2db2_utils.canonicalize_if_smiles(request_alignment)) if request_alignment else None

@@ -17,7 +17,7 @@ import yaml
 import subprocess
 
 from pathlib import Path
-from .inout import parsers
+from .io import parsers
 from rdkit import rdBase
 
 slurm_header = '''#!/bin/bash
