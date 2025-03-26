@@ -5,7 +5,7 @@ channels:
   - rdkit
 
 dependencies:
-  - python=3.9
+  - python>=3.9,<3.12
   - numpy
   - pandas
   - pip
@@ -13,4 +13,3 @@ dependencies:
   - openbabel
   - scipy
   - pyaml
-  - meeko
