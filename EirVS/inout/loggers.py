@@ -82,6 +82,7 @@ def arguments(args):
         logger.info(f"Cleanup: {args.cleanup}")
         logger.info(f"Random seed: {args.randomSeed}")
         logger.info(f"Energy window: {args.energywindow}")
+        logger.info(f"Number of ring conformations: {args.nringconfs}")
         logger.info(f"Use CORINA for initial embedding: {args.corina}")
         if not(args.corina): logger.info(f"Timelimit for initial embedding using RDKit: {args.timeout}")
         if args.enrichment: logger.info(f"Enrichment mode: {args.enrichment}")
@@ -90,5 +91,6 @@ def arguments(args):
     if args.pdbqt:
         logger.info(f"Generate PDBQT files for Autodock: {args.pdbqt}")
         logger.info(f"Random seed: {args.randomSeed}")
+        logger.info(f"Number of ring conformations: {args.nringconfs}")
         
 

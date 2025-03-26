@@ -444,7 +444,7 @@ def log_error(smiles, name):
         f.write(f"{smiles} \t {name}\n")
 
 
-def embed_smiles_rdkit(smiles, name, randomSeed=42, VERBOSE=False):
+def embed_smiles_rdkit(smiles, name, randomSeed=42, nr = 1, VERBOSE=False):
     """
     Embeds a SMILES string into molecular conformers using RDKit,
     applying various quality checks and corrections inherited from the MMFF94s force field.
@@ -452,6 +452,7 @@ def embed_smiles_rdkit(smiles, name, randomSeed=42, VERBOSE=False):
         smiles (str): The SMILES representation of the molecule.
         name (str): The name to assign to the molecule.
         randomSeed (int, optional): Seed for the random number generator to ensure reproducibility. Defaults to 42.
+        nr (int, optional): Number of ring conformers to generate. Defaults to 1.
         VERBOSE (bool, optional): If set to True, enables detailed logging of the embedding process. Defaults to False.
     Returns:
         tuple:
@@ -471,7 +472,7 @@ def embed_smiles_rdkit(smiles, name, randomSeed=42, VERBOSE=False):
     params.pruneRmsThresh = 0.35  # Prune conformations that are too similar, not user-definable here
     params.randomSeed = randomSeed # For reproducibility
     params.useRandomCoords = True
-    num_ring_confs = 1
+    num_ring_confs = nr
 
     ssr = [set(ring) for ring in Chem.GetSymmSSSR(mol_H)]
     planar_rings, non_planar_rings = smi2db2_utils.get_flexible_ring(mol_H, ssr, planar_lib, non_planar_lib)
@@ -604,7 +605,7 @@ def embed_smiles_rdkit(smiles, name, randomSeed=42, VERBOSE=False):
     return amsol_mol, netcharge, rigid_scaffolds, sulfo_matches
 
 
-def generate_conformation(queue, smiles, name, randomSeed, VERBOSE):
+def generate_conformation(queue, smiles, name, randomSeed, nr = 1, VERBOSE = False):
     """
     Generates initial 3D conformations for a given SMILES string and enqueues the results.
     This function leverages multiprocessing to generate 3D molecular conformations using RDKit.
@@ -614,6 +615,7 @@ def generate_conformation(queue, smiles, name, randomSeed, VERBOSE):
         smiles (str): The SMILES string representing the molecule.
         name (str): The name identifier for the molecule.
         randomSeed (int): Seed value for random number generation to ensure reproducibility.
+        nr (int): Number of ring conformers to generate.
         VERBOSE (bool): If True, prints progress messages.
     Enqueues:
         tuple: A tuple containing:
@@ -627,7 +629,7 @@ def generate_conformation(queue, smiles, name, randomSeed, VERBOSE):
     if VERBOSE:
         print("Generating initial 3D conformations...")
     try:
-        amsol_mol, netcharge, rigid_scaffolds, sulfo_matches = embed_smiles_rdkit(smiles, name, randomSeed=randomSeed, VERBOSE=VERBOSE)
+        amsol_mol, netcharge, rigid_scaffolds, sulfo_matches = embed_smiles_rdkit(smiles, name, randomSeed=randomSeed, nr = nr, VERBOSE=VERBOSE)
         queue.put((amsol_mol, netcharge, rigid_scaffolds, sulfo_matches, None))
     except Exception as e:
         queue.put((None, None, None, None, str(e)))
@@ -986,8 +988,8 @@ def gen_conf_chunk(df: pd.DataFrame, args, input_file='0'):
         - This function ensures resilience by handling errors at each step and skipping problematic molecules.
         - It manages restarting from incomplete jobs to avoid redundant computation.
     """
-    randomSeed, numConfs, VERBOSE, cleanup, energywindow, timeout, ignoreTorlib, request_alignment = args.randomSeed, \
-        args.numconfs, args.debug, args.cleanup, args.energywindow, args.timeout , args.ignoretorlib, args.rigid
+    randomSeed, numConfs, VERBOSE, cleanup, energywindow, timeout, ignoreTorlib, request_alignment, nr = args.randomSeed, \
+        args.numconfs, args.debug, args.cleanup, args.energywindow, args.timeout , args.ignoretorlib, args.rigid, args.nringconfs
     
     request_alignment = Chem.MolFromSmarts(smi2db2_utils.canonicalize_if_smiles(request_alignment)) if request_alignment else None
     
@@ -1044,7 +1046,7 @@ def gen_conf_chunk(df: pd.DataFrame, args, input_file='0'):
             
             # Embed smiles into initial conformation using RDKit with a timeout
             queue = multiprocessing.Queue()
-            process = multiprocessing.Process(target=generate_conformation, args=(queue, smiles, name, randomSeed, VERBOSE))
+            process = multiprocessing.Process(target=generate_conformation, args=(queue, smiles, name, randomSeed, nr, VERBOSE))
             process.start()
             process.join(timeout=timeout*60)  # default 2 minutes timeout
 

@@ -51,7 +51,7 @@ info_standalone = """EirVS - A package to prepare SMILES databases
         eirvs -i example.smi --removesalts --pains --unwanted all --stereoisomers --protonation
         eirvs -i example.smi --pdbqt --logp "<=500" --hba "<=10" --hbd "<=5" --mw "<=500"
         eirvs -i example.smi --pains --unwanted regular optional --stereoisomers --protonation
-        eirvs -i example.smi --pains --unwanted all --stereoisomers --protonation --db2
+        eirvs -i example.smi --pains --unwanted all --protonation -p 7 -r 1 --tautomers --stereoisomers W--db2
         """
 
 class CustomHelpFormatter(argparse.RawDescriptionHelpFormatter, argparse.HelpFormatter):
@@ -135,12 +135,18 @@ def parseArguments(args = None, batch_mode = False):
     db2_group.add_argument('--nocleanup', action='store_false', dest='cleanup', default = True, help='Do not clean up the temporary files')
     db2_group.add_argument('--energywindow', '-w', type=float, default=energy_window, help=f'Energy window for sampling the conformations (default: {energy_window} kcal/mol)')
     db2_group.add_argument('--rigid', type = str, default = None, help='Only align the DB2 on this rigid scaffold in SMILES/SMARTS format. All rings if not provided.')
-    
+    # Add the flag --nringconfs once (here in the pdbqt_group)
+    nringconfs_action = parser.add_argument('--nringconfs', '-nr', type=int, default=1,
+                                            help='Maximum number of ring conformers to generate (default: 1)')
+    db2_group._group_actions.append(nringconfs_action)    
+
     # Group 5: PDBQT related options
     pdbqt_group = parser.add_argument_group("AutoDock PDBQT related options")
     pdbqt_group.add_argument('--pdbqt', '-pdbqt', action='store_true', help='Generate PDBQT files for AutoDock Vina and AutoDock4')
-    pdbqt_group.add_argument('--nringconfs', '-nr', type=int, default=1, help='Maximum number of ring conformers to generate (default: 1)')
-    
+
+    # Manually add the same action to db2_group so it shows up there too.
+    pdbqt_group._group_actions.append(nringconfs_action)    
+
     # Group 6: Miscellaneous
     misc_group = parser.add_argument_group("Miscellaneous")
     misc_group.add_argument("--debug", "-d", action="store_true", help="Enable debugging mode")
