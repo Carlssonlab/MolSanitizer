@@ -129,7 +129,6 @@ def parseArguments(args = None, batch_mode = False):
     db2_group.add_argument('--långben', '-igtor', action='store_true', dest='ignoretorlib', default = False, help='Ignore the Torsion Library - generate every possible conformer')
     db2_group.add_argument('--numconfs', '-nconfs', type=int, default=2000, help='Maximum number of conformers to generate (default: 2000)')
     db2_group.add_argument('--randomSeed', '-rs', type=int, default=42, help='Seed for reproducibility (default: 42)')
-    db2_group.add_argument('--numcores', '-j', type=int, default=4, help='Number of cores to use for parallel processing (default: 4)')
     db2_group.add_argument('--timeout', '-to', type=int, default=2, help='Timeout for the initial embedding for each SMILES entry before using OpenBabel in minutes (default: 2)')
     db2_group.add_argument('--nocleanup', action='store_false', dest='cleanup', default = True, help='Do not clean up the temporary files')
     db2_group.add_argument('--energywindow', '-w', type=float, default=energy_window, help=f'Energy window for sampling the conformations (default: {energy_window} kcal/mol)')
@@ -150,6 +149,7 @@ def parseArguments(args = None, batch_mode = False):
     misc_group = parser.add_argument_group("Miscellaneous")
     misc_group.add_argument("--debug", "-d", action="store_true", help="Enable debugging mode")
     misc_group.add_argument('--lazy', action='store_true', help='Implement all the processing and preparation steps')
+    misc_group.add_argument('--numcores', '-j', type=int, default=4, help='Number of cores to use for parallel processing (default: 4)')
     misc_group.add_argument("--help", "-h", action="help", help="Show this help message and exit")
     misc_group.add_argument('--timing', action='store_true', help='Time the process')
     misc_group.add_argument('--test', action='store_true', help=argparse.SUPPRESS)
@@ -172,6 +172,7 @@ def parseArguments(args = None, batch_mode = False):
         for inFile in args.input_files:
             if not Path(inFile).is_file():
                 parser.error(f'The input file: {inFile} does not exist.')
+        args.input_files = [Path(inFile).resolve() for inFile in args.input_files]
     if args.corina:
         if not Path(corina_exe).is_file:
             parser.error('Corina path is not correct or corina not found. Please check the configuration file.')

@@ -258,7 +258,7 @@ def Split_Submit_jobs(args: dict, parser):
         time.sleep(5)
         print('Submitting jobs...\n')
         for file in args.input_files:
-            prefix = file.split('.')[0]
+            prefix = file.stem
             if os.path.exists(prefix):
                 remove_folder = input(f"Folder {prefix} already exists. Do you want to remove it? (y/n): ")
                 if remove_folder.lower() in ['y','yes']:
