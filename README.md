@@ -13,6 +13,10 @@ EirVS is a package for preparation (remove salts, stereoisomers enumeration, pro
 We will set up the environment using [Anaconda](https://docs.anaconda.com/anaconda/install/index.html). Clone the current repository:
 
     git clone https://github.com/phonglam3103/EirVS.git
+
+    #Alternatively, put your personal token so that you don't have to sign in every git-pull:
+
+    git clone https://ghp_token@github.com/phonglam3103/EirVS.git
     
 Example of how to set up a working conda environment to run the code:
 
