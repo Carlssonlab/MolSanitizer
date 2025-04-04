@@ -1,5 +1,5 @@
 # EirVS - A package to prepare SMILES databases
-[![python](https://img.shields.io/badge/python-v3.9--3.12-blue)]()
+[![python](https://img.shields.io/badge/python-v3.9--3.11-blue)]()
 [![anaconda](https://img.shields.io/badge/Anaconda.org-2.1.0-green.svg?style=flat-square)](https://docs.anaconda.com/anaconda/install/index.html)
 [![Documentation](https://img.shields.io/badge/docs-0.2.2-orange)](https://EirVS.readthedocs.io/)
 ![GitHub forks](https://img.shields.io/github/forks/:user/:repo)
@@ -18,7 +18,7 @@ We will set up the environment using [Anaconda](https://docs.anaconda.com/anacon
     
 Example of how to set up a working conda environment to run the code:
     
-    conda env create -f EirVS/environment.yml # Use mamba instead of conda for much faster installation
+    conda env create -f EirVS/environment.yml # Trick: use mamba (if you have) for much faster installation
     conda activate eirvs
     pip install -e EirVS
 
