@@ -1190,6 +1190,7 @@ def gen_conf_chunk(df: pd.DataFrame, args, input_file='0'):
                 try: # Clean up the folders if error occurs. This help to not overfill the disk
                     shutil.rmtree(f"solv/{name}", ignore_errors=True)
                     shutil.rmtree(f"3d/{name}", ignore_errors=True)
+                    shutil.rmtree(f"db2/{name}", ignore_errors=True)
                 except: pass
                 log_error(smiles, name)
                 continue
@@ -1375,6 +1376,7 @@ def gen_conf_chunk_corina(df: pd.DataFrame, args, input_file='0'):
                 try: # Clean up the folders if error occurs. This help to not overfill the disk
                     shutil.rmtree(f"solv/{name}", ignore_errors=True)
                     shutil.rmtree(f"3d/{name}", ignore_errors=True)
+                    shutil.rmtree(f"db2/{name}", ignore_errors=True)
                 except: pass
                 log_error(smiles, name)
                 continue
