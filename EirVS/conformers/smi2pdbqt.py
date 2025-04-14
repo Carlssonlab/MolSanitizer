@@ -70,9 +70,9 @@ def embed_smiles_rdkit(smiles, name, randomSeed = 42, num_ring_confs = 1, numcor
             if conjugated_substituted_Ns:
                 for a, b, c, d in conjugated_substituted_Ns: ff.MMFFAddTorsionConstraint(a, b, c, d, False, 0, 0, 5)
                 for a, b, c, d in additional_conjugated_substituted_Ns: ff.MMFFAddTorsionConstraint(a, b, c, d, False, 178, 182, 1)
-                for a, b, c, d, e in amide_linkages: # O=C-N(-C)-H should be coplanar.
-                    ff.MMFFAddTorsionConstraint(a, b, c, d, False, 0, 0, 1)
-                    ff.MMFFAddTorsionConstraint(a, b, c, e, False, 180, 180, 1)
+            for a, b, c, d, e in amide_linkages: # O=C-N(-C)-H should be coplanar.
+                ff.MMFFAddTorsionConstraint(a, b, c, d, False, 0, 0, 1)
+                ff.MMFFAddTorsionConstraint(a, b, c, e, False, 180, 180, 1)
             ff.Minimize()
             conformer = mol_H.GetConformer(cid)
             energy = ff.CalcEnergy()
@@ -84,7 +84,7 @@ def embed_smiles_rdkit(smiles, name, randomSeed = 42, num_ring_confs = 1, numcor
         # we have to use the macrocyclic version.
         logger.warning(f"srETKDGv3 failed for {name}, using macrocyclic version")
         params = rdDistGeom.ETKDGv3()
-        params.numThreads = numThreads 
+        params.numThreads = numcores 
         params.pruneRmsThresh = 0.35  # Prune conformations that are too similar, not user-definable here
         params.randomSeed = randomSeed # For reproducibility
         params.useRandomCoords = True
@@ -93,9 +93,9 @@ def embed_smiles_rdkit(smiles, name, randomSeed = 42, num_ring_confs = 1, numcor
             if conjugated_substituted_Ns:
                 for a, b, c, d in conjugated_substituted_Ns: ff.MMFFAddTorsionConstraint(a, b, c, d, False, 0, 0, 5)
                 for a, b, c, d in additional_conjugated_substituted_Ns: ff.MMFFAddTorsionConstraint(a, b, c, d, False, 178, 182, 1)
-                for a, b, c, d, e in amide_linkages: # O=C-N(-C)-H should be coplanar (puckered because of MMFF94s).
-                    ff.MMFFAddTorsionConstraint(a, b, c, d, False, 0, 0, 1)
-                    ff.MMFFAddTorsionConstraint(a, b, c, e, False, 180, 180, 1)
+            for a, b, c, d, e in amide_linkages: # O=C-N(-C)-H should be coplanar (puckered because of MMFF94s).
+                ff.MMFFAddTorsionConstraint(a, b, c, d, False, 0, 0, 1)
+                ff.MMFFAddTorsionConstraint(a, b, c, e, False, 180, 180, 1)
             ff.Minimize()
             conformer = mol_H.GetConformer(cid)
             energy = ff.CalcEnergy()
