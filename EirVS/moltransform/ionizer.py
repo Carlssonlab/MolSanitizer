@@ -3,6 +3,7 @@ import pandas as pd
 import logging
 import multiprocessing as mp
 
+from io import StringIO
 from pathlib import Path
 from rdkit import Chem, RDLogger
 from rdkit.Chem import AllChem
@@ -80,11 +81,15 @@ class Ionizer:
         '''
         Load the protonation rules from a file containing SMARTS strings.
         Expected format from the text file: 
-            FUNCTIONAL_GROUP	pKa	    TYPE	Enumerate   REACTION
+            FUNCTIONAL_GROUP	pKa	    TYPE	Enumerate   REACTION                REF
             amine	            10	    BASE	1           [reagent]>>[product]
         '''
+        with open(file_path, 'r') as f:
+            uncommented = [line for line in f if not (line.startswith('#')) and line.strip()]
 
-        rules = pd.read_csv(file_path, sep=r"\s+")
+        rules = pd.read_csv(StringIO(''.join(uncommented)), sep=r"\s+", header=None,
+                            names=['FUNCTIONAL_GROUP', 'pKa', 'TYPE', 'Enumerate', 'REACTION', 'REF'])
+        
         rules['Mol'] = rules['REACTION'].apply(lambda x: AllChem.ReactionFromSmarts(x))
         return rules
     

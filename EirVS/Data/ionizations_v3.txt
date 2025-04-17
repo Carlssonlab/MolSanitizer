@@ -1,4 +1,10 @@
-FUNCTIONAL_GROUP	pKa	TYPE	Enumerate	REACTION	REF
+# This ionization transform file is part of the EirVS project.
+# Lines start with # or empty lines are skipped.
+# The rules are constructed as: FUNCTIONAL_GROUP	pKa     TYPE	Enumerate	REACTION	REF
+# Only the first 5 columns are necessary.
+# Last update: April 17th, 2025
+
+# FUNCTIONAL_GROUP	pKa	TYPE	Enumerate	REACTION	REF
 4-alkoxypyridine	6	BASE	0	[nX2&+0:1]1[c;!$(c~[#8,#9,#17,#35,#53])!$(c~*#,=[#7,#8,#16])!$(c~[*&+]):2][c;!$(c~[#8,#9,#17,#35,#53])!$(c~*#,=[#7,#8,#16])!$(c~[*&+]):3][c:4]([O:7]-[CX4:8])[c;!$(c~[#8,#9,#17,#35,#53])!$(c~*#,=[#7,#8,#16])!$(c~[*&+]):5][c;!$(c~[#8,#9,#17,#35,#53])!$(c~*#,=[#7,#8,#16])!$(c~[*&+]):6]1>>[nH+:1]1[c:2][c:3][c:4]([O:7]-[CX4:8])[c:5][c:6]1
 amidine	12	BASE	0	[N&+0;!$(N~[+1])!$(N~*~[+1])!$(N~[*^1])!$(N~*=O)!$(N~*(~[#7,#8,#9,#16,#17,#35,#53])~[#7,#8,#9,#16,#17,#35,#53])!$(N~[a,#7,#8,#9,#16,#17,#35,#53])!$(N=C-N~[*+])!$(N=C-N~[*^1])!$(N=C-N=*)!$(N=C-N-*=O)!$(N=C-N~[a,#7,#8,#9,#16,#17,#35,#53])!$(N=C-N~*(~[#7,#8,#9,#16,#17,#35,#53])~[#7,#8,#9,#16,#17,#35,#53]):1]=[C;$([CH]),$(C-[#6]):2](-[N:3])>>[N+:1]=[C:2][N:3]
 amine	10	BASE	1	[N^3&+0;!$(N~[+1])!$(N~*~[+1,#7,#8,#9,#16,#17,#35,#53,*^1])!$(N~*=,#*)!$(N~[#6]-[#6](-[#9,#17])-[#9,#17])!$(N~[a,#7,#8,#9,#14,#15,#16,#17,#35,#53])!$(N[CX4][CX4][N+])!$(N1[CX4][CX4]O[CX4][CX4]1)!$(N1CC1)!$(N-[CX4]-*(=O)[N,OH0&+0])!$(N(~*~*[#9,#17])~*~*[#9,#17])!$(N~*~*~C#N)!$(N-!@[CX4&r6](-@[CX4&r6]-O)-@[CX4&r6]-[OH]):1]>>[N+:1]
