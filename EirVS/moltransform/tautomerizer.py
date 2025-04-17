@@ -85,8 +85,10 @@ class Tautomerizer:
         """
         reactions = []
         with open(file_path, 'r') as file:
-            next(file)  # Skip first line
             for line in file:
+                # Skip the comments and silent rules
+                if line.startswith('#'): 
+                    continue
                 smarts = line.strip().split()
                 if smarts:
                     try:
