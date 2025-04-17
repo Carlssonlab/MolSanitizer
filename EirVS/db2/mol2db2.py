@@ -199,8 +199,8 @@ def mol2db2_quick_ver2(mol2data, solvdata, clashfile = Path(__file__).parent / '
   #mol2data = mol2obj
   while len(mol2data.inputEnergy) < mol2data.xyzCount:
     mol2data.inputEnergy.append(9999.99)
-    mol2data.inputTotalStrain.append(9999.99)
-    mol2data.inputMaxStrain.append(9999.99)
+    mol2data.inputTotalStrain.append(0.0)
+    mol2data.inputMaxStrain.append(0.0)
     mol2data.inputHydrogens.append(0)
   mol2data.convertDockTypes(options.atomtypefile)
   mol2data.addColors(options.colortablefile)
