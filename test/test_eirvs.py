@@ -145,6 +145,16 @@ class TestEirVS(unittest.TestCase):
                 self.compare_relative(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_hba4_hbd2_clean.txt')
                 self.compare_relative(f'{temp_dir}/dummy_output_rejected.txt', f'{self.path}/out_hba4_hbd2_rejected.txt')
 
+            args = self.generate_mock_arguments([f'{self.path}/in_chiral.txt'], ['test'], temp_dir)
+            args.hba = None
+            args.hbd = None
+            args.chiral = '<=2'
+            system(f'rm {temp_dir}/*.txt')
+            cli.clean_data(args)
+            with self.subTest(msg="Checking chiral <=2:"):
+                self.compare_relative(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_chiral_clean.txt')
+                self.compare_relative(f'{temp_dir}/dummy_output_rejected.txt', f'{self.path}/out_chiral_rejected.txt')
+
 
     def test_create_filter_customfile(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -364,6 +374,7 @@ class TestEirVS(unittest.TestCase):
             "hba": None,
             "hbd": None,
             "mw": None,
+            "chiral": None,
             "pdbqt": False,
             "nringconfs": 1,
             "rigid": None

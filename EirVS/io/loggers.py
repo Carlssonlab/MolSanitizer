@@ -68,9 +68,12 @@ def arguments(args):
         logger.info(f'Parsed {len(temp_df)} substructures from: {smartsFile}')
     
     if args.ha: logger.info(f"HA filter: {args.ha}")
-    
     if args.logp: logger.info(f"LogP filter: {args.logp}")
-
+    if args.hba: logger.info(f"HBA filter: {args.hba}")
+    if args.hbd: logger.info(f"HBD filter: {args.hbd}")
+    if args.mw: logger.info(f"MW filter: {args.mw}")
+    if args.chiral: logger.info(f"Chiral filter: {args.chiral}")
+    
     if args.custom is not None: 
         logger.info(f"Customized filter: {args.custom}")
         temp_df = loadSMARTSdata(args.custom)

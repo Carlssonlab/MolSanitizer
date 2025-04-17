@@ -1,0 +1,4 @@
+OCC(O)C(O)C(O)C=O open-chain_D-ribose_3 "chiralcenters 3"
+OCC(O)C(O)C(O)C(O)C=O open-chain_D-glucose_4 "chiralcenters 4"
+CC(Br)C(O)C(O)C 2-bromo-3,4-pentanediol_3 "chiralcenters 3"
+CC(N)C(O)C(O)C 2-amino-3,4-dihydroxypentane_3 "chiralcenters 3"
