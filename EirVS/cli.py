@@ -31,7 +31,7 @@ def apply_filters(chunk, args, rejected_file):
     processor = api.EirVS(
         removesalts=args.removesalts, custom= args.custom, unwanted=args.unwanted,
         pains=args.pains, ha=args.ha, logp=args.logp, hba=args.hba, hbd=args.hbd, 
-        mw=args.mw, tautomers=args.tautomers, taurdkit=args.taurdkit, neutralize=args.neutralize,
+        mw=args.mw, chiral = args.chiral, tautomers=args.tautomers, taurdkit=args.taurdkit, neutralize=args.neutralize,
         stereoisomers=args.stereoisomers, max_stereoisomers=args.max_stereoisomers,
         protonation=args.protonation, pH=args.pH, pH_range=args.pH_range, 
         numcores=args.numcores, standardize=args.standardize, db2 = args.db2, debug=args.debug)
@@ -215,11 +215,11 @@ def main():
         else: log_file = 'eirvs.log'
         loggers.setup_logger(log_file)
         original_command = ' '.join(sys.argv)
-        logger.info(f"#######  STARTING EIRVS {__version__} #######")
+        logger.info(f"#######  STARTING EIRVS {__version__}  #######")
         logger.info(f"{original_command}")    
         loggers.arguments(args)
         clean_data(args)
-        logger.info(f"***********  EIRVS FINISHED *****************")
+        logger.info(f"***********  EIRVS FINISHED  *****************")
 
 
 

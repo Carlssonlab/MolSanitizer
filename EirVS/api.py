@@ -47,6 +47,7 @@ class EirVS:
                 hba = None,
                 hbd = None,
                 mw = None,
+                chiral = None,
                 tautomers = False,
                 neutralize = True,
                 taurdkit = True,
@@ -69,6 +70,7 @@ class EirVS:
         self.custom = custom
         self.unwanted = unwanted
         self.pains = pains
+        self.chiral = chiral
         
         self.tautomers = tautomers
         self.neutralize = neutralize
@@ -231,6 +233,7 @@ class EirVS:
         if self.hba is not None: df = Filters.filter_by_hba(df, self.hba, rejectedFile=rejected_file, debug=self.debug)
         if self.hbd is not None: df = Filters.filter_by_hbd(df, self.hbd, rejectedFile=rejected_file, debug=self.debug)
         if self.mw is not None: df = Filters.filter_by_mw(df, self.mw, rejectedFile=rejected_file, debug=self.debug)
+        if self.chiral is not None: df = Filters.filter_by_chiralcenters(df, self.chiral, rejectedFile=rejected_file, debug=self.debug)
         if self.standardize: 
             df = Filters.standarizeFilters(df)
             return df

@@ -19,6 +19,7 @@ class Filters():
                  hba = None,
                  hbd = None,
                  mw = None,
+                 chiral = None,
                  custom = None,
                  unwanted = None,
                  pains = None,
@@ -29,6 +30,7 @@ class Filters():
         self.hba = hba
         self.hbd = hbd
         self.mw = mw
+        self.chiral = chiral
         self.custom = custom
         self.unwanted = unwanted
         self.pains = pains
@@ -243,6 +245,39 @@ class Filters():
         return df
 
     @staticmethod
+    def count_unspecified_chiralcenters(mol):
+        """Count the number of unspecified chiral centers in a molecule.
+
+        Args:
+            mol (rdkit mol object): The input molecule.
+
+        Returns:
+            int: The number of unspecified chiral centers.
+        """
+        centers = Chem.FindMolChiralCenters(mol, includeUnassigned=True)
+        unassigned = [idx for idx, tag in centers if tag == '?']
+        return len(unassigned)
+    
+    @staticmethod
+    def filter_by_chiralcenters(df, filter_query, rejectedFile, debug = False) -> pd.DataFrame:
+        """Filter out molecules with required number of unspecified chiral centers.
+        Args:
+            df (pd.DataFrame): Input DataFrame with 'mol' column containing RDKit molecule objects.
+            debug (bool, optional): Debug mode. Defaults to False.
+
+        Returns:
+            pd.DataFrame: A new DataFrame chunk with molecules containing heavy atoms.
+        """
+        df['chiralcenters'] = df['mol'].apply(lambda x: rdMolDescriptors.CalcNumUnspecifiedAtomStereoCenters(x))
+        query = Filters.convert_to_query(filter_query, 'chiralcenters')
+        rejected_df = df.query(f'not ({query})').copy()
+        rejected_df['chiralcenters'] = rejected_df['chiralcenters'].apply(lambda x: f'chiralcenters {x}')
+        rejected_df.to_csv(rejectedFile, index=False, mode='a', columns=['smiles','ids','chiralcenters'], sep = ' ', header=False)
+        if debug: logger.info(f"Removed {len(rejected_df)} molecules with number of chiral centers requirements: {rejected_df['chiralcenters'].values}")
+        df.query(query, inplace=True)
+        return df
+    
+    @staticmethod
     def applyStandarizeFilters(mol, params):
 
         taut_uncharged_parent_clean_mol = None
@@ -296,6 +331,7 @@ class Filters():
         filtered_df['smiles'] = filtered_df['mol'].apply(lambda x: Chem.MolToSmiles(x))
 
         return filtered_df
+    
     @staticmethod
     def detect_and_label_pains(mol, catalog):
         """Detect PAINS functional groups in a molecule.
@@ -476,6 +512,8 @@ class Filters():
             df = Filters.filter_by_hbd(df, self.hbd, rejectedFile, debug)
         if self.mw:
             df = Filters.filter_by_mw(df, self.mw, rejectedFile, debug)
+        if self.chiral:
+            df = Filters.filter_by_chiralcenters(df, self.chiral, rejectedFile, debug)
         if self.custom:
             df = Filters.customFilter(df, rejectedFile, self.custom, debug)
         if self.unwanted:
