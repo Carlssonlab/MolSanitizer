@@ -1,7 +1,8 @@
 # This tautomer transform file is part of the EirVS project.
-# Lines start with # are comments and can also be used for temporarily disable a transformation rule.
+# Lines start with # or empty lines are skipped.
 # The rules are constructed as: name    enumerate	smarts      reference
 # Only the first 3 columns are read.
+# Last update: April 17th, 2025
 
 7H-adenine_to_9H    0   [c;!$(c~[OX1,OH]):1]1[nX2:2][c:3]([c:4]2[nH:5][c;!$(c~[OX1,OH]):6][nX2:7][c:8]2[nX2:9]1)-[N:10]>>[c:1]1[n:2][c:3]([c:4]2[n&H0:5][c:6][nH:7][c:8]2[n:9]1)[N:10]	
 pyridine-2-ol_to_2-one	0	[c;!$(c~[OX1,OH]):1]1[nX2:2][c:3]([OH:4])[c;!$(c~[OX1,OH]):5][c;!$(c~[OX1,OH]):6][c;!$(c~[OX1,OH]):7]1>>[c:1]1[nH:2][c:3](=[O&H0:4])[c:5][c:6][c:7]1    
