@@ -1,3 +1,4 @@
+### Deprecated. This is replaced by the new conformers.py
 """Based partly on: 
     https://github.com/UnixJunkie/smi2sdf3d/blob/master/smi2sdf.py
     http://rdkit.org/UGM/2012/Ebejer_20110926_RDKit_1stUGM.pdf
@@ -213,67 +214,6 @@ def is_symmetric(mol, atom_indices):
     return(len(set(second_atom_symbols))==1 and len(second_atom_neighbors)==3) or (len(set(third_atom_symbols))==1 and len(third_atom_neighbors)==3)
    
 
-def convert_sdf_mol2(sdf_file, output_mol2, VERBOSE: bool = False):
-    
-    # Set up OpenBabel conversion
-    obConversion = ob.OBConversion()
-    obConversion.SetInAndOutFormats("sdf", "mol2")
-    # Read all molecules from the SDF file
-    mol = ob.OBMol()
-    if not obConversion.ReadFile(mol, sdf_file):
-        print(f"Error reading SDF file: {sdf_file}")
-        return
-    molecule_count = 0
-    with open(output_mol2, 'w') as out_file:
-        while True:
-            molecule_count += 1
-            mol.SetAutomaticPartialCharge(False)
-
-            # Convert molecule to MOL2 format and get as string
-            mol2_str = obConversion.WriteString(mol)
-            # Write to output file
-            out_file.write(mol2_str)
-            
-            # Clear the molecule and read the next one
-            mol.Clear()
-            if not obConversion.Read(mol):
-                break
-    
-    if VERBOSE: print(f"\tConverted and saved {molecule_count} conformations to {output_mol2}.")
-
-
-def convert_sdf_mol2_str(sdf_io, VERBOSE: bool = False):
-    # Set up OpenBabel conversion
-    obConversion = ob.OBConversion()
-    obConversion.SetInAndOutFormats("sdf", "mol2")
-    # Read all molecules from the SDF file
-    mol = ob.OBMol()
-    sdf_data = sdf_io.getvalue()
-    if not obConversion.ReadString(mol, sdf_data):
-        print(f"Error reading SDF file: {sdf_data}")
-        return
-    molecule_count = 0
-    output_mol2 = ""
-    while True:
-        molecule_count += 1
-        mol.SetAutomaticPartialCharge(False)
-
-        # Convert molecule to MOL2 format and get as string
-        mol2_str = obConversion.WriteString(mol)
-        
-        # Write to output file
-        output_mol2 += mol2_str
-        
-        # Clear the molecule and read the next one
-        mol.Clear()
-        if not obConversion.Read(mol):
-            break
-    
-    if VERBOSE: print(f"\tConverted and saved {molecule_count} conformations.")
-
-    return [line + '\n' for line in output_mol2.splitlines()]
-
-
 
 def count_confs_by_rotbonds(mol, ignoreTorlib=False, VERBOSE=False):
     """
@@ -475,8 +415,7 @@ def embed_smiles_rdkit(smiles, name, randomSeed=42, nr = 1, numcores = 1, VERBOS
     params.useRandomCoords = True
     num_ring_confs = nr
 
-    ssr = [set(ring) for ring in Chem.GetSymmSSSR(mol_H)]
-    planar_rings, non_planar_rings = smi2db2_utils.get_flexible_ring(mol_H, ssr, planar_lib, non_planar_lib)
+    planar_rings, non_planar_rings = smi2db2_utils.get_flexible_ring(mol_H, planar_lib, non_planar_lib)
     sulfo_matches = smi2db2_utils.find_sulfonamide_like_scaffolds(mol_H)
     #In case only 1 ring is output, we don't need more embedding just for the flippable Ns
     if num_ring_confs > 1: flippable_Ns = smi2db2_utils.find_flipped_nitrogen(mol_H)

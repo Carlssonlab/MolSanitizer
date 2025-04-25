@@ -1,3 +1,4 @@
+### Deprecated. This is replaced by the new utils.py
 from rdkit import Chem
 
 from rdkit.Chem import rdMolTransforms, AllChem
@@ -12,7 +13,6 @@ import yaml, subprocess
 from pathlib import Path
 
 
-six_membered_aliphatic_substructure = Chem.MolFromSmarts("[A;!$(N-*=*)]1-[A;!$(N-*=*)]-[A;!$(N-*=*)]-[A;!$(N-*=*)]-[A;!$(N-*=*)]-[A;!$(N-*=*)]-1")
 sulfonamide_like_substructure = Chem.MolFromSmarts("[*:1][S;$(S(=*)=*):2]-!@[N&+0;!$([NH2]):3](-[*,#1:4])-[*,#1:5]")
 aliphatic_nitrogen_substructure = Chem.MolFromSmarts("[A:1]@[N&+0;!$(N-*=*):2](@[A:3])!@[*,#1:4]")
 conjugated_substituted_nitrogen = Chem.MolFromSmarts('[a:1]:[a:2]:[a:3]:[nX3&+0:4]-*')
@@ -255,9 +255,6 @@ class Mol2Writer:
                 return 'S.2'
             else:
                 return 'S.3'
-
-
-
         return symbol
 
 def embed_smiles_corina(smiles, name, VERBOSE):
@@ -399,13 +396,12 @@ def generate_combinations(data):
     
     return combinations_dict
 
-def get_flexible_ring(mol: Mol, ssr: list, planar_lib:list, non_planar_lib:list):
+def get_flexible_ring(mol: Mol, planar_lib:list, non_planar_lib:list):
     """Extract the flexible rings from the molecule based on the given rules 
     (planar_lib and non_planar_lib). Only consider the rings from SSR to exclude fused rings.
 
     Args:
         mol (Mol): Rdkit molecule object
-        ssr (list): List containing the indices of the smallest set of smallest rings
         planar_lib and non_planar_lib (list): Lists containing 
             (name, smarts, rdkit mol from smarts, reference set of dihedral)
 
@@ -413,6 +409,7 @@ def get_flexible_ring(mol: Mol, ssr: list, planar_lib:list, non_planar_lib:list)
         planar_rings (set): Set containing the indices of the planar rings
         non_planar_rings (list): List containing the indices of the non-planar rings
     """
+    ssr = [set(ring) for ring in Chem.GetSymmSSSR(mol)]
     planar_rings = set()
     for rule in planar_lib:
         matches = mol.GetSubstructMatches(rule[2])
@@ -557,3 +554,4 @@ def canonicalize_if_smiles(query: str):
         return Chem.CanonSmiles(query)
     else: 
         return query  # Return SMARTS or invalid input unchanged
+
