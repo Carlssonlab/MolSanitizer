@@ -28,6 +28,7 @@ All notable changes to this project will be documented in this file.
 
 ### 🚜 Refactor
 
+- Smi2db2 and smi2pdbqt are now refactored in conformers. ConformerGenerator class allows the user to generate different file formats easily. - ([933eac2](https://github.com/phonglam3103/EirVS/commit/933eac287f6b4590cc5765a67eebb87a57f305cf))
 - Reorganized the whole package. The organization now should be more intuitive. - ([6de0647](https://github.com/phonglam3103/EirVS/commit/6de0647233345c60791cda6ea07349a44d32921a))
 
 ### ⚡ Performance
