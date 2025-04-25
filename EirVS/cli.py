@@ -34,7 +34,7 @@ def apply_filters(chunk, args, rejected_file):
         mw=args.mw, chiral = args.chiral, tautomers=args.tautomers, taurdkit=args.taurdkit, neutralize=args.neutralize,
         stereoisomers=args.stereoisomers, max_stereoisomers=args.max_stereoisomers,
         protonation=args.protonation, pH=args.pH, pH_range=args.pH_range, 
-        numcores=args.numcores, standardize=args.standardize, db2 = args.db2, debug=args.debug)
+        numcores=args.numcores, standardize=args.standardize, debug=args.debug)
     chunk = processor.run(chunk, rejected_file)
     return chunk
 
@@ -104,6 +104,48 @@ def read_input_file(input_file, is_enamine, is_synthon):
             dtype={'smiles': str, 'ids': str}  # Enforce string types
         )
     
+# def process_files(args, start_time: int):
+#     if args.standardize:
+#         logger.warning('standardize predictor format preparation selected. Will skip all other flags and only standardize the molecules using RDKit default functions.')
+
+#     for input_file in args.input_files:
+#         input_file_path = pathlib.Path(input_file)
+#         logger.info(f'Processing: {input_file}')
+
+#         output_file, rejected_file = get_output_files(args, input_file_path)
+#         if os.path.exists(rejected_file): os.remove(rejected_file)
+        
+#         df_input = read_input_file(input_file, args.enamine, args.synthon)
+
+#         for step, chunk in enumerate(df_input, start=1):
+#             if args.enamine: chunk = process_enamine_name(chunk)
+#             chunk = apply_filters(chunk, args, rejected_file)
+#             if not chunk.empty:
+#                 if args.synthon and not(args.standardize):
+#                     chunk.to_csv(output_file, index=False, mode='a', columns=['smiles', 'ids', 'highlights'], header=False, sep=' ')
+#                 else:
+#                     chunk.to_csv(output_file, index=False, mode='a', columns=['smiles', 'ids'], header=False, sep=' ')
+
+
+#             if args.db2:
+#                 from .conformers import smi2db2
+#                 if args.corina:
+#                     smi2db2.gen_conf_chunk_corina(chunk, args, input_file_path.stem)
+#                 else:
+#                     smi2db2.gen_conf_chunk(chunk, args, input_file_path.stem)
+            
+#             if args.pdbqt:
+#                 from .conformers import smi2pdbqt
+#                 smi2pdbqt.gen_conf_chunk(chunk, args)
+#             if not args.test:
+#                 if step == 1: time_step1 = time.time()-start_time
+#                 if step == 2:
+#                     log_step_time(time_step1, 1)
+#                     log_step_time(time.time()-start_time, 2)
+#                 elif step > 2:
+#                     log_step_time(time.time()-start_time, step)
+#                 start_time = time.time()
+
 def process_files(args, start_time: int):
     if args.standardize:
         logger.warning('standardize predictor format preparation selected. Will skip all other flags and only standardize the molecules using RDKit default functions.')
@@ -127,16 +169,11 @@ def process_files(args, start_time: int):
                     chunk.to_csv(output_file, index=False, mode='a', columns=['smiles', 'ids'], header=False, sep=' ')
 
 
-            if args.db2:
-                from .conformers import smi2db2
-                if args.corina:
-                    smi2db2.gen_conf_chunk_corina(chunk, args, input_file_path.stem)
-                else:
-                    smi2db2.gen_conf_chunk(chunk, args, input_file_path.stem)
+            if args.gen3d:
+                from .conformers import conformers
+                conformers.gen_conf_chunk(chunk, args, input_file_path.stem)
             
-            if args.pdbqt:
-                from .conformers import smi2pdbqt
-                smi2pdbqt.gen_conf_chunk(chunk, args)
+
             if not args.test:
                 if step == 1: time_step1 = time.time()-start_time
                 if step == 2:
@@ -154,17 +191,10 @@ def process_smiles(args):
     
     chunk = apply_filters(chunk, args, rejected_file)
 
-    if args.db2: 
-        from .conformers import smi2db2
+    if args.gen3d:
+        from .conformers import conformers
         if os.path.exists('db2/0.db2'): os.remove('db2/0.db2') # 0 is the default name
-        if args.corina:
-            smi2db2.gen_conf_chunk_corina(chunk, args)
-        else:
-            smi2db2.gen_conf_chunk(chunk, args)
-
-    if args.pdbqt:
-        from .conformers import smi2pdbqt
-        smi2pdbqt.gen_conf_chunk(chunk, args)
+        conformers.gen_conf_chunk(chunk, args)
     
     print('Processed SMILES:')
     for i, row in chunk.iterrows():

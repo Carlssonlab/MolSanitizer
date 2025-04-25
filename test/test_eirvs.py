@@ -212,13 +212,13 @@ class TestEirVS(unittest.TestCase):
     def test_db2_generation(self):
         tmp_obj = tempfile.TemporaryDirectory()
         temp_dir = tmp_obj.name
-        args = self.generate_mock_arguments([f'{self.path}/in_db2.smi'], ['db2', 'test', 'enrichment'], temp_dir)
+        args = self.generate_mock_arguments([f'{self.path}/in_db2.smi'], ['protonation', 'gen3d', 'test'], temp_dir)
+        args.out = ['db2']        
         args.prefix = Path(temp_dir)
 
         cli.clean_data(args)
         # If the file was produced
         self.assertTrue(Path(f"{temp_dir}/db2/3,4-diclorophenol.db2").exists(), "DB2 file was not created.")
-
         # If produce 2 conformers
         with open(f"{temp_dir}/db2/3,4-diclorophenol.db2") as db2_file:
             first_line = db2_file.readline()
@@ -238,7 +238,8 @@ class TestEirVS(unittest.TestCase):
                 return
             tmp_obj = tempfile.TemporaryDirectory()
             temp_dir = tmp_obj.name
-            args = self.generate_mock_arguments([f'{self.path}/in_pdbqt.smi'], ['protonation', 'pdbqt', 'test'], temp_dir)
+            args = self.generate_mock_arguments([f'{self.path}/in_pdbqt.smi'], ['protonation', 'gen3d', 'test'], temp_dir)
+            args.out = ['pdbqt']
             args.prefix = Path(temp_dir)
             cli.clean_data(args)
             self.assertTrue(Path(f"{temp_dir}/pdbqt/salicylic_acid.pdbqt").exists(), "PDBQT file was not created.")
@@ -261,7 +262,7 @@ class TestEirVS(unittest.TestCase):
     def test_batch(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             args, parser = parsers.parseArguments([], batch_mode=True)
-            applied_flags = ['protonation', 'tautomers', 'db2', 'test']
+            applied_flags = ['protonation', 'tautomers', 'gen3d', 'test']
 
             # Generate arguments
             args = self.generate_mock_arguments([f'{self.path}/in_data100.txt'], applied_flags, temp_dir)
@@ -337,6 +338,7 @@ class TestEirVS(unittest.TestCase):
 
         args = {
             'input_files': in_files,
+            'out': None,
             'enamine': False,
             'lazy': False,
             'removesalts' : False, 
@@ -356,7 +358,9 @@ class TestEirVS(unittest.TestCase):
             "numcores": 4,
             "test": False,
             "smiles": None,
-            "db2": False,
+            "gen3d": False,
+            "out": None,
+            "method": "rdkit",
             "numconfs": 2000,
             "cleanup": True,
             "randomSeed": 42,
@@ -375,7 +379,6 @@ class TestEirVS(unittest.TestCase):
             "hbd": None,
             "mw": None,
             "chiral": None,
-            "pdbqt": False,
             "nringconfs": 1,
             "rigid": None
          } 

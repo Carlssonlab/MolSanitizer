@@ -12,6 +12,7 @@
 # NUMCONFS: Number of conformers to be generated for each compound (default: 2000)
 
 USE_CORINA: False
+EMBED_METHOD: 'rdkit' # choose from 'rdkit', 'obabel', 'corina'
 CORINA: '/home/phonglam/corina/corina-4.2/corina'
 ENERGY_WINDOW: 25
 NUMCONFS: 2000

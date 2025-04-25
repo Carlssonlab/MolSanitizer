@@ -58,7 +58,6 @@ class EirVS:
                 pH_range = 0,
                 numcores = 1,
                 standardize = False,
-                db2 = False,
                 debug = False):
 
         self.removesalts = removesalts
@@ -82,7 +81,6 @@ class EirVS:
         self.pH_range = pH_range
         self.standardize = standardize    
         self.debug = debug
-        self.db2 = db2
         self.numcores = numcores
     
     def __repr__(self):
@@ -226,7 +224,7 @@ class EirVS:
         """
         df['mol'] = df['smiles'].apply(lambda x: Chem.MolFromSmiles(x))
         df = Filters.remove_invalid_SMILES(df)
-        if self.db2 or self.standardize: df = Filters.remove_exotic_chem_to_db2(df)
+        if self.standardize: df = Filters.remove_exotic_chem_to_db2(df)
         if self.removesalts: df = Filters.saltstripping(df, debug=self.debug)
         if self.ha is not None: df = Filters.filter_by_ha(df, self.ha, rejectedFile=rejected_file, debug=self.debug)
         if self.logp is not None: df = Filters.filter_by_logp(df, self.logp, rejectedFile=rejected_file, debug=self.debug)
