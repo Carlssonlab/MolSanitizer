@@ -39,20 +39,20 @@ Date: 2024-09-14
     </dihedral_sets>
   </ring>
   <ring name="planar-6-member">
-    <smarts smarts="**1~[A^2;!$(O(a)[A^3])]~[*^2]~[*^2]~[*^2]~*~1 "/>
+    <smarts smarts="*1~[A^2;!$(O(a)[A^3])]~[*^2]~[*^2]~[*^2]~[*^2]~1"/>
     <dihedral_sets>
       <set dihedral="'0', '0', '0', '0', '0', '0'" value="1"/>
     </dihedral_sets>
   </ring>
   <ring name="planar-cyclohexa-1,4-dien">
-    <smarts smarts="[*:1]1=,:[*:2]-[A:3]-[*:4]=[*:5]-[A:6]-1"/>
+    <smarts smarts="*1=,:*-A-*=*-A-1"/>
     <dihedral_sets>
       <set dihedral="'0', '0', '0', '0', '0', '0'" value="1"/>
     </dihedral_sets>
   </ring>
   <ring name="cyclobutane">
     <note note=""/>
-    <smarts smarts="[A]1-[A]-[A]-[A]-1"/>
+    <smarts smarts="A1-A-A-A-1"/>
     <ref ref=""/>
     <dihedral_sets>
       <set dihedral="'20', '-20', '20', '-20'" value="1"/>
@@ -61,7 +61,7 @@ Date: 2024-09-14
   </ring>
   <ring name="5-membered lactam/lactone">
     <note note=""/>
-    <smarts smarts="[C;$(C=O):1]1-[N,O:2]-[A:3]-[A:4]-[A:5]-1"/>
+    <smarts smarts="[C;$(C=O)]1-[N,O]-A-A-A-1"/>
     <ref ref=""/>
     <dihedral_sets>
       <set dihedral="'-20', '20', '-20', '20', '0'" value="1"/>
@@ -70,7 +70,7 @@ Date: 2024-09-14
   </ring>
   <ring name="cyclopentene">
     <note note="(should we only care about -C3(!H)- substructure?"/>
-    <smarts smarts="[*:1]1=,:[*:2]-[A:3]-[A:4]-[A:5]-1"/>
+    <smarts smarts="*1=,:*-A-A-A-1"/>
     <ref ref="https://doi.org/10.1016/0166-1280(83)80021-9"/>
     <dihedral_sets>
       <set dihedral="'-20', '20', '-20', '20', '0'" value="1"/>
@@ -96,7 +96,7 @@ Date: 2024-09-14
   </ring>
   <ring name="cyclohexa-1,3-diene-like">
     <note note=""/>
-    <smarts smarts="[*^2:1]1~[*^2:2]-[*^2:3]~[*^2:4]-[A:5]-[A:6]-1"/>
+    <smarts smarts="[*^2]1~[*^2]-[*^2]~[*^2]-A-A-1"/>
     <ref ref="https://doi.org/10.1016/0022-2860(81)85056-9"/>
     <dihedral_sets>
       <set dihedral="'10', '0', '-20', '35', '-35', '0'" value="1"/>
@@ -106,7 +106,7 @@ Date: 2024-09-14
 
   <ring name="thioxanthene-like">
     <note note="Could be regarded as cyclohexa-1-4-diene with the two double bonds being aromatic bonds. Boat-like"/>
-    <smarts smarts="[*:1]1:[*:2]-[A:3]-[*:4]:[*:5]-[A:6]-1"/>
+    <smarts smarts="*1:*-A-*:*-A-1"/>
     <ref ref="https://doi.org/10.1107/S056774086900598X"/>
     <dihedral_sets>
       <set dihedral="'-30', '30', '0', '-30', '30', '0'" value="1"/>
@@ -116,7 +116,7 @@ Date: 2024-09-14
 
   <ring name="sulfamide/sulfate - 6 member">
     <note note="Prefer chair, just like cyclohexane"/>
-    <smarts smarts="[S;$(S(=O)(=O)):1]1-[N,O:2]-[A:3]-[A:4]-[A:5]-[N,O:6]-1"/>
+    <smarts smarts="[S;$(S(=O)(=O))]1-[N,O]-A-A-A-[N,O]-1"/>
     <ref ref=""/>
     <dihedral_sets>
       <set dihedral="'60', '-60', '60', '-60', '60', '-60'" value="1"/>
@@ -125,7 +125,7 @@ Date: 2024-09-14
   </ring>
   <ring name="carbamide/carbonate - 6 member">
     <note note="(N/O)-(C=O)-(N/O), check HIV Pro Inh- ter. ureas"/>
-    <smarts smarts="[C;$(C=O):1]1-[N,O:2]-[A:3]-[A:4]-[A:5]-[N,O:6]-1"/>
+    <smarts smarts="[C;$(C=O)]1-[N,O]-A-A-A-[N,O]-1"/>
     <ref ref=""/>
     <dihedral_sets>
       <set dihedral="'-30', '60', '-60', '30', '0', '0'" value="1"/>
@@ -134,7 +134,7 @@ Date: 2024-09-14
   </ring>
   <ring name="cyclohexene-like">
     <note note="lactam/lactone"/>
-    <smarts smarts="[C;$(C=O):1]1-[N,O:2]-[A:3]-[A:4]-[A:5]-[A:6]-1"/>
+    <smarts smarts="[C;$(C=O)]1-[N,O]-A-A-A-A-1"/>
     <ref ref=""/>
     <dihedral_sets>
       <set dihedral="'15', '-30', '45', '-60', '45', '-30'" value="1"/>
@@ -143,7 +143,7 @@ Date: 2024-09-14
   </ring>
   <ring name="cyclohexene">
     <note note=""/>
-    <smarts smarts="[*:1]1=,:[*:2]-[A:3]-[A:4]-[A:5]-[A:6]-1"/>
+    <smarts smarts="*1=,:*-A-A-A-A-1"/>
     <ref ref="https://doi.org/10.1016/0022-2860(68)87035-8"/>
     <dihedral_sets>
       <set dihedral="'-15', '45', '-60', '45', '-15', '0'" value="1"/>
@@ -161,7 +161,7 @@ Date: 2024-09-14
   </ring>
   <ring name="cycloheptatriene">
     <note note="prefered boat form, not planar"/>
-    <smarts smarts="[*:1]1=,:[*:2]-[*:3]=,:[*:4]-[*:5]=,:[*:6]-[A:7]-1"/>
+    <smarts smarts="*1=,:*-*=,:*-*=,:*-A-1"/>
     <ref ref="https://doi.org/10.1016/0166-1280(82)80039-0"/>
     <dihedral_sets>
       <set dihedral="'30', '0', '-30', '0', '45', '-45', '0'" value="1"/>
@@ -170,7 +170,7 @@ Date: 2024-09-14
   </ring>
   <ring name="cyclohepta-1,3-diene-like">
     <note note=""/>
-    <smarts smarts="[*^2:1]1~[*^2:2]-[*^2:3]~[*^2:4]-[A:5]-[A:6]-[A:7]-1"/>
+    <smarts smarts="[*^2]1~[*^2]-[*^2]~[*^2]-A-A-A-1"/>
     <ref ref="https://doi.org/10.1016/0166-1280(82)80039-0"/>
     <dihedral_sets>
       <set dihedral="'0', '0', '30', '-70', '70', '-30', '0'" value="1"/>
@@ -179,7 +179,7 @@ Date: 2024-09-14
   </ring>
   <ring name="cyclohepta-1,4-diene-like">
     <note note=""/>
-    <smarts smarts="[*^2:1]1~[*^2:2]-[*^2:3]~[*^2:4]-[A:5]-[A:6]-[A:7]-1"/>
+    <smarts smarts="[*^2]1~[*^2]-[*^2]~[*^2]-A-A-A-1"/>
     <ref ref="https://doi.org/10.1016/0166-1280(82)80039-0"/>
     <dihedral_sets>
       <set dihedral="'20', '-20', '0', '40', '-55', '40', '0'" value="1"/>
@@ -190,7 +190,7 @@ Date: 2024-09-14
   </ring>
   <ring name="sulfamide/sulfate - 7 member">
     <note note="Twisted chair"/>
-    <smarts smarts="[S;$(S(=O)(=O)):1]1-[N,O:2]-[A:3]-[A:4]-[A:5]-[A:6]-[N,O:7]-1"/>
+    <smarts smarts="[S;$(S(=O)(=O))]1-[N,O]-A-A-A-A-[N,O]-1"/>
     <ref ref=""/>
     <dihedral_sets>
       <set dihedral="'-70', '90', '-40', '-40', '90', '-70', '55'" value="1"/>
@@ -211,7 +211,7 @@ Date: 2024-09-14
   </ring>
   <ring name="carbamide/carbonate - 7 member">
     <note note="Twisted chair"/>
-    <smarts smarts="[C;$(C=O):1]1-[N,O:2]-[A:3]-[A:4]-[A:5]-[A:6]-[N,O:7]-1"/>
+    <smarts smarts="[C;$(C=O)]1-[N,O]-A-A-A-A-[N,O]-1"/>
     <ref ref=""/>
     <dihedral_sets>
       <set dihedral="'90', '-70', '55', '-70', '90', '-40', '-40'" value="1"/>
@@ -220,7 +220,7 @@ Date: 2024-09-14
   </ring>
   <ring name="cycloheptene-like">
     <note note="lactam/lactone -&gt; chair"/>
-    <smarts smarts="[*^2:1]1~[*^2:2]-[A:3]-[A:4]-[A:5]-[A:6]-[A:7]-1"/>
+    <smarts smarts="[*^2]1~[*^2]-A-A-A-A-A-1"/>
     <ref ref=""/>
     <dihedral_sets>
       <set dihedral="'60', '-70', '70', '-70', '70', '-60', '0'" value="1"/>
