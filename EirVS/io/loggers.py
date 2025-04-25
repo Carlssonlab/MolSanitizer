@@ -31,7 +31,8 @@ def setup_logger(log_file):
 
 def arguments(args):
     # Print the parsed arguments 
-    logger.info(f"Input files: {args.input_files}")
+    if args.input_files:
+        logger.info(f"Input files: {[str(input_file) for input_file in args.input_files]}")
 
     if args.enamine: 
         logger.info(f"Enamine format: {args.enamine}")
@@ -79,21 +80,18 @@ def arguments(args):
         temp_df = loadSMARTSdata(args.custom)
         logger.info(f'Parsed {len(temp_df)} substructures from: {args.custom}')
 
-    if args.db2:
-        logger.info(f"Generate DB2 files for DOCK3.8: {args.db2}")
+    if args.gen3d:
+        logger.info(f"Generate 3D conformers: {args.gen3d}")
+        logger.info(f"Output format: {args.out}")
         logger.info(f"Number of conformers: {args.numconfs}")
         logger.info(f"Cleanup: {args.cleanup}")
         logger.info(f"Random seed: {args.randomSeed}")
         logger.info(f"Energy window: {args.energywindow}")
         logger.info(f"Number of ring conformations: {args.nringconfs}")
-        logger.info(f"Use CORINA for initial embedding: {args.corina}")
-        if not(args.corina): logger.info(f"Timelimit for initial embedding using RDKit: {args.timeout}")
+        logger.info(f"Embedding method: {args.method}")
+        if args.method == 'rdkit': logger.info(f"Timelimit for initial embedding using RDKit: {args.timeout}")
         if args.enrichment: logger.info(f"Enrichment mode: {args.enrichment}")
         if args.rigid: logger.info(f"Only align based on: {args.rigid}")
 
-    if args.pdbqt:
-        logger.info(f"Generate PDBQT files for Autodock: {args.pdbqt}")
-        logger.info(f"Random seed: {args.randomSeed}")
-        logger.info(f"Number of ring conformations: {args.nringconfs}")
         
 

@@ -80,7 +80,7 @@ class Filters():
         df_cleaned['mol'] = df['mol'].apply(lambda x: x if x.HasSubstructMatch(exotic_chems) == False else None)
         exotic_chem_df = df_cleaned[df_cleaned['mol'].isna()]
         for _, row in exotic_chem_df.iterrows():
-            logger.warning(f"Removed entries that are not DB2-compatible: SMILES: {row['smiles']} - ID: {row['ids']}")
+            logger.warning(f"Removed entries that are not DB2/Mol2/PDBQT-compatible: SMILES: {row['smiles']} - ID: {row['ids']}")
         df_cleaned = df_cleaned.dropna(subset=['mol'])
         return df_cleaned
 
