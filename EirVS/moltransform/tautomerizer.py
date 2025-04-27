@@ -130,8 +130,9 @@ class Tautomerizer:
         for name, _, rxn in self.standardizing_reactions:
             rxn.Initialize()
             runs = 0
-            # 100 is likely enough to avoid infinite loops
-            while mol.HasSubstructMatch(rxn.GetReactantTemplate(0)) and runs < 100:
+            # 10 is likely enough to avoid infinite loops. Minimum rule needs to match 3 atoms. 
+            # If the molecule needs to apply more than 10 times the same rule, it is unlikely a leadlike molecule.
+            while mol.HasSubstructMatch(rxn.GetReactantTemplate(0)) and runs < 10:
                 if self.debug: 
                     logger.info(f"\tApplying {name} to {Chem.MolToSmiles(mol)}")
                     print(f"\tApplying {name} to {Chem.MolToSmiles(mol)}")
