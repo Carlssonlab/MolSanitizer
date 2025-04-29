@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### 🚀 Features
 
+- New 'extensive' method, allowing for sampling of the same peak more than once. This is specially useful for molecules with small degree of freedom like fragments. Trigger via '-mode extensive'. - ([cd50ff9](https://github.com/phonglam3103/EirVS/commit/cd50ff984f32b5d26e51612f30d8fa778836f51b))
 - New filter by the number of unspecified chiral centers. - ([f1654a8](https://github.com/phonglam3103/EirVS/commit/f1654a8a6c09984d2661c1bee82f586636572f5f))
 - Expose numcores to smi2db2. This can help to speed up the initial embedding for a molecule if the user asks for more cores. - ([08ccdd7](https://github.com/phonglam3103/EirVS/commit/08ccdd79ff6746991e1d00088319c155ccf66523))
 - Expose the options for the number of ring conformations (-nr) for Smi2DB2. - ([477c7a1](https://github.com/phonglam3103/EirVS/commit/477c7a152df9e65fc7a2be45f545887c5872632c))
