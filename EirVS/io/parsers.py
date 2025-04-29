@@ -73,8 +73,8 @@ class CustomHelpFormatter(argparse.RawDescriptionHelpFormatter, argparse.HelpFor
 def parseArguments(args = None, batch_mode = False):
     if batch_mode: info = info_batch
     else: info = info_standalone
-    if (set(['--db2', '-db2']).intersection(set(args))):
-        print('\nThe flags --db2 and --pdbqt are deprecated.\nUse --gen3d or -3d instead.\nCheck the help message for more information.\n')
+    if (set(['--db2', '-db2','--pdbqt','--långben']).intersection(set(args))):
+        print('\nThe flags --db2,--pdbqt,--långben are deprecated.\nCheck the help message for more information.\n')
         exit(1)
         
     # Create the argument parser
@@ -130,17 +130,18 @@ def parseArguments(args = None, batch_mode = False):
     # Group 4: DB2 related options
     gen3d = parser.add_argument_group("Generate 3D conformers options")
     gen3d.add_argument('--gen3d', '-3d',  action='store_true', help='Generate 3D conformers')
-    gen3d.add_argument('--out', '-o', choices=['db2', 'db2.tgz', 'pdbqt', 'sdf', 'mol2'], default='db2.tgz', nargs='*', help='Output file format. Multiple formats simultaneously supported.\n(default: db2 - options: sdf, db2, db2.tgz, mol2, pdbqt.')
+    gen3d.add_argument('--format', '-f', choices=['db2', 'db2.tgz', 'pdbqt', 'sdf', 'mol2'], default='db2.tgz', nargs='*', help='Output file format. Multiple formats simultaneously supported.\n(default: db2 - options: sdf, db2, db2.tgz, mol2, pdbqt.')
     gen3d.add_argument('--method', '-m', choices=['rdkit', 'obabel', 'corina'], dest='method', default = 'rdkit', help=f'Embedding method (default: {embed_method} - options: rdkit, obabel, corina)')
-    gen3d.add_argument('--långben', '-igtor', action='store_true', dest='ignoretorlib', default = False, help='Ignore the Torsion Library - generate every possible conformer')
     gen3d.add_argument('--numconfs', '-nconfs', type=int, default=2000, help='Maximum number of conformers to generate (default: 2000)')
     gen3d.add_argument('--randomSeed', '-rs', type=int, default=42, help='Seed for reproducibility (default: 42)')
     gen3d.add_argument('--timeout', '-to', type=float, default=2, help='Timeout for the initial embedding for each SMILES entry before using OpenBabel in minutes (default: 2)')
-    gen3d.add_argument('--nocleanup', action='store_false', dest='cleanup', default = True, help='Do not clean up the temporary files')
     gen3d.add_argument('--energywindow', '-w', type=float, default=energy_window, help=f'Energy window for sampling the conformations (default: {energy_window} kcal/mol)')
     gen3d.add_argument('--rigid', type = str, default = None, help='Only align the DB2 on this rigid scaffold in SMILES/SMARTS format. All rings if not provided.')
     gen3d.add_argument('--nringconfs', '-nr', type=int, default=1,
                                             help='Maximum number of ring conformers to generate (default: 1)')
+    gen3d.add_argument('--mode', '-mode', choices=['vs', 'extensive', 'ignoretorlib'], default='vs', help='Mode for generating conformers (default: vs (virtual screening) - options: vs, extensive, ignoretorlib)')
+    gen3d.add_argument('--tolerance', '-tol', type=float, default=30, help='Minimum angle for differentiating two conformers (default: 30)')
+    gen3d.add_argument('--nocleanup', action='store_false', dest='cleanup', default = True, help='Do not clean up the temporary files')
 
     # Group 5: Miscellaneous
     misc_group = parser.add_argument_group("Miscellaneous")
@@ -232,7 +233,7 @@ def parseArguments_bak(args = None, batch_mode = False):
     smiles_group.add_argument('--protonation', '-prot', action='store_true', help='Apply protonation to the structures')
     smiles_group.add_argument('--pH', '-p', type=int, default=pH, help='pH for the protonation (default: 7)')
     smiles_group.add_argument('--pH_range', '-r', type=int, default=pH_range, help='pH range for the protonation (default: 0)')
-    smiles_group.add_argument('--noneutralize',  action='store_false', dest='neutralize', default = True, help='Do not neutralize the molecule before tautomerization')
+    smiles_group.add_argument('--noneutralize',  action='store_false', dest='neutralize', default = True, help='Do not neutralize the molecule before tautomerization and protonation')
     smiles_group.add_argument('--notaurdkit', action='store_false', dest='taurdkit', default = True, help='Do not use RDKit to canonicalize the tautomeric form of the input SMILES')
     smiles_group.add_argument('--standardize', '-std', action='store_true', dest='standardize', help='Standardize structures for machine learning using RDKit')
 

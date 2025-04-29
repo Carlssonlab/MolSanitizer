@@ -213,7 +213,7 @@ class TestEirVS(unittest.TestCase):
         tmp_obj = tempfile.TemporaryDirectory()
         temp_dir = tmp_obj.name
         args = self.generate_mock_arguments([f'{self.path}/in_db2.smi'], ['protonation', 'gen3d', 'test'], temp_dir)
-        args.out = ['db2']        
+        args.format = ['db2']        
         args.prefix = Path(temp_dir)
 
         cli.clean_data(args)
@@ -239,7 +239,7 @@ class TestEirVS(unittest.TestCase):
             tmp_obj = tempfile.TemporaryDirectory()
             temp_dir = tmp_obj.name
             args = self.generate_mock_arguments([f'{self.path}/in_pdbqt.smi'], ['protonation', 'gen3d', 'test'], temp_dir)
-            args.out = ['pdbqt']
+            args.format = ['pdbqt']
             args.prefix = Path(temp_dir)
             cli.clean_data(args)
             self.assertTrue(Path(f"{temp_dir}/pdbqt/salicylic_acid.pdbqt").exists(), "PDBQT file was not created.")
@@ -338,7 +338,7 @@ class TestEirVS(unittest.TestCase):
 
         args = {
             'input_files': in_files,
-            'out': None,
+            'format': None,
             'enamine': False,
             'lazy': False,
             'removesalts' : False, 
@@ -359,17 +359,18 @@ class TestEirVS(unittest.TestCase):
             "test": False,
             "smiles": None,
             "gen3d": False,
-            "out": None,
+            "format": None,
             "method": "rdkit",
+            "mode": "vs",
             "numconfs": 2000,
             "cleanup": True,
             "randomSeed": 42,
             "enrichment": False,
             "energywindow": 25,
             "timeout": 2,
+            "tolerance": 30,
             "ignoretorlib":False,
             "timing":False,
-            'corina': False,
             "synthon": False,
             "taurdkit": True,
             "standardize": False,

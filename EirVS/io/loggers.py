@@ -82,7 +82,10 @@ def arguments(args):
 
     if args.gen3d:
         logger.info(f"Generate 3D conformers: {args.gen3d}")
-        logger.info(f"Output format: {args.out}")
+        logger.info(f"Output format: {args.format}")
+        logger.info(f"Sampling mode: {args.mode}")
+        if args.mode == 'extensive':
+            logger.info(f"Dihedral tolerance: {args.tolerance}")
         logger.info(f"Number of conformers: {args.numconfs}")
         logger.info(f"Cleanup: {args.cleanup}")
         logger.info(f"Random seed: {args.randomSeed}")

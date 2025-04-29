@@ -87,7 +87,6 @@ def embed_smiles_corina(smiles, name, numringconfs, VERBOSE):
             "@<TRIPOS>MOLECULE\n" + block.strip() + "\n" 
             for block in raw_blocks if block.strip()
         ]
-
         if VERBOSE:
             print(f"\tNumber of ring conformers: {len(mol2_blocks)}")
             with open(f"mol2/{name}_corina.mol2", "w") as f:
@@ -98,7 +97,7 @@ def embed_smiles_corina(smiles, name, numringconfs, VERBOSE):
             rdkit_mol = Chem.MolFromMol2Block(mol, removeHs=False, sanitize=True)
             if rdkit_mol:
                 ring_confs.append(rdkit_mol)
-        mol2_string = mol2_blocks[0]
+        mol2_string = mol2_blocks[0] if len(mol2_blocks) > 0 else None
         return mol2_string, ring_confs
     
 def find_symmetric_rings(mol_H: Mol):
@@ -541,7 +540,7 @@ def count_confs_by_rotbonds(mol, ignoreTorlib=False, VERBOSE=False):
     # we should produce 2 possible combinations, 0x180 and 0x0, rather than produce
     # 180x180 0x180 0x0 180x0 as they are symmetrically equivalent.
 
-    # symmetric_rings = smi2db2_utils.find_symmetric_rings(mol)
+    # symmetric_rings = find_symmetric_rings(mol)
     # #print(f"\tSymmetric rings: {symmetric_rings}")
     # reduced_rotated_rings = set()
     # for ring in symmetric_rings:
@@ -606,17 +605,15 @@ def count_confs_by_rotbonds(mol, ignoreTorlib=False, VERBOSE=False):
 
     return num_confs, match_torlib_clean
 
-def get_random_angle(mean, tolerance):
+def get_random_angle(mean, tolerance, method='gauss'):
     """
     Generate a random angle value from a Gaussian distribution given the expected mean and standard deviation,
     and limit it within the specified range. Normalize the result to the [-180, 180] degree range.
 
     Args:
     mean (float): The expected mean angle.
-    std_dev (float): The standard deviation.
-    lower_limit (float): The lower limit for the angle.
-    upper_limit (float): The upper limit for the angle.
-    seed (int, optional): The seed for the random number generator.
+    tolerance (float): The tolerance .
+    method (str): The method to use for generating the random angle ('gauss' or 'uniform').
 
     Returns:
     float: A random angle normalized to the [-180, 180] degree range.
@@ -625,7 +622,10 @@ def get_random_angle(mean, tolerance):
     # Generate a random angle within the specified Gaussian distribution and range limits
     if tolerance == 0: return mean
     while True:
-        random_angle = random.gauss(mean, tolerance)
+        if method == 'gauss':
+            random_angle = random.gauss(mean, tolerance)
+        elif method == 'uniform':
+            random_angle = random.uniform(mean - tolerance, mean + tolerance)
         if mean-tolerance < random_angle < mean+tolerance: 
             break
 
@@ -687,6 +687,9 @@ def log_error(smiles, name):
         f.write(f"{smiles} \t {name}\n")
 
 def Align_ConvertToDb2(ring_conf, rigid_scaffold, solv_obj, name, smiles, longname):
+    """
+    Align the all the conformers to the rigid scaffold (ring) and convert it to the DB2 string.
+    """
     mol2_obj = mol2.Mol2(mol2fileName=f'{name}.mol2')
     mol2_obj.cleanConfs()
     mol2_obj.longname = longname if longname else "fake"
@@ -701,3 +704,13 @@ def Align_ConvertToDb2(ring_conf, rigid_scaffold, solv_obj, name, smiles, longna
             # Set the number of conformations for this Mol2 object
         mol2_obj.xyzCount = ring_conf.GetNumConformers()
     return mol2db2.mol2db2_quick_ver2(mol2_obj, solv_obj)
+
+def is_similar_conformer(new_dihedrals, exist, tol = 30.0):
+    if exist.shape[0] == 0:
+        return False
+
+    diffs = np.abs(exist - new_dihedrals)
+    diffs = np.minimum(diffs, 360 - diffs)
+    is_similar = np.all(diffs <= tol, axis=1)
+
+    return np.any(is_similar)

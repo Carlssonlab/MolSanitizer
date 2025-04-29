@@ -20,6 +20,7 @@ from EirVS.amsol import run_amsol
 from EirVS.db2 import solv
 
 import pandas as pd
+import numpy as np
 import logging
 import os
 import multiprocessing
@@ -59,6 +60,8 @@ class ConformerGenerator:
                  request_alignment=None,
                  ignoreTorlib=False,
                  threshold=1.6,
+                 mode='vs',
+                 tolerance=30,
                  VERBOSE=False):
         """
         Initialize the ConformerGenerator object.
@@ -74,6 +77,8 @@ class ConformerGenerator:
             request_alignment (str): Ring alignment in SMILES or SMARTS to support constrained docking
             ignoreTorlib (bool): Whether to ignore the torsion library
             threshold (float): Threshold in Angstrom for non-bonded atom distance.
+            mode (str): Mode for conformer sampling ('vs' - virtual screening, 'extensive', 'ignoretorlib')
+            tolerance (float): Tolerance for dihedral angle sampling.
             VERBOSE (bool): Whether to print verbose output
         """
         # Validate inputs
@@ -88,6 +93,8 @@ class ConformerGenerator:
         self.ignoreTorlib = ignoreTorlib
         self.conf_sampled = False
         self.threshold = threshold
+        self.mode = mode
+        self.tolerance = tolerance
         self.VERBOSE = VERBOSE
 
         # Initialize molecule
@@ -113,7 +120,7 @@ class ConformerGenerator:
             raise ValueError(f"Invalid embedding method: {self.method}. Supported methods are: rdkit, obabel, corina.")
         
     @classmethod
-    def from_existing_data(cls, smiles, name, amsol_mol, ring_confs = None, mol2_str = None, request_alignment = None, VERBOSE=False):
+    def from_existing_data(cls, smiles, name, amsol_mol, ring_confs = None, mol2_str = None, request_alignment = None, mode:str = 'vs', tolerance = 30, VERBOSE=False):
         """Alternative constructor that initializes from existing data"""
         # Create a minimal instance
         instance = cls(smiles, name=name)
@@ -126,9 +133,11 @@ class ConformerGenerator:
         instance.ring_confs = [Chem.Mol(ring_conf) for ring_conf in ring_confs] if ring_confs else []
         instance.mol2_str = mol2_str
         instance.sulfo_matches = utils.find_sulfonamide_like_scaffolds(instance.amsol_mol)
+        instance.request_alignment = request_alignment
         instance.atom_maps, instance.label_map = utils.find_rigid_part(mol, request_alignment)
         instance.VERBOSE = VERBOSE
-
+        instance.mode = mode
+        instance.tolerance = tolerance
         return instance
     
     def _initialize_molecule(self):
@@ -245,7 +254,8 @@ class ConformerGenerator:
                                                                         self.sulfo_matches, 
                                                                         conf_ring_descriptors_df)
             return conf_ring_descriptors_df
-
+        
+        
         # Step 1: Generate initial conformers
         try:
             conf_ring_descriptors_df = embed_fix_ring_confs(method = 'srETKDGv3')
@@ -267,7 +277,7 @@ class ConformerGenerator:
         if self.VERBOSE:
             print(f"\tamsol_mol contains: {self.amsol_mol.GetNumConformers()}")
                
-        conf_ring_descriptors_df.to_csv(f"{self.name}_conf_ring_descriptors.csv", index=False)
+        #conf_ring_descriptors_df.to_csv(f"{self.name}_conf_ring_descriptors.csv", index=False)
         conf_ring_descriptors_df = utils.remove_unfavorable_confs(conf_ring_descriptors_df, self.name)
 
         if len(conf_ring_descriptors_df) == 0:
@@ -277,13 +287,14 @@ class ConformerGenerator:
             scaffold = Chem.Mol(self.empty_mol)
             scaffold.AddConformer(reservoir, assignId=True)
             self.ring_confs.append(scaffold)
-            mol2_obj = mol2writer.Mol2Writer(Chem.Mol(self.amsol_mol, confId = 0))
+            mol2_obj = mol2writer.Mol2Writer(Chem.Mol(scaffold, confId = 0))
             self.mol2_str = mol2_obj.write_mol2()
             return
 
         # Process rigid scaffolds based on sulfo descriptors
         #conf_ring_descriptors_df.to_csv(f'{self.name}_confs.csv')
         if self.sulfo_matches:
+            align_on = self.sulfo_matches[0]
             for sulfo_match in conf_ring_descriptors_df['sulfo_descriptors'].unique():
                 temp_list = conf_ring_descriptors_df[conf_ring_descriptors_df['sulfo_descriptors'] == sulfo_match].values.tolist()
                 initial_len = len(temp_list)
@@ -293,6 +304,8 @@ class ConformerGenerator:
                     conformer, current_descriptors = lowest_energy_entry[0], lowest_energy_entry[2:-1]
                     scaffold = Chem.Mol(self.empty_mol)
                     conf_id = scaffold.AddConformer(conformer, assignId=True)
+                    # Need to align briefly so that coordinates are not too far apart and disrupt Mol2DB2
+                    if self.ring_confs: rdMolAlign.AlignMol(scaffold, self.ring_confs[0], 0, 0, atomMap=[(i, i) for i in align_on])
                     self.ring_confs.append(Chem.Mol(scaffold, conf_id))
                     num_confs_per_regioisomers += 1
                     temp_list = utils.ring_conf_clusters(current_descriptors, temp_list)
@@ -300,16 +313,23 @@ class ConformerGenerator:
 
 
         else:
+            align_on = list(self.planar_rings)[0] if self.planar_rings else self.non_planar_rings[0] if self.non_planar_rings else (1, 2, 3)
             temp_list = conf_ring_descriptors_df.values.tolist()
             while len(self.ring_confs) < self.num_ring_confs and temp_list:
                 lowest_energy_entry = temp_list.pop(0)
                 conformer, current_descriptors = lowest_energy_entry[0], lowest_energy_entry[2:-1]
                 scaffold = Chem.Mol(self.empty_mol)
                 scaffold.AddConformer(conformer, assignId=True)
+                # Need to align briefly so that coordinates are not too far apart and disrupt Mol2DB2
+                if self.ring_confs: rdMolAlign.AlignMol(scaffold, self.ring_confs[0], 0, 0, atomMap=[(i, i) for i in align_on])
                 self.ring_confs.append(scaffold)
                 temp_list = utils.ring_conf_clusters(current_descriptors, temp_list)
             if self.VERBOSE: print(f'\tBefore: {len(self.mol_H.GetConformers())}, after: {len(self.ring_confs)}')
         
+        # Align the AMSOL coordinates to the ring conformations so that the coordinates are not too far apart
+        for conf_id in range(self.amsol_mol.GetNumConformers()):
+            rdMolAlign.AlignMol(self.amsol_mol, self.ring_confs[0], conf_id, 0, atomMap=[(i, i) for i in align_on])
+                            
         mol2_obj = mol2writer.Mol2Writer(Chem.Mol(self.amsol_mol, confId = 0))
         self.mol2_str = mol2_obj.write_mol2()
 
@@ -389,8 +409,6 @@ class ConformerGenerator:
         attempts = 0
 
         bonded_pairs, same_parent_pairs = utils.precompute_bonded_and_same_parent_pairs(mol)
-        #print(bonded_pairs)
-        #print(same_parent_pairs)
         # Condition to switch between visited matrix and unvisited set approaches
         if total_possible_solutions > 2 * numConfs:
             # Use visited matrix approach for large spaces
@@ -409,8 +427,7 @@ class ConformerGenerator:
                     rdMolTransforms.SetDihedralDeg(mol.GetConformer(0), *bond[1], value=utils.get_random_angle(peak[0], peak[tolerance_level]))
 
                 # Check if the conformation is valid and not already visited
-                if utils.check_too_close_nonbonded_atoms(mol.GetConformer(0), mol, bonded_pairs, same_parent_pairs, threshold = self.threshold)\
-                or tuple(visitting) in visited:
+                if tuple(visitting) in visited or utils.check_too_close_nonbonded_atoms(mol.GetConformer(0), mol, bonded_pairs, same_parent_pairs, threshold = self.threshold):
                     attempts += 1
                     if attempts > max_attempts:
                         break
@@ -424,34 +441,63 @@ class ConformerGenerator:
 
 
         else:
-            # Use unvisited set approach for smaller spaces
-            if unvisited is None:
-                combination_ranges = [range(len(peaks)) for _, _, peaks in match_torlib]
-                unvisited = list(itertools.product(*combination_ranges))
+            if self.mode == 'extensive':
+                n_transform = len(match_torlib)  # Number of rotatable bonds
+                visitting = [0 for _ in range(n_transform)]
+                if visited is None: visited = np.empty((0, n_transform))
 
-            while len(product) < numConfs and len(unvisited) > 0:
-                choice = random.choice(unvisited)
+                # New approach: use angles
+                while len(product) < numConfs:
+                    for idx in range(n_transform):
+                        bond_idx = random.randint(0, len(match_torlib) - 1)
+                        bond = match_torlib[bond_idx]
+                        peaks = bond[2]  # Extract peaks
+                        peak_idx = random.choices(range(len(peaks)), weights=[peak[3] for peak in peaks], k=1)[0]
+                        peak = peaks[peak_idx]
+                        random_angle = utils.get_random_angle(peak[0], peak[tolerance_level], method = 'uniform')
+                        visitting[bond_idx] = random_angle
+                        rdMolTransforms.SetDihedralDeg(mol.GetConformer(0), *bond[1], value=random_angle)
 
-                # Set the dihedrals based on the chosen combination
-                for idx, (_, bond, _) in enumerate(match_torlib):
-                    peak = match_torlib[idx][2][choice[idx]]
-                    value = utils.get_random_angle(peak[0], peak[tolerance_level])
-                    rdMolTransforms.SetDihedralDeg(mol.GetConformer(0), *bond, value=value)
+                    if utils.is_similar_conformer(np.array(visitting), visited, tol = self.tolerance) or \
+                        utils.check_too_close_nonbonded_atoms(mol.GetConformer(0), mol, bonded_pairs, same_parent_pairs, threshold = self.threshold):
+                        attempts += 1
+                        if attempts > max_attempts:
+                            break
+                        continue
+                    visited = np.vstack((visited, visitting))
+                    ff = rdForceFieldHelpers.MMFFGetMoleculeForceField(mol, self.mp, confId=0)
+                    energy = ff.CalcEnergy()
+                    if energy < min_energy: min_energy = min(energy, min_energy)
+                    if energy <= min_energy + window: product.append((Chem.Conformer(mol.GetConformer(0)), energy))
 
-                # If atoms are too close or if we already visited this conformation
-                if utils.check_too_close_nonbonded_atoms(mol.GetConformer(0), mol, bonded_pairs, same_parent_pairs, threshold = self.threshold):
-                    attempts += 1
-                    #print('clashes')
-                    if attempts > max_attempts:
-                        break
-                    continue
+            else:
+                # Use unvisited set approach for smaller spaces
+                if unvisited is None:
+                    combination_ranges = [range(len(peaks)) for _, _, peaks in match_torlib]
+                    unvisited = list(itertools.product(*combination_ranges))
 
-                unvisited.remove(choice)  # Remove the chosen combination from the unvisited set
-                ff = rdForceFieldHelpers.MMFFGetMoleculeForceField(mol, self.mp, confId=0)
-                energy = ff.CalcEnergy()
-                if energy < min_energy: min_energy = min(energy, min_energy)
-                if energy <= min_energy + window: product.append((Chem.Conformer(mol.GetConformer(0)), energy))
-                #product.append((Chem.Conformer(mol.GetConformer(0)), energy))
+                while len(product) < numConfs and len(unvisited) > 0:
+                    choice = random.choice(unvisited)
+
+                    # Set the dihedrals based on the chosen combination
+                    for idx, (_, bond, _) in enumerate(match_torlib):
+                        peak = match_torlib[idx][2][choice[idx]]
+                        value = utils.get_random_angle(peak[0], peak[tolerance_level])
+                        rdMolTransforms.SetDihedralDeg(mol.GetConformer(0), *bond, value=value)
+
+                    # If atoms are too close or if we already visited this conformation
+                    if utils.check_too_close_nonbonded_atoms(mol.GetConformer(0), mol, bonded_pairs, same_parent_pairs, threshold = self.threshold):
+                        attempts += 1
+                        if attempts > max_attempts:
+                            break
+                        continue
+
+                    unvisited.remove(choice)  # Remove the chosen combination from the unvisited set
+                    ff = rdForceFieldHelpers.MMFFGetMoleculeForceField(mol, self.mp, confId=0)
+                    energy = ff.CalcEnergy()
+                    if energy < min_energy: min_energy = min(energy, min_energy)
+                    if energy <= min_energy + window: product.append((Chem.Conformer(mol.GetConformer(0)), energy))
+                    #product.append((Chem.Conformer(mol.GetConformer(0)), energy))
         return product, visited, unvisited
 
     def conf_sampling(self, numConfs=2000, energywindow = 25, ignoreTorlib=False, AllowNonRing=False, request_alignment=None):
@@ -486,7 +532,7 @@ class ConformerGenerator:
         else:
             if numConfs*10 < num_confs_by_rotbonds: numConfs = min(int(numConfs * 1.5), num_confs_by_rotbonds)
             elif numConfs*5 < num_confs_by_rotbonds: numConfs = min(int(numConfs * 1.25), num_confs_by_rotbonds)
-            else: numConfs = min(numConfs, num_confs_by_rotbonds)
+            else: numConfs = numConfs#min(numConfs, num_confs_by_rotbonds)
 
 
         if self.VERBOSE:
@@ -500,8 +546,9 @@ class ConformerGenerator:
 
         for idx, mol in enumerate(self.ring_confs):
             if self.VERBOSE: print(f"\tHandling ring/sulfonamide conformation {idx+1}/{len(self.ring_confs)}")
+            original_mol = Chem.Mol(mol)
             processing_mol = Chem.Mol(mol)
-
+              
             # Only remap the match_torlib when sulfo_matches is found
             if self.sulfo_matches: num_confs_by_rotbonds, match_torlib = utils.count_confs_by_rotbonds(mol, ignoreTorlib, self.VERBOSE)
             if self.VERBOSE: print('\tRunning stochastic torsional sampling')
@@ -519,15 +566,15 @@ class ConformerGenerator:
             product = product[:requested_num_confs]
             before_energy = len(product)
             min_energy = product[0][1]
-            product = [x[0] for x in product if x[1] - min_energy <= energywindow]
+            filtered_product = [x[0] for x in product if x[1] - min_energy <= energywindow]
 
             mol.RemoveAllConformers()
             largest_ring = max(self.atom_maps, key=len)
-            for conf in product:
+            for conf in filtered_product:
                 confId = mol.AddConformer(conf, assignId=True)
-                rdMolAlign.AlignMol(mol, processing_mol, confId, 0, atomMap=[(i, i) for i in largest_ring])
+                rdMolAlign.AlignMol(mol, original_mol, confId, 0, atomMap=[(i, i) for i in largest_ring])
 
-            if self.VERBOSE: print(f"\tEnergy filter: {before_energy} -> {len(product)}")
+            if self.VERBOSE: print(f"\tEnergy filter: {before_energy} -> {len(filtered_product)}")
 
 
     # ========== Output to different file formats ===========
@@ -708,7 +755,7 @@ class ConformerGenerator:
             if tarfile: write_to_tarball(tarfile, db2_data_all.encode('utf-8'), name=f"{self.name}.db2")
             else: write_to_file(db2_data_all, f"../{self.name}.db2")
             os.chdir("../..")
-            utils.remove_folders([f"solv/{self.name}"])
+            if not self.VERBOSE: utils.remove_folders([f"solv/{self.name}"])
             if cleanup:
                 utils.remove_folders([f"db2/{self.name}"])
                 
@@ -723,7 +770,7 @@ class ConformerGenerator:
             return
 
 
-def initial_embedding(queue, smiles, name, randomSeed, nr = 1, numcores = 1, method='rdkit', VERBOSE = False):
+def initial_embedding(queue, smiles, name, randomSeed, nr = 1, numcores = 1, VERBOSE = False):
     """
     A wrapper for multiprocessing to call so that timeout works.
     Embed the SMILES string using RDKit, then return the 3D coordinates in the binary format.
@@ -735,7 +782,6 @@ def initial_embedding(queue, smiles, name, randomSeed, nr = 1, numcores = 1, met
         randomSeed (int): The random seed for embedding.
         nr (int): The number of ring conformers to generate.
         numcores (int): The number of CPU cores to use for parallel processing.
-        method (str): The method for initial conformation generation ('rdkit', 'obabel', 'corina').
         VERBOSE (bool): If True, print verbose output.
     returns:
         bin_amsol_mol (bytes): The binary representation of the AMSOL molecule.
@@ -750,7 +796,7 @@ def initial_embedding(queue, smiles, name, randomSeed, nr = 1, numcores = 1, met
                                      numcores=numcores, 
                                      num_ring_confs=nr, 
                                      randomSeed=randomSeed,
-                                     method=method, 
+                                     method='rdkit', 
                                      VERBOSE=VERBOSE)
         property_flags = (
                 PropertyPickleOptions.MolProps |
@@ -812,9 +858,10 @@ def gen_conf_chunk(df: pd.DataFrame, args, input_file='0'):
         input_file (str): Name of the input file (default is '0').
     """
     df = filters.Filters.remove_exotic_chem_to_db2(df)
-    randomSeed, numConfs, VERBOSE, cleanup, energywindow, timeout, ignoreTorlib, request_alignment, nr, numcores = \
-        args.randomSeed, args.numconfs, args.debug, args.cleanup, args.energywindow, args.timeout , args.ignoretorlib, args.rigid, args.nringconfs, args.numcores
+    randomSeed, numConfs, VERBOSE, cleanup, energywindow, timeout, request_alignment, nr, numcores, mode, tolerance = \
+        args.randomSeed, args.numconfs, args.debug, args.cleanup, args.energywindow, args.timeout, args.rigid, args.nringconfs, args.numcores, args.mode, args.tolerance
     
+    ignoreTorlib = (args.mode == 'ignoretorlib')
     request_alignment = Chem.MolFromSmarts(utils.canonicalize_if_smiles(request_alignment)) if request_alignment else None
     
     # Test mode in unittest, not to produce redundant files here
@@ -822,9 +869,9 @@ def gen_conf_chunk(df: pd.DataFrame, args, input_file='0'):
         os.chdir(args.prefix)
     processed_mols = set()
     os.makedirs(f"db2", exist_ok=True)
-    if 'pdbqt' in args.out: os.makedirs(f"pdbqt", exist_ok=True)
-    if 'sdf' in args.out: os.makedirs(f"sdf", exist_ok=True)
-    if 'mol2' in args.out: os.makedirs(f"mol2", exist_ok=True)
+    if 'pdbqt' in args.format: os.makedirs(f"pdbqt", exist_ok=True)
+    if 'sdf' in args.format: os.makedirs(f"sdf", exist_ok=True)
+    if 'mol2' in args.format: os.makedirs(f"mol2", exist_ok=True)
     output_tgz = f"db2/{input_file}.db2.tgz"
     env = setup_env()
 
@@ -835,7 +882,7 @@ def gen_conf_chunk(df: pd.DataFrame, args, input_file='0'):
     
     # Check if the output file already exists. A sign of unfinished job
     restart_flag = False
-    if not(args.smiles) and os.path.exists(output_tgz):
+    if not(args.smiles) and ('db2.tgz' in args.format) and os.path.exists(output_tgz):
         
         logger.info(f"Output file {output_tgz} already exists, restarting from the last processed molecule")
         restart_tgz = f"db2/restart_{input_file}.db2.tgz"
@@ -870,57 +917,63 @@ def gen_conf_chunk(df: pd.DataFrame, args, input_file='0'):
             logger.info(f"Handling {name}")
             if VERBOSE: print(f"Handling {name}")
             if args.timing: start = time.time() 
-
-            if args.method == 'corina':
-                confgen = ConformerGenerator(smiles, name, method='corina', VERBOSE=True)
-            elif args.method == 'obabel':
-                confgen = ConformerGenerator(smiles, name, method='obabel', VERBOSE=True)
-            else:
-                queue = multiprocessing.Queue()
-                process = multiprocessing.Process(target=initial_embedding, args=(queue, smiles, name, randomSeed, nr, numcores, 'rdkit', VERBOSE))
-                process.start()
-                process.join(timeout=timeout*60)  # default 2 minutes timeout
-                # Check if process is still alive (meaning it exceeded timeout)
-                if process.is_alive():
-                    logger.warning(f"Timeout occurred while generating conformation for {name}, using OpenBabel.")
-                    process.terminate()
-                    process.join()
-                    try:
-                        confgen = ConformerGenerator(smiles, name, num_ring_confs=nr, method='babel', VERBOSE=VERBOSE)
-                    except Exception as e:
-                        logger.error(f"Error in generating initial conformation using OpenBabel for {name}, skipping it {e}")
-                        utils.log_error(smiles, name)
-                        continue
-                    if confgen.amsol_mol is None:
-                        logger.error(f"Error in generating initial conformation using OpenBabel for {name}, skipping it")
-                        utils.log_error(smiles, name)
-                        continue
-
-                # Retrieve result from queue
-                elif not queue.empty():
-                    bin_amsol_mol, bin_conf_rings, mol2_str, error = queue.get() 
-
-                    if error:
-                        logger.error(f"Error in generating initial conformation using RDKit for {name}, skipping it: {error}")
-                        utils.log_error(smiles, name)
-                        continue
-                    confgen = ConformerGenerator.from_existing_data(smiles, 
-                                                                    name, 
-                                                                    bin_amsol_mol, 
-                                                                    bin_conf_rings, 
-                                                                    mol2_str, 
-                                                                    request_alignment,
-                                                                    VERBOSE)
+            try:
+                if args.method == 'corina':
+                    confgen = ConformerGenerator(smiles, name, method='corina', mode = mode, tolerance=tolerance, VERBOSE=VERBOSE)
+                elif args.method == 'obabel':
+                    confgen = ConformerGenerator(smiles, name, method='obabel', mode = mode, tolerance=tolerance, VERBOSE=VERBOSE)
                 else:
-                    logger.error(f"Unknown error in generating initial conformation for {name}, skipping it.")
-                    utils.log_error(smiles, name)
-                    continue
+                    queue = multiprocessing.Queue()
+                    process = multiprocessing.Process(target=initial_embedding, args=(queue, smiles, name, randomSeed, nr, numcores, VERBOSE))
+                    process.start()
+                    process.join(timeout=timeout*60)  # default 2 minutes timeout
+                    # Check if process is still alive (meaning it exceeded timeout)
+                    if process.is_alive():
+                        logger.warning(f"Timeout occurred while generating conformation for {name}, using OpenBabel.")
+                        process.terminate()
+                        process.join()
+                        try:
+                            confgen = ConformerGenerator(smiles, name, num_ring_confs=nr, method='babel', tolerance=tolerance, VERBOSE=VERBOSE)
+                        except Exception as e:
+                            logger.error(f"Error in generating initial conformation using OpenBabel for {name}, skipping it {e}")
+                            utils.log_error(smiles, name)
+                            continue
+                        if confgen.amsol_mol is None:
+                            logger.error(f"Error in generating initial conformation using OpenBabel for {name}, skipping it")
+                            utils.log_error(smiles, name)
+                            continue
+
+                    # Retrieve result from queue
+                    elif not queue.empty():
+                        bin_amsol_mol, bin_conf_rings, mol2_str, error = queue.get() 
+
+                        if error:
+                            logger.error(f"Error in generating initial conformation using RDKit for {name}, skipping it: {error}")
+                            utils.log_error(smiles, name)
+                            continue
+                        confgen = ConformerGenerator.from_existing_data(smiles, 
+                                                                        name, 
+                                                                        bin_amsol_mol, 
+                                                                        bin_conf_rings, 
+                                                                        mol2_str, 
+                                                                        request_alignment, 
+                                                                        mode,
+                                                                        tolerance,
+                                                                        VERBOSE)
+                    else:
+                        logger.error(f"Unknown error in generating initial conformation for {name}, skipping it.")
+                        utils.log_error(smiles, name)
+                        continue
+            except Exception as e:
+                logger.error(f"Error in generating initial conformation for {name}, skipping it: {e}")
+                utils.log_error(smiles, name)
+                continue
 
             if args.timing: embed_time = time.time() # Time for embedding
             
-            if 'pdbqt' in args.out: confgen.to_pdbqt()
+            if 'pdbqt' in args.format: confgen.to_pdbqt()
 
-            if any(format in args.out for format in ['sdf', 'mol2', 'db2']):
+            if any(format in args.format for format in ['sdf', 'mol2', 'db2']):
                 confgen.conf_sampling(numConfs=numConfs,
                                       energywindow=energywindow,
                                       ignoreTorlib=ignoreTorlib,
@@ -929,16 +982,16 @@ def gen_conf_chunk(df: pd.DataFrame, args, input_file='0'):
                                      )
             
             if args.timing: sampling_time = time.time() # Time for sampling
-            if 'sdf' in args.out: confgen.to_sdf()
-            if 'mol2' in args.out: confgen.to_mol2()
-            if 'db2' in args.out:
+            if 'sdf' in args.format: confgen.to_sdf()
+            if 'mol2' in args.format: confgen.to_mol2()
+            if 'db2' in args.format:
                 try: 
                     confgen.to_db2(longname = longname, env=env, cleanup=cleanup)
                 except Exception as e:
                     logger.error(f"Error in converting {name} to DB2 format: {e}")
                     utils.log_error(smiles, name)
                     continue
-            if 'db2.tgz' in args.out:
+            if 'db2.tgz' in args.format:
                 try: 
                     confgen.to_db2(longname = longname, env=env, cleanup=cleanup, tarfile = output)
                 except Exception as e:
@@ -951,9 +1004,8 @@ def gen_conf_chunk(df: pd.DataFrame, args, input_file='0'):
                 logging_time += f'{name},{embed_time-start},{confgen.amsol_time-sampling_time},{sampling_time-embed_time},{db2_time-confgen.amsol_time},{db2_time-start}\n'
 
     # Use this method to remove the tarball if it is empty. 
-    # The "with open" method is better to handle unexpected error that lead to corrupted files
-    # (in the enrichment mode as the DB2 files are written directly)    
-    if ('db2.tgz' not in args.out) and os.path.exists(f"db2/{input_file}.db2.tgz"):
+    # The "with open" method is better to handle unexpected error that lead to corrupted files 
+    if ('db2.tgz' not in args.format) and os.path.exists(f"db2/{input_file}.db2.tgz"):
         os.remove(f"db2/{input_file}.db2.tgz")
     
     if not(utils.is_slurm_job()):
@@ -964,7 +1016,7 @@ def gen_conf_chunk(df: pd.DataFrame, args, input_file='0'):
                     os.rmdir(folder)
                 except: pass
 
-    if ('db2.tgz' not in args.out) and ('db2' not in args.out):
+    if ('db2.tgz' not in args.format) and ('db2' not in args.format):
         try:
             if os.path.exists('db2') and os.path.isdir('db2') and not os.listdir('db2'):
                 os.rmdir('db2')
