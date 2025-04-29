@@ -93,7 +93,6 @@ def arguments(args):
         logger.info(f"Number of ring conformations: {args.nringconfs}")
         logger.info(f"Embedding method: {args.method}")
         if args.method == 'rdkit': logger.info(f"Timelimit for initial embedding using RDKit: {args.timeout}")
-        if args.enrichment: logger.info(f"Enrichment mode: {args.enrichment}")
         if args.rigid: logger.info(f"Only align based on: {args.rigid}")
 
         
