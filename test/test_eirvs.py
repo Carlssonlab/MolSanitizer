@@ -365,7 +365,6 @@ class TestEirVS(unittest.TestCase):
             "numconfs": 2000,
             "cleanup": True,
             "randomSeed": 42,
-            "enrichment": False,
             "energywindow": 25,
             "timeout": 2,
             "tolerance": 30,
