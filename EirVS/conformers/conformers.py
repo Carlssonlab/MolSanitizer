@@ -699,7 +699,7 @@ class ConformerGenerator:
                 error_signal = 0
                 if self.method == 'rdkit':
                     cp = Chem.Mol(self.amsol_mol, confId=conf_id) #Retrieve the conf_id-th conformer of mol object
-                    mol2_obj = mol2writer.Mol2Writer(cp, mol2_template=self.mol2_str)
+                    mol2_obj = mol2writer.Mol2Writer(cp, mol2_template = self.mol2_str, atom_attributes = True)
                     mol2_obj.write_mol2(f"{self.name}.mol2")
                 else:
                     # Babel and CORINA, use the mol2_str as only 1 conformer is needed

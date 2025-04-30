@@ -7,15 +7,20 @@ class Mol2Writer:
     A class to convert the RDKit Mol Object to Mol2 format. 
     Only the first conformer of the Mol object is written out.
     '''
-    def __init__(self, mol = None, mol2_template:str = None):
+    def __init__(self, mol = None, mol2_template: str = None, atom_attributes = False):
         """
         Initialize the writer with an optional RDKit Mol object.
         Args:
             mol (rdkit.Chem.Mol): An RDKit Mol object with 3D coordinates.
             mol2_template (str): A string containing the MOL2 template.
+            atom_attributes (bool): If True, include atom attributes in the output.
         """
         self.mol = mol
 
+        if atom_attributes:
+            self.atom_attributes = self._get_atom_attributes()
+        else:
+            self.atom_attributes = []
         
         # Ensure we have some 3D coordinates. If not, try to embed.
         if self.mol.GetNumConformers() == 0:
@@ -261,6 +266,19 @@ class Mol2Writer:
                 return 'S.3'
         return symbol
     
+    # Atom attributes
+    def _get_atom_attributes(self):
+        """
+        Extract atom attributes from the RDKit Mol object.
+        """
+        atom_attributes = {}
+        for atom in self.mol.GetAtoms():
+            atom_idx = atom.GetIdx()
+            charge = atom.GetFormalCharge()
+            if charge != 0:
+                atom_attributes[atom_idx] = charge
+        return atom_attributes
+    
     # BOND section   
     def _bond_section(self, mol) -> str:
         """
@@ -312,6 +330,13 @@ class Mol2Writer:
             #charge = float(atom.GetFormalCharge())
             line = atom_fmt.format(i, atom_name, x, y, z, at_type)#, "1", "LIG", charge)
             lines.append(line)
+            
+        # ATOM attributes if request:
+        if self.atom_attributes:
+            lines.append("@<TRIPOS>UNITY_ATOM_ATTR")
+            for atom_idx, attr in self.atom_attributes.items():
+                lines.append(f"{atom_idx+1} 1")
+                lines.append(f"charge {attr}")
 
         # BOND section header
         lines += self.bond
