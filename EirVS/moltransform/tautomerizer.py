@@ -5,12 +5,12 @@ import logging
 
 from .neutralizer import Neutralizer
 from pathlib import Path
-from rdkit.Chem.MolStandardize import rdMolStandardize
+
 from functools import partial
 from rdkit import Chem, RDLogger
 from rdkit.Chem import AllChem
 
-#from .molvs_tautomers import TautomerCanonicalizer, TautomerScorer
+from .molvs_tautomers import TautomerEnumerator
 
 RDLogger.DisableLog('rdApp.*') # To disable error messages with kekulizing tautomers from RDKit
 logger = logging.getLogger('eirvs')
@@ -19,16 +19,23 @@ TAUTOMER_RULES_PATH = Path(__file__).parent.parent / 'Data' / 'tautomers_v3.txt'
 
 # These can be reused along multiprocessing and needs to be outside the class to resolve pickling problem.
 # Old RDKit TautomerEnumerator
-TAUTOMER_PARAMS = rdMolStandardize.CleanupParameters()
-TAUTOMER_PARAMS.tautomerRemoveSp3Stereo = False
-TAUTOMER_PARAMS.tautomerRemoveBondStereo = False
-TAUTOMER_PARAMS.tautomerRemoveIsotopicHs = False
-TAUTOMER_PARAMS.maxTransforms = 1000
-TAUTOMER_PARAMS.maxTautomers = 1000
-te = rdMolStandardize.TautomerEnumerator(TAUTOMER_PARAMS) 
+# from rdkit.Chem.MolStandardize import rdMolStandardize
+# TAUTOMER_PARAMS = rdMolStandardize.CleanupParameters()
+# # TAUTOMER_PARAMS.tautomerRemoveSp3Stereo = False
+# # TAUTOMER_PARAMS.tautomerRemoveBondStereo = False
+# # TAUTOMER_PARAMS.tautomerRemoveIsotopicHs = False
+# TAUTOMER_PARAMS.maxTransforms = 1000
+# TAUTOMER_PARAMS.maxTautomers = 1000
+# te = rdMolStandardize.TautomerEnumerator(TAUTOMER_PARAMS) 
 
-# te = TautomerCanonicalizer()
-# tau_scorer = TautomerScorer()
+te = TautomerEnumerator(debug = False,
+                        max_transforms= 1000,
+                        max_tautomers = 1000,
+                        remove_sp3_stereo = False,
+                        remove_bond_stereo = False,
+                        remove_isotopic_hs = False,
+)
+
 
 
 class Tautomerizer:
@@ -119,7 +126,8 @@ class Tautomerizer:
             # Return the input molecule
             if te.ScoreTautomer(canonical_tautomer) == te.ScoreTautomer(mol):
                 return mol
-        except Exception:
+        except Exception as e:
+            if self.debug: print(f"Error canonicalizing molecule: {Chem.MolToSmiles(mol)} {e}")
             logger.info(f"Error canonicalizing molecule: {Chem.MolToSmiles(mol)}")
             return mol
         return canonical_tautomer
