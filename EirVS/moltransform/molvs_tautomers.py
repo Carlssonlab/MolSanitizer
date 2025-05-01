@@ -147,6 +147,7 @@ TAUTOMER_SCORES = (
     TautomerScore('guanidine terminal=N', '[#7]C(=[NR0])[#7H0]', 1),
     TautomerScore('guanidine endocyclic=N', '[#7;R][#6;R]([N])=[#7;R]', 2),
     TautomerScore('aci-nitro', '[#6]=[N+]([O-])[OH]', -4),
+    TautomerScore('amide', '[NH1]-[#6]=[#8]', 1), # I added here
 )
 
 #: The default value for the maximum number of tautomers to enumerate, a limit to prevent combinatorial explosion.
