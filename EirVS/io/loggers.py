@@ -51,9 +51,8 @@ def arguments(args):
 
     if args.tautomers:
         logger.info(f"Tautomers enumeration: {args.tautomers}")
-        smartsFile = Path(__file__).parent.parent / 'Data' / 'tautomers_v2.txt'
-        temp_df = loadSMARTSdata(smartsFile.resolve())
-        logger.info(f'Parsed {len(temp_df)} tautomerization rules from: {smartsFile}')
+        smartsFile = Path(__file__).parent.parent / 'Data' / 'tautomers_v3.txt'
+        logger.info(f'Loading tautomerization rules from: {smartsFile}')
 
     if args.stereoisomers:
         logger.info(f"Stereoisomers enumeration: {args.stereoisomers}")
