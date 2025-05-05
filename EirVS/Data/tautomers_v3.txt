@@ -213,10 +213,10 @@ N=CN-acylguanidine-5ring_to_NH-acylguanidine	0	[O:1]=[C:2]1[NX3:3][C:4](-@[NH1:7
 N=CN-acylguanidine-6ring_to_NH-acylguanidine	0	[O:1]=[C:2]1[NX3:3][C:4](-@[NH1:8])=[N:5][C;!$(C~[OH,OX1,SX1,SX2H]):6]-[C;!$(C~[OH,OX1,SX1,SX2H]):7]1>>[O:1]=[C:2]1[N:3][C:4](=[N&H0:8])[NH:5][C:6][C:7]1
 N=CN-exo-acylguanidine_to_NC=N-exo-acylguanidine-NH0	0	[*;$(A=[O,S]),$(C#N),$(a):1]-[NH:2]-!@[C:3](=[N&H0:4])-[N:5]>>[*:1]-[N&H0:2]=[C:3](-[NH:4])[N:5]	10.1039/P29850001255
 N=CN-exo-acylguanidine_to_NC=N-exo-acylguanidine-NH1	0	[*;$(A=[O,S]),$(C#N),$(a):1]-[NH:2]-!@[C:3](=[NH:4])-[N:5]>>[*:1]-[N&H0:2]=[C:3](-[NH2:4])[N:5]	10.1039/P29850001255
-beta-iminocarbonyl/dimine_to_aminoacrylate-CH1-NH0	0	[N&H0;!$(N-[O,N])!$(N1=C-C-A=N-aa1)!$(N=C(-N)-N):1]=[C:2]-[NH,CH:3]-[A;$(*=[O,N]),$(C#N):4]>>[NH:1]-[C:2]=[CH0,NH0:3]-[A:4]
-beta-iminocarbonyl/dimine_to_aminoacrylate-CH2-NH0	0	[N&H0;!$(N-[O,N])!$(N1=C-C-A=N-aa1)!$(N=C(-N)-N):1]=[C:2]-[CH2:3]-[A;$(*=[O,N]),$(C#N):4]>>[NH:1]-[C:2]=[CH:3][A:4]
-beta-iminocarbonyl/dimine_to_aminoacrylate-CH1-NH1	0	[NH;!$(N-[O,N])!$(N1=C-C-A=N-aa1)!$(N=C(-N)-N):1]=[C:2]-[NH,CH:3]-[A;$(*=[O,N]),$(C#N):4]>>[NH2:1]-[C:2]=[CH0,NH0:3]-[A:4]
-beta-iminocarbonyl/dimine_to_aminoacrylate-CH2-NH1	0	[NH;!$(N-[O,N])!$(N1=C-C-A=N-aa1)!$(N=C(-N)-N):1]=[C:2]-[CH2:3]-[A;$(*=[O,N]),$(C#N):4]>>[NH2:1]-[C:2]=[CH:3][A:4]
+beta-iminocarbonyl/dimine_to_aminoacrylate-CH1-NH0	0	[N&H0;!$(N-[O,N])!$(N1=C-C-A=N-aa1)!$(N=C(-N)-N):1]=[C;!$(C-[OH]):2]-[NH,CH:3]-[A;$(*=[O,N]),$(C#N):4]>>[NH:1]-[C:2]=[CH0,NH0:3]-[A:4]
+beta-iminocarbonyl/dimine_to_aminoacrylate-CH2-NH0	0	[N&H0;!$(N-[O,N])!$(N1=C-C-A=N-aa1)!$(N=C(-N)-N):1]=[C;!$(C-[OH]):2]-[CH2:3]-[A;$(*=[O,N]),$(C#N):4]>>[NH:1]-[C:2]=[CH:3][A:4]
+beta-iminocarbonyl/dimine_to_aminoacrylate-CH1-NH1	0	[NH;!$(N-[O,N])!$(N1=C-C-A=N-aa1)!$(N=C(-N)-N):1]=[C;!$(C-[OH]):2]-[NH,CH:3]-[A;$(*=[O,N]),$(C#N):4]>>[NH2:1]-[C:2]=[CH0,NH0:3]-[A:4]
+beta-iminocarbonyl/dimine_to_aminoacrylate-CH2-NH1	0	[NH;!$(N-[O,N])!$(N1=C-C-A=N-aa1)!$(N=C(-N)-N):1]=[C;!$(C-[OH]):2]-[CH2:3]-[A;$(*=[O,N]),$(C#N):4]>>[NH2:1]-[C:2]=[CH:3][A:4]
 #propionylimino-b-lactam_to_acryloylamido	0	x
 acylimine_to_amide-CH3 0	[CH3:1]-[C&z1;!$([C&r{3-4}]):2]=[N:3]-[C:4]=[O:5]>>[CH2:1]=[C:2][NH:3]-[C:4]=[O:5]
 acylimine_to_amide-CH2 0	[CH2:1]-[C&z1;!$([C&r{3-4}]):2]=[N:3]-[C:4]=[O:5]>>[CH:1]=[C:2][NH:3]-[C:4]=[O:5]
