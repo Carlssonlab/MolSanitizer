@@ -52,7 +52,7 @@ OH-thiazolone_to_thiazolidinedione-CH1	0	[cH1:1]1[s:2][c:3](=[O:4])[n:5][c:6]1[O
 12:34-exo-3-OH-indole_to_oxindole-AH0	0	[*&H0;!$(*-,:[#6]=*):11]=[a:12][a:13]=[#6:14]-[c:1]1[n:2][c:3]2[c:4][c:5][c:6][c:7][c:8]2[c:9]1[OH:10]>>[*H:11]-[a:12][a:13]-[#6:14]=[C:1]1[N:2][c:3]2[c:4][c:5][c:6][c:7][c:8]2[C:9]1=[O&H0:10]
 restore_vinylog-salicylate	0	[OH:1][c:2]1[c:3]([C&R1:4](=[O:5])-[CH:6](-@[C:7])-[C&z1&R1:8]=[O:9])[c:10][c:11][c:12][c:13]1>>[OH:1][c:2]1[c:3]([C:4](=[O:5])[C&H0:6]([C:7])=[C:8]-[OH:9])[c:10][c:11][c:12][c:13]1
 restore_vinylog_tetracycline	0	[O:1]=[C:2]1[CH1;$(C-!@C(=O)-N):3][C:4](=[O:5])[CX4:6][CX4:7][CX4;$(C-N):8]1>>[OH:1]-[C:2]1=[C&H0:3][C:4](=[O:5])[C:6][C:7][C:8]1
-anthracene-9-ol_to_anthrone-CH0	0	[OH:1]-[c:2]1[c;$(c(:a)(:c):c):3][c;$(c(:a)(:c):c):4][cH0:5][c;$(c(:a)(:c):c):6][c;$(c(:a)(:c):c):7]1>>[O&H0:1]=[C:2]1[c:3][c:4][CH:5][c:6][c:7]1	10.1021/jo401243b
+anthracene-9-ol_to_anthrone-CH0	0	[OH:1]-[c:2]1[c;$(c(:a)(:c):c):3][c;$(c(:a)(:c):c):4][cH0;!$(c-[OH])!$(c-[NX3&z0]):5][c;$(c(:a)(:c):c):6][c;$(c(:a)(:c):c):7]1>>[O&H0:1]=[C:2]1[c:3][c:4][CH:5][c:6][c:7]1	10.1021/jo401243b
 anthracene-9-ol_to_anthrone-CH1	0	[OH:1]-[c:2]1[c;$(c(:a)(:c):c):3][c;$(c(:a)(:c):c):4][cH1:5][c;$(c(:a)(:c):c):6][c;$(c(:a)(:c):c):7]1>>[O&H0:1]=[C:2]1[c:3][c:4][CH2:5][c:6][c:7]1	10.1021/jo401243b
 4-subst-pyrrazolidin-enol_to_keto-CH0	0	[cH0;!$(c~[OX1,OH]):1]1[c:2](=[O:3])[n:4][n:5][c:6]1-[OH:7]>>[CH:1]1[C:2](=[O:3])[N:4][N:5][C:6]1=[O&H0:7]
 4-subst-pyrrazolidin-enol_to_keto-CH1	0	[cH1:1]1[c:2](=[O:3])[n:4][n:5][c:6]1-[OH:7]>>[CH2:1]1[C:2](=[O:3])[N:4][N:5][C:6]1=[O&H0:7]
