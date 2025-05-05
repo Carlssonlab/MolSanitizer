@@ -3,14 +3,14 @@ import multiprocessing as mp
 import pandas as pd
 import logging
 
-from .neutralizer import Neutralizer
+#from .neutralizer import Neutralizer
 from pathlib import Path
 
 from functools import partial
 from rdkit import Chem, RDLogger
 from rdkit.Chem import AllChem
 
-from .molvs_tautomers import TautomerEnumerator
+#from .molvs_tautomers import TautomerEnumerator
 
 RDLogger.DisableLog('rdApp.*') # To disable error messages with kekulizing tautomers from RDKit
 logger = logging.getLogger('eirvs')
@@ -19,22 +19,34 @@ TAUTOMER_RULES_PATH = Path(__file__).parent.parent / 'Data' / 'tautomers_v3.txt'
 
 # These can be reused along multiprocessing and needs to be outside the class to resolve pickling problem.
 # Old RDKit TautomerEnumerator
-# from rdkit.Chem.MolStandardize import rdMolStandardize
-# TAUTOMER_PARAMS = rdMolStandardize.CleanupParameters()
-# # TAUTOMER_PARAMS.tautomerRemoveSp3Stereo = False
-# # TAUTOMER_PARAMS.tautomerRemoveBondStereo = False
-# # TAUTOMER_PARAMS.tautomerRemoveIsotopicHs = False
-# TAUTOMER_PARAMS.maxTransforms = 1000
-# TAUTOMER_PARAMS.maxTautomers = 1000
-# te = rdMolStandardize.TautomerEnumerator(TAUTOMER_PARAMS) 
+from rdkit.Chem.MolStandardize import rdMolStandardize
+TAUTOMER_PARAMS = rdMolStandardize.CleanupParameters()
+TAUTOMER_PARAMS.tautomerRemoveSp3Stereo = False
+TAUTOMER_PARAMS.tautomerRemoveBondStereo = False
+TAUTOMER_PARAMS.tautomerRemoveIsotopicHs = False
+TAUTOMER_PARAMS.maxTransforms = 1000
+TAUTOMER_PARAMS.maxTautomers = 1000
+te = rdMolStandardize.TautomerEnumerator(TAUTOMER_PARAMS) 
 
-te = TautomerEnumerator(debug = False,
-                        max_transforms= 1000,
-                        max_tautomers = 1000,
-                        remove_sp3_stereo = False,
-                        remove_bond_stereo = False,
-                        remove_isotopic_hs = False,
-)
+try:
+    substructure_terms = rdMolStandardize.GetDefaultTautomerScoreSubstructs()
+    del substructure_terms[8] #Methyl rule. We don't want to penalize terminal alkenes.
+    substructure_terms.append(rdMolStandardize.SubstructTerm("amide", "[NH1,NH2]-C=O", 1))
+except AttributeError as e:
+    from rdkit import rdBase
+    rdkit_version = rdBase.rdkitVersion
+    print(f'The new tautomerizer requires RDKit version >= 2024.9.3, your current version: {rdkit_version}')
+    print(f'Use `pip install rdkit==2024.9.6`')
+    exit(1)
+# DEBUG:
+# for rule in substructure_terms:
+#     print(rule.name, rule.smarts, rule.score)
+def score_func(mol):
+    """Customized scoring function for tautomerizer: from
+    https://github.com/rdkit/rdkit/blob/master/Code/GraphMol/MolStandardize/Wrap/testMolStandardize.py"""
+
+    return (rdMolStandardize.ScoreRings(mol) + rdMolStandardize.ScoreHeteroHs(mol) +
+            rdMolStandardize.ScoreSubstructs(mol, substructure_terms))
 
 
 
@@ -120,11 +132,12 @@ class Tautomerizer:
 
 
         try:
-            canonical_tautomer = te.Canonicalize(mol)
+            canonical_tautomer = te.Canonicalize(mol, score_func)
             # If the canonical tautomer is the same SCORE as the input,
             # we believe more in the input than the output.
             # Return the input molecule
-            if te.ScoreTautomer(canonical_tautomer) == te.ScoreTautomer(mol):
+            if score_func(canonical_tautomer) == score_func(mol):
+                if self.debug: print(f"Same score, using input")
                 return mol
         except Exception as e:
             if self.debug: print(f"Error canonicalizing molecule: {Chem.MolToSmiles(mol)} {e}")

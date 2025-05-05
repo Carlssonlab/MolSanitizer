@@ -9,7 +9,7 @@ dependencies:
   - numpy
   - pandas
   - pip
-  - rdkit=2024.09.1
+  - rdkit>=2024.09.3
   - openbabel
   - scipy
   - pyaml
