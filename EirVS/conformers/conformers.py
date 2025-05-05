@@ -7,7 +7,7 @@
     Should try to sample all possible conformations based on dihedral angles sampling based on: https://github.com/dkoes/rdkit-scripts/blob/master/rdallconf.py
 """
 # Author: Thua-Phong Lam, Jens Carlsson lab, Uppsala University
-# Date: 2025-04-24
+# Date: 2025-05-05
 
 from openbabel import openbabel as ob
 from rdkit import Chem
@@ -29,6 +29,7 @@ import random
 import itertools
 import tarfile, io
 import time
+import argparse
 
 logger = logging.getLogger('eirvs')
 
@@ -857,6 +858,8 @@ def gen_conf_chunk(df: pd.DataFrame, args, input_file='0'):
 
         input_file (str): Name of the input file (default is '0').
     """
+    if 'mol' not in df.columns:
+        df['mol'] = df['smiles'].apply(Chem.MolFromSmiles)
     df = filters.Filters.remove_exotic_chem_to_db2(df)
     randomSeed, numConfs, VERBOSE, cleanup, energywindow, timeout, request_alignment, nr, numcores, mode, tolerance = \
         args.randomSeed, args.numconfs, args.debug, args.cleanup, args.energywindow, args.timeout, args.rigid, args.nringconfs, args.numcores, args.mode, args.tolerance
@@ -1025,3 +1028,68 @@ def gen_conf_chunk(df: pd.DataFrame, args, input_file='0'):
     if args.timing:
         with open('eirvs_timing.csv', 'a') as f:
             f.write(logging_time)
+
+class CustomHelpFormatter(argparse.RawTextHelpFormatter):
+    def _format_action_invocation(self, action):
+        """
+        Override to customize the argument display in the help message.
+        Suppress the metavar formatting like `$short $metavar, $long=$metavar`.
+        """
+        if not action.option_strings:
+            return super()._format_action_invocation(action)
+
+        parts = []
+        for option_string in action.option_strings:
+            parts.append(option_string)
+        return ', '.join(parts)
+    
+def main():
+    parser = argparse.ArgumentParser(description="Generate conformers for a given SMILES string/file.\nTwo-column files are required.",
+                                     formatter_class=CustomHelpFormatter,
+                                     add_help = False)  # Suppress default -h/--help)
+    parser.add_argument('--input_files', '-i', type=str, default = None, help='Input file containing SMILES strings.')
+    parser.add_argument('--smiles', '-s', type = str, default = None, help='Input SMILES string.')
+    parser.add_argument('--prefix', '-p', type=str, default = 'db2', help='Prefix for the output files.')
+    parser.add_argument('--format', '-f', type=str, nargs='+', default=['db2.tgz'], choices=['db2', 'db2.tgz', 'pdbqt', 'sdf', 'mol2'], help='Output format(s) (e.g., db2.tgz, pdbqt, sdf, mol2).')
+    parser.add_argument('--mode', '-mode', type=str, default='vs', choices=['vs', 'extensive', 'ignoretorlib'], help='Mode for conformer generation (vs, extensive, ignoretorlib).')
+    parser.add_argument('--tolerance', '-tol', type=float, default=30, help='Tolerance for dihedral angle sampling (default: 30).')
+    parser.add_argument('--numconfs', '-nconfs', type=int, default=2000, help='Number of conformers to generate (default: 2000).')
+    parser.add_argument('--nringconfs', '-nr', type=int, default=1, help='Number of ring conformers to generate (default: 1).')
+    parser.add_argument('--debug', '-d', action='store_true', help='Enable verbose output for debugging.')
+    parser.add_argument('--timeout', '-to',type=int, default=2, help='Timeout in minutes for RDKit-based conformation generation.')
+    parser.add_argument('--energywindow', '-w',type=float, default=25.0, help='Energy window for conformer generation.')
+    parser.add_argument('--numcores', '-j', type=int, default=4, help='Number of CPU cores to use (default: 4).')
+    parser.add_argument('--method', '-m',type=str, choices=['rdkit', 'obabel', 'corina'], default='rdkit', help='Method for initial conformation generation.')
+    parser.add_argument('--timing', action='store_true', help='Log timing information for each step.')
+    parser.add_argument('--nocleanup', action='store_false', dest='cleanup', help='Do not remove intermediate files after processing.')
+    parser.add_argument('--rigid', '-r', type=str, default=None, help='SMILES/SMARTS for conformers to be aligned to.')
+    parser.add_argument("--help", "-h", action="help", help="Show this help message and exit")
+    parser.add_argument('--randomSeed', '-rs',type=int, default=42, help=argparse.SUPPRESS)
+    parser.add_argument('--test', action='store_true', help=argparse.SUPPRESS)
+    parser.add_argument('--synthon', action='store_true', help=argparse.SUPPRESS)
+
+    args = parser.parse_args()
+
+    
+    if args.input_files and args.smiles:
+        parser.error('Please provide either input files or SMILES strings, not both.')
+
+    if args.input_files is not None:
+        for inFile in args.input_files:
+            if not Path(inFile).is_file():
+                parser.error(f'The input file: {inFile} does not exist.')
+        args.input_files = [Path(inFile).resolve() for inFile in args.input_files]
+        for inFile in args.input_files:
+            gen_conf_chunk(pd.read_csv(inFile, sep=' ', header=None, names=['smiles', 'ids']), args, inFile.stem)
+    else:
+        if args.smiles is not None:
+            smiles = args.smiles
+            df = pd.DataFrame({'smiles': [smiles], 'ids': ['0']})
+            gen_conf_chunk(df, args)
+        else:
+            parser.error('Please provide either input files or SMILES strings.')
+    # Call the main function
+    #process_files(args)
+   
+if __name__ == "__main__":
+    main()

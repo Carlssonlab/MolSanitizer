@@ -41,6 +41,7 @@ eirvs_batch = "EirVS.batchmode:main"
 strain = "EirVS.filtering.strain_filter:main"
 charger = "EirVS.moltransform.ionizer:main"
 tautomerizer = "EirVS.moltransform.tautomerizer:main"
+confgen = "EirVS.conformers.conformers:main"
 
 [tool.setuptools]
 packages = ["EirVS"]
