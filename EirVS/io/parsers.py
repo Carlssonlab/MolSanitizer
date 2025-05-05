@@ -133,7 +133,7 @@ def parseArguments(args = None, batch_mode = False):
     gen3d.add_argument('--randomSeed', '-rs', type=int, default=42, help='Seed for reproducibility (default: 42)')
     gen3d.add_argument('--timeout', '-to', type=float, default=2, help='Timeout for the initial embedding for each SMILES entry before using OpenBabel\nDefault: 2 minutes')
     gen3d.add_argument('--energywindow', '-w', type=float, default=energy_window, help=f'Energy window for sampling the conformations (default: {energy_window} kcal/mol)')
-    gen3d.add_argument('--rigid', type = str, default = None, help='Only align the DB2 on this rigid scaffold in SMILES/SMARTS format. All rings if not provided.')
+    gen3d.add_argument('--rigid', type = str, default = None, help='Only align the DB2 on this rigid scaffold in SMARTS format. All rings if not provided.')
     gen3d.add_argument('--nringconfs', '-nr', type=int, default=1,
                                             help='Maximum number of ring conformers to generate (default: 1)')
     gen3d.add_argument('--mode', '-mode', choices=['vs', 'extensive', 'ignoretorlib'], default='vs', help='Mode for generating conformers\nDefault: vs (virtual screening) - Options: vs, extensive, ignoretorlib')
