@@ -11,7 +11,7 @@ SMARTS LABEL REASON MODE REF_DOI
 [$([#6]=[#7&R0]~[#7,#8]),$([#6]=[#7]~[#7&R0,#8&R0])] hydrazones_oximes Instable Optional 10.1002/cmdc.200700139
 [#6;!$([#6]-[#7])!$([#6]=[#8])]=[#7&R0]~[#6] imines Instable Optional 10.1002/cmdc.200700139
 [$([#6](=[#8,#16])~[#7&R0]-[#7,#8]),$([#6](=[#8,#16])~[#7]-[#7&R0,#8&R0])] hydrazides_hydroxamates Cancerogenic Regular 10.1002/cmdc.200700139
-[#7&R0]-[#7&R0] hydrazines Cancerogenic Regular 10.1002/cmdc.200700139
+[#7X3]-[#7X3] hydrazines Cancerogenic Regular 10.1002/cmdc.200700139
 [#7]1~[#6](=[#8])~[#7]~[#7]~[#7]~[#6]~1 temozolomide Cancerogenic Regular 10.1016/s0305-7372(97)90019-0
 [#6]1(=[#7,#8,#16])~[#6]=,:[#6]~[#6](=[#7,#8,#16])~[*]~[*]~1 quinones_imino_thio_derivatives Reactive Regular 10.1021/jm901137j
 [$([#6]~[#6](=[#16])~[#8,#16]),$([#6]~[#6](=[#8])~[#16]),$([#8]~[#6](=[#8])~[#16]),$([#16]~[#6](=[#8])~[#16]),$([#16]~[#6](=[#16])~[#16])] thioesters Reactive Regular 10.1002/cmdc.200700139
