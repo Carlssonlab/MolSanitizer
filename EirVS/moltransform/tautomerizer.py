@@ -3,7 +3,7 @@ import multiprocessing as mp
 import pandas as pd
 import logging
 
-#from .neutralizer import Neutralizer
+from .neutralizer import Neutralizer
 from pathlib import Path
 
 from functools import partial
