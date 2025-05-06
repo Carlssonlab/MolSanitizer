@@ -151,28 +151,34 @@ class Tautomerizer:
             #canonical_tautomer = te.Canonicalize(mol, score_func)
             canonical_tautomer = None
             tautomers = [] # The tautomers would be list of (mol, score, smiles)
+            max_score = -9999
             # Enumerate the tautomers
             for tau in te.Enumerate(mol):
-                tautomers.append((tau, score_func(tau), Chem.MolToSmiles(tau)))
+                score = score_func(tau)
+                tautomers.append((tau, score, Chem.MolToSmiles(tau)))
+                if score > max_score: max_score = score
 
             # Emulate the Canonicalize function
-            # Sort the tautomers by score and then by lexicographical order of SMILES
             # Pick the one that has the same "configuration" of the double bonds as the input molecule
-
-            tautomers.sort(key=lambda x: (x[1], x[2]), reverse=True) # Sort by score + lexicographically SMILES
-            equal_tautomers = [t for t in tautomers if t[1] == tautomers[0][1]]
+            # Lexicographically min first
+            equal_tautomers = sorted(
+                [t for t in tautomers if t[1] == max_score],
+                key=lambda x: x[2]
+                ) 
+            
             if len(equal_tautomers) > 1:
                 if self.debug: print(f"Found {len(equal_tautomers)} tautomers with the same score: {[t[2] for t in equal_tautomers]}")
                 matches = mol.GetSubstructMatches(allylic)
-                if len(matches) > 0:
+                if matches:
                     reference_configuration = check_configurations(matches, mol)
                     if self.debug: print(f"Reference configuration: {reference_configuration}")
-                    for tautomer in reversed(equal_tautomers): 
+                    for tautomer in (equal_tautomers): 
                         # Iterate reversedly so that the most similar one still the one has highest lexicographical order
                         tautomer_configuration = check_configurations(tautomer[0].GetSubstructMatches(allylic), tautomer[0])
                         if tautomer_configuration == reference_configuration:
                             if self.debug: print(f'Changed to {tautomer[2]}')
                             canonical_tautomer = tautomer[0]
+                            break
                     if canonical_tautomer is None:
                         if self.debug: print(f"None of the tautomers have the same configuration as the input molecule.")
                         canonical_tautomer = equal_tautomers[0][0]    
@@ -182,13 +188,7 @@ class Tautomerizer:
             else:
                 # No equal tautomers found, just pick the first one
                 canonical_tautomer = equal_tautomers[0][0]
-    
-            # If the canonical tautomer is the same SCORE as the input,
-            # we believe more in the input than the output.
-            # Return the input molecule
-            # if score_func(canonical_tautomer) == score_func(mol):
-            #     if self.debug: print(f"Same score, canonical tautomer: ({Chem.MolToSmiles(canonical_tautomer)})")
-            #     return mol
+
         except Exception as e:
             if self.debug: print(f"Error canonicalizing molecule: {Chem.MolToSmiles(mol)} {e}")
             logger.info(f"Error canonicalizing molecule: {Chem.MolToSmiles(mol)}")
