@@ -515,6 +515,8 @@ class ConformerGenerator:
             For assymetric sulfonamides, there would be two versions of rigid scaffolds handled by EirVS.
         """
         self.conf_sampled = True
+        if self.request_alignment is None and request_alignment is not None:
+            self.request_alignment = request_alignment
         num_confs_by_rotbonds, match_torlib = utils.count_confs_by_rotbonds(self.ring_confs[0], ignoreTorlib, self.VERBOSE)
         requested_num_confs = numConfs
 
@@ -689,6 +691,9 @@ class ConformerGenerator:
         """
         
         if self.VERBOSE: print("Solvating...")
+        if self.request_alignment is None and request_alignment is not None:
+            self.request_alignment = request_alignment
+        else: request_alignment = self.request_alignment # Need this so that if not determined, use the class attributes.
         ### Solvation ###
         if not(env): env = setup_env() 
         os.makedirs(f"solv/{self.name}", exist_ok=True)
@@ -736,8 +741,8 @@ class ConformerGenerator:
             self.conf_sampling(numConfs=numConfs,
                                energywindow = energywindow,
                                ignoreTorlib = ignoreTorlib,
-                               AllowNonRing=AllowNonRing,
-                               request_alignment=request_alignment)
+                               AllowNonRing = AllowNonRing,
+                               request_alignment = request_alignment)
 
         ### Output to DB2 ###
         if self.VERBOSE: print("Output to DB2...")
@@ -976,7 +981,7 @@ def gen_conf_chunk(df: pd.DataFrame, args, input_file='0'):
             
             if 'pdbqt' in args.format: confgen.to_pdbqt()
 
-            if any(format in args.format for format in ['sdf', 'mol2', 'db2']):
+            if any(format in args.format for format in ['sdf', 'mol2', 'db2', 'db2.tgz']):
                 confgen.conf_sampling(numConfs=numConfs,
                                       energywindow=energywindow,
                                       ignoreTorlib=ignoreTorlib,
