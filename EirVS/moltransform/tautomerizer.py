@@ -173,8 +173,8 @@ class Tautomerizer:
                     reference_configuration = check_configurations(matches, mol)
                     if self.debug: print(f"Reference configuration: {reference_configuration}")
                     for tautomer in (equal_tautomers): 
-                        # Iterate reversedly so that the most similar one still the one has highest lexicographical order
-                        tautomer_configuration = check_configurations(tautomer[0].GetSubstructMatches(allylic), tautomer[0])
+                        # Pick the lexicographically min one with the same configuration as reference
+                        tautomer_configuration = check_configurations(matches, tautomer[0])
                         if tautomer_configuration == reference_configuration:
                             if self.debug: print(f'Changed to {tautomer[2]}')
                             canonical_tautomer = tautomer[0]
