@@ -2,6 +2,7 @@ import argparse
 import multiprocessing as mp
 import pandas as pd
 import logging
+from itertools import tee
 
 from .neutralizer import Neutralizer
 from pathlib import Path
@@ -28,10 +29,13 @@ TAUTOMER_PARAMS.maxTransforms = 1000
 TAUTOMER_PARAMS.maxTautomers = 1000
 te = rdMolStandardize.TautomerEnumerator(TAUTOMER_PARAMS) 
 
+allylic = Chem.MolFromSmarts('[CX4&!H0;!$(C-[!#6&!H0])]-[CX3;!$(C-[!#6&!H0])]=!@[CX3;!$(C-[!#6&!H0])]')
+
 try:
     substructure_terms = rdMolStandardize.GetDefaultTautomerScoreSubstructs()
     del substructure_terms[8] #Methyl rule. We don't want to penalize terminal alkenes.
     substructure_terms.append(rdMolStandardize.SubstructTerm("amide", "[NH1,NH2]-C=O", 1))
+    #substructure_terms.append(rdMolStandardize.SubstructTerm("aromatic methylidene", "c=C", -1))
 except AttributeError as e:
     from rdkit import rdBase
     rdkit_version = rdBase.rdkitVersion
@@ -48,7 +52,20 @@ def score_func(mol):
     return (rdMolStandardize.ScoreRings(mol) + rdMolStandardize.ScoreHeteroHs(mol) +
             rdMolStandardize.ScoreSubstructs(mol, substructure_terms))
 
+def pairwise(iterable):
+    """Utility function to iterate in a pairwise fashion."""
+    a, b = tee(iterable)
+    next(b, None)
+    return zip(a, b)
 
+def check_configurations(matches, mol):
+    ''' A helper function to check the configurations of the allylic bonds in the molecule.'''
+    config = []
+    for match in matches:
+        for bond_idx in (pairwise(match)):
+            bond = mol.GetBondBetweenAtoms(bond_idx[0], bond_idx[1])
+            config.append(bond.GetBondType())
+    return config
 
 class Tautomerizer:
     """
@@ -130,15 +147,48 @@ class Tautomerizer:
         """Tautomerize the input molecule using the RDKit TautomerEnumerator class.
         This is the first step to make the input result in a canonical tautomer for later fixes."""
 
-
         try:
-            canonical_tautomer = te.Canonicalize(mol, score_func)
+            #canonical_tautomer = te.Canonicalize(mol, score_func)
+            canonical_tautomer = None
+            tautomers = [] # The tautomers would be list of (mol, score, smiles)
+            # Enumerate the tautomers
+            for tau in te.Enumerate(mol):
+                tautomers.append((tau, score_func(tau), Chem.MolToSmiles(tau)))
+
+            # Emulate the Canonicalize function
+            # Sort the tautomers by score and then by lexicographical order of SMILES
+            # Pick the one that has the same "configuration" of the double bonds as the input molecule
+
+            tautomers.sort(key=lambda x: (x[1], x[2]), reverse=True) # Sort by score + lexicographically SMILES
+            equal_tautomers = [t for t in tautomers if t[1] == tautomers[0][1]]
+            if len(equal_tautomers) > 1:
+                if self.debug: print(f"Found {len(equal_tautomers)} tautomers with the same score: {[t[2] for t in equal_tautomers]}")
+                matches = mol.GetSubstructMatches(allylic)
+                if len(matches) > 0:
+                    reference_configuration = check_configurations(matches, mol)
+                    if self.debug: print(f"Reference configuration: {reference_configuration}")
+                    for tautomer in reversed(equal_tautomers): 
+                        # Iterate reversedly so that the most similar one still the one has highest lexicographical order
+                        tautomer_configuration = check_configurations(tautomer[0].GetSubstructMatches(allylic), tautomer[0])
+                        if tautomer_configuration == reference_configuration:
+                            if self.debug: print(f'Changed to {tautomer[2]}')
+                            canonical_tautomer = tautomer[0]
+                    if canonical_tautomer is None:
+                        if self.debug: print(f"None of the tautomers have the same configuration as the input molecule.")
+                        canonical_tautomer = equal_tautomers[0][0]    
+                else: 
+                    # No allylic bonds found, just pick the first one
+                    canonical_tautomer = equal_tautomers[0][0]
+            else:
+                # No equal tautomers found, just pick the first one
+                canonical_tautomer = equal_tautomers[0][0]
+    
             # If the canonical tautomer is the same SCORE as the input,
             # we believe more in the input than the output.
             # Return the input molecule
-            if score_func(canonical_tautomer) == score_func(mol):
-                if self.debug: print(f"Same score, using input")
-                return mol
+            # if score_func(canonical_tautomer) == score_func(mol):
+            #     if self.debug: print(f"Same score, canonical tautomer: ({Chem.MolToSmiles(canonical_tautomer)})")
+            #     return mol
         except Exception as e:
             if self.debug: print(f"Error canonicalizing molecule: {Chem.MolToSmiles(mol)} {e}")
             logger.info(f"Error canonicalizing molecule: {Chem.MolToSmiles(mol)}")
@@ -326,6 +376,9 @@ def _process_tautomer_rows(df, tautomerizer, smiles_column, mol_column, name_col
                                 'highlights': highlights})
 
     return results
+
+
+
 
 def main():
     parser = argparse.ArgumentParser(description='Tautomerize a molecule')
