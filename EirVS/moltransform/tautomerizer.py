@@ -152,12 +152,25 @@ class Tautomerizer:
             canonical_tautomer = None
             tautomers = [] # The tautomers would be list of (mol, score, smiles)
             max_score = -9999
+            
             # Enumerate the tautomers
             for tau in te.Enumerate(mol):
                 score = score_func(tau)
                 tautomers.append((tau, score, Chem.MolToSmiles(tau)))
                 if score > max_score: max_score = score
 
+            if self.debug:
+                print(f"\tInitial score: {score_func(mol)}") # To avoid the warning of not having a score function
+                print(f"\tFound {len(tautomers)} tautomers")
+                print(f"\tMax score: {max_score}")
+            
+            # If the canonical tautomer is the same SCORE as the input,
+            # we believe more in the input than the output.
+            # Return the input molecule
+            if max_score == score_func(mol):
+                if self.debug: print(f"Same score, use input molecule")
+                return mol
+            
             # Emulate the Canonicalize function
             # Pick the one that has the same "configuration" of the double bonds as the input molecule
             # Lexicographically min first
@@ -167,23 +180,24 @@ class Tautomerizer:
                 ) 
             
             if len(equal_tautomers) > 1:
-                if self.debug: print(f"Found {len(equal_tautomers)} tautomers with the same score: {[t[2] for t in equal_tautomers]}")
+                if self.debug: print(f"\tFound {len(equal_tautomers)} tautomers with the same score: {[t[2] for t in equal_tautomers]}")
                 matches = mol.GetSubstructMatches(allylic)
                 if matches:
                     reference_configuration = check_configurations(matches, mol)
-                    if self.debug: print(f"Reference configuration: {reference_configuration}")
+                    if self.debug: print(f"\tReference configuration: {reference_configuration}")
                     for tautomer in (equal_tautomers): 
                         # Pick the lexicographically min one with the same configuration as reference
                         tautomer_configuration = check_configurations(matches, tautomer[0])
                         if tautomer_configuration == reference_configuration:
-                            if self.debug: print(f'Changed to {tautomer[2]}')
+                            if self.debug: print(f'\tChanged to {tautomer[2]}')
                             canonical_tautomer = tautomer[0]
                             break
                     if canonical_tautomer is None:
-                        if self.debug: print(f"None of the tautomers have the same configuration as the input molecule.")
+                        if self.debug: print(f"\tNone of the tautomers have the same configuration as the input molecule.")
                         canonical_tautomer = equal_tautomers[0][0]    
                 else: 
                     # No allylic bonds found, just pick the first one
+                    if self.debug: print(f"\tNo allylic bonds found, picking the first one.")
                     canonical_tautomer = equal_tautomers[0][0]
             else:
                 # No equal tautomers found, just pick the first one
