@@ -150,13 +150,13 @@ class Tautomerizer:
         try:
             #canonical_tautomer = te.Canonicalize(mol, score_func)
             canonical_tautomer = None
-            tautomers = [] # The tautomers would be list of (mol, score, smiles)
+            tautomers = [] # The tautomers would be list of (mol, score)
             max_score = -9999
             
             # Enumerate the tautomers
             for tau in te.Enumerate(mol):
                 score = score_func(tau)
-                tautomers.append((tau, score, Chem.MolToSmiles(tau)))
+                tautomers.append((tau, score))
                 if score > max_score: max_score = score
 
             if self.debug:
@@ -175,7 +175,7 @@ class Tautomerizer:
             # Pick the one that has the same "configuration" of the double bonds as the input molecule
             # Lexicographically min first
             equal_tautomers = sorted(
-                [t for t in tautomers if t[1] == max_score],
+                [(t[0], t[1], Chem.MolToSmiles(t[0])) for t in tautomers if t[1] == max_score],
                 key=lambda x: x[2]
                 ) 
             
