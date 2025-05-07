@@ -286,12 +286,6 @@ def main():
 
     args, parser = parsers.parseArguments(sys.argv[1:], batch_mode=True)
     rdkit_version = rdBase.rdkitVersion
-    if rdkit_version != '2024.09.1':
-        print('\n###########################################################')
-        print('RDKit version 2024.09.1 is recommended for EirVS.')
-        print("Use 'conda install rdkit==2024.9.1' to avoid potential issues.")
-        print('##############################################################\n')
-        time.sleep(2)
     if args.version:
         print(f"EirVS version: {__version__}")
         print(f"RDKit version: {rdkit_version}")
