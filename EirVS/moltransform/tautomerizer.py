@@ -35,6 +35,7 @@ try:
     substructure_terms = rdMolStandardize.GetDefaultTautomerScoreSubstructs()
     del substructure_terms[8] #Methyl rule. We don't want to penalize terminal alkenes.
     substructure_terms.append(rdMolStandardize.SubstructTerm("amide", "[NH1,NH2]-C=O", 1))
+    substructure_terms.append(rdMolStandardize.SubstructTerm("corr_rdkit_feature1", "a1:a:a2:a:a:a:a:a-2:a:1", 199))
     #substructure_terms.append(rdMolStandardize.SubstructTerm("aromatic methylidene", "c=C", -1))
 except AttributeError as e:
     from rdkit import rdBase
