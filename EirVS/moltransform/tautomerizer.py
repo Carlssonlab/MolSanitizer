@@ -163,6 +163,8 @@ class Tautomerizer:
             if self.debug:
                 print(f"\tInitial score: {score_func(mol)}") # To avoid the warning of not having a score function
                 print(f"\tFound {len(tautomers)} tautomers")
+                for t in tautomers:
+                    print(f"\t\t{Chem.MolToSmiles(t[0])} {t[1]}")
                 print(f"\tMax score: {max_score}")
             
             # If the canonical tautomer is the same SCORE as the input,
