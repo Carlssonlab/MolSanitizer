@@ -164,6 +164,7 @@ pyrimidine-4(1H)-one_to_4(3H)-one	0	[c;!$(c~[OX1,OH]):1]1[nX2:2][c:3](=[O:4])[c;
 6-OH-pyrimidine-4(1H)-one_to_4(3H)-one	0	[c;!$(c~[OX1,OH]):1]1[nX2:2][c:3](=[O:4])[c;!$(c~[OX1,OH]):5][c:6]([O:8])[nH:7]1>>[c:1]1[nH:2][c:3](=[O:4])[c:5][c:6]([O:8])[n&H0:7]1
 3H-cytosine_to_1H	0	[c;$(c=O):1]1[nH:2][c:3](-[NX3&+0:4])[c;!$(c~[OX1,OH]):5][c;!$(c~[OX1,OH]):6][nX2:7]1>>[c:1]1[n&H0:2][c:3](-[N:4])[c:5][c:6][nH:7]1
 pyridazine-3,4-dione_to_4-OH-3-one	0	[nX3:1]1[nH:2][c,nX2;!$(c~[OX1,OH]):3][c,nX2;!$(c~[OX1,OH]):4][c:5](=[O:6])[c:7]1=[O:8]>>[n:1]1[n&H0:2][c,n:3][c,n:4][c:5]([OH:6])[c:7]1=[O:8]	10.1007/BF00809443
+#3H-quinazoline_to_1H	0	[nX2&H0:1][c:2]1[c;!$(c~[OX1,OH,SX2H,SX1]):3][c;!$(c~[OX1,OH,SX2H,SX1]):4][c;!$(c~[OX1,OH,SX2H,SX1]):5][c;!$(c~[OX1,OH,SX2H,SX1]):6][c:7]1[a;!$(c~[OX1,OH,SX2H,SX1]):8][nH:9]>>[nH:1][c:2]1[c:3][c:4][c:5][c:6][c:7]1[a:8][n&H0:9]
 #AZOLES
 4H-1,2,4-triazole_to_1H	0	[nH:1]1[c:2][nX2:3][nX2:4][c:5]1>>[n&H0:1]1[c:2][nH:3][nX2:4][c:5]1
 EWG-imidazole	0	[c;$(cA=O),$(c[F,Cl,Br,I]),$(c[O,SX2]A),$(c-a),$(c-C#N):1]1[nH:2][c;!$(c~[OX1,OH]):3][nX2:4][c;!$(c~[OX1,OH])!$(cA=O)!$(c[F,Cl,Br,I])!$(c[O,SX2]A)!$(c-a)!$(c-C#N):5]1>>[c:1]1[n&H0:2][c:3][nH:4][c:5]1	10.3390/molecules28020838
