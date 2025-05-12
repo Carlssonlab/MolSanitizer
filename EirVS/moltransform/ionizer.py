@@ -113,7 +113,7 @@ class Ionizer:
         reaction_list = []
 
         for i, row in filtered_rules.iterrows():
-            reaction_list.append((row['Mol'], row['FUNCTIONAL_GROUP']))
+            reaction_list.append((row['Mol'], f"{row['FUNCTIONAL_GROUP']} ({row['TYPE']} - est. pKa {row['pKa']})"))
         if self.debug:
             print(f'Parsed {len(reaction_list)} rules for pH {round(pH, 1)}')    
         return reaction_list

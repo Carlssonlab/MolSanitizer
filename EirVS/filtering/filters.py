@@ -118,15 +118,18 @@ class Filters():
         """
         # Get the absolute path to the template SMARTS file using pathlib
         smartsFile = Path(__file__).parent.parent / 'Data' / 'salt_stripping.txt'
-        if debug: logger.info(f'Parsing salts SMARTS file: {smartsFile.resolve()}')
+        if debug: 
+            logger.info(f'Parsing salts SMARTS file: {smartsFile.resolve()}')
 
         remover = SaltRemover.SaltRemover(defnFilename=smartsFile)
         filtered_df = df.copy()
         # Remove salts in the list
         filtered_df['mol'] = df['mol'].apply(lambda x: Filters.stripSMILESsalt(x, remover))
-
         filtered_df['smiles'] = filtered_df['mol'].apply(lambda x: Chem.MolToSmiles(x))
         filtered_df=filtered_df[filtered_df['smiles']!=''] #Remove purely salt molecules
+        if debug: 
+            logger.info(f"Removed pure {len(df) - len(filtered_df)} salts from the input molecules.")
+            print(f"Removed pure {len(df) - len(filtered_df)} salts from the input molecules.")
         filtered_df['mol'].apply(lambda x: Chem.SanitizeMol(x))
         return filtered_df
     
@@ -162,7 +165,9 @@ class Filters():
         rejected_df = df.query(f'not ({query})').copy()
         rejected_df['ha'] = rejected_df['ha'].apply(lambda x: f'ha{x}')
         rejected_df.to_csv(rejectedFile, index=False, mode='a', columns=['smiles','ids','ha'], sep = ' ', header=False)
-        if debug: logger.info(f"Removed {len(rejected_df)} molecules with heavy atoms requirements: {rejected_df['ha'].values}")
+        if debug: 
+            logger.info(f"Removed {len(rejected_df)} molecules with heavy atoms requirements: {rejected_df['ha'].values}")
+            print(f"Removed {len(rejected_df)} molecules with heavy atoms requirements: {rejected_df['ha'].values}")
         df.query(query, inplace=True)
         return df
 
@@ -183,7 +188,9 @@ class Filters():
         rejected_df = df.query(f'not ({query})').copy()
         rejected_df['logp'] = rejected_df['logp'].apply(lambda x: f'logp {x/100:.2f}')
         rejected_df.to_csv(rejectedFile, index=False, mode='a', columns=['smiles','ids','logp'], sep = ' ', header=False)
-        if debug: logger.info(f"Removed {len(rejected_df)} molecules with logP requirements: {rejected_df['logp'].values}")
+        if debug: 
+            logger.info(f"Removed {len(rejected_df)} molecules with logP requirements: {rejected_df['logp'].values}")
+            print(f"Removed {len(rejected_df)} molecules with logP requirements: {rejected_df['logp'].values}")
         df.query(query, inplace=True)
 
         return df
@@ -203,7 +210,9 @@ class Filters():
         rejected_df = df.query(f'not ({query})').copy()
         rejected_df['hba'] = rejected_df['hba'].apply(lambda x: f'hba {x}')
         rejected_df.to_csv(rejectedFile, index=False, mode='a', columns=['smiles','ids','hba'], sep = ' ', header=False)
-        if debug: logger.info(f"Removed {len(rejected_df)} molecules with number of H-bond acceptors requirements: {rejected_df['hba'].values}")
+        if debug: 
+            logger.info(f"Removed {len(rejected_df)} molecules with number of H-bond acceptors requirements: {rejected_df['hba'].values}")
+            print(f"Removed {len(rejected_df)} molecules with number of H-bond acceptors requirements: {rejected_df['hba'].values}")
         df.query(query, inplace=True)
         return df
     
@@ -222,7 +231,9 @@ class Filters():
         rejected_df = df.query(f'not ({query})').copy()
         rejected_df['hbd'] = rejected_df['hbd'].apply(lambda x: f'hbd {x}')
         rejected_df.to_csv(rejectedFile, index=False, mode='a', columns=['smiles','ids','hbd'], sep = ' ', header=False)
-        if debug: logger.info(f"Removed {len(rejected_df)} molecules with number of H-bond donors requirements: {rejected_df['hbd'].values}")
+        if debug: 
+            logger.info(f"Removed {len(rejected_df)} molecules with number of H-bond donors requirements: {rejected_df['hbd'].values}")
+            print(f"Removed {len(rejected_df)} molecules with number of H-bond donors requirements: {rejected_df['hbd'].values}")
         df.query(query, inplace=True)
         return df
 
@@ -240,7 +251,9 @@ class Filters():
         rejected_df = df.query(f'not ({query})').copy()
         rejected_df['mw'] = rejected_df['mw'].apply(lambda x: f'mw {x:.2f}')
         rejected_df.to_csv(rejectedFile, index=False, mode='a', columns=['smiles','ids','mw'], sep = ' ', header=False)
-        if debug: logger.info(f"Removed {len(rejected_df)} molecules with molecular weight requirements: {rejected_df['mw'].values}")
+        if debug: 
+            logger.info(f"Removed {len(rejected_df)} molecules with molecular weight requirements: {rejected_df['mw'].values}")
+            print(f"Removed {len(rejected_df)} molecules with molecular weight requirements: {rejected_df['mw'].values}")
         df.query(query, inplace=True)
         return df
 
@@ -273,7 +286,9 @@ class Filters():
         rejected_df = df.query(f'not ({query})').copy()
         rejected_df['chiralcenters'] = rejected_df['chiralcenters'].apply(lambda x: f'chiralcenters {x}')
         rejected_df.to_csv(rejectedFile, index=False, mode='a', columns=['smiles','ids','chiralcenters'], sep = ' ', header=False)
-        if debug: logger.info(f"Removed {len(rejected_df)} molecules with number of chiral centers requirements: {rejected_df['chiralcenters'].values}")
+        if debug: 
+            logger.info(f"Removed {len(rejected_df)} molecules with number of chiral centers requirements: {rejected_df['chiralcenters'].values}")
+            print(f"Removed {len(rejected_df)} molecules with number of chiral centers requirements: {rejected_df['chiralcenters'].values}")
         df.query(query, inplace=True)
         return df
     
@@ -386,7 +401,7 @@ class Filters():
         passed_df = df[df['reason'] == 'OK'].drop(columns=['reason'])
 
         if debug:
-            print(f"Rejected {len(rejected_df)} molecules due to PAINS violations.")
+            print(f"Removed {len(rejected_df)} molecules due to PAINS violations.")
 
         return passed_df
     
@@ -462,6 +477,9 @@ class Filters():
         df_clean = df.copy()
         df_clean['reason'] = df['mol'].apply(lambda x: Filters.filterbysmarts(x, unwanted_df))
         rejected_df=df_clean[df_clean['reason']!='OK']
+        if debug:
+            logger.info(f"Removed {len(rejected_df)} molecules with unwanted substructures: {set(rejected_df['reason'].values)}")
+            print(f"Removed {len(rejected_df)} molecules with unwanted substructures: {set(rejected_df['reason'].values)}")
         rejected_df.to_csv(rejectedFile, index=False, mode='a', columns=['smiles','ids','reason'], sep = ' ', header=False)
         return df_clean[df_clean['reason']=='OK']
 
