@@ -89,8 +89,6 @@ def embed_smiles_corina(smiles, name, numringconfs, VERBOSE):
         ]
         if VERBOSE:
             print(f"\tNumber of ring conformers: {len(mol2_blocks)}")
-            with open(f"mol2/{name}_corina.mol2", "w") as f:
-                f.write(mol2_blocks[0])
         ring_confs = []
         # Now you have a list of strings, each containing one MOL2 molecule
         for i, mol in enumerate(mol2_blocks, 1):
