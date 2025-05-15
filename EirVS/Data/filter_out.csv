@@ -44,7 +44,7 @@ SMARTS LABEL REASON MODE REF_DOI
 [#8,#16]=[#6](~[#1,#6])-[#6X4]-[$([#9,#17,#35,#53]),$([#16]-[#6X3])] leaving-group-methylones Reactive Optional 10.1021/cr010182v
 [#7]-[#6&R0](=[#8])-[#7&R1] heterocyclic_ureas Reactive Special 10.1021/jm2004283
 [#8]1~[#7]=,:[#6]~[#6](-[#6,#7]=[#8])=,:[#6]~1 4-(electron-withdrawing-group)-isoxazoles Reactive Special 10.1038/s41589-020-0501-5
-[#5] any_boron Exotic_chemistry Optional none
+[#5] any_boron Exotic_chemistry Regular none
 [$([#15H]),$([#15X2])] phopsphines_phosphicycles Reactive Regular 10.1002/cmdc.200700139
 [$([#6&+]),$([#6&-])] charged_carbon Reactive Regular 10.1002/cmdc.200700139
 [#8&+,#16&+] positive_oxygen_sulfur Reactive Regular 10.1002/cmdc.200700139
@@ -60,7 +60,7 @@ SMARTS LABEL REASON MODE REF_DOI
 [#6X4;$([#6](-[#8H1,#7X3H1,#7H2])-[#8H1,#7X3H1,#7H2])!$([#6](-[#7X3]-[C,S]=O)-[#7X3]-[C,S]=O)!$([#6]-[#6](-[#9,#17])(-[#9,#17])-[#9,#17])!$([#6](-[#6X3]=[#8])-[#6X3]=[#8])] aminals_hemiaminals_hydrates Instable Optional 10.1002/cmdc.200700139
 [#8H1,#7X3R0H1]-[#6X4;$([#6]-[#8R1])!$([#6r5,#6r6])] acyclic-small-ring_hemiacetals Instable Optional 10.1002/cmdc.200700139
 [*]-[#16X2H0]-[*]-[#16X2H0]-[*] dithioacetals Instable Optional 10.1002/cmdc.200700139
-[*]-!@[$([CX4H2,OX2H0,SX2H0,NH2+]),$([NX3H1;!$(N-[#6,#15,#16]=[#7,#8,#16])])]-!@[$([CX4H2,OX2H0,SX2H0,NH2+]),$([NX3H1;!$(N-[#6,#15,#16]=[#7,#8,#16])])]-!@[$([CX4H2,OX2H0,SX2H0,NH2+]),$([NX3H1;!$(N-[#6,#15,#16]=[#7,#8,#16])])]-!@[$([CX4H2,OX2H0,SX2H0,NH2+]),$([NX3H1;!$(N-[#6,#15,#16]=[#7,#8,#16])])]-!@[*] butylene_chains Entropic_penalty Optional 10.1002/cmdc.200700139
+[*]-!@[$([CX4H2,OX2H0,SX2H0,NH2+]),$([NX3H1;!$(N-[#6,#15,#16]=[#7,#8,#16])])]-!@[$([CX4H2,OX2H0,SX2H0,NH2+]),$([NX3H1;!$(N-[#6,#15,#16]=[#7,#8,#16])])]-!@[$([CX4H2,OX2H0,SX2H0,NH2+]),$([NX3H1;!$(N-[#6,#15,#16]=[#7,#8,#16])])]-!@[$([CX4H2,OX2H0,SX2H0,NH2+]),$([NX3H1;!$(N-[#6,#15,#16]=[#7,#8,#16])])]-!@[*] butylene_chains Entropic_penalty Regular 10.1002/cmdc.200700139
 [$(a:[aR2]:[aR2]:a:[aR2]:[aR2](:a):a),$([aR2](:a)(:a):[aR2]:[aR2](:a):a)] polycyclic_aromatic_compounds Cancerogenic,Greasy Optional 10.1002/cmdc.200700139
 [#6]=!@[#6]=!@[#6] allenes Exotic_chemistry Regular none
 [#6]1-,:[#16X2]-,:[#6](-[#7X3])=,:[#7X2]-,:[#6]=,:1 2-aminothiazoles Frequent_hitters Special 10.1021/jm501402x
