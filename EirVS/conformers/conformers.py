@@ -9,7 +9,6 @@
 # Author: Thua-Phong Lam, Jens Carlsson lab, Uppsala University
 # Date: 2025-05-05
 
-from openbabel import openbabel as ob
 from rdkit import Chem
 from rdkit.Chem import rdDistGeom, rdForceFieldHelpers, rdMolAlign, rdMolTransforms, PropertyPickleOptions
 from pathlib import Path
@@ -171,10 +170,14 @@ class ConformerGenerator:
             self.mol_H, planar_lib, non_planar_lib
         )
         
-        # Get other important substructures
+        # Get other important substructures.
+        # Some of them are for correctures of MMFF94s
         self.sulfo_matches = utils.find_sulfonamide_like_scaffolds(self.mol_H)
         self.conjugated_substituted_Ns = utils.find_conjugated_substituted_nitrogen1(self.mol_H)
         self.additional_conjugated_substituted_Ns = utils.find_conjugated_substituted_nitrogen2(self.mol_H)
+        self.barbiturate_matches = utils.find_barbiturates(self.mol_H)
+        self.hydantoin_matches = utils.find_hydantoins(self.mol_H)
+        self.substituted_N_barbi_hydan_like = utils.find_substituted_N_barbi_hydan_like(self.mol_H, self.barbiturate_matches, self.hydantoin_matches)
         self.amide_linkages = utils.find_amide(self.mol_H)
         
         # Only find flippable Ns if we need multiple conformations
@@ -204,6 +207,18 @@ class ConformerGenerator:
                 for match in self.conjugated_substituted_Ns: 
                     print(f'\t {match}')
                 for match in self.additional_conjugated_substituted_Ns: 
+                    print(f'\t {match}')
+            if self.barbiturate_matches:
+                print('\tFound barbiturate-like structures')
+                for match in self.barbiturate_matches: 
+                    print(f'\t {match}')
+            if self.hydantoin_matches:
+                print('\tFound hydatoin-like structures')
+                for match in self.hydantoin_matches: 
+                    print(f'\t {match}')
+            if self.substituted_N_barbi_hydan_like:
+                print('\tFound substituted N barbiturate/hydantoin-like structures')
+                for match in self.substituted_N_barbi_hydan_like:
                     print(f'\t {match}')
             if self.amide_linkages:
                 print('\tFound amide linkages')
@@ -241,6 +256,21 @@ class ConformerGenerator:
                 if self.conjugated_substituted_Ns:
                     for a, b, c, d in self.conjugated_substituted_Ns: ff.MMFFAddTorsionConstraint(a, b, c, d, False, 0, 0, 5)
                     for a, b, c, d in self.additional_conjugated_substituted_Ns: ff.MMFFAddTorsionConstraint(a, b, c, d, False, 178, 182, 1)
+                if self.barbiturate_matches:
+                    for match in self.barbiturate_matches:
+                        n = len(match)
+                        for i in range(n):
+                            a, b, c, d = [match[(i + j) % n] for j in range(4)]
+                            ff.MMFFAddTorsionConstraint(a, b, c, d, False, 0, 0, 5)
+                if self.hydantoin_matches:
+                    for match in self.hydantoin_matches:
+                        n = len(match)
+                        for i in range(n):
+                            a, b, c, d  = [match[(i + j) % n] for j in range(4)]
+                            ff.MMFFAddTorsionConstraint(a, b, c, d, False, 0, 0, 5)                
+                if self.substituted_N_barbi_hydan_like:
+                    for a, b, c, d in self.substituted_N_barbi_hydan_like:
+                        ff.MMFFAddTorsionConstraint(a, b, c, d, False, 180, 180, 1)
                 if self.amide_linkages:
                     for a, b, c, d, e in self.amide_linkages: # O=C-N(-C)-H should be coplanar.
                         ff.MMFFAddTorsionConstraint(a, b, c, d, False, 0, 0, 1)
@@ -335,6 +365,7 @@ class ConformerGenerator:
         self.mol2_str = mol2_obj.write_mol2()
 
     def embed_smiles_babel(self):
+        from openbabel import openbabel as ob
         # Step 1: Generate 3D conformer in Open Babel
         obConversion = ob.OBConversion()
         obConversion.SetInAndOutFormats("smi", "sdf")
@@ -372,11 +403,29 @@ class ConformerGenerator:
         conjugated_substituted_Ns = utils.find_conjugated_substituted_nitrogen1(mol_rdkit)
         additional_conjugated_substituted_Ns = utils.find_conjugated_substituted_nitrogen2(mol_rdkit)
         amide_linkages = utils.find_amide(mol_rdkit)
+        barbiturate_matches = utils.find_barbiturates(mol_rdkit)
+        hydantoin_matches = utils.find_hydantoins(mol_rdkit)
+        substituted_N_barbi_hydan_like = utils.find_substituted_N_barbi_hydan_like(mol_rdkit, barbiturate_matches, hydantoin_matches)
         self.mp = rdForceFieldHelpers.MMFFGetMoleculeProperties(mol_rdkit, mmffVariant="MMFF94s")
         ff = rdForceFieldHelpers.MMFFGetMoleculeForceField(mol_rdkit, self.mp, confId=0)
         if conjugated_substituted_Ns:
             for a, b, c, d in conjugated_substituted_Ns: ff.MMFFAddTorsionConstraint(a, b, c, d, False, 0, 0, 5)
             for a, b, c, d in additional_conjugated_substituted_Ns: ff.MMFFAddTorsionConstraint(a, b, c, d, False, 178, 182, 1)
+        if barbiturate_matches:
+            for match in barbiturate_matches:
+                n = len(match)
+                for i in range(n):
+                    a, b, c, d = [match[(i + j) % n] for j in range(4)]
+                    ff.MMFFAddTorsionConstraint(a, b, c, d, False, 0, 0, 5) 
+        if hydantoin_matches:
+            for match in hydantoin_matches:
+                n = len(match)
+                for i in range(n):
+                    a, b, c, d  = [match[(i + j) % n] for j in range(4)]
+                    ff.MMFFAddTorsionConstraint(a, b, c, d, False, 0, 0, 5)  
+        if substituted_N_barbi_hydan_like:
+            for a, b, c, d in substituted_N_barbi_hydan_like:
+                ff.MMFFAddTorsionConstraint(a, b, c, d, False, 180, 180, 1)
         if amide_linkages:
             for a, b, c, d, e in amide_linkages: # O=C-N(-C)-H should be coplanar.
                 ff.MMFFAddTorsionConstraint(a, b, c, d, False, 0, 0, 1)
@@ -411,38 +460,7 @@ class ConformerGenerator:
 
         bonded_pairs, same_parent_pairs = utils.precompute_bonded_and_same_parent_pairs(mol)
         # Condition to switch between visited matrix and unvisited set approaches
-        if total_possible_solutions > 2 * numConfs:
-            # Use visited matrix approach for large spaces
-            n_transform = len(match_torlib)  # Number of rotatable bonds
-            visitting = [0 for _ in range(n_transform)]
-            if visited is None: visited = set()
-
-            while len(product) < numConfs:
-                for idx in range(n_transform):
-                    bond_idx = random.randint(0, len(match_torlib) - 1)
-                    bond = match_torlib[bond_idx]
-                    peaks = bond[2]  # Extract peaks
-                    peak_idx = random.choices(range(len(peaks)), weights=[peak[3] for peak in peaks], k=1)[0]
-                    visitting[bond_idx] = peak_idx
-                    peak = peaks[peak_idx]
-                    rdMolTransforms.SetDihedralDeg(mol.GetConformer(0), *bond[1], value=utils.get_random_angle(peak[0], peak[tolerance_level]))
-
-                # Check if the conformation is valid and not already visited
-                if tuple(visitting) in visited or utils.check_too_close_nonbonded_atoms(mol.GetConformer(0), mol, bonded_pairs, same_parent_pairs, threshold = self.threshold):
-                    attempts += 1
-                    if attempts > max_attempts:
-                        break
-                    continue
-                
-                visited.add(tuple(visitting.copy()))
-                ff = rdForceFieldHelpers.MMFFGetMoleculeForceField(mol, self.mp, confId=0)
-                energy = ff.CalcEnergy()
-                if energy < min_energy: min_energy = min(energy, min_energy)
-                if energy <= min_energy + window: product.append((Chem.Conformer(mol.GetConformer(0)), energy))
-
-
-        else:
-            if self.mode == 'extensive':
+        if self.mode == 'extensive':
                 n_transform = len(match_torlib)  # Number of rotatable bonds
                 visitting = [0 for _ in range(n_transform)]
                 if visited is None: visited = np.empty((0, n_transform))
@@ -470,7 +488,35 @@ class ConformerGenerator:
                     energy = ff.CalcEnergy()
                     if energy < min_energy: min_energy = min(energy, min_energy)
                     if energy <= min_energy + window: product.append((Chem.Conformer(mol.GetConformer(0)), energy))
+        else:
+            if total_possible_solutions > 2 * numConfs:
+                # Use visited matrix approach for large spaces
+                n_transform = len(match_torlib)  # Number of rotatable bonds
+                visitting = [0 for _ in range(n_transform)]
+                if visited is None: visited = set()
 
+                while len(product) < numConfs:
+                    for idx in range(n_transform):
+                        bond_idx = random.randint(0, len(match_torlib) - 1)
+                        bond = match_torlib[bond_idx]
+                        peaks = bond[2]  # Extract peaks
+                        peak_idx = random.choices(range(len(peaks)), weights=[peak[3] for peak in peaks], k=1)[0]
+                        visitting[bond_idx] = peak_idx
+                        peak = peaks[peak_idx]
+                        rdMolTransforms.SetDihedralDeg(mol.GetConformer(0), *bond[1], value=utils.get_random_angle(peak[0], peak[tolerance_level]))
+
+                    # Check if the conformation is valid and not already visited
+                    if tuple(visitting) in visited or utils.check_too_close_nonbonded_atoms(mol.GetConformer(0), mol, bonded_pairs, same_parent_pairs, threshold = self.threshold):
+                        attempts += 1
+                        if attempts > max_attempts:
+                            break
+                        continue
+                    
+                    visited.add(tuple(visitting.copy()))
+                    ff = rdForceFieldHelpers.MMFFGetMoleculeForceField(mol, self.mp, confId=0)
+                    energy = ff.CalcEnergy()
+                    if energy < min_energy: min_energy = min(energy, min_energy)
+                    if energy <= min_energy + window: product.append((Chem.Conformer(mol.GetConformer(0)), energy))
             else:
                 # Use unvisited set approach for smaller spaces
                 if unvisited is None:

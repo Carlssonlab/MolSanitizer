@@ -26,9 +26,13 @@ sulfonamide_like_substructure = Chem.MolFromSmarts("[*:1][S;$(S(=*)=*):2]-!@[N&+
 aliphatic_nitrogen_substructure = Chem.MolFromSmarts("[A:1]@[N&+0;!$(N-*=*):2](@[A:3])!@[*,#1:4]")
 conjugated_substituted_nitrogen = Chem.MolFromSmarts('[a:1]:[a:2]:[a:3]:[nX3&+0:4]-*')
 additional_substituted_nitrogen = Chem.MolFromSmarts('*-[nX3&+0:1]:[a:2]:[a:3]')
+barbiturate = Chem.MolFromSmarts('[C;$(C~[O,S]):1]1~[N:2]~[C;$(C~[O,S]):3]~[N:4]~[C;$(C~[O,S]):5]~[CX4;$(C-*):6]~1') # To 0 iteratively four consecutive atoms
+hydantoin = Chem.MolFromSmarts('[C;$(C~[O,S]):1]1~[N:2]~[C;$(C~[O,S]):3]~[N:4]~[CX4;$(C-*):5]~1') # To 0 iteratively four consecutive atoms
+substituted_N_barbi_hydan_like = Chem.MolFromSmarts('*~[C^2,N^2:1][C^2,N^2:2][C^2,N^2:3]')
 amide_substructure = Chem.MolFromSmarts('[O:1]=[CX3:2]!@[N&+0:3](-[!#1:4])-[#1:5]')
-symmetric_ring = Chem.MolFromSmarts('*!@-a1[cH][cH][a][cH][cH]1')
-
+#symmetric_ring = Chem.MolFromSmarts('[*:1]-!@[a;$(a1[aH][aH]a[aH][aH]1):2]')
+# symmetric_ring = Chem.MolFromSmarts('[*:1]-!@[a:2]1[aH:3][aH:4][a:5][aH:6][aH:7]1')
+#
 Torlib = strain_filter.parse_torlib()
 rigid_rule_files = Path(__file__).parent.parent / 'Data' / 'rigid_part_rules.txt'
 rigid_rules = pd.read_csv(rigid_rule_files, header=None, sep =r'\s+', names=['SMARTS','label'])
@@ -102,7 +106,7 @@ def find_symmetric_rings(mol_H: Mol):
     '''
     Find the symmetric rings in the molecule. *!@-a1[cH][cH][a][cH][cH]1
     '''
-    return mol_H.GetSubstructMatches(symmetric_ring)
+    return mol_H.GetSubstructMatches(symmetric_ring, )
 
 def find_flipped_nitrogen(mol_H: Mol):
     '''
@@ -139,6 +143,29 @@ def find_conjugated_substituted_nitrogen2(mol_H: Mol):
             if set(match[1:]).issubset(ring):
                 filtered_matches.append(match)
     return filtered_matches
+
+def find_barbiturates(mol_H: Mol):
+
+    matches = mol_H.GetSubstructMatches(barbiturate)
+    return matches
+
+
+def find_hydantoins(mol_H: Mol):
+    matches = mol_H.GetSubstructMatches(hydantoin)
+    return matches
+
+def find_substituted_N_barbi_hydan_like(mol_H: Mol, barbiturate: tuple, hydantoin: tuple):
+    matches = mol_H.GetSubstructMatches(substituted_N_barbi_hydan_like)
+    filtered_matches = []
+    for match in matches:
+        for barbi in barbiturate:
+            if set(match[1:]).issubset(barbi) and match[0] not in barbi:   
+                filtered_matches.append(match)
+        for hydan in hydantoin:
+            if set(match[1:]).issubset(hydan) and match[0] not in hydan:   
+                filtered_matches.append(match)
+    return filtered_matches
+        
 
 def find_amide(mol_H: Mol):
     '''
@@ -531,30 +558,7 @@ def count_confs_by_rotbonds(mol, ignoreTorlib=False, VERBOSE=False):
 
     match_torlib = strain_filter.get_match_dihedral(mol, Torlib)
 
-    # Remove some redundant rotation related to the symmetric rings 
-    # such as p-substituted benzenes or p-pyridine
-    # Should only remove from one side of the ring. 
-    # If two sides of a symmetric ring has 2 x 2 possible peaks that are 180 degrees apart, 
-    # we should produce 2 possible combinations, 0x180 and 0x0, rather than produce
-    # 180x180 0x180 0x0 180x0 as they are symmetrically equivalent.
-
-    # symmetric_rings = find_symmetric_rings(mol)
-    # #print(f"\tSymmetric rings: {symmetric_rings}")
-    # reduced_rotated_rings = set()
-    # for ring in symmetric_rings:
-    #     ring_key = set(ring[0:2])
-    #     sorted_ring_atoms = tuple(sorted(ring[1:7]))  # Create a sorted tuple for consistent representation
-    #     # Already processed this symmetric ring; skip
-    #     if sorted_ring_atoms in reduced_rotated_rings: continue
-    #     reduced_rotated_rings.add(sorted_ring_atoms)
-    #     for rule in match_torlib:
-    #         if ring_key == set(rule[1][1:3]):
-    #             # Filter out redundant rotations where angles differ by 180 degrees
-    #             rule[2] = [
-    #                 angle for i, angle in enumerate(rule[2])
-    #                 if all((angle[0] - other_angle[0]) % 180 != 0 for other_angle in rule[2][i + 1:])
-    #             ]
-    #             break
+        
 
     for rotatable_bond in rotatable_bonds:
         if is_terminal(mol, rotatable_bond[1:3]) and is_symmetric(mol, rotatable_bond[1:3]):
@@ -569,7 +573,35 @@ def count_confs_by_rotbonds(mol, ignoreTorlib=False, VERBOSE=False):
                     ]
                     while len(rule[2])>2: rule[2].pop()
                     break
-                            
+    
+    # Remove some redundant rotation related to the symmetric rings 
+    # such as p-substituted benzenes or p-pyridine
+    # Should only remove from one side of the ring. 
+    # If two sides of a symmetric ring has 2 x 2 possible peaks that are 180 degrees apart, 
+    # we should produce 2 possible combinations, 0x180 and 0x0, rather than produce
+    # 180x180 0x180 0x0 180x0 as they are symmetrically equivalent.
+
+    # symmetric_rings = find_symmetric_rings(mol)
+    # print(f"\tSymmetric rings: {symmetric_rings}")
+    # reduced_rotated_rings = set()
+    # for ring in symmetric_rings:
+    #     ring_key = set(ring[0:2])
+    #     sorted_ring_atoms = tuple(sorted(ring[1:7]))  # Create a sorted tuple for consistent representation
+    #     # Already processed this symmetric ring; skip
+    #     if sorted_ring_atoms in reduced_rotated_rings: continue
+    #     for rule in match_torlib:
+    #         if ring_key == set(rule[1][1:3]):
+    #             # Filter out redundant rotations where angles differ by 180 degrees
+    #             print(rule[1])
+    #             print(rule[2])
+    #             rule[2] = [
+    #                 angle for i, angle in enumerate(rule[2])
+    #                 if all((angle[0] - other_angle[0]) % 180 != 0 for other_angle in rule[2][i + 1:])
+    #             ]
+    #             print(rule[2])
+    #             reduced_rotated_rings.add(sorted_ring_atoms)
+    #             break
+
     if ignoreTorlib:
         amide_linkages = find_amide(mol)
         amide_atoms=set()
@@ -603,7 +635,7 @@ def count_confs_by_rotbonds(mol, ignoreTorlib=False, VERBOSE=False):
 
     return num_confs, match_torlib_clean
 
-def get_random_angle(mean, tolerance, method='gauss'):
+def get_random_angle(mean, tolerance, method='gauss', rounding = False):
     """
     Generate a random angle value from a Gaussian distribution given the expected mean and standard deviation,
     and limit it within the specified range. Normalize the result to the [-180, 180] degree range.
@@ -624,12 +656,12 @@ def get_random_angle(mean, tolerance, method='gauss'):
             random_angle = random.gauss(mean, tolerance)
         elif method == 'uniform':
             random_angle = random.uniform(mean - tolerance, mean + tolerance)
-        if mean-tolerance < random_angle < mean+tolerance: 
+        if rounding: random_angle = round(random_angle/30) * 30
+        if mean-tolerance < random_angle < mean + tolerance: 
             break
 
     # Normalize to the [-180, 180] range
     normalized_angle = (random_angle + 180) % 360 - 180
-    
     return normalized_angle
 
 
@@ -710,5 +742,4 @@ def is_similar_conformer(new_dihedrals, exist, tol = 30.0):
     diffs = np.abs(exist - new_dihedrals)
     diffs = np.minimum(diffs, 360 - diffs)
     is_similar = np.all(diffs <= tol, axis=1)
-
     return np.any(is_similar)
