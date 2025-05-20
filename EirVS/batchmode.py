@@ -103,7 +103,6 @@ with open(os.path.join(os.path.dirname(__file__), 'eirvs_configurations.yaml')) 
     max_array_size = configurations['MAX_ARRAY_SIZE']
     max_limit_project = configurations['MAX_LIMIT_PROJECT']
     timeout = configurations['TIMEOUT']
-    use_corina = configurations['USE_CORINA']
     corina_exe = configurations['CORINA']
     energy_window = configurations['ENERGY_WINDOW']
     numconfs = configurations['NUMCONFS']

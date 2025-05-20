@@ -15,7 +15,6 @@ with open(Path(__file__).parent.parent / 'eirvs_configurations.yaml') as confFil
     lines_per_job = configurations['LINES_PER_JOB']
     max_jobs = configurations['MAX_JOBS']
     timeout = configurations['TIMEOUT']
-    use_corina = configurations['USE_CORINA']
     embed_method = configurations['EMBED_METHOD']
     corina_exe = configurations['CORINA']
     energy_window = configurations['ENERGY_WINDOW']
@@ -127,7 +126,7 @@ def parseArguments(args = None, batch_mode = False):
     # Group 4: 3D related options
     gen3d = parser.add_argument_group("Generate 3D conformers options")
     gen3d.add_argument('--gen3d', '-3d',  action='store_true', help='Generate 3D conformers')
-    gen3d.add_argument('--format', '-f', choices=['db2', 'db2.tgz', 'pdbqt', 'sdf', 'mol2'], default='db2.tgz', nargs='*', help='Output file format. Multiple formats simultaneously supported.\n(Default: db2 - Options: sdf, db2, db2.tgz, mol2, pdbqt.)')
+    gen3d.add_argument('--format', '-f', choices=['db2', 'db2.tgz', 'pdbqt', 'sdf', 'mol2'], default='db2.tgz', nargs='*', help='Output file format. Multiple formats simultaneously supported.\n(Default: db2.tgz - Options: sdf, db2, db2.tgz, mol2, pdbqt.)')
     gen3d.add_argument('--method', '-m', choices=['rdkit', 'obabel', 'corina'], dest='method', default = 'rdkit', help=f'Embedding method (default: {embed_method} - options: rdkit, obabel, corina)')
     gen3d.add_argument('--numconfs', '-nconfs', type=int, default=2000, help='Maximum number of conformers to generate (default: 2000)')
     gen3d.add_argument('--randomSeed', '-rs', type=int, default=42, help='Seed for reproducibility (default: 42)')
@@ -136,7 +135,7 @@ def parseArguments(args = None, batch_mode = False):
     gen3d.add_argument('--rigid', type = str, default = None, help='Only align the DB2 on this rigid scaffold in SMARTS format. All rings if not provided.')
     gen3d.add_argument('--nringconfs', '-nr', type=int, default=1,
                                             help='Maximum number of ring conformers to generate (default: 1)')
-    gen3d.add_argument('--mode', '-mode', choices=['vs', 'extensive', 'ignoretorlib'], default='vs', help='Mode for generating conformers\nDefault: vs (virtual screening) - Options: vs, extensive, ignoretorlib')
+    gen3d.add_argument('--mode', '-mode', choices=['vs', 'extensive', 'ignoretorlib', 'extensive2'], default='vs', help='Mode for generating conformers\nDefault: vs (virtual screening) - Options: vs, extensive, ignoretorlib')
     gen3d.add_argument('--tolerance', '-tol', type=float, default=30, help='Minimum angle for differentiating two conformers (default: 30)')
     gen3d.add_argument('--nocleanup', action='store_false', dest='cleanup', default = True, help='Do not clean up the temporary files')
 
