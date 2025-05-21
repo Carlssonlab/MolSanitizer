@@ -279,11 +279,11 @@ class ConformerGenerator:
                 conformer = self.mol_H.GetConformer(cid)
                 energy = ff.CalcEnergy()
                 conf_ring_descriptors_df = utils.classify_confs(conformer, 
-                                                                        energy, 
-                                                                        self.non_planar_rings, 
-                                                                        self.flippable_Ns, 
-                                                                        self.sulfo_matches, 
-                                                                        conf_ring_descriptors_df)
+                                                                energy, 
+                                                                self.non_planar_rings, 
+                                                                self.flippable_Ns, 
+                                                                self.sulfo_matches, 
+                                                                conf_ring_descriptors_df)
             return conf_ring_descriptors_df
         
         
@@ -292,6 +292,7 @@ class ConformerGenerator:
             conf_ring_descriptors_df = embed_fix_ring_confs(method = 'srETKDGv3')
         except Exception as e: 
             print(e)
+
         if len(conf_ring_descriptors_df) == 0:
             # In case where srETKDGv3 failed in embedding the molecule, 
             # we have to use the macrocyclic version.
@@ -307,7 +308,13 @@ class ConformerGenerator:
             self.amsol_mol.AddConformer(conf_ring_descriptors_df.iloc[idx, 0], assignId=True)
         if self.VERBOSE:
             print(f"\tamsol_mol contains: {self.amsol_mol.GetNumConformers()}")
-               
+            conf_ring_descriptors_df.to_csv(f"{self.name}_confs.csv", index=False)
+            temp_mol = Chem.Mol(self.empty_mol)
+            with Chem.SDWriter(f"{self.name}_confs.sdf") as w:
+                for _, row in conf_ring_descriptors_df.iterrows():
+                    conf_idx = temp_mol.AddConformer(row[0], assignId=True)
+                    w.write(temp_mol, confId=conf_idx)
+        # Remove the conformers that do not compromise all the non-planar rings       
         #conf_ring_descriptors_df.to_csv(f"{self.name}_conf_ring_descriptors.csv", index=False)
         conf_ring_descriptors_df = utils.remove_unfavorable_confs(conf_ring_descriptors_df, self.name)
 
@@ -344,7 +351,7 @@ class ConformerGenerator:
 
 
         else:
-            align_on = list(self.planar_rings)[0] if self.planar_rings else self.non_planar_rings[0] if self.non_planar_rings else (1, 2, 3)
+            align_on = list(self.planar_rings)[0] if self.planar_rings else (1, 2, 3)
             temp_list = conf_ring_descriptors_df.values.tolist()
             while len(self.ring_confs) < self.num_ring_confs and temp_list:
                 lowest_energy_entry = temp_list.pop(0)
@@ -356,11 +363,10 @@ class ConformerGenerator:
                 self.ring_confs.append(scaffold)
                 temp_list = utils.ring_conf_clusters(current_descriptors, temp_list)
             if self.VERBOSE: print(f'\tBefore: {len(self.mol_H.GetConformers())}, after: {len(self.ring_confs)}')
-        
         # Align the AMSOL coordinates to the ring conformations so that the coordinates are not too far apart
         for conf_id in range(self.amsol_mol.GetNumConformers()):
             rdMolAlign.AlignMol(self.amsol_mol, self.ring_confs[0], conf_id, 0, atomMap=[(i, i) for i in align_on])
-                            
+
         mol2_obj = mol2writer.Mol2Writer(Chem.Mol(self.amsol_mol, confId = 0))
         self.mol2_str = mol2_obj.write_mol2()
 
