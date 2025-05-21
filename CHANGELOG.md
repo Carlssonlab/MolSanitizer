@@ -20,6 +20,7 @@ All notable changes to this project will be documented in this file.
 
 ### 🐛 Bug Fixes
 
+- Fix a bug that cannot produce small aliphatic compounds. - ([4f67f20](https://github.com/phonglam3103/EirVS/commit/4f67f203dcbbed606cdbc160a532399cfa60a982))
 - Corrections to barbiturates and hydantoin-like structures planarity - ([f204ccc](https://github.com/phonglam3103/EirVS/commit/f204ccc4bd6923dee5cb0fa63d14020cd88531cd))
 - Fallback to RDKit tautomerizer with the customized scoring function. Now it requires that the RDKit version over 2024.9.3 to run the tautomerizer. - ([1f9ae46](https://github.com/phonglam3103/EirVS/commit/1f9ae463241dc165f05fa62149f823f3b532504b))
 - Better defined the planarity of non-aromatic 6-membered rings and cleaned up the SMARTS patterns - ([fa3d1c5](https://github.com/phonglam3103/EirVS/commit/fa3d1c50dc0e8870c9d4e7e1ca14ac1825ba92c9))
