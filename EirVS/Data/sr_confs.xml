@@ -61,7 +61,7 @@ Date: 2024-09-14
   </ring>
   <ring name="5-membered lactam/lactone">
     <note note=""/>
-    <smarts smarts="[C;$(C=O)]1-[N,O]-A-A-A-1"/>
+    <smarts smarts="[C;$(C=[O,SX1])]1-[N,O]-A-A-A-1"/>
     <ref ref=""/>
     <dihedral_sets>
       <set dihedral="'-20', '20', '-20', '20', '0'" value="1"/>
@@ -69,7 +69,7 @@ Date: 2024-09-14
     </dihedral_sets>
   </ring>
   <ring name="cyclopentene">
-    <note note="(should we only care about -C3(!H)- substructure?"/>
+    <note note=""/>
     <smarts smarts="*1=,:*-A-A-A-1"/>
     <ref ref="https://doi.org/10.1016/0166-1280(83)80021-9"/>
     <dihedral_sets>
@@ -123,6 +123,17 @@ Date: 2024-09-14
       <set dihedral="'-60', '60', '-60', '60', '-60', '60'" value="2"/>
     </dihedral_sets>
   </ring>
+  
+  <ring name="imide - 6 member">
+    <note note="(C=O)-(N)-(C=O), busperidone"/>
+    <smarts smarts="[C;$(C=[O,SX1])]1-[N,O]-[C;$(C=[O,SX1])]-A-A-A-1"/>
+    <ref ref="https://doi.org/10.1021/ja00453a059"/>
+    <dihedral_sets>
+      <set dihedral="'0', '-30', '60', '-60', '30', '0'" value="1"/>
+      <set dihedral="'0', '30', '-60', '60', '-30', '0'" value="2"/>
+    </dihedral_sets>
+  </ring>
+
   <ring name="carbamide/carbonate - 6 member">
     <note note="(N/O)-(C=O)-(N/O), check HIV Pro Inh- ter. ureas"/>
     <smarts smarts="[C;$(C=O)]1-[N,O]-A-A-A-[N,O]-1"/>
@@ -132,9 +143,10 @@ Date: 2024-09-14
       <set dihedral="'30', '-60', '60', '-30', '0', '0'" value="2"/>
     </dihedral_sets>
   </ring>
+  
   <ring name="cyclohexene-like">
     <note note="lactam/lactone"/>
-    <smarts smarts="[C;$(C=O)]1-[N,O]-A-A-A-A-1"/>
+    <smarts smarts="[C;$(C=[O,SX1])]1-[N,O]-A-A-A-A-1"/>
     <ref ref=""/>
     <dihedral_sets>
       <set dihedral="'15', '-30', '45', '-60', '45', '-30'" value="1"/>
@@ -211,7 +223,7 @@ Date: 2024-09-14
   </ring>
   <ring name="carbamide/carbonate - 7 member">
     <note note="Twisted chair"/>
-    <smarts smarts="[C;$(C=O)]1-[N,O]-A-A-A-A-[N,O]-1"/>
+    <smarts smarts="[C;$(C=[O,SX1])]1-[N,O]-A-A-A-A-[N,O]-1"/>
     <ref ref=""/>
     <dihedral_sets>
       <set dihedral="'90', '-70', '55', '-70', '90', '-40', '-40'" value="1"/>
