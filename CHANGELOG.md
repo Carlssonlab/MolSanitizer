@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### 🚀 Features
 
+- Special treatment for aliphatic Ns and Cs. Reinforcing the equatorial direction of the N- and C-substituted cyclohexane - ([c25fab4](https://github.com/phonglam3103/EirVS/commit/c25fab44926168c43025c0494eb1511dfbac4e92))
 - Make CLI for confgen - ([741ec82](https://github.com/phonglam3103/EirVS/commit/741ec82b0753fd0985d690e74e78ed16337b52ef))
 - Incorporate molvs tautomer enumerator into tautomerizer. This allows us more freedom to modify the scoring function. - ([0416ce3](https://github.com/phonglam3103/EirVS/commit/0416ce35caa865d0a4ce7023a68e0a23a06453f0))
 - New tautomerization rules version 3 with improved performance. - ([cc9b224](https://github.com/phonglam3103/EirVS/commit/cc9b2244f4c307456fa0b1c0bafdf2cc6d67ee1c))
