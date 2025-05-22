@@ -6,7 +6,7 @@ from rdkit.Chem.EnumerateStereoisomers import EnumerateStereoisomers, StereoEnum
 
 from functools import partial
 
-from .filtering.filters import Filters
+from .filtering.filters import Filters, against_humanity, hold_up
 from .moltransform.tautomerizer import Tautomerizer
 from .moltransform.ionizer import Ionizer
 from .moltransform.neutralizer import Neutralizer
@@ -223,6 +223,9 @@ class EirVS:
             pd.DataFrame: A new DataFrame chunk with molecules that passed the filters.
         """
         df['mol'] = df['smiles'].apply(lambda x: Chem.MolFromSmiles(x))
+        df['against_humanity'] = df['mol'].apply(lambda x: x.HasSubstructMatch(against_humanity) if x else False)
+        if len(df[df['against_humanity'] == True]) > 0:
+            print(hold_up)
         df = Filters.remove_invalid_SMILES(df)
         if self.standardize: df = Filters.remove_exotic_chem_to_db2(df)
         if self.removesalts: df = Filters.saltstripping(df, debug=self.debug)
