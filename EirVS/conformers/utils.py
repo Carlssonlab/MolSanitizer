@@ -23,7 +23,10 @@ logger = logging.getLogger('eirvs')
 
 # Define SMARTS patterns for various functional groups
 sulfonamide_like_substructure = Chem.MolFromSmarts("[*:1][S;$(S(=*)=*):2]-!@[N&+0;!$([NH2]):3](-[*,#1:4])-[*,#1:5]")
-aliphatic_nitrogen_substructure = Chem.MolFromSmarts("[A:1]@[N&+0;!$(N-*=*):2](@[A:3])!@[*,#1:4]")
+flippable_Ns_1 = Chem.MolFromSmarts("[!#1:1]-!@[NH+;!$(N-*=*):2]1-[A:3]-[A:4]-[A]-[A:6]-[A:5]-1")
+flippable_Ns_2 = Chem.MolFromSmarts("[*:1]-!@[N+0;!$(N-*=*):2]1-[A:3]-[A:4]-[A]-[A:6]-[A:5]-1")
+substituted_C_cyclohexane = Chem.MolFromSmarts('[!#1:1]-!@[CH:2]1-[A:3]-[A:4]-[A]-[A:6]-[A:5]-1')
+
 conjugated_substituted_nitrogen = Chem.MolFromSmarts('[a:1]:[a:2]:[a:3]:[nX3&+0:4]-*')
 additional_substituted_nitrogen = Chem.MolFromSmarts('*-[nX3&+0:1]:[a:2]:[a:3]')
 barbiturate = Chem.MolFromSmarts('[C;$(C~[O,S]):1]1~[N:2]~[C;$(C~[O,S]):3]~[N:4]~[C;$(C~[O,S]):5]~[CX4;$(C-*):6]~1') # To 0 iteratively four consecutive atoms
@@ -110,9 +113,15 @@ def find_symmetric_rings(mol_H: Mol):
 
 def find_flipped_nitrogen(mol_H: Mol):
     '''
-    Find the flippable nitrogen in the molecule. n(R):c:c:c:c.
+    Find the flippable nitrogen in the molecule. Mainly for reinforcing the equatorial of the *-N of piperidine and piperazine
     '''
-    return mol_H.GetSubstructMatches(aliphatic_nitrogen_substructure)
+    return mol_H.GetSubstructMatches(flippable_Ns_1) + mol_H.GetSubstructMatches(flippable_Ns_2)
+
+def find_flipped_carbon(mol_H: Mol):
+    '''
+    Find the flippable carbon in the molecule. Mainly for substituted cyclohexane
+    '''
+    return mol_H.GetSubstructMatches(substituted_C_cyclohexane)
 
 def find_conjugated_substituted_nitrogen1(mol_H: Mol):
     '''
@@ -320,7 +329,38 @@ def identical_substituents(mol, idx2, idx3, idx4, idx5):
 
     # Compare the SMILES strings
     return smiles4 == smiles5
+
+def is_equatorial(conf, atom_idx):
+    """
+    Determines if a substituent is in an equatorial position on a cyclohexane ring.
+
+    This function calculates two dihedral angles around a specific atom in the molecule
+    and checks if they both fall within the range that indicates an equatorial position 
+    (approximately 150-180 degrees in absolute value).
+
+    Parameters
+    ----------
+    conf : rdkit.Chem.rdchem.Conformer
+    atom_idx : list or tuple
+        List of atom indices defining the relevant atoms for dihedral calculations.
+        Requires at least 7 indices:
+        - atom_idx[0], atom_idx[1], atom_idx[2], atom_idx[3]: First dihedral angle
+        - atom_idx[0], atom_idx[1], atom_idx[6], atom_idx[5]: Second dihedral angle
+
+    Returns
+    -------
+    bool
+        True if the substituent is equatorial (both dihedrals between 150-180 degrees),
+        False otherwise
+    """
     
+    dihedral1 = rdMolTransforms.GetDihedralDeg(conf, atom_idx[0], atom_idx[1], atom_idx[2], atom_idx[3])
+    dihedral2 = rdMolTransforms.GetDihedralDeg(conf, atom_idx[0], atom_idx[1], atom_idx[6], atom_idx[5])
+    if 150 <= abs(dihedral1) <= 180 and 150 <= abs(dihedral2) <= 180:
+            return True
+    return False
+    
+
 def find_sulfonamide_like_scaffolds(mol_H: Mol):
     """Find all Sulfonamide-like scaffolds (S(O2)-N(R1)R2 or (S(O)(N)-N(R1)(R2))."""
     preliminary_sulfonamide = mol_H.GetSubstructMatches(sulfonamide_like_substructure)
@@ -330,7 +370,7 @@ def find_sulfonamide_like_scaffolds(mol_H: Mol):
         else: matches_sulfonamide.append((a, b, c, d, e))
     return matches_sulfonamide
 
-def classify_confs(conf, energy, non_planar_rings, flippable_Ns, sulfo_matches, conf_ring_descriptors_df, tolerance=20):
+def classify_confs(conf, energy, non_planar_rings, flippable_Ns, flippable_Cs, sulfo_matches, conf_ring_descriptors_df, tolerance=20):
     temp_dict = {
         'Conformer': conf,
         'Energy': energy
@@ -354,9 +394,15 @@ def classify_confs(conf, energy, non_planar_rings, flippable_Ns, sulfo_matches, 
         temp_dict[f"{ring_name}{ring_idx}"] = ring_conf_id
 
     # Process flippable Nitrogens
-    flippable_N_descriptors = [1 if rdMolTransforms.GetDihedralDeg(conf, *flippable_N) > 0 else 0 for flippable_N in flippable_Ns]
-    temp_dict['flippable_N_descriptors'] = flippable_N_descriptors if flippable_N_descriptors else [-1]
+    flippable_N_descriptors = sum([1 if is_equatorial(conf, atom_idx) else 0 for atom_idx in flippable_Ns])
+    # print(f"Flippable Nitrogens: {flippable_N_descriptors}")
+    temp_dict['equatorial_subs_Ns'] = flippable_N_descriptors if flippable_Ns else -1
 
+    # Process substituted cyclohexane
+    aliphatic_cyclohexane_descriptors = sum([1 if is_equatorial(conf, atom_idx) else 0 for atom_idx in flippable_Cs])
+    # print(f"Aliphatic cyclohexane: {aliphatic_cyclohexane_descriptors}")
+    temp_dict['equatorial_subs_Cs'] = aliphatic_cyclohexane_descriptors if flippable_Cs else -1
+    
     # Process sulfo matches
     sulfo_descriptors = tuple([1 if rdMolTransforms.GetDihedralDeg(conf, d, b, c, e) > 0 else 0 for (a, b, c, d, e) in sulfo_matches])
     temp_dict['sulfo_descriptors'] = sulfo_descriptors if sulfo_descriptors else [-1]
@@ -367,7 +413,7 @@ def classify_confs(conf, energy, non_planar_rings, flippable_Ns, sulfo_matches, 
 
     return conf_ring_descriptors_df
 
-def remove_unfavorable_confs(conf_ring_descriptors_df: pd.DataFrame, name: str)-> pd.DataFrame:
+def remove_unfavorable_confs(conf_ring_descriptors_df: pd.DataFrame, name: str ='0')-> pd.DataFrame:
     for column in conf_ring_descriptors_df.columns[2:-2]:
         if (conf_ring_descriptors_df[column] == -1).all():
             conf_ring_descriptors_df.drop(columns=[column], inplace=True)

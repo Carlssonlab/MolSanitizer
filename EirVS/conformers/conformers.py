@@ -181,10 +181,9 @@ class ConformerGenerator:
         self.amide_linkages = utils.find_amide(self.mol_H)
         
         # Only find flippable Ns if we need multiple conformations
-        if self.num_ring_confs > 1:
-            self.flippable_Ns = utils.find_flipped_nitrogen(self.mol_H)
-        else:
-            self.flippable_Ns = []
+        self.flippable_Ns = utils.find_flipped_nitrogen(self.mol_H)
+        self.flippable_Cs = utils.find_flipped_carbon(self.mol_H)
+        
             
         if self.VERBOSE:
             if self.planar_rings:
@@ -197,6 +196,10 @@ class ConformerGenerator:
             if self.flippable_Ns:
                 print('\tFound flippable N structures')
                 for match in self.flippable_Ns: 
+                    print(f'\t {match}')
+            if self.flippable_Cs:
+                print('\tFound flippable C structures')
+                for match in self.flippable_Cs: 
                     print(f'\t {match}')
             if self.sulfo_matches:
                 print('\tFound sulfonamide-like structures')
@@ -247,7 +250,9 @@ class ConformerGenerator:
             if method == 'srETKDGv3': params = rdDistGeom.srETKDGv3()
             else: params = rdDistGeom.ETKDGv3()
             params.numThreads = self.numcores
-            params.pruneRmsThresh = 0.35  # Prune conformations that are too similar, not user-definable here
+            if self.mol.GetNumHeavyAtoms() > 15: 
+                params.pruneRmsThresh = 0.35 # An arbitrary threshold for small molecules and fragments, 
+                                             # the RMSD pruning maynot be suitable anymore
             params.randomSeed = self.randomSeed # For reproducibility
             params.useRandomCoords = True
             conf_ring_descriptors_df = pd.DataFrame()
@@ -282,6 +287,7 @@ class ConformerGenerator:
                                                                 energy, 
                                                                 self.non_planar_rings, 
                                                                 self.flippable_Ns, 
+                                                                self.flippable_Cs,
                                                                 self.sulfo_matches, 
                                                                 conf_ring_descriptors_df)
             return conf_ring_descriptors_df
@@ -300,7 +306,13 @@ class ConformerGenerator:
             logger.warning(f"srETKDGv3 failed for {self.name}, using macrocyclic version")
             conf_ring_descriptors_df = embed_fix_ring_confs(method = 'ETKDGv3')
 
-        conf_ring_descriptors_df.sort_values('Energy', inplace=True)
+        conf_ring_descriptors_df.sort_values(['equatorial_subs_Ns', 'equatorial_subs_Cs', 'Energy'],
+                                            ascending=[False, False, True], inplace=True) 
+        
+        # Unlikely to have duplicate energy, but may happen for very small symmetric molecucles
+        conf_ring_descriptors_df['Round_energy'] = conf_ring_descriptors_df['Energy'].round(4)
+        conf_ring_descriptors_df.drop_duplicates(subset=['Round_energy'], keep='first', inplace=True) 
+
         # Keep a reservoir as the lowest energy possible conformer in case no good ring conformers are found.
         reservoir = conf_ring_descriptors_df.iloc[0, 0]
         # Keep the top 10 conformers for further processing (e.g., AMSOL)
