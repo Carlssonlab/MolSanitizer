@@ -126,7 +126,7 @@ def parseArguments(args = None, batch_mode = False):
     # Group 4: 3D related options
     gen3d = parser.add_argument_group("Generate 3D conformers options")
     gen3d.add_argument('--gen3d', '-3d',  action='store_true', help='Generate 3D conformers')
-    gen3d.add_argument('--format', '-f', choices=['db2', 'db2.tgz', 'pdbqt', 'sdf', 'mol2'], default='db2.tgz', nargs='*', help='Output file format. Multiple formats simultaneously supported.\n(Default: db2.tgz - Options: sdf, db2, db2.tgz, mol2, pdbqt.)')
+    gen3d.add_argument('--format', '-f', choices=['db2', 'db2.tgz', 'pdbqt', 'sdf', 'mol2'], default=['db2.tgz'], nargs='*', help='Output file format. Multiple formats simultaneously supported.\n(Default: db2.tgz - Options: sdf, db2, db2.tgz, mol2, pdbqt.)')
     gen3d.add_argument('--method', '-m', choices=['rdkit', 'obabel', 'corina'], dest='method', default = 'rdkit', help=f'Embedding method (default: {embed_method} - options: rdkit, obabel, corina)')
     gen3d.add_argument('--numconfs', '-nconfs', type=int, default=2000, help='Maximum number of conformers to generate (default: 2000)')
     gen3d.add_argument('--randomSeed', '-rs', type=int, default=42, help='Seed for reproducibility (default: 42)')
