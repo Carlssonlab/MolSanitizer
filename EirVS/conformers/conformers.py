@@ -654,13 +654,13 @@ class ConformerGenerator:
     # This is still experimental, call conf_samplingv2, where Torlib is read differently
     # and the angle chosen would be deterministic. By default, peak +- 30 degrees, if tol2 >= 30.
     def stochastic_sampling_v2(self, mol, angle_map, score_map, numConfs, possible_numConfs, importance_order,
-                        window = 25, max_attempts=30000, product=list()):
+                        window = 25, max_attempts=50_000, product=list()):
         """"""
         bonded_pairs, same_parent_pairs = utils.precompute_bonded_and_same_parent_pairs(mol)
         attempts = 0
         min_energy = 1e6
 
-        if possible_numConfs <= min(numConfs*2, 4_000):
+        if possible_numConfs <= min(numConfs*2, 3_000):
             # Generate all combinations, then randomly taken from them, only valid for small combinatorial space
             # If the number of conformations is manageable, we can enumerate all combinations
             
@@ -696,7 +696,7 @@ class ConformerGenerator:
             # If the number of conformations is too large, we can randomly sample
             if self.VERBOSE:
                 print("Importance order of bonds:", importance_order)
-                print(f"Number of conformations {possible_numConfs} exceeds the requested number {numConfs}. Random sampling will be performed.")
+                print(f"Number of conformations {possible_numConfs}. Random sampling will be performed.")
             
             # Initialize tracking variables for angles
             k = len(angle_map)
@@ -708,7 +708,7 @@ class ConformerGenerator:
                 visitting[bond_idx] = rule[2][0]
                 rdMolTransforms.SetDihedralDeg(mol.GetConformer(0), *rule[1], rule[2][0])
 
-            while len(product) < numConfs:
+            while len(product) < numConfs and attempts < max_attempts:
                 # Use importance-based weights for rotation selection
                 to_rotate = set(random.choices(range(len(angle_map)), weights=importance_order, k=k))
                 # For each selected bond, choose a random angle
@@ -727,14 +727,17 @@ class ConformerGenerator:
                     visitting[bond_idx] = angle
                     # Set the dihedral angle
                     rdMolTransforms.SetDihedralDeg(mol.GetConformer(0), *dihedral_atoms, angle)
-                    
                 
-                if tuple(visitting) in visited or utils.check_too_close_nonbonded_atoms(mol.GetConformer(0), mol, bonded_pairs, same_parent_pairs, threshold = self.threshold):
-                    attempts += 1
-                    if attempts > max_attempts:
-                        break
+                state_tuple = tuple(visitting)    
+                if state_tuple in visited: 
                     continue
-                visited.add(tuple(visitting))
+
+                if utils.check_too_close_nonbonded_atoms(mol.GetConformer(0), mol, bonded_pairs, same_parent_pairs, threshold = self.threshold):
+                    attempts += 1
+                    visited.add(state_tuple)
+                    continue
+
+                visited.add(state_tuple)
                 ff = rdForceFieldHelpers.MMFFGetMoleculeForceField(mol, self.mp, confId=0)
                 energy = ff.CalcEnergy()
                 if energy < min_energy: min_energy = energy
@@ -750,8 +753,10 @@ class ConformerGenerator:
         if self.VERBOSE:
             print(f"\tTheory: {possible_numConfs} possible conformations")
             print(f"\tRotatable bonds: {rot_bonds}")
-            print(f"\tAngle map: {angle_map}")
-            print(f"\tScore map: {score_map}")
+            print(f"\tPossible angles:")
+            for idx in range(len(angle_map)):
+                print(f"\t{angle_map[idx]}")
+                print(f"\t{score_map[idx]}")
 
         # Find the rigid part only once outside the loop to save processing time
         self.atom_maps, self.label_map = utils.find_rigid_part(self.ring_confs[0], request_alignment)
@@ -783,7 +788,7 @@ class ConformerGenerator:
             if self.sulfo_matches: possible_numConfs, angle_map, score_map = utils.count_confs_by_rotbonds_v2(mol, rot_bonds)
             if self.VERBOSE: print('\tRunning stochastic torsional sampling')
             
-            product = self.stochastic_sampling_v2(processing_mol, angle_map, score_map, numConfs, possible_numConfs, importance_order, energywindow, 15000, list())
+            product = self.stochastic_sampling_v2(processing_mol, angle_map, score_map, numConfs, possible_numConfs, importance_order, energywindow, 30_000, list())
             
             if len(product) == 0:
                 print(f'Failed for stochastic sampling (generated {len(product)} confs), use the original conformation')
