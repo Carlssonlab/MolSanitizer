@@ -581,6 +581,13 @@ class ConformerGenerator:
         self.conf_sampled = True
         if self.request_alignment is None and request_alignment is not None:
             self.request_alignment = request_alignment
+        
+        if self.mode == 'extensive2':
+            # This is still experimental, call conf_samplingv2, where Torlib is read differently
+            # and the angle chosen would be deterministic. By default, peak +- 30 degrees, if tol2 >= 30.
+            self.conf_samplingv2(numConfs = numConfs, energywindow = energywindow, AllowNonRing=False, request_alignment=request_alignment)
+            return
+        
         num_confs_by_rotbonds, match_torlib = utils.count_confs_by_rotbonds(self.ring_confs[0], ignoreTorlib, self.VERBOSE)
         requested_num_confs = numConfs
 
@@ -630,10 +637,10 @@ class ConformerGenerator:
                 continue
             
             product.sort(key=lambda x: x[1]) #Sort by energy
-            product = product[:requested_num_confs]
             before_energy = len(product)
             min_energy = product[0][1]
             filtered_product = [x[0] for x in product if x[1] - min_energy <= energywindow]
+            filtered_product = filtered_product[:requested_num_confs]
 
             mol.RemoveAllConformers()
             largest_ring = max(self.atom_maps, key=len)
@@ -642,6 +649,158 @@ class ConformerGenerator:
                 rdMolAlign.AlignMol(mol, original_mol, confId, 0, atomMap=[(i, i) for i in largest_ring])
 
             if self.VERBOSE: print(f"\tEnergy filter: {before_energy} -> {len(filtered_product)}")
+
+    # Deterministic sampling
+    # This is still experimental, call conf_samplingv2, where Torlib is read differently
+    # and the angle chosen would be deterministic. By default, peak +- 30 degrees, if tol2 >= 30.
+    def stochastic_sampling_v2(self, mol, angle_map, score_map, numConfs, possible_numConfs, importance_order,
+                        window = 25, max_attempts=30000, product=list()):
+        """"""
+        bonded_pairs, same_parent_pairs = utils.precompute_bonded_and_same_parent_pairs(mol)
+        attempts = 0
+        min_energy = 1e6
+
+        if possible_numConfs <= min(numConfs*2, 4_000):
+            # Generate all combinations, then randomly taken from them, only valid for small combinatorial space
+            # If the number of conformations is manageable, we can enumerate all combinations
+            
+            # Generate all possible combinations of dihedral angles
+            unvisited = list(itertools.product(*(angle_map[bond_idx][2] for bond_idx in range(len(angle_map)))))
+            if self.VERBOSE: print(f"Total number of unique conformations: {len(unvisited)}")
+            random.shuffle(unvisited)
+
+            while len(product) < numConfs and len(unvisited) > 0:
+                choice = unvisited.pop()  # Randomly select a combination of dihedral angles
+
+                # Set the dihedrals based on the chosen combination
+                for idx, val in enumerate(angle_map.values()):
+                    dihedral_atoms = val[1]  # Get the atom indices for the dihedral
+                    #print(dihedral_atoms)
+                    angle = choice[idx]  # Get the angle for this dihedral from the chosen combination
+                    # bond_idx corresponds to the index of the bond in the list of rotatable bonds
+                    # Set the dihedral angle for the corresponding bond
+                    rdMolTransforms.SetDihedralDeg(mol.GetConformer(0), *dihedral_atoms, angle)
+                # If atoms are too close or if we already visited this conformation
+                if utils.check_too_close_nonbonded_atoms(mol.GetConformer(0), mol, bonded_pairs, same_parent_pairs, threshold = self.threshold):
+                    attempts += 1
+                    if attempts > max_attempts:
+                        break
+                    continue
+
+                ff = rdForceFieldHelpers.MMFFGetMoleculeForceField(mol, self.mp, confId=0)
+                energy = ff.CalcEnergy()
+                if energy < min_energy: min_energy = energy
+                if energy <= min_energy + window: product.append((Chem.Conformer(mol.GetConformer(0)), energy))
+        else:
+            # Reweight the importance of the bonds
+            # If the number of conformations is too large, we can randomly sample
+            if self.VERBOSE:
+                print("Importance order of bonds:", importance_order)
+                print(f"Number of conformations {possible_numConfs} exceeds the requested number {numConfs}. Random sampling will be performed.")
+            
+            # Initialize tracking variables for angles
+            k = len(angle_map)
+            visited = set()
+            visitting = [0] * len(angle_map)
+
+            # First, reset all the dihedral to a default angle_peak 0.
+            for bond_idx, rule in enumerate(angle_map.values()):
+                visitting[bond_idx] = rule[2][0]
+                rdMolTransforms.SetDihedralDeg(mol.GetConformer(0), *rule[1], rule[2][0])
+
+            while len(product) < numConfs:
+                # Use importance-based weights for rotation selection
+                to_rotate = set(random.choices(range(len(angle_map)), weights=importance_order, k=k))
+                # For each selected bond, choose a random angle
+                for bond_idx in to_rotate:
+                    if bond_idx >= len(angle_map):
+                        continue
+                        
+                    # Get the atom indices and possible angles
+                    dihedral_atoms = angle_map[bond_idx][1]
+                    possible_angles = angle_map[bond_idx][2]
+                    angle_scores = score_map[bond_idx]
+                    angle_idx = random.choices(range(len(possible_angles)), 
+                                                    weights=angle_scores, k=1)[0]
+                            
+                    angle = possible_angles[angle_idx]
+                    visitting[bond_idx] = angle
+                    # Set the dihedral angle
+                    rdMolTransforms.SetDihedralDeg(mol.GetConformer(0), *dihedral_atoms, angle)
+                    
+                
+                if tuple(visitting) in visited or utils.check_too_close_nonbonded_atoms(mol.GetConformer(0), mol, bonded_pairs, same_parent_pairs, threshold = self.threshold):
+                    attempts += 1
+                    if attempts > max_attempts:
+                        break
+                    continue
+                visited.add(tuple(visitting))
+                ff = rdForceFieldHelpers.MMFFGetMoleculeForceField(mol, self.mp, confId=0)
+                energy = ff.CalcEnergy()
+                if energy < min_energy: min_energy = energy
+                if energy <= min_energy + window: product.append((Chem.Conformer(mol.GetConformer(0)), energy))
+        return product
+    
+    def conf_samplingv2(self, numConfs=2000, energywindow = 25, AllowNonRing=False, request_alignment=None):
+        rot_bonds = utils.getDihedralMatches_v2(self.ring_confs[0])
+        possible_numConfs, angle_map, score_map = utils.count_confs_by_rotbonds_v2(self.ring_confs[0], rot_bonds)#, VERBOSE=True)
+        importance_order = utils.get_importance_order(self.ring_confs[0], rot_bonds)
+        requested_num_confs = numConfs
+
+        if self.VERBOSE:
+            print(f"\tTheory: {possible_numConfs} possible conformations")
+            print(f"\tRotatable bonds: {rot_bonds}")
+            print(f"\tAngle map: {angle_map}")
+            print(f"\tScore map: {score_map}")
+
+        # Find the rigid part only once outside the loop to save processing time
+        self.atom_maps, self.label_map = utils.find_rigid_part(self.ring_confs[0], request_alignment)
+
+
+
+        if request_alignment and not self.atom_maps:
+            utils.log_error(self.smiles, self.name)
+            return
+        # For very flexible molecules, we need to sample more, then filter by energy later
+        else:
+            if numConfs*10 < possible_numConfs: numConfs = min(int(numConfs * 1.5), possible_numConfs)
+            elif numConfs*5 < possible_numConfs: numConfs = min(int(numConfs * 1.25), possible_numConfs)
+            else: numConfs = numConfs#min(numConfs, num_confs_by_rotbonds)
+
+        # Molecules which don't have rings are not of interest --> only sample limitedly.
+        if (self.label_map) and not (AllowNonRing): numConfs = 30
+
+        if (len(rot_bonds) == 0):
+            print('No rotatable bonds found, returning the original conformation')
+            return
+        
+        for idx, mol in enumerate(self.ring_confs):
+            if self.VERBOSE: print(f"\tHandling ring/sulfonamide conformation {idx+1}/{len(self.ring_confs)}")
+            original_mol = Chem.Mol(mol)
+            processing_mol = Chem.Mol(mol)
+              
+            # Only remap the match_torlib when sulfo_matches is found
+            if self.sulfo_matches: possible_numConfs, angle_map, score_map = utils.count_confs_by_rotbonds_v2(mol, rot_bonds)
+            if self.VERBOSE: print('\tRunning stochastic torsional sampling')
+            
+            product = self.stochastic_sampling_v2(processing_mol, angle_map, score_map, numConfs, possible_numConfs, importance_order, energywindow, 15000, list())
+            
+            if len(product) == 0:
+                print(f'Failed for stochastic sampling (generated {len(product)} confs), use the original conformation')
+                continue
+
+            product.sort(key=lambda x: x[1]) #Sort by energy
+            before_energy = len(product)
+            min_energy = product[0][1]
+            filtered_product = [x[0] for x in product if x[1] - min_energy <= energywindow]
+            filtered_product = filtered_product[:requested_num_confs]
+            mol.RemoveAllConformers()
+            largest_ring = max(self.atom_maps, key=len)
+            for conf in filtered_product:
+                confId = mol.AddConformer(conf, assignId=True)
+                rdMolAlign.AlignMol(mol, original_mol, confId, 0, atomMap=[(i, i) for i in largest_ring])
+            if self.VERBOSE: print(f"\tEnergy filter: {before_energy} -> {len(filtered_product)}")
+
 
 
     # ========== Output to different file formats ===========

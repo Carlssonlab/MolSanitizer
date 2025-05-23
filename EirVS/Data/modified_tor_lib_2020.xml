@@ -15633,9 +15633,10 @@
     </torsionRule>
     <torsionRule smarts="[!#1:1][CX4H2:2]!@[CX4H2:3][!#1:4]">
      <angleList>
-      <angle score="37.06" tolerance1="20" tolerance2="30" value="180" />
-      <angle score="4.84" tolerance1="20" tolerance2="30" value="-60" />
-      <angle score="1.77" tolerance1="20" tolerance2="30" value="60" />
+     <!-- Change tol2 of these to 25 (default 30) -->
+      <angle score="37.06" tolerance1="20" tolerance2="25" value="180" />
+      <angle score="4.84" tolerance1="20" tolerance2="25" value="-60" />
+      <angle score="1.77" tolerance1="20" tolerance2="25" value="60" />
      </angleList>
      <histogram>
       <bin count="28090" />
