@@ -857,9 +857,16 @@ def discretinize_dihedrals(typical, tolerance, step = 30):
     step: the step size for discretinization
     '''
     if tolerance < step: return [typical]
-    angles = [typical, typical - step, typical + step] #Only sample 3 angles for each dihedral
+    n_steps = int(tolerance / step)
+    angles = [typical + i * step for i in range(-n_steps, n_steps + 1)]
+    # angles = [typical, typical - step, typical + step] #Only sample 3 angles for each dihedral
+
     normalized_angles = [(angle + 180) % 360 - 180 for angle in angles]
     return normalized_angles
+
+def angular_diff(a, b):
+    diff = abs(a - b) % 360
+    return min(diff, 360 - diff)
 
 def filter_symmetric_angles(angles, scores, symmetry_angle=180, tolerance=10):
     """
@@ -874,9 +881,6 @@ def filter_symmetric_angles(angles, scores, symmetry_angle=180, tolerance=10):
     Returns:
         Tuple: (filtered_angles, filtered_scores)
     """
-    def angular_diff(a, b):
-        diff = abs(a - b) % 360
-        return min(diff, 360 - diff)
 
     kept_angles = []
     kept_scores = []
@@ -996,9 +1000,20 @@ def count_confs_by_rotbonds_v2(mol, rot_bonds, VERBOSE=False):
             angle_vals = discretinize_dihedrals(peak[0], peak[2])
             angle_list.extend(angle_vals)
             score_list.extend([peak[3]] * len(angle_vals))
-            total_angles += len(angle_vals)
-        angle_map[bond_idx] = [name, atom_indices, angle_list]
-        score_map[bond_idx] = score_list
+        
+
+        # Filter out too similar angles (within ±10 degrees)
+        deduplicated_angles = []
+        deduplicated_scores = []
+        for angle, score in zip(angle_list, score_list):
+            # Only add if not too similar to any existing angle
+            if not any(abs(angular_diff(angle, existing)) <= 10 for existing in deduplicated_angles):
+                deduplicated_angles.append(angle)
+                deduplicated_scores.append(score)
+
+        total_angles = len(deduplicated_angles)
+        angle_map[bond_idx] = [name, atom_indices, deduplicated_angles]
+        score_map[bond_idx] = deduplicated_scores
         total_confs *= total_angles
 
     if VERBOSE:

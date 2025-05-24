@@ -676,7 +676,7 @@ class ConformerGenerator:
                 choice = unvisited.pop()  # Randomly select a combination of dihedral angles
 
                 # Set the dihedrals based on the chosen combination
-                for idx, val in enumerate(angle_map.values()):
+                for idx, val in enumerate(angle_map.values()): #Iterate through the rotatable bonds
                     dihedral_atoms = val[1]  # Get the atom indices for the dihedral
                     #print(dihedral_atoms)
                     angle = choice[idx]  # Get the angle for this dihedral from the chosen combination
