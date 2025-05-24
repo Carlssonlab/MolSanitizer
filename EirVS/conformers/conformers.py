@@ -660,11 +660,8 @@ class ConformerGenerator:
         attempts = 0
         min_energy = 1e6
 
-        # Dynamic threshold based on combinatorial space size
-        threshold_multiplier = min(possible_numConfs / numConfs, 10) if numConfs > 0 else 1
-        dynamic_threshold = min(numConfs * threshold_multiplier, 10_000)
         
-        if possible_numConfs <= dynamic_threshold: #maximum still 10K combinations only
+        if possible_numConfs <= max_attempts: # Try 
             # Generate all combinations, then randomly taken from them, only valid for small combinatorial space
             # If the number of conformations is manageable, we can enumerate all combinations
             
@@ -688,9 +685,6 @@ class ConformerGenerator:
                     rdMolTransforms.SetDihedralDeg(mol.GetConformer(0), *dihedral_atoms, angle)
                 # If atoms are too close or if we already visited this conformation
                 if utils.check_too_close_nonbonded_atoms(mol.GetConformer(0), mol, bonded_pairs, same_parent_pairs, threshold = self.threshold):
-                    attempts += 1
-                    if attempts > max_attempts:
-                        break
                     continue
 
                 ff = rdForceFieldHelpers.MMFFGetMoleculeForceField(mol, self.mp, confId=0)
@@ -742,7 +736,11 @@ class ConformerGenerator:
                 
                 state_tuple = tuple(visitting)    
                 
-                if state_tuple in visited or utils.check_too_close_nonbonded_atoms(mol.GetConformer(0), mol, bonded_pairs, same_parent_pairs, threshold = self.threshold):
+                if state_tuple in visited:
+                    attempts += 1
+                    continue
+                
+                if utils.check_too_close_nonbonded_atoms(mol.GetConformer(0), mol, bonded_pairs, same_parent_pairs, threshold = self.threshold):
                     attempts += 1
                     visited.add(state_tuple)
                     continue
@@ -810,7 +808,7 @@ class ConformerGenerator:
             if self.sulfo_matches: possible_numConfs, angle_map, score_map = utils.count_confs_by_rotbonds_v2(mol, rot_bonds)
             if self.VERBOSE: print('\tRunning stochastic torsional sampling')
             
-            product = self.stochastic_sampling_v2(processing_mol, angle_map, score_map, numConfs, possible_numConfs, importance_order, energywindow, 30_000, list())
+            product = self.stochastic_sampling_v2(processing_mol, angle_map, score_map, numConfs, possible_numConfs, importance_order, energywindow, 50_000, list())
             
             if len(product) == 0:
                 print(f'Failed to find any confs (generated {len(product)} confs), use the original conformation')
