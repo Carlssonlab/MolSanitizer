@@ -660,13 +660,19 @@ class ConformerGenerator:
         attempts = 0
         min_energy = 1e6
 
-        if possible_numConfs <= min(numConfs*2, 3_000):
+        # Dynamic threshold based on combinatorial space size
+        threshold_multiplier = min(possible_numConfs / numConfs, 10) if numConfs > 0 else 1
+        dynamic_threshold = min(numConfs * threshold_multiplier, 10_000)
+        
+        if possible_numConfs <= dynamic_threshold: #maximum still 10K combinations only
             # Generate all combinations, then randomly taken from them, only valid for small combinatorial space
             # If the number of conformations is manageable, we can enumerate all combinations
             
             # Generate all possible combinations of dihedral angles
             unvisited = list(itertools.product(*(angle_map[bond_idx][2] for bond_idx in range(len(angle_map)))))
-            if self.VERBOSE: print(f"Total number of unique conformations: {len(unvisited)}")
+            if self.VERBOSE: 
+                print(f"\tEnumerated all possible combinations of dihedral angles")
+                print(f"\tTotal number of unique conformations: {len(unvisited)}")
             random.shuffle(unvisited)
 
             while len(product) < numConfs and len(unvisited) > 0:
@@ -695,13 +701,19 @@ class ConformerGenerator:
             # Reweight the importance of the bonds
             # If the number of conformations is too large, we can randomly sample
             if self.VERBOSE:
-                print("Importance order of bonds:", importance_order)
-                print(f"Number of conformations {possible_numConfs}. Random sampling will be performed.")
+                print("\tStochastic sampling with importance-based weights")
+                print("\tImportance order of bonds:", importance_order)
+                print(f"\tNumber of conformations {possible_numConfs}. Random sampling will be performed.")
             
             # Initialize tracking variables for angles
             k = len(angle_map)
             visited = set()
             visitting = [0] * len(angle_map)
+
+            # Adaptive sampling parameters
+            max_stagnation = min(max_attempts // 10, 5000)  # Stop if no progress
+            stagnation_counter = 0
+            last_product_size = 0
 
             # First, reset all the dihedral to a default angle_peak 0.
             for bond_idx, rule in enumerate(angle_map.values()):
@@ -729,10 +741,8 @@ class ConformerGenerator:
                     rdMolTransforms.SetDihedralDeg(mol.GetConformer(0), *dihedral_atoms, angle)
                 
                 state_tuple = tuple(visitting)    
-                if state_tuple in visited: 
-                    continue
-
-                if utils.check_too_close_nonbonded_atoms(mol.GetConformer(0), mol, bonded_pairs, same_parent_pairs, threshold = self.threshold):
+                
+                if state_tuple in visited or utils.check_too_close_nonbonded_atoms(mol.GetConformer(0), mol, bonded_pairs, same_parent_pairs, threshold = self.threshold):
                     attempts += 1
                     visited.add(state_tuple)
                     continue
@@ -742,6 +752,18 @@ class ConformerGenerator:
                 energy = ff.CalcEnergy()
                 if energy < min_energy: min_energy = energy
                 if energy <= min_energy + window: product.append((Chem.Conformer(mol.GetConformer(0)), energy))
+
+                # Check for early stopping conditions
+                if len(product) == last_product_size:
+                    stagnation_counter += 1
+                    if stagnation_counter >= max_stagnation:
+                        if self.VERBOSE:
+                            print(f"Stopping due to stagnation after {attempts} attempts. Generated {len(product)} conformers.")
+                        break
+                else:
+                    stagnation_counter = 0
+                    last_product_size = len(product)
+                
         return product
     
     def conf_samplingv2(self, numConfs=2000, energywindow = 25, AllowNonRing=False, request_alignment=None):
@@ -791,7 +813,7 @@ class ConformerGenerator:
             product = self.stochastic_sampling_v2(processing_mol, angle_map, score_map, numConfs, possible_numConfs, importance_order, energywindow, 30_000, list())
             
             if len(product) == 0:
-                print(f'Failed for stochastic sampling (generated {len(product)} confs), use the original conformation')
+                print(f'Failed to find any confs (generated {len(product)} confs), use the original conformation')
                 continue
 
             product.sort(key=lambda x: x[1]) #Sort by energy
