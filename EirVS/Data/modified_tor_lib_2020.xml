@@ -99,7 +99,6 @@
       [cH1:1][c:2](c[F,Cl,Br,I])!@[O:3][CRH1:4] ortho-halogen substituted aromatic ring as it can have an additional +-90 peaks  
       [nH:1][c:2]!@[CX3:3]([NX3H1,NX3H2])=[O:4] two NH groups should not pointing against each other--> 
 
--->
 <library>
  <hierarchyClass id1="G" id2="G" name="GG" smarts="[*:2]!@[*:3]">
   <hierarchySubClass name="aro aro" smarts="[a:2]!@[a:3]">
