@@ -811,8 +811,13 @@ class ConformerGenerator:
             product = self.stochastic_sampling_v2(processing_mol, angle_map, score_map, numConfs, possible_numConfs, importance_order, energywindow, 50_000, list())
             
             if len(product) == 0:
-                print(f'Failed to find any confs (generated {len(product)} confs), use the original conformation')
-                continue
+                print(f'Failed to find any confs (generated {len(product)} confs), using the random dihedral angles approach as a fallback')
+                num_confs_by_rotbonds, match_torlib = utils.count_confs_by_rotbonds(mol = self.ring_confs[0], VERBOSE = self.VERBOSE)
+                product, _, _ = self.stochastic_sampling(processing_mol, 2, match_torlib, numConfs, num_confs_by_rotbonds, energywindow, 15000, list(), visited = None, unvisited=None)
+                
+                if len(product) == 0: 
+                    print(f'Failed for stochastic sampling (generated {len(product)} confs), use the original conformation')
+                    continue
 
             product.sort(key=lambda x: x[1]) #Sort by energy
             before_energy = len(product)
