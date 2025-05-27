@@ -97,7 +97,8 @@
      May 27 2025
       Added:
       [cH1:1][c:2](c[F,Cl,Br,I])!@[O:3][CRH1:4] ortho-halogen substituted aromatic ring as it can have an additional +-90 peaks  
-      [nH:1][c:2]!@[CX3:3]([NX3H1,NX3H2])=[O:4] two NH groups should not pointing against each other--> 
+      [nH:1][c:2]!@[CX3:3]([NX3H1,NX3H2])=[O:4] two NH groups should not pointing against each other
+--> 
 
 <library>
  <hierarchyClass id1="G" id2="G" name="GG" smarts="[*:2]!@[*:3]">
@@ -35410,6 +35411,7 @@
      <angleList>
       <angle score="1" tolerance1="30" tolerance2="30" value="0" />
      </angleList>
+    </torsionRule>
     <torsionRule smarts="[a:1][c:2]!@[CX3:3]([NX3H1,NX3H2])=[O:4]">
      <angleList>
       <angle score="8.880000000000001" tolerance1="20" tolerance2="30" value="0" />
@@ -44064,6 +44066,7 @@ All the angles here were added to make the hydroxyl coplanar with the ring-->
      <angle score="4.42" tolerance1="30" tolerance2="30" value="90.0"/>
      <angle score="4.42" tolerance1="30" tolerance2="30" value="-90.0"/>
     </angleList>
+   </torsionRule>
    <torsionRule smarts="[cH1,n:1][c:2]!@[O:3][CRH1:4]">
     <angleList>
      <angle score="11.94" tolerance1="30" tolerance2="40" value="0" />
