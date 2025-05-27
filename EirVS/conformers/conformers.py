@@ -173,8 +173,8 @@ class ConformerGenerator:
         # Get other important substructures.
         # Some of them are for correctures of MMFF94s
         self.sulfo_matches = utils.find_sulfonamide_like_scaffolds(self.mol_H)
-        self.conjugated_substituted_Ns = utils.find_conjugated_substituted_nitrogen1(self.mol_H)
-        self.additional_conjugated_substituted_Ns = utils.find_conjugated_substituted_nitrogen2(self.mol_H)
+        self.conjugated_substituted_nitrogen_5aro = utils.find_conjugated_substituted_nitrogen_5aro(self.mol_H)
+        self.conjugated_substituted_nitrogen_6aro = utils.find_conjugated_substituted_nitrogen_6aro(self.mol_H)
         self.barbiturate_matches = utils.find_barbiturates(self.mol_H)
         self.hydantoin_matches = utils.find_hydantoins(self.mol_H)
         self.substituted_N_barbi_hydan_like = utils.find_substituted_N_barbi_hydan_like(self.mol_H, self.barbiturate_matches, self.hydantoin_matches)
@@ -205,11 +205,13 @@ class ConformerGenerator:
                 print('\tFound sulfonamide-like structures')
                 for match in self.sulfo_matches: 
                     print(f'\t {match}')
-            if self.conjugated_substituted_Ns:
-                print('\tFound conjugated substituted N structures')
-                for match in self.conjugated_substituted_Ns: 
+            if self.conjugated_substituted_nitrogen_5aro:
+                print('\tFound conjugated substituted nitrogen in 5-membered aromatic rings')
+                for match in self.conjugated_substituted_nitrogen_5aro: 
                     print(f'\t {match}')
-                for match in self.additional_conjugated_substituted_Ns: 
+            if self.conjugated_substituted_nitrogen_6aro:
+                print('\tFound conjugated substituted nitrogen in 6-membered aromatic rings')
+                for match in self.conjugated_substituted_nitrogen_6aro: 
                     print(f'\t {match}')
             if self.barbiturate_matches:
                 print('\tFound barbiturate-like structures')
@@ -258,9 +260,24 @@ class ConformerGenerator:
             conf_ring_descriptors_df = pd.DataFrame()
             for cid in rdDistGeom.EmbedMultipleConfs(self.mol_H, numConfs=self.num_initialConfs, params=params):
                 ff = rdForceFieldHelpers.MMFFGetMoleculeForceField(self.mol_H, self.mp, confId=cid)
-                if self.conjugated_substituted_Ns:
-                    for a, b, c, d in self.conjugated_substituted_Ns: ff.MMFFAddTorsionConstraint(a, b, c, d, False, 0, 0, 5)
-                    for a, b, c, d in self.additional_conjugated_substituted_Ns: ff.MMFFAddTorsionConstraint(a, b, c, d, False, 178, 182, 1)
+                if self.conjugated_substituted_nitrogen_5aro:
+                    # *-[nX3&+0:1]1[a:2][a:3][a:4][a:5]1 
+                    # a-b-c-d -> 180; a-b-f-e -> 180
+                    # b-c-d-e -> 0; d-e-f-b -> 0
+                    for a, b, c, d, e, f in self.conjugated_substituted_nitrogen_5aro:
+                        ff.MMFFAddTorsionConstraint(a, b, c, d, False, 180, 180, 1)
+                        ff.MMFFAddTorsionConstraint(a, b, f, e, False, 180, 180, 1)
+                        ff.MMFFAddTorsionConstraint(b, c, d, e, False, 0, 0, 5)
+                        ff.MMFFAddTorsionConstraint(d, e, f, b, False, 0, 0, 5)
+                if self.conjugated_substituted_nitrogen_6aro:
+                    # *-[nX3&+0:1]1[a:2][a:3][a:4][a:5][a:6]1
+                    # a-b-c-d -> 180; a-b-g-f -> 180
+                    # b-c-d-e -> 0; e-f-g-b -> 0
+                    for a, b, c, d, e, f, g in self.conjugated_substituted_nitrogen_6aro:
+                        ff.MMFFAddTorsionConstraint(a, b, c, d, False, 180, 180, 1)
+                        ff.MMFFAddTorsionConstraint(a, b, g, f, False, 180, 180, 1)
+                        ff.MMFFAddTorsionConstraint(b, c, d, e, False, 0, 0, 5)
+                        ff.MMFFAddTorsionConstraint(e, f, g, b, False, 0, 0, 5)
                 if self.barbiturate_matches:
                     for match in self.barbiturate_matches:
                         n = len(match)
@@ -418,17 +435,27 @@ class ConformerGenerator:
         # Set molecule properties
         mol_rdkit.SetProp("_Name", self.name)
 
-        conjugated_substituted_Ns = utils.find_conjugated_substituted_nitrogen1(mol_rdkit)
-        additional_conjugated_substituted_Ns = utils.find_conjugated_substituted_nitrogen2(mol_rdkit)
+        conjugated_substituted_nitrogen_5aro = utils.find_conjugated_substituted_nitrogen_5aro(mol_rdkit)
+        conjugated_substituted_nitrogen_6aro = utils.find_conjugated_substituted_nitrogen_6aro(mol_rdkit)
+
         amide_linkages = utils.find_amide(mol_rdkit)
         barbiturate_matches = utils.find_barbiturates(mol_rdkit)
         hydantoin_matches = utils.find_hydantoins(mol_rdkit)
         substituted_N_barbi_hydan_like = utils.find_substituted_N_barbi_hydan_like(mol_rdkit, barbiturate_matches, hydantoin_matches)
         self.mp = rdForceFieldHelpers.MMFFGetMoleculeProperties(mol_rdkit, mmffVariant="MMFF94s")
         ff = rdForceFieldHelpers.MMFFGetMoleculeForceField(mol_rdkit, self.mp, confId=0)
-        if conjugated_substituted_Ns:
-            for a, b, c, d in conjugated_substituted_Ns: ff.MMFFAddTorsionConstraint(a, b, c, d, False, 0, 0, 5)
-            for a, b, c, d in additional_conjugated_substituted_Ns: ff.MMFFAddTorsionConstraint(a, b, c, d, False, 178, 182, 1)
+        if conjugated_substituted_nitrogen_5aro:
+            for a, b, c, d, e, f in conjugated_substituted_nitrogen_5aro:
+                ff.MMFFAddTorsionConstraint(a, b, c, d, False, 180, 180, 1)
+                ff.MMFFAddTorsionConstraint(a, b, f, e, False, 180, 180, 1)
+                ff.MMFFAddTorsionConstraint(b, c, d, e, False, 0, 0, 5)
+                ff.MMFFAddTorsionConstraint(d, e, f, b, False, 0, 0, 5)
+        if conjugated_substituted_nitrogen_6aro:
+            for a, b, c, d, e, f, g in conjugated_substituted_nitrogen_6aro:
+                ff.MMFFAddTorsionConstraint(a, b, c, d, False, 180, 180, 1)
+                ff.MMFFAddTorsionConstraint(a, b, g, f, False, 180, 180, 1)
+                ff.MMFFAddTorsionConstraint(b, c, d, e, False, 0, 0, 5)
+                ff.MMFFAddTorsionConstraint(e, f, g, b, False, 0, 0, 5)
         if barbiturate_matches:
             for match in barbiturate_matches:
                 n = len(match)

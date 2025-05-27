@@ -27,8 +27,9 @@ flippable_Ns_1 = Chem.MolFromSmarts("[!#1:1]-!@[NH+;!$(N-*=*):2]1-[A:3]-[A:4]-[A
 flippable_Ns_2 = Chem.MolFromSmarts("[*:1]-!@[N+0;!$(N-*=*):2]1-[A:3]-[A:4]-[A]-[A:6]-[A:5]-1")
 substituted_C_cyclohexane = Chem.MolFromSmarts('[!#1:1]-!@[CH:2]1-[A:3]-[A:4]-[A]-[A:6]-[A:5]-1')
 
-conjugated_substituted_nitrogen = Chem.MolFromSmarts('[a:1]:[a:2]:[a:3]:[nX3&+0:4]-*')
-additional_substituted_nitrogen = Chem.MolFromSmarts('*-[nX3&+0:1]:[a:2]:[a:3]')
+conjugated_substituted_nitrogen_5aro = Chem.MolFromSmarts('*-[nX3&+0:1]1[a:2][a:3][a:4][a:5]1')
+conjugated_substituted_nitrogen_6aro = Chem.MolFromSmarts('*-[nX3&+0:1]1[a:2][a:3][a:4][a:5][a:6]1')
+
 barbiturate = Chem.MolFromSmarts('[C;$(C~[O,S]):1]1~[N:2]~[C;$(C~[O,S]):3]~[N:4]~[C;$(C~[O,S]):5]~[CX4;$(C-*):6]~1') # To 0 iteratively four consecutive atoms
 hydantoin = Chem.MolFromSmarts('[C;$(C~[O,S]):1]1~[N:2]~[C;$(C~[O,S]):3]~[N:4]~[CX4;$(C-*):5]~1') # To 0 iteratively four consecutive atoms
 substituted_N_barbi_hydan_like = Chem.MolFromSmarts('*~[C^2,N^2:1][C^2,N^2:2][C^2,N^2:3]')
@@ -130,35 +131,20 @@ def find_flipped_carbon(mol_H: Mol):
     '''
     return mol_H.GetSubstructMatches(substituted_C_cyclohexane)
 
-def find_conjugated_substituted_nitrogen1(mol_H: Mol):
+def find_conjugated_substituted_nitrogen_5aro(mol_H: Mol):
     '''
-    Find the conjugated substituted nitrogen in the molecule. c:c:n(R):c:c. 
+    Find the conjugated substituted nitrogen in the molecule with 5 aromatic atoms
+    Format: *-[nX3&+0:1]1[a:2][a:3][a:4][a:5]1
+    '''
+    return mol_H.GetSubstructMatches(conjugated_substituted_nitrogen_5aro)
 
-    Only match to the atoms within the same ring as n.
-    '''
-    ring_info = mol_H.GetRingInfo()
-    matches = [tuple(match[:4]) for match in mol_H.GetSubstructMatches(conjugated_substituted_nitrogen)]
-    filtered_matches = []
-    for match in matches:
-        for ring in ring_info.AtomRings():
-            if set(match).issubset(ring):
-                filtered_matches.append(match)
-    return filtered_matches
 
-def find_conjugated_substituted_nitrogen2(mol_H: Mol):
+def find_conjugated_substituted_nitrogen_6aro(mol_H: Mol):
     '''
-        Another function to find conjugated substituted nitrogen in the molecule fo fix the dihedral
-
-        Find two *-n:a:a matches for each Ns, then fix them to 180 to make them planar
+    Find the conjugated substituted nitrogen in the molecule with 6 aromatic atoms
+    Format: *-[nX3&+0:1]1[a:2][a:3][a:4][a:5][a:6]1
     '''
-    matches = mol_H.GetSubstructMatches(additional_substituted_nitrogen)
-    ring_info = mol_H.GetRingInfo()
-    filtered_matches = []
-    for match in matches:
-        for ring in ring_info.AtomRings():
-            if set(match[1:]).issubset(ring):
-                filtered_matches.append(match)
-    return filtered_matches
+    return mol_H.GetSubstructMatches(conjugated_substituted_nitrogen_6aro)
 
 def find_barbiturates(mol_H: Mol):
 
