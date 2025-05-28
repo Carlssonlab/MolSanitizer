@@ -988,12 +988,12 @@ def count_confs_by_rotbonds_v2(mol, rot_bonds, VERBOSE=False):
             score_list.extend([peak[3]] * len(angle_vals))
         
 
-        # Filter out too similar angles (within ±10 degrees)
+        # Filter out too similar angles (within <±30 degrees)
         deduplicated_angles = []
         deduplicated_scores = []
         for angle, score in zip(angle_list, score_list):
             # Only add if not too similar to any existing angle
-            if not any(abs(angular_diff(angle, existing)) <= 10 for existing in deduplicated_angles):
+            if not any(abs(angular_diff(angle, existing)) < 30 for existing in deduplicated_angles):
                 deduplicated_angles.append(angle)
                 deduplicated_scores.append(score)
 

@@ -560,7 +560,7 @@ class ConformerGenerator:
                     visited.add(tuple(visitting.copy()))
                     ff = rdForceFieldHelpers.MMFFGetMoleculeForceField(mol, self.mp, confId=0)
                     energy = ff.CalcEnergy()
-                    if energy < min_energy: min_energy = min(energy, min_energy)
+                    if energy < min_energy: min_energy = energy
                     if energy <= min_energy + window: product.append((Chem.Conformer(mol.GetConformer(0)), energy))
             else:
                 # Use unvisited set approach for smaller spaces
@@ -587,7 +587,7 @@ class ConformerGenerator:
                     unvisited.remove(choice)  # Remove the chosen combination from the unvisited set
                     ff = rdForceFieldHelpers.MMFFGetMoleculeForceField(mol, self.mp, confId=0)
                     energy = ff.CalcEnergy()
-                    if energy < min_energy: min_energy = min(energy, min_energy)
+                    if energy < min_energy: min_energy = energy
                     if energy <= min_energy + window: product.append((Chem.Conformer(mol.GetConformer(0)), energy))
                     #product.append((Chem.Conformer(mol.GetConformer(0)), energy))
         return product, visited, unvisited
@@ -815,8 +815,8 @@ class ConformerGenerator:
             return
         # For very flexible molecules, we need to sample more, then filter by energy later
         else:
-            if numConfs*10 < possible_numConfs: numConfs = min(int(numConfs * 1.5), possible_numConfs)
-            elif numConfs*5 < possible_numConfs: numConfs = min(int(numConfs * 1.25), possible_numConfs)
+            if numConfs*10 < possible_numConfs: numConfs = min(int(numConfs * 1.5), possible_numConfs, requested_num_confs + 1000)
+            elif numConfs*5 < possible_numConfs: numConfs = min(int(numConfs * 1.25), possible_numConfs, requested_num_confs + 1000)
             else: numConfs = numConfs#min(numConfs, num_confs_by_rotbonds)
 
         # Molecules which don't have rings are not of interest --> only sample limitedly.
