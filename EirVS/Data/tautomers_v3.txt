@@ -8,8 +8,8 @@ H-lambda4-sulphane_to_lambda2-CH0	0	[SX3H:1]=[C&H0:2]>>[S&H0:1][CH:2]
 H-lambda4-sulphane_to_lambda2-CH1	0	[SX3H:1]=[CH:2]>>[S&H0:1][CH2:2]
 H-lambda4-sulphane_to_lambda2-CH2	0	[SX3H:1]=[CH2:2]>>[S&H0:1][CH3:2]
 #AROMATIZATIONS
-aromatize_3-imino-2H-5aro-CH0	0	[N,O,S:1]1[*H;!$(*~[OX1,OH,SX2H,SX1]):2][C:3](=[N&H0;!$(N-C=[C,N]):7])[*;!$(*~[OX1,OH,SX2H,SX1]):4]=,:[*;!$(*~[OX1,OH,SX2H,SX1]):5]1>>[n,o,s:1]1[a&H0:2][c:3]([NH:7])[a:4][a:5]1	exceptions:10.1039/C0OB00867B,10.1021/acs.orglett.7b03390
-aromatize_3-imino-2H2-5aro-CH0	0	[N,O,S:1]1[*H2:2][C:3](=[N&H0;!$(N-C=[C,N]):7])[*;!$(*~[OX1,OH,SX2H,SX1]):4]=,:[*;!$(*~[OX1,OH,SX2H,SX1]):5]1>>[n,o,s:1]1[aH:2][c:3]([NH:7])[a:4][a:5]1	exceptions:10.1039/C0OB00867B,10.1021/acs.orglett.7b03390
+aromatize_3-imino-2H-5aro-CH0	0	[NH,NH0,O,S:1]1[*H;!$(*~[OX1,OH,SX2H,SX1]):2][C:3](=[N&H0;!$(N-C=[C,N]):7])[*;!$(*~[OX1,OH,SX2H,SX1]):4]=,:[*;!$(*~[OX1,OH,SX2H,SX1]):5]1>>[nH,nH0,o,s:1]1[a&H0:2][c:3]([NH:7])[a:4][a:5]1	exceptions:10.1039/C0OB00867B,10.1021/acs.orglett.7b03390
+aromatize_3-imino-2H2-5aro-CH0	0	[NH,NH0,O,S:1]1[*H2:2][C:3](=[N&H0;!$(N-C=[C,N]):7])[*;!$(*~[OX1,OH,SX2H,SX1]):4]=,:[*;!$(*~[OX1,OH,SX2H,SX1]):5]1>>[nH,nH0,o,s:1]1[aH:2][c:3]([NH:7])[a:4][a:5]1	exceptions:10.1039/C0OB00867B,10.1021/acs.orglett.7b03390
 exo-methylidene-quinone_to_Me-quinone-CH1	0	[C:1]=[C:2]1[CH1;!$(C~[OX1,OH]):3][C;$(C=O):4][c;!$(c~[OX1,OH]):5][c;!$(c~[OX1,OH]):6][C;$(C=O):7]1>>[C:1]-[C:2]1=[CH0:3][C:4][c:5][c:6][C:7]1
 exo-methylidene-quinone_to_Me-quinone-CH2	0	[C:1]=[C:2]1[CH2:3][C;$(C=O):4][c;!$(c~[OX1,OH]):5][c;!$(c~[OX1,OH]):6][C;$(C=O):7]1>>[C:1]-[C:2]1=[CH1:3][C:4][c:5][c:6][C:7]1
 p-carboquinone_to_hydroquinone-CH2-CH3	0 [a;!$(a~[OX1,OH,SX2H,SX1]):1]1[a;!$(a~[OX1,OH,SX2H,SX1]):2][a:3](=[C:7]-[CH3:8])[a;!$(a~[OX1,OH,SX2H,SX1]):4][a;!$(a~[OX1,OH,SX2H,SX1]):5][a:6]1=[CH2:9]>>[a:1]1[a:2][a:3](-[C:7]=[CH2:8])[a:4][a:5][a:6]1-[CH3:9]
