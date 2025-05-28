@@ -222,8 +222,8 @@ acylimine_to_amide-CH1 0	[CH&X4:1]-[C&z1;!$([C&r{3-4}]):2]=[N:3]-[C:4]=[O:5]>>[C
 3-iminoisoquinoline_to_3-amino-NH2-NH1 0	[c;!$(c~[OX1,OH,SX1,SX2H]):1]1[c;!$(c~[OX1,OH,SX1,SX2H]):2][c;!$(c~[OX1,OH,SX1,SX2H]):3][c:4]2[c:5](-[NH:11])[n:6][c:7](=[NH:12])[a;!$(a~[OX1,OH,SX1,SX2H]):8][c:9]2[c;!$(c~[OX1,OH,SX1,SX2H]):10]1>>[c:1]1[c:2][c:3][c:4]2[c:5](=[N&H0:11])[n:6][c:7]([NH2:12])[a:8][c:9]2[c:10]1	based_on_PDB_5G2N
 3-iminoisoquinoline_to_3-amino-NH2-NH0 0	[c;!$(c~[OX1,OH,SX1,SX2H]):1]1[c;!$(c~[OX1,OH,SX1,SX2H]):2][c;!$(c~[OX1,OH,SX1,SX2H]):3][c:4]2[c:5](-[NH2:11])[n:6][c:7](=[N&H0:12])[a;!$(a~[OX1,OH,SX1,SX2H]):8][c:9]2[c;!$(c~[OX1,OH,SX1,SX2H]):10]1>>[c:1]1[c:2][c:3][c:4]2[c:5](=[NH:11])[n:6][c:7]([NH:12])[a:8][c:9]2[c:10]1	based_on_PDB_5G2N
 3-iminoisoquinoline_to_3-amino-NH1-NH0 0	[c;!$(c~[OX1,OH,SX1,SX2H]):1]1[c;!$(c~[OX1,OH,SX1,SX2H]):2][c;!$(c~[OX1,OH,SX1,SX2H]):3][c:4]2[c:5](-[NH:11])[n:6][c:7](=[N&H0:12])[a;!$(a~[OX1,OH,SX1,SX2H]):8][c:9]2[c;!$(c~[OX1,OH,SX1,SX2H]):10]1>>[c:1]1[c:2][c:3][c:4]2[c:5](=[N&H0:11])[n:6][c:7]([NH:12])[a:8][c:9]2[c:10]1	based_on_PDB_5G2N
-2-pyrazolin/isoxazole-5-one-CH1   0       [c;!$(c~[OX1,OH,SX1,SX2H]):1]1[cH:2][c:3](=[O:4])[a;$(n*),$(o):5][nH:6]1>>[C:1]1[CH2:2][C:3](=[O:4])[N,O:5][N&H0:6]=1  10.3164/jcbn.17-62
-2-pyrazolin/isoxazole-5-one-CH1   0       [c;!$(c~[OX1,OH,SX1,SX2H]):1]1[c&H0:2][c:3](=[O:4])[a;$(n*),$(o):5][nH:6]1>>[C:1]1[CH:2][C:3](=[O:4])[N,O:5][N&H0:6]=1  10.3164/jcbn.17-62
+2-pyrazolin/isoxazole-5-one-CH1   0       [c;!$(c~[OX1,OH,SX1,SX2H]):1]1[cH:2][c:3](=[O:4])[a;$(n-[a,A]),$(o):5][nH:6]1>>[C:1]1[CH2:2][C:3](=[O:4])[N,O:5][N&H0:6]=1  10.3164/jcbn.17-62
+2-pyrazolin/isoxazole-5-one-CH1   0       [c;!$(c~[OX1,OH,SX1,SX2H]):1]1[c&H0:2][c:3](=[O:4])[a;$(n-[a,A]),$(o):5][nH:6]1>>[C:1]1[CH:2][C:3](=[O:4])[N,O:5][N&H0:6]=1  10.3164/jcbn.17-62
 unspecific_enamine-to-imine-CH0-NH2 0	[C&H0&z0;!$(C*=[N,O,S]):1]=[C&z1;!$(C*=[N,O,S]):2]-[NH2:3]>>[CH:1][C:2]=[NH:3]
 unspecific_enamine-to-imine-CH1-NH2 0	[CH&z0;!$(C*=[N,O,S]):1]=[C&z1;!$(C*=[N,O,S]):2]-[NH2:3]>>[CH2:1][C:2]=[NH:3]
 unspecific_enamine-to-imine-CH2-NH2 0	[CH2;!$(C*=[N,O,S]):1]=[C&z1;!$(C*=[N,O,S]):2]-[NH2:3]>>[CH3:1][C:2]=[NH:3]
