@@ -341,7 +341,7 @@ class ConformerGenerator:
             temp_mol = Chem.Mol(self.empty_mol)
             with Chem.SDWriter(f"{self.name}_confs.sdf") as w:
                 for _, row in conf_ring_descriptors_df.iterrows():
-                    conf_idx = temp_mol.AddConformer(row[0], assignId=True)
+                    conf_idx = temp_mol.AddConformer(row.iloc[0], assignId=True)
                     w.write(temp_mol, confId=conf_idx)
         # Remove the conformers that do not compromise all the non-planar rings       
         #conf_ring_descriptors_df.to_csv(f"{self.name}_conf_ring_descriptors.csv", index=False)
