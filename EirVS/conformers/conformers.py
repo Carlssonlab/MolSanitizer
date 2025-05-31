@@ -252,9 +252,8 @@ class ConformerGenerator:
             if method == 'srETKDGv3': params = rdDistGeom.srETKDGv3()
             else: params = rdDistGeom.ETKDGv3()
             params.numThreads = self.numcores
-            if self.mol.GetNumHeavyAtoms() > 15: 
-                params.pruneRmsThresh = 0.35 # An arbitrary threshold for small molecules and fragments, 
-                                             # the RMSD pruning maynot be suitable anymore
+            if not(self.flippable_Cs) and not(self.flippable_Ns): 
+                params.pruneRmsThresh = 0.35 # If there are flippable C or N atoms, we need to generate more to filter out the favorable ones.
             params.randomSeed = self.randomSeed # For reproducibility
             params.useRandomCoords = True
             conf_ring_descriptors_df = pd.DataFrame()
