@@ -793,7 +793,7 @@ class ConformerGenerator:
     
     def conf_samplingv2(self, numConfs=2000, energywindow = 25, AllowNonRing=False, request_alignment=None):
         rot_bonds = utils.getDihedralMatches_v2(self.ring_confs[0])
-        possible_numConfs, angle_map, score_map = utils.count_confs_by_rotbonds_v2(self.ring_confs[0], rot_bonds)#, VERBOSE=True)
+        possible_numConfs, angle_map, score_map = utils.count_confs_by_rotbonds_v2(self.ring_confs[0], rot_bonds, VERBOSE=self.VERBOSE)
         importance_order = utils.get_importance_order(self.ring_confs[0], rot_bonds)
         requested_num_confs = numConfs
 

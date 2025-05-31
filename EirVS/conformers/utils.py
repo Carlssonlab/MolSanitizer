@@ -958,6 +958,9 @@ def count_confs_by_rotbonds_v2(mol, rot_bonds, VERBOSE=False):
                 continue
             rule = bond_to_rule[bond_key]
             angles, scores = [], []
+            if len(rule[2][0]) < 4:
+                # Already reduced for this angle, skip further reduced
+                continue
             for peak in rule[2]:
                 angle_list = discretinize_dihedrals(peak[0], peak[2])
                 angles.extend(angle_list)
