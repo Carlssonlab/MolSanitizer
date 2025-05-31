@@ -30,6 +30,9 @@ substituted_C_cyclohexane = Chem.MolFromSmarts('[!#1:1]-!@[CH:2]1-[A:3]-[A:4]-[A
 conjugated_substituted_nitrogen_5aro = Chem.MolFromSmarts('*-[nX3&+0:1]1[a:2][a:3][a:4][a:5]1')
 conjugated_substituted_nitrogen_6aro = Chem.MolFromSmarts('*-[nX3&+0:1]1[a:2][a:3][a:4][a:5][a:6]1')
 
+aro_5_patt = Chem.MolFromSmarts('*-[a:1]1[a:2][a:3][a:4][a:5]1')  # 5 aromatic atoms
+aro_6_patt = Chem.MolFromSmarts('*-[a:1]1[a:2][a:3][a:4][a:5][a:6]1')  # 6 aromatic atoms
+
 barbiturate = Chem.MolFromSmarts('[C;$(C~[O,S]):1]1~[N:2]~[C;$(C~[O,S]):3]~[N:4]~[C;$(C~[O,S]):5]~[CX4;$(C-*):6]~1') # To 0 iteratively four consecutive atoms
 hydantoin = Chem.MolFromSmarts('[C;$(C~[O,S]):1]1~[N:2]~[C;$(C~[O,S]):3]~[N:4]~[CX4;$(C-*):5]~1') # To 0 iteratively four consecutive atoms
 substituted_N_barbi_hydan_like = Chem.MolFromSmarts('*~[C^2,N^2:1][C^2,N^2:2][C^2,N^2:3]')
@@ -131,20 +134,20 @@ def find_flipped_carbon(mol_H: Mol):
     '''
     return mol_H.GetSubstructMatches(substituted_C_cyclohexane)
 
-def find_conjugated_substituted_nitrogen_5aro(mol_H: Mol):
+def find_aro5_rings(mol_H: Mol):
     '''
-    Find the conjugated substituted nitrogen in the molecule with 5 aromatic atoms
-    Format: *-[nX3&+0:1]1[a:2][a:3][a:4][a:5]1
+    Find the five-membered aromatic rings to reinforce the planarity
+    Format: *-[a:1]1[a:2][a:3][a:4][a:5]1
     '''
-    return mol_H.GetSubstructMatches(conjugated_substituted_nitrogen_5aro)
+    return mol_H.GetSubstructMatches(aro_5_patt)
 
 
-def find_conjugated_substituted_nitrogen_6aro(mol_H: Mol):
+def find_aro6_rings(mol_H: Mol):
     '''
-    Find the conjugated substituted nitrogen in the molecule with 6 aromatic atoms
-    Format: *-[nX3&+0:1]1[a:2][a:3][a:4][a:5][a:6]1
+    Find the six-membered aromatic rings to reinforce the planarity
+    Format: *-[a:1]1[a:2][a:3][a:4][a:5][a:6]1
     '''
-    return mol_H.GetSubstructMatches(conjugated_substituted_nitrogen_6aro)
+    return mol_H.GetSubstructMatches(aro_6_patt)
 
 def find_barbiturates(mol_H: Mol):
 
@@ -843,9 +846,9 @@ def discretinize_dihedrals(typical, tolerance, step = 30):
     step: the step size for discretinization
     '''
     if tolerance < step: return [typical]
-    n_steps = int(tolerance / step)
-    angles = [typical + i * step for i in range(-n_steps, n_steps + 1)]
-    # angles = [typical, typical - step, typical + step] #Only sample 3 angles for each dihedral
+    # n_steps = int(tolerance / step)
+    # angles = [typical + i * step for i in range(-n_steps, n_steps + 1)]
+    angles = [typical, typical - step, typical + step] #Only sample 3 angles for each dihedral
 
     normalized_angles = [(angle + 180) % 360 - 180 for angle in angles]
     return normalized_angles
