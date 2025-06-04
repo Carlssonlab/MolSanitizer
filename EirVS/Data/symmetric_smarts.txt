@@ -1,5 +1,6 @@
 [*:1]-[*X4^3:1](-[CH3])(-[CH3])-[CH3]   tertbutyl    3
 [!#1:1]-[NX4&+1H3] protonated_prim_amines 3
+[*:1]-[CX3:1](=O)-[O-]  carboxylate 2
 [NX3;$(N([CH3])[CH3]),$([NH2]):1]-[CX3:1](=O)-[#1,*]    N,N-dimethylamide_or_prim-amide   2
 [*:1]-[a:1]1[cH][cH][cH][cH]1   N-subst-pyrrole 2
 [*:1]-[a:1]1[cH][nX2][nX2][cH]1 4-subst-1,2,4-triazine   2
