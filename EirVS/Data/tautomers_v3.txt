@@ -209,7 +209,8 @@ alkyl-diazene_to_hydrazone-CH3	0	[#6:1]-[N:2]=[N:3]-[CH3:4]>>[#6:1][NH:2][N:3]=[
 2-unsusbt-4H-pyrazolone_to_1H-CH2	0	[O:1]=[C:2]1[CH2:3][C;!$(C-[OH]):4]=[NX2:5][NH:6]1>>[O:1]=[c:2]1[cH1:3][c:4][nH:5][nH:6]1
 NC=N-acylguanidine-5ring_to_NH-acylguanidine	0	[O:1]=[C:2]1[N:3]=[C:4](-@[NH1:7])[NX3:5][C;!$(C~[OH,OX1,SX1,SX2H]):6]1>>[O:1]=[C:2]1[NH:3][C:4](=[N&H0:7])[N:5][C:6]1
 NC=N-acylguanidine-6ring_to_NH-acylguanidine	0	[O:1]=[C:2]1[N:3]=[C:4](-@[NH1:8])[NX3:5][C;!$(C~[OH,OX1,SX1,SX2H]):6]-[C;!$(C~[OH,OX1,SX1,SX2H]):7]1>>[O:1]=[C:2]1[NH:3][C:4](=[N&H0:8])[N:5][C:6][C:7]1
-N=CN-acylguanidine-5ring_to_NH-acylguanidine	0	[O:1]=[C:2]1[NX3:3][C:4](-@[NH1:7])=[N:5][C;!$(C~[OH,OX1,SX1,SX2H]):6]1>>[O:1]=[C:2]1[N:3][C:4](=[N&H0:7])[NH:5][C:6]1
+N=CN-acylguanidine-5ring_to_NH-acylguanidine-CH0	0	[OH:1]-[c:2]1[nX3:3][c:4](-@[NH1:7])[n:5][cH0;!$(c~[OH,OX1,SX1,SX2H]):6]1>>[O&H0:1]=[C:2]1[N:3][C:4](=[N&H0:7])[NH:5][CH:6]1
+N=CN-acylguanidine-5ring_to_NH-acylguanidine-CH1	0	[OH:1]-[c:2]1[nX3:3][c:4](-@[NH1:7])[n:5][cH1:6]1>>[O&H0:1]=[C:2]1[N:3][C:4](=[N&H0:7])[NH:5][CH2:6]1
 N=CN-acylguanidine-6ring_to_NH-acylguanidine	0	[O:1]=[C:2]1[NX3:3][C:4](-@[NH1:8])=[N:5][C;!$(C~[OH,OX1,SX1,SX2H]):6]-[C;!$(C~[OH,OX1,SX1,SX2H]):7]1>>[O:1]=[C:2]1[N:3][C:4](=[N&H0:8])[NH:5][C:6][C:7]1
 N=CN-exo-acylguanidine_to_NC=N-exo-acylguanidine-NH0	0	[*;$(A=[O,S]),$(C#N),$(a):1]-[NH:2]-!@[C:3](=[N&H0:4])-[N:5]>>[*:1]-[N&H0:2]=[C:3](-[NH:4])[N:5]	10.1039/P29850001255
 N=CN-exo-acylguanidine_to_NC=N-exo-acylguanidine-NH1	0	[*;$(A=[O,S]),$(C#N),$(a):1]-[NH:2]-!@[C:3](=[NH:4])-[N:5]>>[*:1]-[N&H0:2]=[C:3](-[NH2:4])[N:5]	10.1039/P29850001255
