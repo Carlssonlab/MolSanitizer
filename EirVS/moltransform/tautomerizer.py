@@ -9,7 +9,7 @@ from pathlib import Path
 
 from functools import partial
 from rdkit import Chem, RDLogger
-from rdkit.Chem import AllChem
+from rdkit.Chem import AllChem, rdchem
 
 #from .molvs_tautomers import TautomerEnumerator
 
@@ -143,6 +143,14 @@ class Tautomerizer:
             logger.info(f"Loaded {len(reactions)} reactions from {file_path}")
         return reactions
     
+    def count_defined_stereo_doublebonds(self, mol):
+        num_stereo = 0
+        for bond in mol.GetBonds():
+            if bond.GetBondType() == rdchem.BondType.DOUBLE:
+                stereo = bond.GetStereo()
+                if stereo != rdchem.BondStereo.STEREONONE:
+                    num_stereo += 1
+        return num_stereo
         
     def tautomer_canonicalize_rdkit(self, mol: Chem.Mol):
         """Tautomerize the input molecule using the RDKit TautomerEnumerator class.
@@ -199,9 +207,18 @@ class Tautomerizer:
                         if self.debug: print(f"\tNone of the tautomers have the same configuration as the input molecule.")
                         canonical_tautomer = equal_tautomers[0][0]    
                 else: 
-                    # No allylic bonds found, just pick the first one
-                    if self.debug: print(f"\tNo allylic bonds found, picking the first one.")
-                    canonical_tautomer = equal_tautomers[0][0]
+                    # No allylic bonds found, prioritize the tautomers also without allylic bonds
+                    canonical_tautomer = None
+                    if self.debug: print(f"\tNo allylic bonds found, picking the first one that also has no allylic bond.")
+                    for tautomer in (equal_tautomers):
+                        matches = tautomer[0].GetSubstructMatches(allylic)
+                        if not matches:
+                            canonical_tautomer = tautomer[0]
+                            if self.debug: print(f'\tChanged to {tautomer[2]}')
+                            break
+                    # A fallback if no tautomer without allylic bonds is found
+                    if canonical_tautomer == None: 
+                        canonical_tautomer = equal_tautomers[0][0]
             else:
                 # No equal tautomers found, just pick the first one
                 canonical_tautomer = equal_tautomers[0][0]
@@ -298,17 +315,22 @@ class Tautomerizer:
         if self.neutralize:
             mol = Neutralizer.neutralize_mol(mol)
         if self.taurdkit:
+            intial_mol = Chem.Mol(mol)
             # Step 1: Use RDKit TautomerEnumerator to canonicalize the input molecule
             rdkit_canonical = self.tautomer_canonicalize_rdkit(mol)
-            initial_chiral_centers = len(Chem.FindMolChiralCenters(mol))
+            initial_chiral_centers = len(Chem.FindMolChiralCenters(intial_mol))
             rdkit_chiral_centers = len(Chem.FindMolChiralCenters(rdkit_canonical))
             # Canonicalization loses the stereochemistry,
             # so we keep the original molecule if it has more chiral centers
-            mol = mol if rdkit_chiral_centers < initial_chiral_centers else rdkit_canonical
+            if self.debug: print(f"\tInitial chiral centers: {initial_chiral_centers}, RDKit canonical chiral centers: {rdkit_chiral_centers}")
+            mol = intial_mol if rdkit_chiral_centers < initial_chiral_centers else rdkit_canonical
 
-            if self.debug:
-                print(f"Using RDKit tautomerizer for {smiles}...\n\tTurned to {Chem.MolToSmiles(mol)}")
-                logger.info(f"Using RDKit tautomerizer for {smiles}...\n\tTurned to {Chem.MolToSmiles(mol)}")
+            intial_defined_double_bonds = self.count_defined_stereo_doublebonds(intial_mol) # Number of defined double bonds
+            rdkit_defined_double_bonds = self.count_defined_stereo_doublebonds(rdkit_canonical) # Number of defined double bonds
+            if self.debug: print(f"\tInitial defined double bonds: {intial_defined_double_bonds}, RDKit canonical defined double bonds: {rdkit_defined_double_bonds}")
+            # If the canonical tautomer has less defined double bonds, we keep the original molecule
+            mol = intial_mol if rdkit_defined_double_bonds < intial_defined_double_bonds else rdkit_canonical
+        
         # Step 2: Standardize the molecule
         standardized_mol = self.standardize(mol)
         if self.debug:
@@ -415,6 +437,7 @@ def main():
         df = pd.read_csv(args.input, names = ['smiles', 'ids'], sep = r'\s+', header=None)
         tautomers = tautomerizer.tautomerize_df(df)
         tautomers[['smiles', 'ids']].to_csv(args.output, header=False, sep = ' ', index=False)
+
 
 
 if __name__=="__main__":
