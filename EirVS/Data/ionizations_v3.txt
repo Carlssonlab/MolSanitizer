@@ -2,7 +2,7 @@
 # Lines start with # or empty lines are skipped.
 # The rules are constructed as: FUNCTIONAL_GROUP	pKa     TYPE	Enumerate	REACTION	REF
 # Only the first 5 columns are necessary.
-# Last update: May 15th, 2025
+# Last update: June 12th, 2025
 
 # FUNCTIONAL_GROUP	pKa	TYPE	Enumerate	REACTION	REF
 #OH-ACIDITY-CARBONYL
@@ -19,7 +19,7 @@ heteroacid	2	ACID	0	[OH1&+0;$(O-[P,S]=O)!$(O~[P,S]~[-1]):1]>>[OH0&-:1]
 nitroacid	-6	ACID	0	[OH1&+0;$(O-N=O)!$(O~N~[-1]):1]>>[OH0&-:1]
 phosphate-2stage	6	ACID	0	[OH1&+0;$(O-P(=O)(-[O&-])-[#6&+0,#8&+0]):1]>>[OH0&-:1]
 #OH-ACIDITY-VINYLOG/PHENYLOG
-squaric_acid	4	ACID	1	[OH1&+0;$(O-c:c:c=O)!$(O~*~[-1])!$(O~*~*~[-1]):1]>>[OH0&-:1]
+squaric_acid	4	ACID	1	[OH1&+0;$(O-c:[c&R1]:c=O)!$(O~*~[-1])!$(O~*~*~[-1]):1]>>[OH0&-:1]
 tropolone	7	ACID	0	[OH1&+0;$(O-c1c(=O)ccccc1)!$(O~*~*~[-1])!$(O-cc-!@*~[*-;!$([O-]-[N+]=O)]):1]>>[OH0&-:1]
 vanillin_like	8	ACID	1	[OH1&+0;$(O-c1[c;!$(cN(=O)O)!$(c[F,Cl,Br,I])][c;!$(cN(=O)O)!$(c[F,Cl,Br,I])]c(~[#6;$([CH]),$([#6]~[#6])]=O)[c;!$(cN(=O)O)!$(c[F,Cl,Br,I])][c;!$(cN(=O)O)!$(c[F,Cl,Br,I])]1)!$(O~*~*~[-1]):1]>>[OH0&-:1]
 vinyl_acid	7	ACID	1	[OH1&+0;$(O-[$(C=C-C(=O)aa[OH]),$([#6](-,:[#6]=O)=,:[#6]-,:[#6]=O)])!$(O~*~[-1])!$(O~*~*~[-1]):1]>>[OH0&-:1]
