@@ -1241,7 +1241,7 @@ def gen_conf_chunk(df: pd.DataFrame, args, input_file='0'):
                         process.terminate()
                         process.join()
                         try:
-                            confgen = ConformerGenerator(smiles, name, num_ring_confs=nr, method='babel', tolerance=tolerance, VERBOSE=VERBOSE)
+                            confgen = ConformerGenerator(smiles, name, num_ring_confs=nr, method='obabel', tolerance=tolerance, VERBOSE=VERBOSE)
                         except Exception as e:
                             logger.error(f"Error in generating initial conformation using OpenBabel for {name}, skipping it {e}")
                             utils.log_error(smiles, name)
