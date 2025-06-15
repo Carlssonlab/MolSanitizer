@@ -919,9 +919,10 @@ def count_confs_by_rotbonds_v2(mol, rot_bonds, ignoretorlib = False, amide_bonds
     matched_rules = strain_filter.get_match_dihedral(mol, Torlib = downscaled_torlib)
 
     amide_atoms = set()
-    for a, b, c, d, e in amide_bonds:
-        amide_atoms.add(b)
-        amide_atoms.add(c)
+    if (amide_bonds):
+        for a, b, c, d, e in amide_bonds:
+            amide_atoms.add(b)
+            amide_atoms.add(c)
 
     # Pre-compute a dictionary of rules by bond
     rule_by_bond = {}
@@ -946,7 +947,6 @@ def count_confs_by_rotbonds_v2(mol, rot_bonds, ignoretorlib = False, amide_bonds
 
     for amide_match in mol.GetSubstructMatches(amide_pattern_mol):
         bond_key = tuple(sorted(amide_match[0:2]))
-        print(bond_key)
         if bond_key not in bond_to_rule:
             continue
         rule = bond_to_rule[bond_key]

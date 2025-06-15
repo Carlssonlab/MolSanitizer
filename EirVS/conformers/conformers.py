@@ -1282,13 +1282,17 @@ def gen_conf_chunk(df: pd.DataFrame, args, input_file='0'):
             if 'pdbqt' in args.format: confgen.to_pdbqt()
 
             if any(format in args.format for format in ['sdf', 'mol2', 'db2', 'db2.tgz']):
-                confgen.conf_sampling(numConfs=numConfs,
-                                      energywindow=energywindow,
-                                      ignoreTorlib=ignoreTorlib,
-                                      AllowNonRing=False,
-                                      request_alignment=request_alignment,
-                                     )
-            
+                try:
+                    confgen.conf_sampling(numConfs=numConfs,
+                                        energywindow=energywindow,
+                                        ignoreTorlib=ignoreTorlib,
+                                        AllowNonRing=False,
+                                        request_alignment=request_alignment,
+                                        )
+                except Exception as e:
+                    logger.error(f"Error in conformational sampling for {name}: {e}")
+                    utils.log_error(smiles, name)
+                    continue
             if args.timing: sampling_time = time.time() # Time for sampling
             if 'sdf' in args.format: confgen.to_sdf()
             if 'mol2' in args.format: confgen.to_mol2()
