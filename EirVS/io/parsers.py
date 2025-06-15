@@ -135,7 +135,7 @@ def parseArguments(args = None, batch_mode = False):
     gen3d.add_argument('--rigid', type = str, default = None, help='Only align the DB2 on this rigid scaffold in SMARTS format. All rings if not provided.')
     gen3d.add_argument('--nringconfs', '-nr', type=int, default=1,
                                             help='Maximum number of ring conformers to generate (default: 1)')
-    gen3d.add_argument('--mode', '-mode', choices=['vs', 'extensive', 'ignoretorlib', 'extensive2'], default='vs', help='Mode for generating conformers\nDefault: vs (virtual screening) - Options: vs, extensive, ignoretorlib')
+    gen3d.add_argument('--mode', '-mode', choices=['fixed', 'random', 'ignoretorlib'], default='fixed', help='Mode for generating conformers\nDefault: fixed - Options: fixed, random, ignoretorlib')
     gen3d.add_argument('--tolerance', '-tol', type=float, default=30, help='Minimum angle for differentiating two conformers (default: 30)')
     gen3d.add_argument('--nocleanup', action='store_false', dest='cleanup', default = True, help='Do not clean up the temporary files')
 

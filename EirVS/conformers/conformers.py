@@ -77,7 +77,7 @@ class ConformerGenerator:
             request_alignment (str): Ring alignment in SMILES or SMARTS to support constrained docking
             ignoreTorlib (bool): Whether to ignore the torsion library
             threshold (float): Threshold in Angstrom for non-bonded atom distance.
-            mode (str): Mode for conformer sampling ('vs' - virtual screening, 'extensive', 'ignoretorlib')
+            mode (str): Mode for conformer sampling ('fixed', 'random', 'ignoretorlib)
             tolerance (float): Tolerance for dihedral angle sampling.
             VERBOSE (bool): Whether to print verbose output
         """
@@ -206,11 +206,11 @@ class ConformerGenerator:
                 for match in self.sulfo_matches: 
                     print(f'\t {match}')
             if self.conjugated_substituted_nitrogen_5aro:
-                print('\tFound 5-membered aromatic rings')
+                print('\tFound 5-membered nitrogen aromatic rings')
                 for match in self.conjugated_substituted_nitrogen_5aro: 
                     print(f'\t {match}')
             if self.conjugated_substituted_nitrogen_6aro:
-                print('\tFound 6-membered aromatic rings')
+                print('\tFound 6-membered nitrogen aromatic rings')
                 for match in self.conjugated_substituted_nitrogen_6aro: 
                     print(f'\t {match}')
             if self.barbiturate_matches:
@@ -226,7 +226,7 @@ class ConformerGenerator:
                 for match in self.substituted_N_barbi_hydan_like:
                     print(f'\t {match}')
             if self.amide_linkages:
-                print('\tFound amide linkages')
+                print('\tFound secondary or primary amides')
                 for match in self.amide_linkages: 
                     print(f'\t {match}')
             
@@ -253,7 +253,8 @@ class ConformerGenerator:
             else: params = rdDistGeom.ETKDGv3()
             params.numThreads = self.numcores
             if not(self.flippable_Cs) and not(self.flippable_Ns): 
-                params.pruneRmsThresh = 0.35 # If there are flippable C or N atoms, we need to generate more to filter out the favorable
+                # If there are flippable C or N atoms, we need to generate more to filter out the favorable
+                params.pruneRmsThresh = 0.35 
             params.randomSeed = self.randomSeed # For reproducibility
             params.useRandomCoords = True
             conf_ring_descriptors_df = pd.DataFrame()
@@ -294,8 +295,8 @@ class ConformerGenerator:
                         ff.MMFFAddTorsionConstraint(a, b, c, d, False, 179, 181, 1)
                 if self.amide_linkages:
                     for a, b, c, d, e in self.amide_linkages: # O=C-N(-C)-H should be coplanar.
-                        ff.MMFFAddTorsionConstraint(a, b, c, d, False, 0, 0, 1)
-                        ff.MMFFAddTorsionConstraint(a, b, c, e, False, 180, 180, 1)
+                        ff.MMFFAddTorsionConstraint(a, b, c, d, False, -2, 2, 1)
+                        ff.MMFFAddTorsionConstraint(a, b, c, e, False, 178, 182, 1)
                 ff.Minimize()
                 conformer = self.mol_H.GetConformer(cid)
                 energy = ff.CalcEnergy()
@@ -472,8 +473,8 @@ class ConformerGenerator:
                 ff.MMFFAddTorsionConstraint(a, b, c, d, False, 179, 181, 1)
         if amide_linkages:
             for a, b, c, d, e in amide_linkages: # O=C-N(-C)-H should be coplanar.
-                ff.MMFFAddTorsionConstraint(a, b, c, d, False, 0, 0, 1)
-                ff.MMFFAddTorsionConstraint(a, b, c, e, False, 180, 180, 1)
+                ff.MMFFAddTorsionConstraint(a, b, c, d, False, -2, 2, 1)
+                ff.MMFFAddTorsionConstraint(a, b, c, e, False, 178, 182, 1)
         ff.Minimize()
         self.ring_confs = [Chem.Mol(mol_rdkit)] # Replicate the output from embed_rdkit
         self.amsol_mol = Chem.Mol(mol_rdkit) # An RDKit Mol Object with upto 10 confs for AMSOL
@@ -504,7 +505,7 @@ class ConformerGenerator:
 
         bonded_pairs, same_parent_pairs = utils.precompute_bonded_and_same_parent_pairs(mol)
         # Condition to switch between visited matrix and unvisited set approaches
-        if self.mode == 'extensive':
+        if self.mode == 'random':
                 n_transform = len(match_torlib)  # Number of rotatable bonds
                 visitting = [0 for _ in range(n_transform)]
                 if visited is None: visited = np.empty((0, n_transform))
@@ -608,7 +609,7 @@ class ConformerGenerator:
         if self.request_alignment is None and request_alignment is not None:
             self.request_alignment = request_alignment
         
-        if self.mode == 'extensive2':
+        if self.mode == 'fixed' or self.mode == 'ignoretorlib':
             # This is still experimental, call conf_samplingv2, where Torlib is read differently
             # and the angle chosen would be deterministic. By default, peak +- 30 degrees, if tol2 >= 30.
             self.conf_samplingv2(numConfs = numConfs, energywindow = energywindow, AllowNonRing=False, request_alignment=request_alignment)
@@ -792,7 +793,11 @@ class ConformerGenerator:
     
     def conf_samplingv2(self, numConfs=2000, energywindow = 25, AllowNonRing=False, request_alignment=None):
         rot_bonds = utils.getDihedralMatches_v2(self.ring_confs[0])
-        possible_numConfs, angle_map, score_map = utils.count_confs_by_rotbonds_v2(self.ring_confs[0], rot_bonds, VERBOSE=self.VERBOSE)
+        possible_numConfs, angle_map, score_map = utils.count_confs_by_rotbonds_v2(self.ring_confs[0],
+                                                                                   rot_bonds,
+                                                                                   (self.mode == 'ignoretorlib'),
+                                                                                   amide_bonds = self.amide_linkages,
+                                                                                   VERBOSE=self.VERBOSE)
         importance_order = utils.get_importance_order(self.ring_confs[0], rot_bonds)
         requested_num_confs = numConfs
 
@@ -801,8 +806,7 @@ class ConformerGenerator:
             print(f"\tRotatable bonds: {rot_bonds}")
             print(f"\tPossible angles:")
             for idx in range(len(angle_map)):
-                print(f"\t{angle_map[idx]}")
-                print(f"\t{score_map[idx]}")
+                print(f"\t{angle_map[idx]} {score_map[idx]}")
 
         # Find the rigid part only once outside the loop to save processing time
         self.atom_maps, self.label_map = utils.find_rigid_part(self.ring_confs[0], request_alignment)
@@ -834,12 +838,29 @@ class ConformerGenerator:
             if self.sulfo_matches: possible_numConfs, angle_map, score_map = utils.count_confs_by_rotbonds_v2(mol, rot_bonds)
             if self.VERBOSE: print('\tRunning stochastic torsional sampling')
             
-            product = self.stochastic_sampling_v2(processing_mol, angle_map, score_map, numConfs, possible_numConfs, importance_order, energywindow, 50_000, list())
+            product = self.stochastic_sampling_v2(mol = processing_mol,
+                                                  angle_map = angle_map,
+                                                  score_map = score_map,
+                                                  numConfs = numConfs,
+                                                  possible_numConfs = possible_numConfs,
+                                                  importance_order =  importance_order, 
+                                                  window = energywindow, 
+                                                  max_attempts = 50_000, 
+                                                  product = list())
             
             if len(product) == 0:
                 print(f'Failed to find any confs (generated {len(product)} confs), using the random dihedral angles approach as a fallback')
                 num_confs_by_rotbonds, match_torlib = utils.count_confs_by_rotbonds(mol = self.ring_confs[0], VERBOSE = self.VERBOSE)
-                product, _, _ = self.stochastic_sampling(processing_mol, 2, match_torlib, numConfs, num_confs_by_rotbonds, energywindow, 15000, list(), visited = None, unvisited=None)
+                product, _, _ = self.stochastic_sampling(mol = processing_mol,
+                                                         tolerance_level = 2, 
+                                                         match_torlib = match_torlib,
+                                                         numConfs = numConfs,
+                                                         total_possible_solutions = num_confs_by_rotbonds,
+                                                         window = energywindow,
+                                                         max_attempts = 15000,
+                                                         product = list(),
+                                                         visited = None,
+                                                         unvisited=None)
                 
                 if len(product) == 0: 
                     print(f'Failed for stochastic sampling (generated {len(product)} confs), use the original conformation')
@@ -1335,7 +1356,7 @@ def main():
     parser.add_argument('--smiles', '-s', type = str, default = None, help='Input SMILES string.')
     parser.add_argument('--prefix', '-p', type=str, default = 'db2', help='Prefix for the output files.')
     parser.add_argument('--format', '-f', type=str, nargs='+', default=['db2.tgz'], choices=['db2', 'db2.tgz', 'pdbqt', 'sdf', 'mol2'], help='Output format(s) (e.g., db2.tgz, pdbqt, sdf, mol2).')
-    parser.add_argument('--mode', '-mode', type=str, default='vs', choices=['vs', 'extensive', 'ignoretorlib'], help='Mode for conformer generation (vs, extensive, ignoretorlib).')
+    parser.add_argument('--mode', '-mode', type=str, default='fixed', choices=['fixed', 'random', 'ignoretorlib'], help='Mode for conformer generation (fixed, random, ignoretorlib).')
     parser.add_argument('--tolerance', '-tol', type=float, default=30, help='Tolerance for dihedral angle sampling (default: 30).')
     parser.add_argument('--numconfs', '-nconfs', type=int, default=2000, help='Number of conformers to generate (default: 2000).')
     parser.add_argument('--nringconfs', '-nr', type=int, default=1, help='Number of ring conformers to generate (default: 1).')

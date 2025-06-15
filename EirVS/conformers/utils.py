@@ -36,7 +36,10 @@ aro_6_patt = Chem.MolFromSmarts('*-[a:1]1[a:2][a:3][a:4][a:5][a:6]1')  # 6 aroma
 barbiturate = Chem.MolFromSmarts('[C;$(C~[OX1,SX1]):1]1~[N:2]~[C;$(C~[OX1,SX1]):3]~[*^2:4]~[*^2:5]~[*:6]~1') # To 0 iteratively four consecutive atoms
 hydantoin = Chem.MolFromSmarts('[C;$(C~[OX1,SX1]):1]1~[N:2]~[C;$(C~[OX1,SX1]):3]~[*^2:4]~[A:5]~1') # To 0 iteratively four consecutive atoms
 substituted_N_barbi_hydan_like = Chem.MolFromSmarts('*~[C^2,N^2:1][C^2,N^2:2][C^2,N^2:3]')
-amide_substructure = Chem.MolFromSmarts('[O:1]=[CX3:2]!@[N&+0:3](-[!#1:4])-[#1:5]')
+amide_substructure = Chem.MolFromSmarts('[O:1]=[CX3:2]!@[N&+0:3](-[#1:4])-[*:5]') #primary, secondary amide for constrained planarity only
+
+const_rule = [(-120, 30, 30, 1), (-60, 30, 30, 1), (0, 30, 30, 1), (60, 30, 30, 1), (120, 30, 30, 1), (180, 30, 30, 1)]
+
 #symmetric_ring = Chem.MolFromSmarts('[*:1]-!@[a;$(a1[aH][aH]a[aH][aH]1):2]')
 # symmetric_ring = Chem.MolFromSmarts('[*:1]-!@[a:2]1[aH:3][aH:4][a:5][aH:6][aH:7]1')
 #
@@ -368,7 +371,15 @@ def find_sulfonamide_like_scaffolds(mol_H: Mol):
         else: matches_sulfonamide.append((a, b, c, d, e))
     return matches_sulfonamide
 
-def classify_confs(conf, energy, non_planar_rings, flippable_Ns, flippable_Cs, sulfo_matches, conf_ring_descriptors_df, tolerance=20):
+def classify_confs(conf, 
+                   energy, 
+                   non_planar_rings, 
+                   flippable_Ns, 
+                   flippable_Cs, 
+                   sulfo_matches, 
+                   conf_ring_descriptors_df, 
+                   tolerance=20):
+    
     temp_dict = {
         'Conformer': conf,
         'Energy': energy
@@ -422,8 +433,6 @@ def remove_unfavorable_confs(conf_ring_descriptors_df: pd.DataFrame, name: str =
         conf_ring_descriptors_df = conf_ring_descriptors_df[conf_ring_descriptors_df[column] != -1]
     return conf_ring_descriptors_df
 
-def get_sdf_mol2_filename(name: str, rigid_scaffold_idx: int, align_copy: int):
-    return f"{name}_mol{rigid_scaffold_idx}_align{align_copy}.sdf", f"{name}_mol{rigid_scaffold_idx}_align{align_copy}.mol2"
 
 def is_slurm_job():
     '''Check if SLURM_JOB_ID is present in environment variables'''
@@ -648,7 +657,7 @@ def count_confs_by_rotbonds(mol, ignoreTorlib=False, VERBOSE=False):
     #             break
 
     if ignoreTorlib:
-        amide_linkages = find_amide(mol)
+        amide_linkages = mol.GetSubstructMatches(amide_pattern_mol)
         amide_atoms=set()
         for a, b, c, d, e in amide_linkages: 
             amide_atoms.add(b)
@@ -888,7 +897,7 @@ def filter_symmetric_angles(angles, scores, symmetry_angle=180, tolerance=10):
 
     return kept_angles, kept_scores
 
-def count_confs_by_rotbonds_v2(mol, rot_bonds, VERBOSE=False):
+def count_confs_by_rotbonds_v2(mol, rot_bonds, ignoretorlib = False, amide_bonds = None, VERBOSE=False):
     """
     Estimates the number of conformations by analyzing rotatable bonds and torsion rules.
     Adjusts torsions for amide bonds and symmetric patterns.
@@ -896,7 +905,8 @@ def count_confs_by_rotbonds_v2(mol, rot_bonds, VERBOSE=False):
     Args:
         mol (rdkit.Chem.Mol): The input molecule.
         rot_bonds (list): List of rotatable bonds.
-
+        ignoretorlib (bool): If True, ignore the torsion library and use all possible angles differ by 30 degrees.
+        amide_bonds (list): List of amide bonds to zero out fluctuations.
         VERBOSE (bool): If True, print detailed steps.
 
     Returns:
@@ -908,32 +918,36 @@ def count_confs_by_rotbonds_v2(mol, rot_bonds, VERBOSE=False):
 
     matched_rules = strain_filter.get_match_dihedral(mol, Torlib = downscaled_torlib)
 
+    amide_atoms = set()
+    for a, b, c, d, e in amide_bonds:
+        amide_atoms.add(b)
+        amide_atoms.add(c)
 
-    if VERBOSE:
-        print(f"Matched torsion rules: {matched_rules}")
-        print(f"Detected rotatable bonds: {rot_bonds}")
+    # Pre-compute a dictionary of rules by bond
+    rule_by_bond = {}
+    for rule in matched_rules:
+        central = tuple(sorted((rule[1][1], rule[1][2])))
+        rule_by_bond[central] = rule
 
+    # Then do a single pass through the rotatable bonds
     bond_to_rule = {}
     for bond in rot_bonds:
-        for rule in matched_rules:
-            central = tuple(sorted((rule[1][1], rule[1][2])))
-            if bond == central:
-                bond_to_rule[central] = list(rule)
-                break
-
-    if VERBOSE:
-        print("\nInitial mapped torsion rules:")
-        for bond, rule in bond_to_rule.items():
-            print(f"Bond {bond}: {rule}")
+        if bond in rule_by_bond:
+            rule = rule_by_bond[bond]
+            rule_copy = list(rule)
+            
+            # Only apply ignoretorlib if not amide bonds
+            if ignoretorlib and len(set(bond) & amide_atoms) <= 1:
+                rule_copy[2] = const_rule
+                
+            bond_to_rule[bond] = rule_copy
 
     # Step 2: Handle amide bond constraints (zero out fluctuations)
-    if VERBOSE:
-        print("\nAdjusting torsions for amide bonds:")
+
     for amide_match in mol.GetSubstructMatches(amide_pattern_mol):
-        bond_key = tuple(sorted(amide_match[:2]))
+        bond_key = tuple(sorted(amide_match[0:2]))
+        print(bond_key)
         if bond_key not in bond_to_rule:
-            if VERBOSE:
-                print(f"  Skipping unmatched amide bond {bond_key}")
             continue
         rule = bond_to_rule[bond_key]
         adjusted_peaks = []
@@ -945,14 +959,12 @@ def count_confs_by_rotbonds_v2(mol, rot_bonds, VERBOSE=False):
         rule[2] = adjusted_peaks
 
     # Step 3: Apply symmetry filtering to avoid redundant angles
-    if VERBOSE:
-        print("\nApplying symmetry filtering:")
     for _, sym_row in symmetric_patterns_df.iterrows():
         matches = mol.GetSubstructMatches(sym_row['mol'])
         if not matches:
             continue
         if VERBOSE:
-            print(f"  Found symmetric pattern: {sym_row['name']}")
+            print(f"\tFound symmetric pattern: {sym_row['name']}")
         period = 360 / sym_row['num_scaled']
         for match in matches:
             bond_key = tuple(sorted(match[:2]))
@@ -973,7 +985,7 @@ def count_confs_by_rotbonds_v2(mol, rot_bonds, VERBOSE=False):
     if VERBOSE:
         print("\nFinal processed torsion rules:")
         for bond, rule in bond_to_rule.items():
-            print(f"Bond {bond}: {rule}")
+            print(f"\tBond {bond}: {rule}")
 
     # Step 4: Discretize angles and estimate total possible conformations
     angle_map = {}
@@ -1009,9 +1021,5 @@ def count_confs_by_rotbonds_v2(mol, rot_bonds, VERBOSE=False):
         angle_map[bond_idx] = [name, atom_indices, deduplicated_angles]
         score_map[bond_idx] = deduplicated_scores
         total_confs *= total_angles
-
-    if VERBOSE:
-        print(f"\nEstimated total conformations: {total_confs}")
-        print(angle_map)
 
     return total_confs, angle_map, score_map
