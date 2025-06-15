@@ -849,7 +849,7 @@ class ConformerGenerator:
                                                   product = list())
             
             if len(product) == 0:
-                print(f'Failed to find any confs (generated {len(product)} confs), using the random dihedral angles approach as a fallback')
+                print(f'Failed to find any confs for {self.name} (generated {len(product)} confs), using the random dihedral angles approach as a fallback')
                 num_confs_by_rotbonds, match_torlib = utils.count_confs_by_rotbonds(mol = self.ring_confs[0], VERBOSE = self.VERBOSE)
                 product, _, _ = self.stochastic_sampling(mol = processing_mol,
                                                          tolerance_level = 2, 
