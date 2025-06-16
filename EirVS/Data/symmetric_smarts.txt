@@ -1,7 +1,10 @@
 [*:1]-[*X4^3:1](-[CH3])(-[CH3])-[CH3]   tertbutyl    3
 [!#1:1]-[NX4&+1H3] protonated_prim_amines 3
 [*:1]-[CX3:1](=O)-[O-]  carboxylate 2
-[NX3;$(N([CH3])[CH3]),$([NH2]):1]-[CX3:1](=O)-[#1,*]    N,N-dimethylamide_or_prim-amide   2
+[c:1]-[NX3H2&+0:2] anilines    2
+[c:1]-[NX3&+0:2](-[CH3])-[CH3]  N,N-dimethylanilines    2
+[C;$(C=C),$(C=N)]-[NX3H2&+0:2]  triplanar_primary_amines    2
+[NX3;$(N([CH3])[CH3]),$([NH2]):1]-[CX3:1](=O)-[#1,*]    N,N-dimethylamide_or_prim_amide   2
 [*:1]-[a:1]1[cH][cH][cH][cH]1   N-subst-pyrrole 2
 [*:1]-[a:1]1[cH][nX2][nX2][cH]1 4-subst-1,2,4-triazine   2
 [*:1]-[a:1]1[nX2][cH][cH][nX2]1 2-subst-1,2,3-triazine    2

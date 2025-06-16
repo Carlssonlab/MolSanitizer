@@ -58,7 +58,7 @@ CORINA_EXE = eirvs_configurations['CORINA']
 rotatable_pattern_not_terminal = r'''*~[!$(*#*)&!D1&!$(C(F)(F)F)&!$(C(Cl)(Cl)Cl)&!$(C(Br)(Br)Br)&!$([CH3])]-!@[!$(*#*)&!D1&!$(C(F)(F)F)&!$(C(Cl)(Cl)Cl)&!$(C(Br)(Br)Br)&!$([CH3])]~*'''
 downscaled_torlib = strain_filter.parse_torlib(downscale_GG_rule = True)
 symmetric_patterns_file = Path(__file__).parent.parent / 'Data' / 'symmetric_smarts.txt'
-symmetric_patterns_df = pd.read_csv(symmetric_patterns_file, sep='\s+', header=None, names=['pattern', 'name', 'num_scaled'])
+symmetric_patterns_df = pd.read_csv(symmetric_patterns_file, sep=r'\s+', header=None, names=['pattern', 'name', 'num_scaled'])
 symmetric_patterns_df['mol'] = symmetric_patterns_df['pattern'].apply(lambda x: Chem.MolFromSmarts(x))
 amide_pattern_mol = Chem.MolFromSmarts('[$(C=O):1]!@[NX3:2]') 
 
