@@ -61,6 +61,7 @@ symmetric_patterns_file = Path(__file__).parent.parent / 'Data' / 'symmetric_sma
 symmetric_patterns_df = pd.read_csv(symmetric_patterns_file, sep=r'\s+', header=None, names=['pattern', 'name', 'num_scaled'])
 symmetric_patterns_df['mol'] = symmetric_patterns_df['pattern'].apply(lambda x: Chem.MolFromSmarts(x))
 amide_pattern_mol = Chem.MolFromSmarts('[$(C=O):1]!@[NX3:2]') 
+prim_amidines_guanidines_pattern_mol = Chem.MolFromSmarts('[#1:1][NH2,NX3H1:2]!@-[CX3+0;$(C(~[NH2])(~[NH2])~*):3]~[NH2:4]')
 
 def embed_smiles_corina(smiles, name, numringconfs, VERBOSE):
     '''
@@ -119,11 +120,6 @@ def embed_smiles_corina(smiles, name, numringconfs, VERBOSE):
         mol2_string = mol2_blocks[0] if len(mol2_blocks) > 0 else None
         return mol2_string, ring_confs
     
-def find_symmetric_rings(mol_H: Mol):
-    '''
-    Find the symmetric rings in the molecule. *!@-a1[cH][cH][a][cH][cH]1
-    '''
-    return mol_H.GetSubstructMatches(symmetric_ring, )
 
 def find_flipped_nitrogen(mol_H: Mol):
     '''
@@ -943,12 +939,28 @@ def count_confs_by_rotbonds_v2(mol, rot_bonds, ignoretorlib = False, amide_bonds
                 
             bond_to_rule[bond] = rule_copy
 
-    # Step 2: Handle amide bond constraints (zero out fluctuations)
+    # Step 2: Handle planar substructures (amides, amidines - zero out fluctuations)
 
     for amide_match in mol.GetSubstructMatches(amide_pattern_mol):
         bond_key = tuple(sorted(amide_match[0:2]))
         if bond_key not in bond_to_rule:
             continue
+        rule = bond_to_rule[bond_key]
+        adjusted_peaks = []
+        for peak in rule[2]:
+            if isinstance(peak, tuple) and len(peak) >= 3:
+                adjusted_peaks.append((peak[0], 0, 0) + peak[3:])
+            else:
+                adjusted_peaks.append(peak)
+        rule[2] = adjusted_peaks
+
+    # Zero out fluctuations for primary amidines, guanidines:
+    uniq_matches_prim_amidines_guanidines = set()
+    for match in mol.GetSubstructMatches(prim_amidines_guanidines_pattern_mol):
+        uniq_matches_prim_amidines_guanidines.add(tuple(sorted(match[1:3])))
+
+    for bond_key in list(uniq_matches_prim_amidines_guanidines):
+        if bond_key not in bond_to_rule: continue
         rule = bond_to_rule[bond_key]
         adjusted_peaks = []
         for peak in rule[2]:
