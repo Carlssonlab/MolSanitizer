@@ -60,7 +60,7 @@ class ConformerGenerator:
                  request_alignment=None,
                  ignoreTorlib=False,
                  threshold=1.6,
-                 mode='vs',
+                 mode='fixed',
                  tolerance=30,
                  VERBOSE=False):
         """
@@ -297,6 +297,14 @@ class ConformerGenerator:
                     for a, b, c, d, e in self.amide_linkages: # O=C-N(-C)-H should be coplanar.
                         ff.MMFFAddTorsionConstraint(a, b, c, d, False, -2, 2, 1)
                         ff.MMFFAddTorsionConstraint(a, b, c, e, False, 178, 182, 1)
+                if self.planar_rings:
+                    for ring in self.planar_rings:
+                        # For planar rings, we need to ensure that the ring is planar.
+                        # This is done by setting the dihedral angles to +-2.
+                        n = len(ring)
+                        for i in range(n-1):
+                            a, b, c, d = ring[i], ring[i + 1], ring[(i + 2) % n], ring[(i + 3) % n ]
+                            ff.MMFFAddTorsionConstraint(a, b, c, d, False, -2, 2, 1)
                 ff.Minimize()
                 conformer = self.mol_H.GetConformer(cid)
                 energy = ff.CalcEnergy()
@@ -442,6 +450,7 @@ class ConformerGenerator:
         barbiturate_matches = utils.find_barbiturates(mol_rdkit)
         hydantoin_matches = utils.find_hydantoins(mol_rdkit)
         substituted_N_barbi_hydan_like = utils.find_substituted_N_barbi_hydan_like(mol_rdkit, barbiturate_matches, hydantoin_matches)
+        planar_rings, _ = utils.get_flexible_ring(mol_rdkit, planar_lib, non_planar_lib) 
         self.mp = rdForceFieldHelpers.MMFFGetMoleculeProperties(mol_rdkit, mmffVariant="MMFF94s")
         ff = rdForceFieldHelpers.MMFFGetMoleculeForceField(mol_rdkit, self.mp, confId=0)
         if conjugated_substituted_nitrogen_5aro:
@@ -475,6 +484,14 @@ class ConformerGenerator:
             for a, b, c, d, e in amide_linkages: # O=C-N(-C)-H should be coplanar.
                 ff.MMFFAddTorsionConstraint(a, b, c, d, False, -2, 2, 1)
                 ff.MMFFAddTorsionConstraint(a, b, c, e, False, 178, 182, 1)
+        if planar_rings:
+            for ring in planar_rings:
+                # For planar rings, we need to ensure that the ring is planar.
+                # This is done by setting the dihedral angles to +-2.
+                n = len(ring)
+                for i in range(n-1):
+                    a, b, c, d = ring[i], ring[i + 1], ring[(i + 2) % n], ring[(i + 3) % n ]
+                    ff.MMFFAddTorsionConstraint(a, b, c, d, False, -2, 2, 1)
         ff.Minimize()
         self.ring_confs = [Chem.Mol(mol_rdkit)] # Replicate the output from embed_rdkit
         self.amsol_mol = Chem.Mol(mol_rdkit) # An RDKit Mol Object with upto 10 confs for AMSOL

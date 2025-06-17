@@ -63,14 +63,25 @@ class Ionizer:
             print(f'Loaded {len(self.rules)} protonation rules. Of these, {len(self.enumerating_rules)} rules are enumerating')
 
 
-        self.pH_values = (self.pH-0.5, self.pH+0.5) if self.pH_range == 0\
-            else (max(0, self.pH - self.pH_range - 0.001), self.pH, min(14, self.pH + self.pH_range + 0.001))
+        self.pH_values = (self.pH-0.1,
+                          self.pH,
+                          self.pH+0.1) \
+        if self.pH_range == 0\
+            else (max(0, self.pH - self.pH_range - 0.1),
+                  max(0, self.pH - self.pH_range),
+                  max(0, self.pH - self.pH_range + 0.1),
+                  self.pH - 0.1,
+                  self.pH,
+                  self.pH + 0.1,
+                  min(14, self.pH + self.pH_range - 0.1),
+                  min(14, self.pH + self.pH_range), 
+                  min(14, self.pH + self.pH_range + 0.1))
 
         self.rules_across_pH = {}
         for pH in self.pH_values:
             rules = self.extract_necessary_rules(pH)
             self.rules_across_pH[pH] = rules
-    
+
     def __repr__(self):
         cls_name = self.__class__.__name__
         attrs = ', '.join(f'{k}={v!r}' for k, v in self.__dict__.items())
@@ -113,7 +124,7 @@ class Ionizer:
         reaction_list = []
 
         for i, row in filtered_rules.iterrows():
-            reaction_list.append((row['Mol'], f"{row['FUNCTIONAL_GROUP']} ({row['TYPE']} - est. pKa {row['pKa']})"))
+            reaction_list.append((row['Mol'], row['FUNCTIONAL_GROUP'], f"({row['TYPE']} - est. pKa {row['pKa']})"))
         if self.debug:
             print(f'Parsed {len(reaction_list)} rules for pH {round(pH, 1)}')    
         return reaction_list
@@ -144,12 +155,12 @@ class Ionizer:
         visited.add(mol_smiles)  # Mark the molecule as visited
 
         reactive = False
-        for rxn, name in reactions:
+        for rxn, name, additional_info in reactions:
             outcomes = rxn.RunReactants((mol,))
             if outcomes:  # Check if there are any outcomes            
                 reactive = True
                 if self.debug:
-                    print(f"\tApplying reaction {name} to {Chem.MolToSmiles(mol)}")
+                    print(f"\tApplying reaction {name} {additional_info} to {Chem.MolToSmiles(mol)}")
                 if name in self.enumerating_rules:
                     for outcome in outcomes:
                         product = outcome[0]
@@ -182,6 +193,21 @@ class Ionizer:
             collection.add(last_successful_smiles)  # Add the last valid molecule if it is not reactive
         return collection  # Return the collection of products
 
+    def check_duplicated_rule_combs(self, mol: Chem.Mol, pH: float) -> tuple:
+        """
+        Check if the molecule matches any of the rules for a given pH
+        and return the rule combinations.
+        """
+        rule_combinations = []
+        for rule in self.rules_across_pH[pH]:
+            if mol.HasSubstructMatch(rule[0].GetReactantTemplate(0)):
+                rule_combinations.append(rule[1])
+                if rule[1] == 'heteroacid' and pH > 6.0 and \
+                    mol.HasSubstructMatch(Chem.MolFromSmarts('[OH1&+0;$(O-P(=O)(-[OH])-[#6&+0,#8&+0])]')): # Special case for phosphates
+                        rule_combinations.append('phosphate-2stage')
+        
+        return tuple(rule_combinations)
+    
     def ionize(self, smiles: str = None, mol: Chem.Mol = None) -> list:
         """
         Protonate the input molecule using a set of predefined reactions.
@@ -206,7 +232,13 @@ class Ionizer:
 
 
         variation_sets = set()
+        applied_rule_combinations = set()
         for pH in self.pH_values:
+            rule_combinations = self.check_duplicated_rule_combs(mol, pH)
+            if rule_combinations in applied_rule_combinations:
+                if self.debug: print(f'Skipping pH {round(pH, 1)} due to the duplicated rule applied.')
+                continue
+            applied_rule_combinations.add(rule_combinations)
             if self.debug: print('Processing pH:', round(pH, 1))
             variations = list(self.recursive_reaction(mol, self.rules_across_pH[pH], set()))
             variation_sets.update(variations)
