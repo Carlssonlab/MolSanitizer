@@ -5,11 +5,9 @@ CN=Cc1ccccc1OC imines
 O=C(CF)c1ccccn1 leaving-group-methylones
 NC(=O)N1CCC(O)CC1 heterocyclic_ureas
 Cc1noc(C)c1[N+](=O)[O-] 4-(electron-withdrawing-group)-isoxazoles
-F[B-](F)(F)C1CCC(F)(F)C1 any_boron
 O=C(c1ccccc1)C(O)O aminals_hemiaminals_hydrates
 OC1CCO1 acyclic-small-ring_hemiacetals
 O=C(O)c1ccc(C2SCCCS2)cc1 dithioacetals
-CCCCCCCC(=O)NCCO butylene_chains
 c1cnc2c(c1)ccc1cccnc12 polycyclic_aromatic_compounds
 Nc1nc(CCO)cs1 2-aminothiazoles
 CC/C=C\Br alkyl_halides_generic

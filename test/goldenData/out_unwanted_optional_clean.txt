@@ -10,6 +10,7 @@ CCOC(=O)c1cnc(NN)nc1C hydrazines
 O=C(c1ncn2C(=O)N(\N=N/c12)C)N temozolomide
 Cc1cc(O)c2c(c1)C(=O)c1ccccc1C2=O quinones_imino_thio_derivatives
 O=c1oc2c(Br)cc(O)cc2s1 thioesters
+Cc1ncc(B(O)O)c2ccccc12 boronic_acids_esters
 C[C@@H]1O[C@H]1C(=O)O 3_membered_heterocycles
 CC1(C)C(=O)NC12CCC2 beta_lactams_lactones
 CC(C)(C)OC(=O)N1OCC1CO di_triheterocyclic_4_membered_rings
@@ -31,6 +32,7 @@ O=NN1CCC(O)CC1 nitrosoamines
 CN(C)C(=O)On1nnc2ccccc21 active_esters
 NC(=O)N1CCC(O)CC1 heterocyclic_ureas
 Cc1noc(C)c1[N+](=O)[O-] 4-(electron-withdrawing-group)-isoxazoles
+F[B-](F)(F)C1CCC(F)(F)C1 any_boron
 C1C2CC3CC1CC(PC14CC5CC(CC(C5)C1)C4)(C2)C3 phopsphines_phosphicycles
 [C-]#[N+]Cc1ccco1 charged_carbon
 C[S+](C)CC1CC(O)C1 positive_oxygen_sulfur
@@ -41,6 +43,7 @@ C[N]C(C)=O carbenes_nitrenes
 CN(CC1=CC1(F)F)C(=O)OC(C)(C)C cyclic_double_bonds_3-4-membered
 O=c1n(Cl)c(=O)n(Cl)c(=O)n1Cl N-halo_compounds
 O=Nc1ccc(Br)cc1 nitroso-cmpds
+CCCCCCCC(=O)NCCO butylene_chains
 CC=C=CCCN allenes
 Nc1nc(CCO)cs1 2-aminothiazoles
 [2H]C([2H])([2H])OCC(=O)O deuterium

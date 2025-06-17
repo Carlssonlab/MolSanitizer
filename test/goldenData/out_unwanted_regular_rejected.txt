@@ -39,6 +39,7 @@ N#[N+]c1ccc(F)cc1 diazonium diazonium
 CC(=O)OI1OC(=O)c2ccccc21 hypervalent_iodine hypervalent_iodine
 O=NN1CCC(O)CC1 nitrosoamines nitrosoamines
 CN(C)C(=O)On1nnc2ccccc21 active_esters active_esters
+F[B-](F)(F)C1CCC(F)(F)C1 any_boron any_boron
 C1C2CC3CC1CC(PC14CC5CC(CC(C5)C1)C4)(C2)C3 phopsphines_phosphicycles phopsphines_phosphicycles
 [C-]#[N+]Cc1ccco1 charged_carbon charged_carbon
 C[S+](C)CC1CC(O)C1 positive_oxygen_sulfur positive_oxygen_sulfur
@@ -51,6 +52,7 @@ CN(CC1=CC1(F)F)C(=O)OC(C)(C)C cyclic_double_bonds_3-4-membered cyclic_double_bon
 Cc1ccc(-c2noc(C(C)Cl)n2)cc1F alkyl_halides alkyl_halides
 O=c1n(Cl)c(=O)n(Cl)c(=O)n1Cl N-halo_compounds N-halo_compounds
 O=Nc1ccc(Br)cc1 nitroso-cmpds nitroso-cmpds
+CCCCCCCC(=O)NCCO butylene_chains butylene_chains
 CC=C=CCCN allenes allenes
 [2H]C([2H])([2H])OCC(=O)O deuterium deuterium
 [13C]C(=O)OC heavy_isotopes heavy_isotopes

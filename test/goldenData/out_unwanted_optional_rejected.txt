@@ -5,7 +5,6 @@ CC(C)(C(N)=O)c1c(F)c(F)c(F)c(F)c1F perhalogenated_rings_3_holgenids_and_more per
 CCc1ccc2occc(=O)c2c1 flavons flavons
 NC(=NO)c1cccc(Cl)c1 hydrazones_oximes hydrazones_oximes
 CN=Cc1ccccc1OC imines imines
-Cc1ncc(B(O)O)c2ccccc12 boronic_acids_esters any_boron
 CC(=O)[N+](=CC)C N-methylideneamidium imines
 CC12CC1(C#N)C2 bicyclo[0.1.1]butane aliphatic_nitriles
 C#Cc1ccc(S(=O)(=O)N(C)C#C)cc1 ynamides alkynes_generic
@@ -13,13 +12,11 @@ N#CN1CCC(O)CC1 cyanoamides aliphatic_nitriles
 N#CCN1C(=O)c2ccccc2S1(=O)=O N-acyl-N-alkyl_sulfonamide aliphatic_nitriles
 CC(=O)OI1OC(=O)c2ccccc21 hypervalent_iodine alkyl_halides_generic
 O=C(CF)c1ccccn1 leaving-group-methylones leaving-group-methylones
-F[B-](F)(F)C1CCC(F)(F)C1 any_boron any_boron
 OCC1C2CCC#CCCC12 cyclic_triple_bonds_3-8-membered alkynes_generic
 Cc1ccc(-c2noc(C(C)Cl)n2)cc1F alkyl_halides alkyl_halides_generic
 O=C(c1ccccc1)C(O)O aminals_hemiaminals_hydrates aminals_hemiaminals_hydrates
 OC1CCO1 acyclic-small-ring_hemiacetals acyclic-small-ring_hemiacetals
 O=C(O)c1ccc(C2SCCCS2)cc1 dithioacetals dithioacetals
-CCCCCCCC(=O)NCCO butylene_chains butylene_chains
 c1cnc2c(c1)ccc1cccnc12 polycyclic_aromatic_compounds polycyclic_aromatic_compounds
 CC1CCCCN1CC#N alpha-amino-acid-nitriles aliphatic_nitriles
 CC/C=C\Br alkyl_halides_generic alkyl_halides_generic
