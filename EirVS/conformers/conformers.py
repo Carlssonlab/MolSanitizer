@@ -265,34 +265,34 @@ class ConformerGenerator:
                     # a-b-c-d -> 180; a-b-f-e -> 180
                     # b-c-d-e -> 0; d-e-f-b -> 0
                     for a, b, c, d, e, f in self.conjugated_substituted_nitrogen_5aro:
-                        ff.MMFFAddTorsionConstraint(a, b, c, d, False, 179, 181, 1)
-                        ff.MMFFAddTorsionConstraint(a, b, f, e, False, 179, 181, 1)
-                        ff.MMFFAddTorsionConstraint(b, c, d, e, False, -1, 1, 1)
-                        ff.MMFFAddTorsionConstraint(d, e, f, b, False, -1, 1, 1)
+                        ff.MMFFAddTorsionConstraint(a, b, c, d, False, 178, 182, 1)
+                        ff.MMFFAddTorsionConstraint(a, b, f, e, False, 178, 182, 1)
+                        ff.MMFFAddTorsionConstraint(b, c, d, e, False, -2, 2, 1)
+                        ff.MMFFAddTorsionConstraint(d, e, f, b, False, -2, 2, 1)
                 if self.conjugated_substituted_nitrogen_6aro:
                     # *-[nX3&+0:1]1[a:2][a:3][a:4][a:5][a:6]1
                     # a-b-c-d -> 180; a-b-g-f -> 180
                     # b-c-d-e -> 0; e-f-g-b -> 0
                     for a, b, c, d, e, f, g in self.conjugated_substituted_nitrogen_6aro:
-                        ff.MMFFAddTorsionConstraint(a, b, c, d, False, 179, 181, 1)
-                        ff.MMFFAddTorsionConstraint(a, b, g, f, False, 179, 181, 1)
-                        ff.MMFFAddTorsionConstraint(b, c, d, e, False, -1, 1, 1)
-                        ff.MMFFAddTorsionConstraint(e, f, g, b, False, -1, 1, 1)
+                        ff.MMFFAddTorsionConstraint(a, b, c, d, False, 178, 182, 1)
+                        ff.MMFFAddTorsionConstraint(a, b, g, f, False, 178, 182, 1)
+                        ff.MMFFAddTorsionConstraint(b, c, d, e, False, -2, 2, 1)
+                        ff.MMFFAddTorsionConstraint(e, f, g, b, False, -2, 2, 1)
                 if self.barbiturate_matches:
                     for match in self.barbiturate_matches:
                         n = len(match)
                         for i in range(n):
                             a, b, c, d = [match[(i + j) % n] for j in range(4)]
-                            ff.MMFFAddTorsionConstraint(a, b, c, d, False, -1, 1, 1)
+                            ff.MMFFAddTorsionConstraint(a, b, c, d, False, -2, 2, 1)
                 if self.hydantoin_matches:
                     for match in self.hydantoin_matches:
                         n = len(match)
                         for i in range(n):
                             a, b, c, d  = [match[(i + j) % n] for j in range(4)]
-                            ff.MMFFAddTorsionConstraint(a, b, c, d, False, -1, 1, 1)                
+                            ff.MMFFAddTorsionConstraint(a, b, c, d, False, -2, 2, 1)                
                 if self.substituted_N_barbi_hydan_like:
                     for a, b, c, d in self.substituted_N_barbi_hydan_like:
-                        ff.MMFFAddTorsionConstraint(a, b, c, d, False, 179, 181, 1)
+                        ff.MMFFAddTorsionConstraint(a, b, c, d, False, 178, 182, 1)
                 if self.amide_linkages:
                     for a, b, c, d, e in self.amide_linkages: # O=C-N(-C)-H should be coplanar.
                         ff.MMFFAddTorsionConstraint(a, b, c, d, False, -2, 2, 1)
@@ -300,7 +300,7 @@ class ConformerGenerator:
                 if self.planar_rings:
                     for ring in self.planar_rings:
                         # For planar rings, we need to ensure that the ring is planar.
-                        # This is done by setting the dihedral angles to +-2.
+                        # This is done by setting the dihedral angles to +-5.
                         n = len(ring)
                         for i in range(n-1):
                             a, b, c, d = ring[i], ring[i + 1], ring[(i + 2) % n], ring[(i + 3) % n ]
@@ -420,23 +420,24 @@ class ConformerGenerator:
         builder = ob.OBBuilder()
         builder.Build(mol)  # 3D coordinate generation
 
-        # Step 2: Minimize energy using MMFF94 force field
-        ff = ob.OBForceField.FindForceField("MMFF94s")
-        ff.Setup(mol)
+        # Don't need to minimize twice
+        # # Step 2: Minimize energy using MMFF94 force field
+        # ff = ob.OBForceField.FindForceField("MMFF94s")
+        # ff.Setup(mol)
         
-        # Step 3: Apply multi-step minimization
-        # Steepest Descent
-        ff.SteepestDescent(250, 1.0e-4)
-        #ff.FastRotorSearch(True) # permute central bonds
-        ff.WeightedRotorSearch(100, 25) # 100 cycles, each with 25 forcefield ops
-        # Conjugate Gradients
-        ff.ConjugateGradients(250, 1.0e-4)
-        #feel free to tweak these to your balance of time / quality
+        # # Step 3: Apply multi-step minimization
+        # # Steepest Descent
+        # ff.SteepestDescent(250, 1.0e-4)
+        # #ff.FastRotorSearch(True) # permute central bonds
+        # ff.WeightedRotorSearch(100, 25) # 100 cycles, each with 25 forcefield ops
+        # # Conjugate Gradients
+        # ff.ConjugateGradients(250, 1.0e-4)
+        # #feel free to tweak these to your balance of time / quality
 
-        #update the coordinates
-        ff.GetCoordinates(mol)
+        # #update the coordinates
+        # ff.GetCoordinates(mol)
 
-        # Step 4: Convert to SDF in-memory and read into RDKit
+        # Step 3: Convert to SDF in-memory and read into RDKit
         sdf_data = obConversion.WriteString(mol)
         mol_rdkit = Chem.MolFromMolBlock(sdf_data, removeHs=False)
         
@@ -455,31 +456,31 @@ class ConformerGenerator:
         ff = rdForceFieldHelpers.MMFFGetMoleculeForceField(mol_rdkit, self.mp, confId=0)
         if conjugated_substituted_nitrogen_5aro:
             for a, b, c, d, e, f in conjugated_substituted_nitrogen_5aro:
-                ff.MMFFAddTorsionConstraint(a, b, c, d, False, 179, 181, 1)
-                ff.MMFFAddTorsionConstraint(a, b, f, e, False, 179, 181, 1)
-                ff.MMFFAddTorsionConstraint(b, c, d, e, False, -1, 1, 1)
-                ff.MMFFAddTorsionConstraint(d, e, f, b, False, -1, 1, 1)
+                ff.MMFFAddTorsionConstraint(a, b, c, d, False, 178, 182, 1)
+                ff.MMFFAddTorsionConstraint(a, b, f, e, False, 178, 182, 1)
+                ff.MMFFAddTorsionConstraint(b, c, d, e, False, -2, 2, 1)
+                ff.MMFFAddTorsionConstraint(d, e, f, b, False, -2, 2, 1)
         if conjugated_substituted_nitrogen_6aro:
             for a, b, c, d, e, f, g in conjugated_substituted_nitrogen_6aro:
-                ff.MMFFAddTorsionConstraint(a, b, c, d, False, 179, 181, 1)
-                ff.MMFFAddTorsionConstraint(a, b, g, f, False, 179, 181, 1)
-                ff.MMFFAddTorsionConstraint(b, c, d, e, False, -1, 1, 1)
-                ff.MMFFAddTorsionConstraint(e, f, g, b, False, -1, 1, 1)
+                ff.MMFFAddTorsionConstraint(a, b, c, d, False, 178, 182, 1)
+                ff.MMFFAddTorsionConstraint(a, b, g, f, False, 178, 182, 1)
+                ff.MMFFAddTorsionConstraint(b, c, d, e, False, -2, 2, 1)
+                ff.MMFFAddTorsionConstraint(e, f, g, b, False, -2, 2, 1)
         if barbiturate_matches:
             for match in barbiturate_matches:
                 n = len(match)
                 for i in range(n):
                     a, b, c, d = [match[(i + j) % n] for j in range(4)]
-                    ff.MMFFAddTorsionConstraint(a, b, c, d, False, -1, 1, 1) 
+                    ff.MMFFAddTorsionConstraint(a, b, c, d, False, -2, 2, 1) 
         if hydantoin_matches:
             for match in hydantoin_matches:
                 n = len(match)
                 for i in range(n):
                     a, b, c, d  = [match[(i + j) % n] for j in range(4)]
-                    ff.MMFFAddTorsionConstraint(a, b, c, d, False, -1, 1, 1)  
+                    ff.MMFFAddTorsionConstraint(a, b, c, d, False, -2, 2, 1)  
         if substituted_N_barbi_hydan_like:
             for a, b, c, d in substituted_N_barbi_hydan_like:
-                ff.MMFFAddTorsionConstraint(a, b, c, d, False, 179, 181, 1)
+                ff.MMFFAddTorsionConstraint(a, b, c, d, False, 178, 182, 1)
         if amide_linkages:
             for a, b, c, d, e in amide_linkages: # O=C-N(-C)-H should be coplanar.
                 ff.MMFFAddTorsionConstraint(a, b, c, d, False, -2, 2, 1)
