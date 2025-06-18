@@ -93,7 +93,13 @@
       [$(C=O):1][NX3H1:2]!@[c:3]([cH0])[cH0:4] disabled  0, 180
       [!#1:1][CX4H2:2]!@[NX3:3][!#1:4] disabled  0
       [*:1]~[OX2:2]!@[SX3:3]~[*:4] disabled  0
--->
+     
+     May 27 2025
+      Added:
+      [cH1:1][c:2](c[F,Cl,Br,I])!@[O:3][CRH1:4] ortho-halogen substituted aromatic ring as it can have an additional +-90 peaks  
+      [nH:1][c:2]!@[CX3:3]([NX3H1,NX3H2])=[O:4] two NH groups should not pointing against each other
+--> 
+
 <library>
  <hierarchyClass id1="G" id2="G" name="GG" smarts="[*:2]!@[*:3]">
   <hierarchySubClass name="aro aro" smarts="[a:2]!@[a:3]">
@@ -15633,9 +15639,10 @@
     </torsionRule>
     <torsionRule smarts="[!#1:1][CX4H2:2]!@[CX4H2:3][!#1:4]">
      <angleList>
-      <angle score="37.06" tolerance1="20" tolerance2="30" value="180" />
-      <angle score="4.84" tolerance1="20" tolerance2="30" value="-60" />
-      <angle score="1.77" tolerance1="20" tolerance2="30" value="60" />
+     <!-- Change tol2 of these to 25 (default 30) -->
+      <angle score="37.06" tolerance1="20" tolerance2="25" value="180" />
+      <angle score="4.84" tolerance1="20" tolerance2="25" value="-60" />
+      <angle score="1.77" tolerance1="20" tolerance2="25" value="60" />
      </angleList>
      <histogram>
       <bin count="28090" />
@@ -35399,11 +35406,18 @@
       <bin count="1" />
      </histogram2_shifted>
     </torsionRule>
+   <!-- added should not point two NH to each other-->
+    <torsionRule smarts="[nH:1][c:2]!@[CX3:3]([NX3H1,NX3H2])=[O:4]">
+     <angleList>
+      <angle score="1" tolerance1="30" tolerance2="30" value="0" />
+     </angleList>
+    </torsionRule>
     <torsionRule smarts="[a:1][c:2]!@[CX3:3]([NX3H1,NX3H2])=[O:4]">
      <angleList>
       <angle score="8.880000000000001" tolerance1="20" tolerance2="30" value="0" />
       <angle score="8.460000000000001" tolerance1="20" tolerance2="30" value="180" />
-<!--      <angle score="0.78" tolerance1="20" tolerance2="30" value="-120" />
+      <!--      
+      <angle score="0.78" tolerance1="20" tolerance2="30" value="-120" />
       <angle score="0.66" tolerance1="20" tolerance2="30" value="60" />
       <angle score="0.52" tolerance1="20" tolerance2="30" value="-60" />
       <angle score="0.51" tolerance1="20" tolerance2="30" value="120" />-->
@@ -44043,6 +44057,15 @@ All the angles here were added to make the hydroxyl coplanar with the ring-->
      <bin count="0" />
      <bin count="0" />
     </histogram2_shifted>
+   </torsionRule>
+   <!-- added ortho-halogen substituted aromatic ring as it can have an additional +-90 peaks -->
+   <torsionRule smarts="[cH1:1][c:2](c[F,Cl,Br,I])!@[O:3][CRH1:4]">
+    <angleList>
+     <angle score="11.94" tolerance1="30" tolerance2="40" value="0" />
+     <angle score="9.75" tolerance1="30" tolerance2="40" value="180" />
+     <angle score="4.42" tolerance1="30" tolerance2="30" value="90.0"/>
+     <angle score="4.42" tolerance1="30" tolerance2="30" value="-90.0"/>
+    </angleList>
    </torsionRule>
    <torsionRule smarts="[cH1,n:1][c:2]!@[O:3][CRH1:4]">
     <angleList>

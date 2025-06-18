@@ -1,6 +1,7 @@
 import logging
 from pathlib import Path
 from EirVS.api import loadSMARTSdata
+import os
 logger = logging.getLogger('eirvs')
 
 def setup_logger(log_file):
@@ -31,6 +32,9 @@ def setup_logger(log_file):
 
 def arguments(args):
     # Print the parsed arguments 
+    job_id = os.getenv('SLURM_JOB_ID')
+    if job_id:
+        logger.info(f"Job ID: {job_id}")
     if args.input_files:
         logger.info(f"Input files: {[str(input_file) for input_file in args.input_files]}")
 
@@ -83,7 +87,7 @@ def arguments(args):
         logger.info(f"Generate 3D conformers: {args.gen3d}")
         logger.info(f"Output format: {args.format}")
         logger.info(f"Sampling mode: {args.mode}")
-        if args.mode == 'extensive':
+        if args.mode == 'random':
             logger.info(f"Dihedral tolerance: {args.tolerance}")
         logger.info(f"Number of conformers: {args.numconfs}")
         logger.info(f"Cleanup: {args.cleanup}")

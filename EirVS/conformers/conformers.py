@@ -60,7 +60,7 @@ class ConformerGenerator:
                  request_alignment=None,
                  ignoreTorlib=False,
                  threshold=1.6,
-                 mode='vs',
+                 mode='fixed',
                  tolerance=30,
                  VERBOSE=False):
         """
@@ -77,7 +77,7 @@ class ConformerGenerator:
             request_alignment (str): Ring alignment in SMILES or SMARTS to support constrained docking
             ignoreTorlib (bool): Whether to ignore the torsion library
             threshold (float): Threshold in Angstrom for non-bonded atom distance.
-            mode (str): Mode for conformer sampling ('vs' - virtual screening, 'extensive', 'ignoretorlib')
+            mode (str): Mode for conformer sampling ('fixed', 'random', 'ignoretorlib)
             tolerance (float): Tolerance for dihedral angle sampling.
             VERBOSE (bool): Whether to print verbose output
         """
@@ -173,8 +173,8 @@ class ConformerGenerator:
         # Get other important substructures.
         # Some of them are for correctures of MMFF94s
         self.sulfo_matches = utils.find_sulfonamide_like_scaffolds(self.mol_H)
-        self.conjugated_substituted_Ns = utils.find_conjugated_substituted_nitrogen1(self.mol_H)
-        self.additional_conjugated_substituted_Ns = utils.find_conjugated_substituted_nitrogen2(self.mol_H)
+        self.conjugated_substituted_nitrogen_5aro = utils.find_conjugated_substituted_nitrogen_5aro(self.mol_H)
+        self.conjugated_substituted_nitrogen_6aro = utils.find_conjugated_substituted_nitrogen_6aro(self.mol_H)
         self.barbiturate_matches = utils.find_barbiturates(self.mol_H)
         self.hydantoin_matches = utils.find_hydantoins(self.mol_H)
         self.substituted_N_barbi_hydan_like = utils.find_substituted_N_barbi_hydan_like(self.mol_H, self.barbiturate_matches, self.hydantoin_matches)
@@ -205,11 +205,13 @@ class ConformerGenerator:
                 print('\tFound sulfonamide-like structures')
                 for match in self.sulfo_matches: 
                     print(f'\t {match}')
-            if self.conjugated_substituted_Ns:
-                print('\tFound conjugated substituted N structures')
-                for match in self.conjugated_substituted_Ns: 
+            if self.conjugated_substituted_nitrogen_5aro:
+                print('\tFound 5-membered nitrogen aromatic rings')
+                for match in self.conjugated_substituted_nitrogen_5aro: 
                     print(f'\t {match}')
-                for match in self.additional_conjugated_substituted_Ns: 
+            if self.conjugated_substituted_nitrogen_6aro:
+                print('\tFound 6-membered nitrogen aromatic rings')
+                for match in self.conjugated_substituted_nitrogen_6aro: 
                     print(f'\t {match}')
             if self.barbiturate_matches:
                 print('\tFound barbiturate-like structures')
@@ -224,7 +226,7 @@ class ConformerGenerator:
                 for match in self.substituted_N_barbi_hydan_like:
                     print(f'\t {match}')
             if self.amide_linkages:
-                print('\tFound amide linkages')
+                print('\tFound secondary or primary amides')
                 for match in self.amide_linkages: 
                     print(f'\t {match}')
             
@@ -250,36 +252,59 @@ class ConformerGenerator:
             if method == 'srETKDGv3': params = rdDistGeom.srETKDGv3()
             else: params = rdDistGeom.ETKDGv3()
             params.numThreads = self.numcores
-            if self.mol.GetNumHeavyAtoms() > 15: 
-                params.pruneRmsThresh = 0.35 # An arbitrary threshold for small molecules and fragments, 
-                                             # the RMSD pruning maynot be suitable anymore
+            if not(self.flippable_Cs) and not(self.flippable_Ns): 
+                # If there are flippable C or N atoms, we need to generate more to filter out the favorable
+                params.pruneRmsThresh = 0.35 
             params.randomSeed = self.randomSeed # For reproducibility
             params.useRandomCoords = True
             conf_ring_descriptors_df = pd.DataFrame()
             for cid in rdDistGeom.EmbedMultipleConfs(self.mol_H, numConfs=self.num_initialConfs, params=params):
                 ff = rdForceFieldHelpers.MMFFGetMoleculeForceField(self.mol_H, self.mp, confId=cid)
-                if self.conjugated_substituted_Ns:
-                    for a, b, c, d in self.conjugated_substituted_Ns: ff.MMFFAddTorsionConstraint(a, b, c, d, False, 0, 0, 5)
-                    for a, b, c, d in self.additional_conjugated_substituted_Ns: ff.MMFFAddTorsionConstraint(a, b, c, d, False, 178, 182, 1)
+                if self.conjugated_substituted_nitrogen_5aro:
+                    # *-[nX3&+0:1]1[a:2][a:3][a:4][a:5]1 
+                    # a-b-c-d -> 180; a-b-f-e -> 180
+                    # b-c-d-e -> 0; d-e-f-b -> 0
+                    for a, b, c, d, e, f in self.conjugated_substituted_nitrogen_5aro:
+                        ff.MMFFAddTorsionConstraint(a, b, c, d, False, 178, 182, 1)
+                        ff.MMFFAddTorsionConstraint(a, b, f, e, False, 178, 182, 1)
+                        ff.MMFFAddTorsionConstraint(b, c, d, e, False, -2, 2, 1)
+                        ff.MMFFAddTorsionConstraint(d, e, f, b, False, -2, 2, 1)
+                if self.conjugated_substituted_nitrogen_6aro:
+                    # *-[nX3&+0:1]1[a:2][a:3][a:4][a:5][a:6]1
+                    # a-b-c-d -> 180; a-b-g-f -> 180
+                    # b-c-d-e -> 0; e-f-g-b -> 0
+                    for a, b, c, d, e, f, g in self.conjugated_substituted_nitrogen_6aro:
+                        ff.MMFFAddTorsionConstraint(a, b, c, d, False, 178, 182, 1)
+                        ff.MMFFAddTorsionConstraint(a, b, g, f, False, 178, 182, 1)
+                        ff.MMFFAddTorsionConstraint(b, c, d, e, False, -2, 2, 1)
+                        ff.MMFFAddTorsionConstraint(e, f, g, b, False, -2, 2, 1)
                 if self.barbiturate_matches:
                     for match in self.barbiturate_matches:
                         n = len(match)
                         for i in range(n):
                             a, b, c, d = [match[(i + j) % n] for j in range(4)]
-                            ff.MMFFAddTorsionConstraint(a, b, c, d, False, 0, 0, 5)
+                            ff.MMFFAddTorsionConstraint(a, b, c, d, False, -2, 2, 1)
                 if self.hydantoin_matches:
                     for match in self.hydantoin_matches:
                         n = len(match)
                         for i in range(n):
                             a, b, c, d  = [match[(i + j) % n] for j in range(4)]
-                            ff.MMFFAddTorsionConstraint(a, b, c, d, False, 0, 0, 5)                
+                            ff.MMFFAddTorsionConstraint(a, b, c, d, False, -2, 2, 1)                
                 if self.substituted_N_barbi_hydan_like:
                     for a, b, c, d in self.substituted_N_barbi_hydan_like:
-                        ff.MMFFAddTorsionConstraint(a, b, c, d, False, 180, 180, 1)
+                        ff.MMFFAddTorsionConstraint(a, b, c, d, False, 178, 182, 1)
                 if self.amide_linkages:
                     for a, b, c, d, e in self.amide_linkages: # O=C-N(-C)-H should be coplanar.
-                        ff.MMFFAddTorsionConstraint(a, b, c, d, False, 0, 0, 1)
-                        ff.MMFFAddTorsionConstraint(a, b, c, e, False, 180, 180, 1)
+                        ff.MMFFAddTorsionConstraint(a, b, c, d, False, -2, 2, 1)
+                        ff.MMFFAddTorsionConstraint(a, b, c, e, False, 178, 182, 1)
+                if self.planar_rings:
+                    for ring in self.planar_rings:
+                        # For planar rings, we need to ensure that the ring is planar.
+                        # This is done by setting the dihedral angles to +-5.
+                        n = len(ring)
+                        for i in range(n-1):
+                            a, b, c, d = ring[i], ring[i + 1], ring[(i + 2) % n], ring[(i + 3) % n ]
+                            ff.MMFFAddTorsionConstraint(a, b, c, d, False, -2, 2, 1)
                 ff.Minimize()
                 conformer = self.mol_H.GetConformer(cid)
                 energy = ff.CalcEnergy()
@@ -324,7 +349,7 @@ class ConformerGenerator:
             temp_mol = Chem.Mol(self.empty_mol)
             with Chem.SDWriter(f"{self.name}_confs.sdf") as w:
                 for _, row in conf_ring_descriptors_df.iterrows():
-                    conf_idx = temp_mol.AddConformer(row[0], assignId=True)
+                    conf_idx = temp_mol.AddConformer(row.iloc[0], assignId=True)
                     w.write(temp_mol, confId=conf_idx)
         # Remove the conformers that do not compromise all the non-planar rings       
         #conf_ring_descriptors_df.to_csv(f"{self.name}_conf_ring_descriptors.csv", index=False)
@@ -395,59 +420,79 @@ class ConformerGenerator:
         builder = ob.OBBuilder()
         builder.Build(mol)  # 3D coordinate generation
 
-        # Step 2: Minimize energy using MMFF94 force field
-        ff = ob.OBForceField.FindForceField("MMFF94s")
-        ff.Setup(mol)
+        # Don't need to minimize twice
+        # # Step 2: Minimize energy using MMFF94 force field
+        # ff = ob.OBForceField.FindForceField("MMFF94s")
+        # ff.Setup(mol)
         
-        # Step 3: Apply multi-step minimization
-        # Steepest Descent
-        ff.SteepestDescent(250, 1.0e-4)
-        #ff.FastRotorSearch(True) # permute central bonds
-        ff.WeightedRotorSearch(100, 25) # 100 cycles, each with 25 forcefield ops
-        # Conjugate Gradients
-        ff.ConjugateGradients(250, 1.0e-4)
-        #feel free to tweak these to your balance of time / quality
+        # # Step 3: Apply multi-step minimization
+        # # Steepest Descent
+        # ff.SteepestDescent(250, 1.0e-4)
+        # #ff.FastRotorSearch(True) # permute central bonds
+        # ff.WeightedRotorSearch(100, 25) # 100 cycles, each with 25 forcefield ops
+        # # Conjugate Gradients
+        # ff.ConjugateGradients(250, 1.0e-4)
+        # #feel free to tweak these to your balance of time / quality
 
-        #update the coordinates
-        ff.GetCoordinates(mol)
+        # #update the coordinates
+        # ff.GetCoordinates(mol)
 
-        # Step 4: Convert to SDF in-memory and read into RDKit
+        # Step 3: Convert to SDF in-memory and read into RDKit
         sdf_data = obConversion.WriteString(mol)
         mol_rdkit = Chem.MolFromMolBlock(sdf_data, removeHs=False)
         
         # Set molecule properties
         mol_rdkit.SetProp("_Name", self.name)
 
-        conjugated_substituted_Ns = utils.find_conjugated_substituted_nitrogen1(mol_rdkit)
-        additional_conjugated_substituted_Ns = utils.find_conjugated_substituted_nitrogen2(mol_rdkit)
+        conjugated_substituted_nitrogen_5aro = utils.find_conjugated_substituted_nitrogen_5aro(mol_rdkit)
+        conjugated_substituted_nitrogen_6aro = utils.find_conjugated_substituted_nitrogen_6aro(mol_rdkit)
+
         amide_linkages = utils.find_amide(mol_rdkit)
         barbiturate_matches = utils.find_barbiturates(mol_rdkit)
         hydantoin_matches = utils.find_hydantoins(mol_rdkit)
         substituted_N_barbi_hydan_like = utils.find_substituted_N_barbi_hydan_like(mol_rdkit, barbiturate_matches, hydantoin_matches)
+        planar_rings, _ = utils.get_flexible_ring(mol_rdkit, planar_lib, non_planar_lib) 
         self.mp = rdForceFieldHelpers.MMFFGetMoleculeProperties(mol_rdkit, mmffVariant="MMFF94s")
         ff = rdForceFieldHelpers.MMFFGetMoleculeForceField(mol_rdkit, self.mp, confId=0)
-        if conjugated_substituted_Ns:
-            for a, b, c, d in conjugated_substituted_Ns: ff.MMFFAddTorsionConstraint(a, b, c, d, False, 0, 0, 5)
-            for a, b, c, d in additional_conjugated_substituted_Ns: ff.MMFFAddTorsionConstraint(a, b, c, d, False, 178, 182, 1)
+        if conjugated_substituted_nitrogen_5aro:
+            for a, b, c, d, e, f in conjugated_substituted_nitrogen_5aro:
+                ff.MMFFAddTorsionConstraint(a, b, c, d, False, 178, 182, 1)
+                ff.MMFFAddTorsionConstraint(a, b, f, e, False, 178, 182, 1)
+                ff.MMFFAddTorsionConstraint(b, c, d, e, False, -2, 2, 1)
+                ff.MMFFAddTorsionConstraint(d, e, f, b, False, -2, 2, 1)
+        if conjugated_substituted_nitrogen_6aro:
+            for a, b, c, d, e, f, g in conjugated_substituted_nitrogen_6aro:
+                ff.MMFFAddTorsionConstraint(a, b, c, d, False, 178, 182, 1)
+                ff.MMFFAddTorsionConstraint(a, b, g, f, False, 178, 182, 1)
+                ff.MMFFAddTorsionConstraint(b, c, d, e, False, -2, 2, 1)
+                ff.MMFFAddTorsionConstraint(e, f, g, b, False, -2, 2, 1)
         if barbiturate_matches:
             for match in barbiturate_matches:
                 n = len(match)
                 for i in range(n):
                     a, b, c, d = [match[(i + j) % n] for j in range(4)]
-                    ff.MMFFAddTorsionConstraint(a, b, c, d, False, 0, 0, 5) 
+                    ff.MMFFAddTorsionConstraint(a, b, c, d, False, -2, 2, 1) 
         if hydantoin_matches:
             for match in hydantoin_matches:
                 n = len(match)
                 for i in range(n):
                     a, b, c, d  = [match[(i + j) % n] for j in range(4)]
-                    ff.MMFFAddTorsionConstraint(a, b, c, d, False, 0, 0, 5)  
+                    ff.MMFFAddTorsionConstraint(a, b, c, d, False, -2, 2, 1)  
         if substituted_N_barbi_hydan_like:
             for a, b, c, d in substituted_N_barbi_hydan_like:
-                ff.MMFFAddTorsionConstraint(a, b, c, d, False, 180, 180, 1)
+                ff.MMFFAddTorsionConstraint(a, b, c, d, False, 178, 182, 1)
         if amide_linkages:
             for a, b, c, d, e in amide_linkages: # O=C-N(-C)-H should be coplanar.
-                ff.MMFFAddTorsionConstraint(a, b, c, d, False, 0, 0, 1)
-                ff.MMFFAddTorsionConstraint(a, b, c, e, False, 180, 180, 1)
+                ff.MMFFAddTorsionConstraint(a, b, c, d, False, -2, 2, 1)
+                ff.MMFFAddTorsionConstraint(a, b, c, e, False, 178, 182, 1)
+        if planar_rings:
+            for ring in planar_rings:
+                # For planar rings, we need to ensure that the ring is planar.
+                # This is done by setting the dihedral angles to +-2.
+                n = len(ring)
+                for i in range(n-1):
+                    a, b, c, d = ring[i], ring[i + 1], ring[(i + 2) % n], ring[(i + 3) % n ]
+                    ff.MMFFAddTorsionConstraint(a, b, c, d, False, -2, 2, 1)
         ff.Minimize()
         self.ring_confs = [Chem.Mol(mol_rdkit)] # Replicate the output from embed_rdkit
         self.amsol_mol = Chem.Mol(mol_rdkit) # An RDKit Mol Object with upto 10 confs for AMSOL
@@ -478,7 +523,7 @@ class ConformerGenerator:
 
         bonded_pairs, same_parent_pairs = utils.precompute_bonded_and_same_parent_pairs(mol)
         # Condition to switch between visited matrix and unvisited set approaches
-        if self.mode == 'extensive':
+        if self.mode == 'random':
                 n_transform = len(match_torlib)  # Number of rotatable bonds
                 visitting = [0 for _ in range(n_transform)]
                 if visited is None: visited = np.empty((0, n_transform))
@@ -533,7 +578,7 @@ class ConformerGenerator:
                     visited.add(tuple(visitting.copy()))
                     ff = rdForceFieldHelpers.MMFFGetMoleculeForceField(mol, self.mp, confId=0)
                     energy = ff.CalcEnergy()
-                    if energy < min_energy: min_energy = min(energy, min_energy)
+                    if energy < min_energy: min_energy = energy
                     if energy <= min_energy + window: product.append((Chem.Conformer(mol.GetConformer(0)), energy))
             else:
                 # Use unvisited set approach for smaller spaces
@@ -560,7 +605,7 @@ class ConformerGenerator:
                     unvisited.remove(choice)  # Remove the chosen combination from the unvisited set
                     ff = rdForceFieldHelpers.MMFFGetMoleculeForceField(mol, self.mp, confId=0)
                     energy = ff.CalcEnergy()
-                    if energy < min_energy: min_energy = min(energy, min_energy)
+                    if energy < min_energy: min_energy = energy
                     if energy <= min_energy + window: product.append((Chem.Conformer(mol.GetConformer(0)), energy))
                     #product.append((Chem.Conformer(mol.GetConformer(0)), energy))
         return product, visited, unvisited
@@ -581,6 +626,13 @@ class ConformerGenerator:
         self.conf_sampled = True
         if self.request_alignment is None and request_alignment is not None:
             self.request_alignment = request_alignment
+        
+        if self.mode == 'fixed' or self.mode == 'ignoretorlib':
+            # This is still experimental, call conf_samplingv2, where Torlib is read differently
+            # and the angle chosen would be deterministic. By default, peak +- 30 degrees, if tol2 >= 30.
+            self.conf_samplingv2(numConfs = numConfs, energywindow = energywindow, AllowNonRing=False, request_alignment=request_alignment)
+            return
+        
         num_confs_by_rotbonds, match_torlib = utils.count_confs_by_rotbonds(self.ring_confs[0], ignoreTorlib, self.VERBOSE)
         requested_num_confs = numConfs
 
@@ -630,10 +682,10 @@ class ConformerGenerator:
                 continue
             
             product.sort(key=lambda x: x[1]) #Sort by energy
-            product = product[:requested_num_confs]
             before_energy = len(product)
             min_energy = product[0][1]
             filtered_product = [x[0] for x in product if x[1] - min_energy <= energywindow]
+            filtered_product = filtered_product[:requested_num_confs]
 
             mol.RemoveAllConformers()
             largest_ring = max(self.atom_maps, key=len)
@@ -642,6 +694,208 @@ class ConformerGenerator:
                 rdMolAlign.AlignMol(mol, original_mol, confId, 0, atomMap=[(i, i) for i in largest_ring])
 
             if self.VERBOSE: print(f"\tEnergy filter: {before_energy} -> {len(filtered_product)}")
+
+    # Deterministic sampling
+    # This is still experimental, call conf_samplingv2, where Torlib is read differently
+    # and the angle chosen would be deterministic. By default, peak +- 30 degrees, if tol2 >= 30.
+    def stochastic_sampling_v2(self, mol, angle_map, score_map, numConfs, possible_numConfs, importance_order,
+                        window = 25, max_attempts=50_000, product=list()):
+        """"""
+        bonded_pairs, same_parent_pairs = utils.precompute_bonded_and_same_parent_pairs(mol)
+        attempts = 0
+        min_energy = 1e6
+
+        
+        if possible_numConfs <= max_attempts: # Try 
+            # Generate all combinations, then randomly taken from them, only valid for small combinatorial space
+            # If the number of conformations is manageable, we can enumerate all combinations
+            
+            # Generate all possible combinations of dihedral angles
+            unvisited = list(itertools.product(*(angle_map[bond_idx][2] for bond_idx in range(len(angle_map)))))
+            if self.VERBOSE: 
+                print(f"\tEnumerated all possible combinations of dihedral angles")
+                print(f"\tTotal number of unique conformations: {len(unvisited)}")
+            random.shuffle(unvisited)
+
+            while len(product) < numConfs and len(unvisited) > 0:
+                choice = unvisited.pop()  # Randomly select a combination of dihedral angles
+
+                # Set the dihedrals based on the chosen combination
+                for idx, val in enumerate(angle_map.values()): #Iterate through the rotatable bonds
+                    dihedral_atoms = val[1]  # Get the atom indices for the dihedral
+                    #print(dihedral_atoms)
+                    angle = choice[idx]  # Get the angle for this dihedral from the chosen combination
+                    # bond_idx corresponds to the index of the bond in the list of rotatable bonds
+                    # Set the dihedral angle for the corresponding bond
+                    rdMolTransforms.SetDihedralDeg(mol.GetConformer(0), *dihedral_atoms, angle)
+                # If atoms are too close or if we already visited this conformation
+                if utils.check_too_close_nonbonded_atoms(mol.GetConformer(0), mol, bonded_pairs, same_parent_pairs, threshold = self.threshold):
+                    continue
+
+                ff = rdForceFieldHelpers.MMFFGetMoleculeForceField(mol, self.mp, confId=0)
+                energy = ff.CalcEnergy()
+                if energy < min_energy: min_energy = energy
+                if energy <= min_energy + window: product.append((Chem.Conformer(mol.GetConformer(0)), energy))
+        else:
+            # Reweight the importance of the bonds
+            # If the number of conformations is too large, we can randomly sample
+            if self.VERBOSE:
+                print("\tStochastic sampling with importance-based weights")
+                print("\tImportance order of bonds:", importance_order)
+                print(f"\tNumber of conformations {possible_numConfs}. Random sampling will be performed.")
+            
+            # Initialize tracking variables for angles
+            k = len(angle_map)
+            visited = set()
+            visitting = [0] * len(angle_map)
+
+            # Adaptive sampling parameters
+            max_stagnation = min(max_attempts // 10, 5000)  # Stop if no progress
+            stagnation_counter = 0
+            last_product_size = 0
+
+            # First, reset all the dihedral to a default angle_peak 0.
+            for bond_idx, rule in enumerate(angle_map.values()):
+                visitting[bond_idx] = rule[2][0]
+                rdMolTransforms.SetDihedralDeg(mol.GetConformer(0), *rule[1], rule[2][0])
+
+            while len(product) < numConfs and attempts < max_attempts:
+                # Use importance-based weights for rotation selection
+                to_rotate = set(random.choices(range(len(angle_map)), weights=importance_order, k=k))
+                # For each selected bond, choose a random angle
+                for bond_idx in to_rotate:
+                    if bond_idx >= len(angle_map):
+                        continue
+                        
+                    # Get the atom indices and possible angles
+                    dihedral_atoms = angle_map[bond_idx][1]
+                    possible_angles = angle_map[bond_idx][2]
+                    angle_scores = score_map[bond_idx]
+                    angle_idx = random.choices(range(len(possible_angles)), 
+                                                    weights=angle_scores, k=1)[0]
+                            
+                    angle = possible_angles[angle_idx]
+                    visitting[bond_idx] = angle
+                    # Set the dihedral angle
+                    rdMolTransforms.SetDihedralDeg(mol.GetConformer(0), *dihedral_atoms, angle)
+                
+                state_tuple = tuple(visitting)    
+                
+                if state_tuple in visited:
+                    attempts += 1
+                    continue
+                
+                if utils.check_too_close_nonbonded_atoms(mol.GetConformer(0), mol, bonded_pairs, same_parent_pairs, threshold = self.threshold):
+                    attempts += 1
+                    visited.add(state_tuple)
+                    continue
+
+                visited.add(state_tuple)
+                ff = rdForceFieldHelpers.MMFFGetMoleculeForceField(mol, self.mp, confId=0)
+                energy = ff.CalcEnergy()
+                if energy < min_energy: min_energy = energy
+                if energy <= min_energy + window: product.append((Chem.Conformer(mol.GetConformer(0)), energy))
+
+                # Check for early stopping conditions
+                if len(product) == last_product_size:
+                    stagnation_counter += 1
+                    if stagnation_counter >= max_stagnation:
+                        if self.VERBOSE:
+                            print(f"Stopping due to stagnation after {attempts} attempts. Generated {len(product)} conformers.")
+                        break
+                else:
+                    stagnation_counter = 0
+                    last_product_size = len(product)
+                
+        return product
+    
+    def conf_samplingv2(self, numConfs=2000, energywindow = 25, AllowNonRing=False, request_alignment=None):
+        rot_bonds = utils.getDihedralMatches_v2(self.ring_confs[0])
+        possible_numConfs, angle_map, score_map = utils.count_confs_by_rotbonds_v2(self.ring_confs[0],
+                                                                                   rot_bonds,
+                                                                                   (self.mode == 'ignoretorlib'),
+                                                                                   amide_bonds = self.amide_linkages,
+                                                                                   VERBOSE=self.VERBOSE)
+        importance_order = utils.get_importance_order(self.ring_confs[0], rot_bonds)
+        requested_num_confs = numConfs
+
+        if self.VERBOSE:
+            print(f"\tTheory: {possible_numConfs} possible conformations")
+            print(f"\tRotatable bonds: {rot_bonds}")
+            print(f"\tPossible angles:")
+            for idx in range(len(angle_map)):
+                print(f"\t{angle_map[idx]} {score_map[idx]}")
+
+        # Find the rigid part only once outside the loop to save processing time
+        self.atom_maps, self.label_map = utils.find_rigid_part(self.ring_confs[0], request_alignment)
+
+
+
+        if request_alignment and not self.atom_maps:
+            utils.log_error(self.smiles, self.name)
+            return
+        # For very flexible molecules, we need to sample more, then filter by energy later
+        else:
+            if numConfs*10 < possible_numConfs: numConfs = min(int(numConfs * 1.5), possible_numConfs, requested_num_confs + 1000)
+            elif numConfs*5 < possible_numConfs: numConfs = min(int(numConfs * 1.25), possible_numConfs, requested_num_confs + 1000)
+            else: numConfs = numConfs#min(numConfs, num_confs_by_rotbonds)
+
+        # Molecules which don't have rings are not of interest --> only sample limitedly.
+        if (self.label_map) and not (AllowNonRing): numConfs = 30
+
+        if (len(rot_bonds) == 0):
+            print('No rotatable bonds found, returning the original conformation')
+            return
+        
+        for idx, mol in enumerate(self.ring_confs):
+            if self.VERBOSE: print(f"\tHandling ring/sulfonamide conformation {idx+1}/{len(self.ring_confs)}")
+            original_mol = Chem.Mol(mol)
+            processing_mol = Chem.Mol(mol)
+              
+            # Only remap the match_torlib when sulfo_matches is found
+            if self.sulfo_matches: possible_numConfs, angle_map, score_map = utils.count_confs_by_rotbonds_v2(mol, rot_bonds)
+            if self.VERBOSE: print('\tRunning stochastic torsional sampling')
+            
+            product = self.stochastic_sampling_v2(mol = processing_mol,
+                                                  angle_map = angle_map,
+                                                  score_map = score_map,
+                                                  numConfs = numConfs,
+                                                  possible_numConfs = possible_numConfs,
+                                                  importance_order =  importance_order, 
+                                                  window = energywindow, 
+                                                  max_attempts = 50_000, 
+                                                  product = list())
+            
+            if len(product) == 0:
+                print(f'Failed to find any confs for {self.name} (generated {len(product)} confs), using the random dihedral angles approach as a fallback')
+                num_confs_by_rotbonds, match_torlib = utils.count_confs_by_rotbonds(mol = self.ring_confs[0], VERBOSE = self.VERBOSE)
+                product, _, _ = self.stochastic_sampling(mol = processing_mol,
+                                                         tolerance_level = 2, 
+                                                         match_torlib = match_torlib,
+                                                         numConfs = numConfs,
+                                                         total_possible_solutions = num_confs_by_rotbonds,
+                                                         window = energywindow,
+                                                         max_attempts = 15000,
+                                                         product = list(),
+                                                         visited = None,
+                                                         unvisited=None)
+                
+                if len(product) == 0: 
+                    print(f'Failed for stochastic sampling (generated {len(product)} confs), use the original conformation')
+                    continue
+
+            product.sort(key=lambda x: x[1]) #Sort by energy
+            before_energy = len(product)
+            min_energy = product[0][1]
+            filtered_product = [x[0] for x in product if x[1] - min_energy <= energywindow]
+            filtered_product = filtered_product[:requested_num_confs]
+            mol.RemoveAllConformers()
+            largest_ring = max(self.atom_maps, key=len)
+            for conf in filtered_product:
+                confId = mol.AddConformer(conf, assignId=True)
+                rdMolAlign.AlignMol(mol, original_mol, confId, 0, atomMap=[(i, i) for i in largest_ring])
+            if self.VERBOSE: print(f"\tEnergy filter: {before_energy} -> {len(filtered_product)}")
+
 
 
     # ========== Output to different file formats ===========
@@ -1005,7 +1259,7 @@ def gen_conf_chunk(df: pd.DataFrame, args, input_file='0'):
                         process.terminate()
                         process.join()
                         try:
-                            confgen = ConformerGenerator(smiles, name, num_ring_confs=nr, method='babel', tolerance=tolerance, VERBOSE=VERBOSE)
+                            confgen = ConformerGenerator(smiles, name, num_ring_confs=nr, method='obabel', tolerance=tolerance, VERBOSE=VERBOSE)
                         except Exception as e:
                             logger.error(f"Error in generating initial conformation using OpenBabel for {name}, skipping it {e}")
                             utils.log_error(smiles, name)
@@ -1046,13 +1300,17 @@ def gen_conf_chunk(df: pd.DataFrame, args, input_file='0'):
             if 'pdbqt' in args.format: confgen.to_pdbqt()
 
             if any(format in args.format for format in ['sdf', 'mol2', 'db2', 'db2.tgz']):
-                confgen.conf_sampling(numConfs=numConfs,
-                                      energywindow=energywindow,
-                                      ignoreTorlib=ignoreTorlib,
-                                      AllowNonRing=False,
-                                      request_alignment=request_alignment,
-                                     )
-            
+                try:
+                    confgen.conf_sampling(numConfs=numConfs,
+                                        energywindow=energywindow,
+                                        ignoreTorlib=ignoreTorlib,
+                                        AllowNonRing=False,
+                                        request_alignment=request_alignment,
+                                        )
+                except Exception as e:
+                    logger.error(f"Error in conformational sampling for {name}: {e}")
+                    utils.log_error(smiles, name)
+                    continue
             if args.timing: sampling_time = time.time() # Time for sampling
             if 'sdf' in args.format: confgen.to_sdf()
             if 'mol2' in args.format: confgen.to_mol2()
@@ -1120,7 +1378,7 @@ def main():
     parser.add_argument('--smiles', '-s', type = str, default = None, help='Input SMILES string.')
     parser.add_argument('--prefix', '-p', type=str, default = 'db2', help='Prefix for the output files.')
     parser.add_argument('--format', '-f', type=str, nargs='+', default=['db2.tgz'], choices=['db2', 'db2.tgz', 'pdbqt', 'sdf', 'mol2'], help='Output format(s) (e.g., db2.tgz, pdbqt, sdf, mol2).')
-    parser.add_argument('--mode', '-mode', type=str, default='vs', choices=['vs', 'extensive', 'ignoretorlib'], help='Mode for conformer generation (vs, extensive, ignoretorlib).')
+    parser.add_argument('--mode', '-mode', type=str, default='fixed', choices=['fixed', 'random', 'ignoretorlib'], help='Mode for conformer generation (fixed, random, ignoretorlib).')
     parser.add_argument('--tolerance', '-tol', type=float, default=30, help='Tolerance for dihedral angle sampling (default: 30).')
     parser.add_argument('--numconfs', '-nconfs', type=int, default=2000, help='Number of conformers to generate (default: 2000).')
     parser.add_argument('--nringconfs', '-nr', type=int, default=1, help='Number of ring conformers to generate (default: 1).')

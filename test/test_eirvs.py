@@ -361,7 +361,7 @@ class TestEirVS(unittest.TestCase):
             "gen3d": False,
             "format": None,
             "method": "rdkit",
-            "mode": "vs",
+            "mode": "fixed",
             "numconfs": 2000,
             "cleanup": True,
             "randomSeed": 42,

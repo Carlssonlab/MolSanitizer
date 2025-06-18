@@ -33,10 +33,11 @@ def get_atoms_mol(matches, template_map):
     return filtered_matches
 
 
-def parse_torlib(xml_file = Path(__file__).parent.parent / 'Data' / 'modified_tor_lib_2020.xml'):
+def parse_torlib(xml_file = Path(__file__).parent.parent / 'Data' / 'modified_tor_lib_2020.xml', downscale_GG_rule = False):
     """This function parse the torlib by the specific class to general class GG, 
     and return a list of tuples with the following format:
     (smarts, rdkit object of the smarts, 4_to_5_atoms_template, [(prefered, tolerance), ...])
+    downscale_GG_rule (default False): either to undersample the general rules (GG), added for extensive2
     Returns:
         Torlib: list of tuples with the following format:
         (smarts, rdkit object of the smarts, 4_to_5_atoms_template, [(prefered, tolerance), ...])
@@ -60,10 +61,22 @@ def parse_torlib(xml_file = Path(__file__).parent.parent / 'Data' / 'modified_to
             continue
         else:
             pattern = Chem.MolFromSmarts(Rule.get("smarts"))
-            Torlib.append((Rule.get("smarts"),
+            if downscale_GG_rule:
+                if Rule.get("smarts") == "[*:1]~[CX4:2]!@[OX2:3]~[*:4]":
+                    Torlib.append((Rule.get("smarts"),
                         (pattern),
-                        get_atoms_template(pattern),
-                        [(((float(angle.get("value")))), float(angle.get("tolerance1")), float(angle.get("tolerance2")), round(float(angle.get("score"))+0.05, 2)) for angle in Rule.iter(tag='angle')]))
+                        get_atoms_template(pattern),           # Special treatment for aliphatic hydroxyls
+                        [(((float(angle.get("value")))), float(0), float(0), round(float(angle.get("score"))+0.05, 2)) for angle in Rule.iter(tag='angle')]))
+                else:
+                    Torlib.append((Rule.get("smarts"),
+                            (pattern),
+                            get_atoms_template(pattern),     # Do not include tolerance2 here for undersample of GG rules. Below doubled tolerance1 is intentional
+                            [(((float(angle.get("value")))), float(angle.get("tolerance1")), float(angle.get("tolerance1")), round(float(angle.get("score"))+0.05, 2)) for angle in Rule.iter(tag='angle')]))
+            else:
+                Torlib.append((Rule.get("smarts"),
+                            (pattern),
+                            get_atoms_template(pattern),
+                            [(((float(angle.get("value")))), float(angle.get("tolerance1")), float(angle.get("tolerance2")), round(float(angle.get("score"))+0.05, 2)) for angle in Rule.iter(tag='angle')]))
     return Torlib
 
 
@@ -72,7 +85,7 @@ def parse_dihedral_set(dihedral_str):
     dihedral_list = dihedral_str.replace("'", "").split(', ')
     return [int(x) for x in dihedral_list]
 
-def parse_sr_confs_library(xml_file =Path(__file__).parent.parent /'Data/sr_confs.xml'):
+def parse_sr_confs_library(xml_file = Path(__file__).parent.parent /'Data/sr_confs.xml'):
     """
     Parse the XML file containing the SR conformer library and extract the data.
     """

@@ -4,16 +4,15 @@
 
 #===============SINGLE MODE================
 # Configurations for EirVS single mode
-# USE_CORINA: Use Corina for 3D structure generation (default: False)
+# EMBED_METHOD: Method for embedding the compound. Choose from 'rdkit', 'obabel', 'corina'
 # CORINA: Path to the corina executable file
 # TIMEOUT: Timeout for the initial embedding of each compound in minutes (default: 2 minutes)
 # MAX_STEREOISOMERS: Maximum number of stereoisomers to be generated for each compound (default: 8)
 # ENERGY_WINDOW: Energy window for the conformer generation (default: 25 kcal/mol)
 # NUMCONFS: Number of conformers to be generated for each compound (default: 2000)
 
-USE_CORINA: False
 EMBED_METHOD: 'rdkit' # choose from 'rdkit', 'obabel', 'corina'
-CORINA: '/home/phonglam/corina/corina-4.2/corina'
+CORINA: '/proj/carlssonlab/corina/corina-4.2/corina'
 ENERGY_WINDOW: 25
 NUMCONFS: 2000
 MAX_STEREOISOMERS: 8

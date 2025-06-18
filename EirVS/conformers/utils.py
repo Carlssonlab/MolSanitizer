@@ -27,16 +27,24 @@ flippable_Ns_1 = Chem.MolFromSmarts("[!#1:1]-!@[NH+;!$(N-*=*):2]1-[A:3]-[A:4]-[A
 flippable_Ns_2 = Chem.MolFromSmarts("[*:1]-!@[N+0;!$(N-*=*):2]1-[A:3]-[A:4]-[A]-[A:6]-[A:5]-1")
 substituted_C_cyclohexane = Chem.MolFromSmarts('[!#1:1]-!@[CH:2]1-[A:3]-[A:4]-[A]-[A:6]-[A:5]-1')
 
-conjugated_substituted_nitrogen = Chem.MolFromSmarts('[a:1]:[a:2]:[a:3]:[nX3&+0:4]-*')
-additional_substituted_nitrogen = Chem.MolFromSmarts('*-[nX3&+0:1]:[a:2]:[a:3]')
-barbiturate = Chem.MolFromSmarts('[C;$(C~[O,S]):1]1~[N:2]~[C;$(C~[O,S]):3]~[N:4]~[C;$(C~[O,S]):5]~[CX4;$(C-*):6]~1') # To 0 iteratively four consecutive atoms
-hydantoin = Chem.MolFromSmarts('[C;$(C~[O,S]):1]1~[N:2]~[C;$(C~[O,S]):3]~[N:4]~[CX4;$(C-*):5]~1') # To 0 iteratively four consecutive atoms
+conjugated_substituted_nitrogen_5aro = Chem.MolFromSmarts('*-[nX3&+0:1]1[a:2][a:3][a:4][a:5]1')
+conjugated_substituted_nitrogen_6aro = Chem.MolFromSmarts('*-[nX3&+0:1]1[a:2][a:3][a:4][a:5][a:6]1')
+
+aro_5_patt = Chem.MolFromSmarts('*-[a:1]1[a:2][a:3][a:4][a:5]1')  # 5 aromatic atoms
+aro_6_patt = Chem.MolFromSmarts('*-[a:1]1[a:2][a:3][a:4][a:5][a:6]1')  # 6 aromatic atoms
+
+barbiturate = Chem.MolFromSmarts('[C;$(C~[OX1,SX1]):1]1~[N:2]~[C;$(C~[OX1,SX1]):3]~[*^2:4]~[*^2:5]~[*:6]~1') # To 0 iteratively four consecutive atoms
+hydantoin = Chem.MolFromSmarts('[C;$(C~[OX1,SX1]):1]1~[N:2]~[C;$(C~[OX1,SX1]):3]~[*^2:4]~[A:5]~1') # To 0 iteratively four consecutive atoms
 substituted_N_barbi_hydan_like = Chem.MolFromSmarts('*~[C^2,N^2:1][C^2,N^2:2][C^2,N^2:3]')
-amide_substructure = Chem.MolFromSmarts('[O:1]=[CX3:2]!@[N&+0:3](-[!#1:4])-[#1:5]')
+amide_substructure = Chem.MolFromSmarts('[O:1]=[CX3:2]!@[N&+0:3](-[#1:4])-[*:5]') #primary, secondary amide for constrained planarity only
+
+const_rule = [(-120, 30, 30, 1), (-60, 30, 30, 1), (0, 30, 30, 1), (60, 30, 30, 1), (120, 30, 30, 1), (180, 30, 30, 1)]
+
 #symmetric_ring = Chem.MolFromSmarts('[*:1]-!@[a;$(a1[aH][aH]a[aH][aH]1):2]')
 # symmetric_ring = Chem.MolFromSmarts('[*:1]-!@[a:2]1[aH:3][aH:4][a:5][aH:6][aH:7]1')
 #
 Torlib = strain_filter.parse_torlib()
+
 rigid_rule_files = Path(__file__).parent.parent / 'Data' / 'rigid_part_rules.txt'
 rigid_rules = pd.read_csv(rigid_rule_files, header=None, sep =r'\s+', names=['SMARTS','label'])
 rigid_rules['mol'] = rigid_rules['SMARTS'].apply(lambda x: Chem.MolFromSmarts(x))
@@ -46,7 +54,14 @@ with open(Path(__file__).parent.parent / 'eirvs_configurations.yaml') as confFil
     eirvs_configurations = yaml.full_load(confFile)
 CORINA_EXE = eirvs_configurations['CORINA']
 
-
+# These below are for the new more deterministic method
+rotatable_pattern_not_terminal = r'''*~[!$(*#*)&!D1&!$(C(F)(F)F)&!$(C(Cl)(Cl)Cl)&!$(C(Br)(Br)Br)&!$([CH3])]-!@[!$(*#*)&!D1&!$(C(F)(F)F)&!$(C(Cl)(Cl)Cl)&!$(C(Br)(Br)Br)&!$([CH3])]~*'''
+downscaled_torlib = strain_filter.parse_torlib(downscale_GG_rule = True)
+symmetric_patterns_file = Path(__file__).parent.parent / 'Data' / 'symmetric_smarts.txt'
+symmetric_patterns_df = pd.read_csv(symmetric_patterns_file, sep=r'\s+', header=None, names=['pattern', 'name', 'num_scaled'])
+symmetric_patterns_df['mol'] = symmetric_patterns_df['pattern'].apply(lambda x: Chem.MolFromSmarts(x))
+amide_pattern_mol = Chem.MolFromSmarts('[$(C=O):1]!@[NX3:2]') 
+prim_amidines_guanidines_pattern_mol = Chem.MolFromSmarts('[#1:1][NH2,NX3H1:2]!@-[CX3+0;$(C(~[NH2])(~[NH2])~*):3]~[NH2:4]')
 
 def embed_smiles_corina(smiles, name, numringconfs, VERBOSE):
     '''
@@ -105,11 +120,6 @@ def embed_smiles_corina(smiles, name, numringconfs, VERBOSE):
         mol2_string = mol2_blocks[0] if len(mol2_blocks) > 0 else None
         return mol2_string, ring_confs
     
-def find_symmetric_rings(mol_H: Mol):
-    '''
-    Find the symmetric rings in the molecule. *!@-a1[cH][cH][a][cH][cH]1
-    '''
-    return mol_H.GetSubstructMatches(symmetric_ring, )
 
 def find_flipped_nitrogen(mol_H: Mol):
     '''
@@ -123,35 +133,22 @@ def find_flipped_carbon(mol_H: Mol):
     '''
     return mol_H.GetSubstructMatches(substituted_C_cyclohexane)
 
-def find_conjugated_substituted_nitrogen1(mol_H: Mol):
+def find_conjugated_substituted_nitrogen_5aro(mol_H: Mol):
     '''
-    Find the conjugated substituted nitrogen in the molecule. c:c:n(R):c:c. 
+    Find the conjugated substituted nitrogen in the molecule with 5 aromatic atoms
+    Format: *-[nX3&+0:1]1[a:2][a:3][a:4][a:5]1
 
-    Only match to the atoms within the same ring as n.
     '''
-    ring_info = mol_H.GetRingInfo()
-    matches = [tuple(match[:4]) for match in mol_H.GetSubstructMatches(conjugated_substituted_nitrogen)]
-    filtered_matches = []
-    for match in matches:
-        for ring in ring_info.AtomRings():
-            if set(match).issubset(ring):
-                filtered_matches.append(match)
-    return filtered_matches
+    return mol_H.GetSubstructMatches(conjugated_substituted_nitrogen_5aro)
 
-def find_conjugated_substituted_nitrogen2(mol_H: Mol):
-    '''
-        Another function to find conjugated substituted nitrogen in the molecule fo fix the dihedral
 
-        Find two *-n:a:a matches for each Ns, then fix them to 180 to make them planar
+def find_conjugated_substituted_nitrogen_6aro(mol_H: Mol):
     '''
-    matches = mol_H.GetSubstructMatches(additional_substituted_nitrogen)
-    ring_info = mol_H.GetRingInfo()
-    filtered_matches = []
-    for match in matches:
-        for ring in ring_info.AtomRings():
-            if set(match[1:]).issubset(ring):
-                filtered_matches.append(match)
-    return filtered_matches
+    Find the conjugated substituted nitrogen in the molecule with 6 aromatic atoms
+    Format: *-[nX3&+0:1]1[a:2][a:3][a:4][a:5][a:6]1
+
+    '''
+    return mol_H.GetSubstructMatches(conjugated_substituted_nitrogen_6aro)
 
 def find_barbiturates(mol_H: Mol):
 
@@ -370,7 +367,15 @@ def find_sulfonamide_like_scaffolds(mol_H: Mol):
         else: matches_sulfonamide.append((a, b, c, d, e))
     return matches_sulfonamide
 
-def classify_confs(conf, energy, non_planar_rings, flippable_Ns, flippable_Cs, sulfo_matches, conf_ring_descriptors_df, tolerance=20):
+def classify_confs(conf, 
+                   energy, 
+                   non_planar_rings, 
+                   flippable_Ns, 
+                   flippable_Cs, 
+                   sulfo_matches, 
+                   conf_ring_descriptors_df, 
+                   tolerance=20):
+    
     temp_dict = {
         'Conformer': conf,
         'Energy': energy
@@ -424,8 +429,6 @@ def remove_unfavorable_confs(conf_ring_descriptors_df: pd.DataFrame, name: str =
         conf_ring_descriptors_df = conf_ring_descriptors_df[conf_ring_descriptors_df[column] != -1]
     return conf_ring_descriptors_df
 
-def get_sdf_mol2_filename(name: str, rigid_scaffold_idx: int, align_copy: int):
-    return f"{name}_mol{rigid_scaffold_idx}_align{align_copy}.sdf", f"{name}_mol{rigid_scaffold_idx}_align{align_copy}.mol2"
 
 def is_slurm_job():
     '''Check if SLURM_JOB_ID is present in environment variables'''
@@ -461,6 +464,7 @@ def getDihedralMatches(mol, pattern):
             seen.add((b,c))
             uniqmatches.append((a,b,c,d))
     return uniqmatches
+
 
 def precompute_bonded_and_same_parent_pairs(mol):
     """
@@ -649,7 +653,7 @@ def count_confs_by_rotbonds(mol, ignoreTorlib=False, VERBOSE=False):
     #             break
 
     if ignoreTorlib:
-        amide_linkages = find_amide(mol)
+        amide_linkages = mol.GetSubstructMatches(amide_pattern_mol)
         amide_atoms=set()
         for a, b, c, d, e in amide_linkages: 
             amide_atoms.add(b)
@@ -789,3 +793,245 @@ def is_similar_conformer(new_dihedrals, exist, tol = 30.0):
     diffs = np.minimum(diffs, 360 - diffs)
     is_similar = np.all(diffs <= tol, axis=1)
     return np.any(is_similar)
+
+
+# All deterministic version of torsional sampling will be available here
+def bond_centrality(bond, dists):
+    # Centrality: shortest average distance from bond atoms to all others
+
+    a1, a2 = bond
+    centrality = sum(dists[a1]) + sum(dists[a2])
+    return centrality
+
+def softmax_weights(scores, T=1.0):
+    """Lower scores → larger weight.  T↑  ⇒ flatter, T↓ ⇒ steeper."""
+    scores = np.asarray(scores, dtype=float)
+    w = np.exp(scores / T)          
+    return w / w.sum()
+
+def get_importance_order(mol, rot_bonds, debug = False):
+    dists = Chem.GetDistanceMatrix(mol)
+    bond_scores = [bond_centrality((b[0],b[1]), dists) for b in rot_bonds]
+
+    # Get sorting indices - lower score is more central (smaller distance sum)
+    sorting_indices = np.argsort(bond_scores)
+
+    # Create weights based on position - most central bonds get higher weights
+    position_weights = [0]*len(sorting_indices)
+    for idx in range(len(sorting_indices)):
+        # Assign weights based on position in sorted order
+        # More central bonds (lower indices) get higher weights
+        # This is a simple linear weighting scheme
+        position_weights[sorting_indices[idx]] = (len(sorting_indices) - idx) / 10 # 10 is to reduce the difference
+    
+    position_weights = softmax_weights(position_weights)
+    if debug:
+        print("Bond scores (lower is more central):", bond_scores)
+        print("Softmax weights:", position_weights)
+    return position_weights
+
+def getDihedralMatches_v2(mol, pattern = rotatable_pattern_not_terminal):
+    '''return list of atom indices of dihedrals'''
+    #this is rdkit's "strict" pattern
+    qmol = Chem.MolFromSmarts(pattern)
+    matches = mol.GetSubstructMatches(qmol)
+    #these are all sets of 4 atoms, uniquify by middle two
+    uniqmatches = []
+    seen = set()
+    for (a,b,c,d) in matches:
+        if ((b,c) not in seen) and ((c,b) not in seen):
+            seen.add((b,c))
+            uniqmatches.append(tuple(sorted((b,c))))
+    return uniqmatches
+
+
+def discretinize_dihedrals(typical, tolerance, step = 30):
+    '''
+    Discretinize a dihedral angle into a list of angles.
+    typical: the typical dihedral angle (peak of the distribution)
+    tolerance: the tolerance around the typical angle
+    step: the step size for discretinization
+    '''
+    if tolerance < step: return [typical]
+    # n_steps = int(tolerance / step)
+    # angles = [typical + i * step for i in range(-n_steps, n_steps + 1)]
+    angles = [typical, typical - step, typical + step] #Only sample 3 angles for each dihedral
+
+    normalized_angles = [(angle + 180) % 360 - 180 for angle in angles]
+    return normalized_angles
+
+def angular_diff(a, b):
+    diff = abs(a - b) % 360
+    return min(diff, 360 - diff)
+
+def filter_symmetric_angles(angles, scores, symmetry_angle=180, tolerance=10):
+    """
+    Filter out angles that are approximately symmetry_angle degrees apart from a previously kept angle.
+
+    Parameters:
+        angles (list of float): Angles in degrees.
+        scores (list of float): Corresponding scores.
+        symmetry_angle (float): The symmetry angle (e.g., 180, 120).
+        tolerance (float): Allowed deviation for approximate symmetry.
+
+    Returns:
+        Tuple: (filtered_angles, filtered_scores)
+    """
+
+    kept_angles = []
+    kept_scores = []
+
+    for _, (a, s) in enumerate(zip(angles, scores)):
+        # Check if a is similar to any already kept angle
+        is_similar = any(
+            symmetry_angle - tolerance <= angular_diff(a, kept) <= symmetry_angle + tolerance
+            for kept in kept_angles
+        )
+        if not is_similar:
+            kept_angles.append(a)
+            kept_scores.append(s)
+
+    return kept_angles, kept_scores
+
+def count_confs_by_rotbonds_v2(mol, rot_bonds, ignoretorlib = False, amide_bonds = None, VERBOSE=False):
+    """
+    Estimates the number of conformations by analyzing rotatable bonds and torsion rules.
+    Adjusts torsions for amide bonds and symmetric patterns.
+
+    Args:
+        mol (rdkit.Chem.Mol): The input molecule.
+        rot_bonds (list): List of rotatable bonds.
+        ignoretorlib (bool): If True, ignore the torsion library and use all possible angles differ by 30 degrees.
+        amide_bonds (list): List of amide bonds to zero out fluctuations.
+        VERBOSE (bool): If True, print detailed steps.
+
+    Returns:
+        tuple: (total_confs, bond_to_rule_angle_dict)
+            - total_confs (int): Estimated number of conformations.
+            - bond_to_rule_angle_dict (dict): Map of bond keys to discretized torsion rules.
+    """
+    # Step 1: Match torsion rules and rotatable bonds
+
+    matched_rules = strain_filter.get_match_dihedral(mol, Torlib = downscaled_torlib)
+
+    amide_atoms = set()
+    if (amide_bonds):
+        for a, b, c, d, e in amide_bonds:
+            amide_atoms.add(b)
+            amide_atoms.add(c)
+
+    # Pre-compute a dictionary of rules by bond
+    rule_by_bond = {}
+    for rule in matched_rules:
+        central = tuple(sorted((rule[1][1], rule[1][2])))
+        rule_by_bond[central] = rule
+
+    # Then do a single pass through the rotatable bonds
+    bond_to_rule = {}
+    for bond in rot_bonds:
+        if bond in rule_by_bond:
+            rule = rule_by_bond[bond]
+            rule_copy = list(rule)
+            
+            # Only apply ignoretorlib if not amide bonds
+            if ignoretorlib and len(set(bond) & amide_atoms) <= 1:
+                rule_copy[2] = const_rule
+                
+            bond_to_rule[bond] = rule_copy
+
+    # Step 2: Handle planar substructures (amides, amidines - zero out fluctuations)
+
+    for amide_match in mol.GetSubstructMatches(amide_pattern_mol):
+        bond_key = tuple(sorted(amide_match[0:2]))
+        if bond_key not in bond_to_rule:
+            continue
+        rule = bond_to_rule[bond_key]
+        adjusted_peaks = []
+        for peak in rule[2]:
+            if isinstance(peak, tuple) and len(peak) >= 3:
+                adjusted_peaks.append((peak[0], 0, 0) + peak[3:])
+            else:
+                adjusted_peaks.append(peak)
+        rule[2] = adjusted_peaks
+
+    # Zero out fluctuations for primary amidines, guanidines:
+    uniq_matches_prim_amidines_guanidines = set()
+    for match in mol.GetSubstructMatches(prim_amidines_guanidines_pattern_mol):
+        uniq_matches_prim_amidines_guanidines.add(tuple(sorted(match[1:3])))
+
+    for bond_key in list(uniq_matches_prim_amidines_guanidines):
+        if bond_key not in bond_to_rule: continue
+        rule = bond_to_rule[bond_key]
+        adjusted_peaks = []
+        for peak in rule[2]:
+            if isinstance(peak, tuple) and len(peak) >= 3:
+                adjusted_peaks.append((peak[0], 0, 0) + peak[3:])
+            else:
+                adjusted_peaks.append(peak)
+        rule[2] = adjusted_peaks
+
+    # Step 3: Apply symmetry filtering to avoid redundant angles
+    for _, sym_row in symmetric_patterns_df.iterrows():
+        matches = mol.GetSubstructMatches(sym_row['mol'])
+        if not matches:
+            continue
+        if VERBOSE:
+            print(f"\tFound symmetric pattern: {sym_row['name']}")
+        period = 360 / sym_row['num_scaled']
+        for match in matches:
+            bond_key = tuple(sorted(match[:2]))
+            if bond_key not in bond_to_rule:
+                continue
+            rule = bond_to_rule[bond_key]
+            angles, scores = [], []
+            if len(rule[2][0]) < 4:
+                # Already reduced for this angle, skip further reduced
+                continue
+            for peak in rule[2]:
+                angle_list = discretinize_dihedrals(peak[0], peak[2])
+                angles.extend(angle_list)
+                scores.extend([peak[3]] * len(angle_list))
+            filtered_angles, filtered_scores = filter_symmetric_angles(angles, scores, period, 10)
+            rule[2] = list(zip(filtered_angles, filtered_scores))
+
+    if VERBOSE:
+        print("\nFinal processed torsion rules:")
+        for bond, rule in bond_to_rule.items():
+            print(f"\tBond {bond}: {rule}")
+
+    # Step 4: Discretize angles and estimate total possible conformations
+    angle_map = {}
+    score_map = {}
+    total_confs = 1
+    for bond_idx, rule in enumerate(bond_to_rule.values()):
+        name, atom_indices, peak_list = rule
+        angle_list = []
+        score_list = []
+        total_angles = 0
+        for peak in peak_list:
+            if len(peak) < 4:
+                # fallback case (e.g., symmetric angle filtering already applied)
+                angle_list = [peak[0] for peak in peak_list]
+                score_list = [peak[1] for peak in peak_list]
+                total_angles = len(angle_list)
+                break
+            angle_vals = discretinize_dihedrals(peak[0], peak[2])
+            angle_list.extend(angle_vals)
+            score_list.extend([peak[3]] * len(angle_vals))
+        
+
+        # Filter out too similar angles (within <±30 degrees)
+        deduplicated_angles = []
+        deduplicated_scores = []
+        for angle, score in zip(angle_list, score_list):
+            # Only add if not too similar to any existing angle
+            if not any(abs(angular_diff(angle, existing)) < 30 for existing in deduplicated_angles):
+                deduplicated_angles.append(angle)
+                deduplicated_scores.append(score)
+
+        total_angles = len(deduplicated_angles)
+        angle_map[bond_idx] = [name, atom_indices, deduplicated_angles]
+        score_map[bond_idx] = deduplicated_scores
+        total_confs *= total_angles
+
+    return total_confs, angle_map, score_map
