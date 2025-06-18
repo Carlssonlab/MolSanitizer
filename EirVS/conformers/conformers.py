@@ -293,10 +293,15 @@ class ConformerGenerator:
                 if self.substituted_N_barbi_hydan_like:
                     for a, b, c, d in self.substituted_N_barbi_hydan_like:
                         ff.MMFFAddTorsionConstraint(a, b, c, d, False, 178, 182, 1)
-                if self.amide_linkages:
-                    for a, b, c, d, e in self.amide_linkages: # O=C-N(-C)-H should be coplanar.
-                        ff.MMFFAddTorsionConstraint(a, b, c, d, False, -2, 2, 1)
-                        ff.MMFFAddTorsionConstraint(a, b, c, e, False, 178, 182, 1)
+                # if self.amide_linkages:
+                    
+                #     for a, b, c, d, e, f  in self.amide_linkages: # O=C-N(-C)-H should be coplanar.
+                #         #[O:1]=[CX3:2](!@[N&+0:3](-[#1:4])-[*:5])-[*:6]
+                #         # ff.MMFFAddTorsionConstraint(a, b, c, d, False, -2, 2, 1)
+                #         # ff.MMFFAddTorsionConstraint(a, b, c, e, False, 178, 182, 1)
+                #         ff.MMFFAddAngle
+                #         # ff.MMFFAddTorsionConstraint(d, c, b, f, False, -2, 2, 1)
+                #         # #ff.MMFFAddTor
                 if self.planar_rings:
                     for ring in self.planar_rings:
                         # For planar rings, we need to ensure that the ring is planar.
@@ -481,10 +486,10 @@ class ConformerGenerator:
         if substituted_N_barbi_hydan_like:
             for a, b, c, d in substituted_N_barbi_hydan_like:
                 ff.MMFFAddTorsionConstraint(a, b, c, d, False, 178, 182, 1)
-        if amide_linkages:
-            for a, b, c, d, e in amide_linkages: # O=C-N(-C)-H should be coplanar.
-                ff.MMFFAddTorsionConstraint(a, b, c, d, False, -2, 2, 1)
-                ff.MMFFAddTorsionConstraint(a, b, c, e, False, 178, 182, 1)
+        # if amide_linkages:
+        #     for a, b, c, d, e in amide_linkages: # O=C-N(-C)-H should be coplanar.
+        #         ff.MMFFAddTorsionConstraint(a, b, c, d, False, -2, 2, 1)
+        #         ff.MMFFAddTorsionConstraint(a, b, c, e, False, 178, 182, 1)
         if planar_rings:
             for ring in planar_rings:
                 # For planar rings, we need to ensure that the ring is planar.
