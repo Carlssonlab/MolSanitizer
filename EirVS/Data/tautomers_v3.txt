@@ -220,9 +220,9 @@ beta-iminocarbonyl/dimine_to_aminoacrylate-CH1-NH0	0	[N&H0;!$(N-[O,N])!$(N1=C-C-
 beta-iminocarbonyl/dimine_to_aminoacrylate-CH2-NH0	0	[N&H0;!$(N-[O,N])!$(N1=C-C-A=N-aa1)!$(N=C(-N)-N):1]=[C;!$(C-[OH]):2]-[CH2:3]-[A;$(*=[O,N,SX1]),$(C#N):4]>>[NH:1]-[C:2]=[CH:3][A:4]
 beta-iminocarbonyl/dimine_to_aminoacrylate-CH1-NH1	0	[NH;!$(N-[O,N])!$(N1=C-C-A=N-aa1)!$(N=C(-N)-N):1]=[C;!$(C-[OH]):2]-[NH,CH:3]-[A;$(*=[O,N,SX1]),$(C#N):4]>>[NH2:1]-[C:2]=[CH0,NH0:3]-[A:4]
 beta-iminocarbonyl/dimine_to_aminoacrylate-CH2-NH1	0	[NH;!$(N-[O,N])!$(N1=C-C-A=N-aa1)!$(N=C(-N)-N):1]=[C;!$(C-[OH]):2]-[CH2:3]-[A;$(*=[O,N,SX1]),$(C#N):4]>>[NH2:1]-[C:2]=[CH:3][A:4]
-acylimine_to_amide-CH3 0	[CH3:1]-[C&z1;!$([C&r{3-4}]):2]=[N:3]-[C:4]=[O:5]>>[CH2:1]=[C:2][NH:3]-[C:4]=[O:5]
-acylimine_to_amide-CH2 0	[CH2:1]-[C&z1;!$([C&r{3-4}]):2]=[N:3]-[C:4]=[O:5]>>[CH:1]=[C:2][NH:3]-[C:4]=[O:5]
 acylimine_to_amide-CH1 0	[CH&X4:1]-[C&z1;!$([C&r{3-4}]):2]=[N:3]-[C:4]=[O:5]>>[C&H0:1]=[C:2][NH:3]-[C:4]=[O:5]
+acylimine_to_amide-CH2 0	[CH2:1]-[C&z1;!$([C&r{3-4}]):2]=[N:3]-[C:4]=[O:5]>>[CH:1]=[C:2][NH:3]-[C:4]=[O:5]
+acylimine_to_amide-CH3 0	[CH3:1]-[C&z1;!$([C&r{3-4}]):2]=[N:3]-[C:4]=[O:5]>>[CH2:1]=[C:2][NH:3]-[C:4]=[O:5]
 3-iminoisoquinoline_to_3-amino-NH2-NH1 0	[c;!$(c~[OX1,OH,SX1,SX2H]):1]1[c;!$(c~[OX1,OH,SX1,SX2H]):2][c;!$(c~[OX1,OH,SX1,SX2H]):3][c:4]2[c:5](-[NH2:11])[n:6][c:7](=[NH:12])[a;!$(a~[OX1,OH,SX1,SX2H]):8][c:9]2[c;!$(c~[OX1,OH,SX1,SX2H]):10]1>>[c:1]1[c:2][c:3][c:4]2[c:5](=[NH:11])[n:6][c:7]([NH2:12])[a:8][c:9]2[c:10]1	based_on_PDB_5G2N
 3-iminoisoquinoline_to_3-amino-NH2-NH1 0	[c;!$(c~[OX1,OH,SX1,SX2H]):1]1[c;!$(c~[OX1,OH,SX1,SX2H]):2][c;!$(c~[OX1,OH,SX1,SX2H]):3][c:4]2[c:5](-[NH:11])[n:6][c:7](=[NH:12])[a;!$(a~[OX1,OH,SX1,SX2H]):8][c:9]2[c;!$(c~[OX1,OH,SX1,SX2H]):10]1>>[c:1]1[c:2][c:3][c:4]2[c:5](=[N&H0:11])[n:6][c:7]([NH2:12])[a:8][c:9]2[c:10]1	based_on_PDB_5G2N
 3-iminoisoquinoline_to_3-amino-NH2-NH0 0	[c;!$(c~[OX1,OH,SX1,SX2H]):1]1[c;!$(c~[OX1,OH,SX1,SX2H]):2][c;!$(c~[OX1,OH,SX1,SX2H]):3][c:4]2[c:5](-[NH2:11])[n:6][c:7](=[N&H0:12])[a;!$(a~[OX1,OH,SX1,SX2H]):8][c:9]2[c;!$(c~[OX1,OH,SX1,SX2H]):10]1>>[c:1]1[c:2][c:3][c:4]2[c:5](=[NH:11])[n:6][c:7]([NH:12])[a:8][c:9]2[c:10]1	based_on_PDB_5G2N
