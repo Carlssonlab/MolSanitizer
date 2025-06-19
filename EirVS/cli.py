@@ -5,7 +5,7 @@ EirVS in a standalone mode.
 __author__ = "Thua-Phong Lam, Szymon Pach, Israel Cabeza de Vaca"
 __place__ = "Jens Carlsson lab, Uppsala University, Sweden"
 __license__ = "GPLv2"
-__version__ = "0.2.3"
+__version__ = "0.3.0"
 
 import logging
 logger = logging.getLogger('eirvs')
