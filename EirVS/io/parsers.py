@@ -145,7 +145,7 @@ def parseArguments(args = None, batch_mode = False):
     misc_group.add_argument('--lazy', action='store_true', help='Implement all the processing and preparation steps')
     misc_group.add_argument('--numcores', '-j', type=int, default=4, help='Number of cores to use for parallel processing (default: 4)')
     misc_group.add_argument("--help", "-h", action="help", help="Show this help message and exit")
-    misc_group.add_argument('--timing', action='store_true', help='Time the process')
+    misc_group.add_argument('--timing', action='store_true', help='Time the process', help=argparse.SUPPRESS)
     misc_group.add_argument('--test', action='store_true', help=argparse.SUPPRESS)
     misc_group.add_argument('--version', '-v', action='store_true', help = 'Show the current version of EirVS')
 
