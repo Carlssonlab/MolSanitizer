@@ -737,7 +737,7 @@ class ConformerGenerator:
             visitting = [0] * len(angle_map)
 
             # Adaptive sampling parameters
-            max_stagnation = min(max_attempts // 10, 5000)  # Stop if no progress
+            max_stagnation = min(max_attempts // 10, 1000)  # Stop if no progress
             stagnation_counter = 0
             last_product_size = 0
 
@@ -747,6 +747,11 @@ class ConformerGenerator:
                 rdMolTransforms.SetDihedralDeg(mol.GetConformer(0), *rule[1], rule[2][0])
 
             while len(product) < numConfs and attempts < max_attempts:
+                if stagnation_counter >= max_stagnation:
+                    if self.VERBOSE:
+                        print(f"Early stopping criteria met (attempted {attempts}). Generated {len(product)} conformers.")
+                    break
+        
                 # Use importance-based weights for rotation selection
                 to_rotate = set(random.choices(range(len(angle_map)), weights=importance_order, k=k))
                 # For each selected bond, choose a random angle
@@ -770,10 +775,12 @@ class ConformerGenerator:
                 
                 if state_tuple in visited:
                     attempts += 1
+                    stagnation_counter += 1
                     continue
                 
                 if utils.check_too_close_nonbonded_atoms(mol.GetConformer(0), mol, bonded_pairs, same_parent_pairs, threshold = self.threshold):
                     attempts += 1
+                    stagnation_counter += 1
                     visited.add(state_tuple)
                     continue
 
@@ -786,10 +793,6 @@ class ConformerGenerator:
                 # Check for early stopping conditions
                 if len(product) == last_product_size:
                     stagnation_counter += 1
-                    if stagnation_counter >= max_stagnation:
-                        if self.VERBOSE:
-                            print(f"Stopping due to stagnation after {attempts} attempts. Generated {len(product)} conformers.")
-                        break
                 else:
                     stagnation_counter = 0
                     last_product_size = len(product)
@@ -1316,7 +1319,7 @@ def gen_conf_chunk(df: pd.DataFrame, args, input_file='0'):
                     utils.log_error(smiles, name)
                     continue
                 
-            if args.timing: 
+            if args.timing and ('db2' in args.format): 
                 db2_time = time.time()
                 logging_time += f'{name},{embed_time-start},{confgen.amsol_time-sampling_time},{sampling_time-embed_time},{db2_time-confgen.amsol_time},{db2_time-start}\n'
 

@@ -62,10 +62,10 @@ def parse_torlib(xml_file = Path(__file__).parent.parent / 'Data' / 'modified_to
         else:
             pattern = Chem.MolFromSmarts(Rule.get("smarts"))
             if downscale_GG_rule:
-                if Rule.get("smarts") == "[*:1]~[CX4:2]!@[OX2:3]~[*:4]":
+                if Rule.get("smarts") == "[*:1]~[CX4:2]!@[OX2:3]~[*:4]" or Rule.get("smarts") == "[*:1]~[OX2:2]!@[P:3]~[*:4]":
                     Torlib.append((Rule.get("smarts"),
                         (pattern),
-                        get_atoms_template(pattern),           # Special treatment for aliphatic hydroxyls
+                        get_atoms_template(pattern),           # Special treatment for aliphatic hydroxyls and phosphates
                         [(((float(angle.get("value")))), float(0), float(0), round(float(angle.get("score"))+0.05, 2)) for angle in Rule.iter(tag='angle')]))
                 else:
                     Torlib.append((Rule.get("smarts"),
