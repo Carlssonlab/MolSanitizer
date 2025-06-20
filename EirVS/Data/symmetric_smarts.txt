@@ -2,6 +2,7 @@
 [!#1:1]-[NX4&+1H3] protonated_prim_amines 3
 [*:1]-[CX3:1](=O)-[O-]  carboxylate 2
 [c:1]-[NX3H2&+0:2] anilines    2
+[c:1]-[N&+1](=O)-[O-]   nitros   2
 [c:1]-[NX3&+0:2](-[CH3])-[CH3]  N,N-dimethylanilines    2
 [C;$(C=C),$(C=N)]-[NX3H2&+0:2]  vinylamines_amidines    2
 [NX3;$(N([CH3])[CH3]),$([NH2]):1]-[CX3:1](=O)-[#1,*]    N,N-dimethylamide_or_prim_amide   2
