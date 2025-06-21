@@ -23,6 +23,7 @@ import numpy as np
 import logging
 import os
 import multiprocessing
+import subprocess
 import shutil
 import random
 import itertools
@@ -401,38 +402,18 @@ class ConformerGenerator:
         self.mol2_str = mol2_obj.write_mol2()
 
     def embed_smiles_babel(self):
-        from openbabel import openbabel as ob
-        # Step 1: Generate 3D conformer in Open Babel
-        obConversion = ob.OBConversion()
-        obConversion.SetInAndOutFormats("smi", "sdf")
-        
-        mol = ob.OBMol()
-        obConversion.ReadString(mol, self.smiles)
-        mol.AddHydrogens()
-        
-        builder = ob.OBBuilder()
-        builder.Build(mol)  # 3D coordinate generation
+        '''
+        Embed the SMILES string using Open Babel. CLI version is used as it is found more flexible 
+        than the RDKit version.'''
+                                        # add hs; gen3d
+        cmd = ["obabel", f"-:{self.smiles}", "-h", "--gen3d", "-osdf"]
 
-        # Don't need to minimize twice
-        # # Step 2: Minimize energy using MMFF94 force field
-        # ff = ob.OBForceField.FindForceField("MMFF94s")
-        # ff.Setup(mol)
-        
-        # # Step 3: Apply multi-step minimization
-        # # Steepest Descent
-        # ff.SteepestDescent(250, 1.0e-4)
-        # #ff.FastRotorSearch(True) # permute central bonds
-        # ff.WeightedRotorSearch(100, 25) # 100 cycles, each with 25 forcefield ops
-        # # Conjugate Gradients
-        # ff.ConjugateGradients(250, 1.0e-4)
-        # #feel free to tweak these to your balance of time / quality
+        # Execute the command and capture stdout
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        stdout, stderr = proc.communicate()
 
-        # #update the coordinates
-        # ff.GetCoordinates(mol)
-
-        # Step 3: Convert to SDF in-memory and read into RDKit
-        sdf_data = obConversion.WriteString(mol)
-        mol_rdkit = Chem.MolFromMolBlock(sdf_data, removeHs=False)
+        # Convert the SDF output from stdout to an RDKit molecule
+        mol_rdkit = Chem.MolFromMolBlock(stdout, removeHs=False)
         
         # Set molecule properties
         mol_rdkit.SetProp("_Name", self.name)
