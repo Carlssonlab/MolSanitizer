@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [unreleased - most recent changes come first]
+
+### 🚀 Features
+
+- Improved implementation of OpenBabel-based embedding. CLI version is chosen as it is more accurate for embedding of very difficule compounds. - ([6e05081](https://github.com/phonglam3103/EirVS/commit/6e05081dd4f679ceff0401d56b70e805dc271a05))
+
 ## [0.3.0] - 2025-06-19
 
 ### 🚀 Features
