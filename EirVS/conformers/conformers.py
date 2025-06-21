@@ -54,6 +54,7 @@ class ConformerGenerator:
                  name='test', 
                  forcefield='MMFF94s',
                  method='rdkit',
+                 pre_embed=False,
                  randomSeed=42, 
                  num_ring_confs=1, 
                  numcores=1, 
@@ -109,21 +110,21 @@ class ConformerGenerator:
         
         # Setup force field
         self._setup_forcefield(forcefield)
-
-        if self.method == 'corina':
-            self.embed_smiles_corina()
-        elif self.method == 'obabel':
-            self.embed_smiles_babel()
-        elif self.method == 'rdkit':
-            self.embed_smiles_rdkit()
-        else:
-            raise ValueError(f"Invalid embedding method: {self.method}. Supported methods are: rdkit, obabel, corina.")
-        
+        if pre_embed == False:
+            if self.method == 'corina':
+                self.embed_smiles_corina()
+            elif self.method == 'obabel':
+                self.embed_smiles_babel()
+            elif self.method == 'rdkit':
+                self.embed_smiles_rdkit()
+            else:
+                raise ValueError(f"Invalid embedding method: {self.method}. Supported methods are: rdkit, obabel, corina.")
+            
     @classmethod
     def from_existing_data(cls, smiles, name, amsol_mol, ring_confs = None, mol2_str = None, request_alignment = None, mode:str = 'vs', tolerance = 30, VERBOSE=False):
         """Alternative constructor that initializes from existing data"""
         # Create a minimal instance
-        instance = cls(smiles, name=name)
+        instance = cls(smiles, name=name, pre_embed=True)
         
         # Override the instance attributes
         mol = Chem.Mol(amsol_mol)
