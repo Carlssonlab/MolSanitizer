@@ -159,6 +159,7 @@ class ConformerGenerator:
         
         if forcefield.startswith('MMFF'):
             self.mp = rdForceFieldHelpers.MMFFGetMoleculeProperties(self.mol_H, mmffVariant=forcefield)
+            self.mp.SetMMFFEleTerm(False)
         # elif forcefield == 'UFF': Not supported now...
         #    self.mp = rdForceFieldHelpers.UFFGetMoleculeProperties(self.mol_H)
         
@@ -426,6 +427,7 @@ class ConformerGenerator:
         substituted_N_barbi_hydan_like = utils.find_substituted_N_barbi_hydan_like(mol_rdkit, barbiturate_matches, hydantoin_matches)
         planar_rings, _ = utils.get_flexible_ring(mol_rdkit, planar_lib, non_planar_lib) 
         self.mp = rdForceFieldHelpers.MMFFGetMoleculeProperties(mol_rdkit, mmffVariant="MMFF94s")
+        self.mp.SetMMFFEleTerm(False)
         ff = rdForceFieldHelpers.MMFFGetMoleculeForceField(mol_rdkit, self.mp, confId=0)
         if conjugated_substituted_nitrogen_5aro:
             for a, b, c, d, e, f in conjugated_substituted_nitrogen_5aro:
@@ -593,6 +595,7 @@ class ConformerGenerator:
             For assymetric sulfonamides, there would be two versions of rigid scaffolds handled by EirVS.
         """
         self.conf_sampled = True
+        self.mp.SetMMFFEleTerm(True) #Turn on back otherwise it would produce unfeasible conformers
         if self.request_alignment is None and request_alignment is not None:
             self.request_alignment = request_alignment
         
