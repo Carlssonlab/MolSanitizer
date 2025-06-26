@@ -32,6 +32,8 @@ conjugated_substituted_nitrogen_6aro = Chem.MolFromSmarts('*-[nX3&+0:1]1[a:2][a:
 
 aro_5_patt = Chem.MolFromSmarts('*-[a:1]1[a:2][a:3][a:4][a:5]1')  # 5 aromatic atoms
 aro_6_patt = Chem.MolFromSmarts('*-[a:1]1[a:2][a:3][a:4][a:5][a:6]1')  # 6 aromatic atoms
+cycloheptatriene_smarts = Chem.MolFromSmarts('[*^2]1~[*^2]-[*^2]~[*^2]-[*^2]~[*^2]-[A;$([A^3]),$(A=!@[*!X1])]-1')
+cyclohepta_1_4_diene_3_sp2_smarts = Chem.MolFromSmarts('[*^2]1~[*^2]-[A^3,O]-[A^3,O]-[*^2]~[*^2]-[A^2]-1')
 
 barbiturate = Chem.MolFromSmarts('[C;$(C~[OX1,SX1]):1]1~[N:2]~[C;$(C~[OX1,SX1]):3]~[*^2:4]~[*^2:5]~[*:6]~1') # To 0 iteratively four consecutive atoms
 hydantoin = Chem.MolFromSmarts('[C;$(C~[OX1,SX1]):1]1~[N:2]~[C;$(C~[OX1,SX1]):3]~[*^2:4]~[A:5]~1') # To 0 iteratively four consecutive atoms
@@ -366,6 +368,10 @@ def find_sulfonamide_like_scaffolds(mol_H: Mol):
         if identical_substituents(mol_H, b, c, d, e): continue
         else: matches_sulfonamide.append((a, b, c, d, e))
     return matches_sulfonamide
+
+def find_cycloheptatriene(mol_H: Mol):
+    """Find cycloheptatriene or cyclohepta-1,4-diene-3-sp2 substructure in the molecule."""
+    return mol_H.GetSubstructMatches(cycloheptatriene_smarts) + mol_H.GetSubstructMatches(cyclohepta_1_4_diene_3_sp2_smarts)
 
 def classify_confs(conf, 
                    energy, 

@@ -138,6 +138,8 @@ def parseArguments(args = None, batch_mode = False):
     gen3d.add_argument('--mode', '-mode', choices=['fixed', 'random', 'ignoretorlib'], default='fixed', help='Mode for generating conformers\nDefault: fixed - Options: fixed, random, ignoretorlib')
     gen3d.add_argument('--tolerance', '-tol', type=float, default=30, help='Minimum angle for differentiating two conformers (default: 30)')
     gen3d.add_argument('--nocleanup', action='store_false', dest='cleanup', default = True, help='Do not clean up the temporary files')
+    gen3d.add_argument('--allowNonring', action='store_true', help='Allow the full sampling of non-ring compounds (default undersample to 30 confs).')
+    gen3d.add_argument('--eps', type=float, default=1, help='The dielectric constant for electrostatic calculations (default: 1 - vacuum).')
 
     # Group 5: Miscellaneous
     misc_group = parser.add_argument_group("Miscellaneous")

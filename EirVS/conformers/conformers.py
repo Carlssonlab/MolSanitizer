@@ -330,8 +330,8 @@ class ConformerGenerator:
                                             ascending=[False, False, True], inplace=True) 
         
         # Unlikely to have duplicate energy, but may happen for very small symmetric molecucles
-        conf_ring_descriptors_df['Round_energy'] = conf_ring_descriptors_df['Energy'].round(4)
-        conf_ring_descriptors_df.drop_duplicates(subset=['Round_energy'], keep='first', inplace=True) 
+        # conf_ring_descriptors_df['Round_energy'] = conf_ring_descriptors_df['Energy'].round(4)
+        # conf_ring_descriptors_df.drop_duplicates(subset=['Round_energy'], keep='first', inplace=True) 
 
         # Keep a reservoir as the lowest energy possible conformer in case no good ring conformers are found.
         reservoir = conf_ring_descriptors_df.iloc[0, 0]
@@ -385,6 +385,11 @@ class ConformerGenerator:
         else:
             align_on = list(self.planar_rings)[0] if self.planar_rings else (1, 2, 3)
             temp_list = conf_ring_descriptors_df.values.tolist()
+            
+            if utils.find_cycloheptatriene(self.mol_H): 
+                self.num_ring_confs = max(2, self.num_ring_confs) # Cycloheptatriene has two puckering ring conformations
+                logger.info(f"Found cycloheptatriene in {self.name}, setting num_ring_confs to {self.num_ring_confs}")
+
             while len(self.ring_confs) < self.num_ring_confs and temp_list:
                 lowest_energy_entry = temp_list.pop(0)
                 conformer, current_descriptors = lowest_energy_entry[0], lowest_energy_entry[2:-1]
@@ -581,12 +586,19 @@ class ConformerGenerator:
                     #product.append((Chem.Conformer(mol.GetConformer(0)), energy))
         return product, visited, unvisited
 
-    def conf_sampling(self, numConfs=2000, energywindow = 25, ignoreTorlib=False, AllowNonRing=False, request_alignment=None):
+    def conf_sampling(self, 
+                      numConfs=2000, 
+                      energywindow = 25,
+                      eps = 1, 
+                      ignoreTorlib=False, 
+                      AllowNonRing=False, 
+                      request_alignment=None):
         """
         Perceive the allowed dihedral angles and call stochastic sampling to generate conformers.
         Args:
             numConfs (int): Number of conformers to generate.
             energywindow (float): Energy window for conformer generation.
+            eps (float): DIelectric constant for electrostatic interactions.
             ignoreTorlib (bool): Whether to ignore the torsion library.
             AllowNonRing (bool): Whether to allow the full sampling of non-ring compounds.
             request_alignment (list): List of atom indices for alignment.
@@ -596,13 +608,14 @@ class ConformerGenerator:
         """
         self.conf_sampled = True
         self.mp.SetMMFFEleTerm(True) #Turn on back otherwise it would produce unfeasible conformers
+        self.mp.SetMMFFDielectricConstant(eps) #Set the dielectric constant for electrostatic interactions
         if self.request_alignment is None and request_alignment is not None:
             self.request_alignment = request_alignment
         
         if self.mode == 'fixed' or self.mode == 'ignoretorlib':
             # This is still experimental, call conf_samplingv2, where Torlib is read differently
             # and the angle chosen would be deterministic. By default, peak +- 30 degrees, if tol2 >= 30.
-            self.conf_samplingv2(numConfs = numConfs, energywindow = energywindow, AllowNonRing=False, request_alignment=request_alignment)
+            self.conf_samplingv2(numConfs = numConfs, energywindow = energywindow, AllowNonRing=AllowNonRing, request_alignment=request_alignment)
             return
         
         num_confs_by_rotbonds, match_torlib = utils.count_confs_by_rotbonds(self.ring_confs[0], ignoreTorlib, self.VERBOSE)
@@ -615,14 +628,13 @@ class ConformerGenerator:
         self.atom_maps, self.label_map = utils.find_rigid_part(self.ring_confs[0], request_alignment)
         # Molecules which don't have rings are not of interest --> only sample limitedly.
         if (self.label_map) and not (AllowNonRing): numConfs = 30
-
         if request_alignment and not self.atom_maps:
             utils.log_error(self.smiles, self.name)
             return
         # For very flexible molecules, we need to sample more, then filter by energy later
         else:
-            if numConfs*10 < num_confs_by_rotbonds: numConfs = min(int(numConfs * 1.5), num_confs_by_rotbonds)
-            elif numConfs*5 < num_confs_by_rotbonds: numConfs = min(int(numConfs * 1.25), num_confs_by_rotbonds)
+            if numConfs*10 < num_confs_by_rotbonds: numConfs = min(numConfs*1.5, numConfs + 1000, num_confs_by_rotbonds)
+            elif numConfs*5 < num_confs_by_rotbonds: numConfs = min(numConfs*1.25, numConfs + 500, num_confs_by_rotbonds)
             else: numConfs = numConfs#min(numConfs, num_confs_by_rotbonds)
 
 
@@ -811,8 +823,8 @@ class ConformerGenerator:
             return
         # For very flexible molecules, we need to sample more, then filter by energy later
         else:
-            if numConfs*10 < possible_numConfs: numConfs = min(int(numConfs * 1.5), possible_numConfs, requested_num_confs + 1000)
-            elif numConfs*5 < possible_numConfs: numConfs = min(int(numConfs * 1.25), possible_numConfs, requested_num_confs + 1000)
+            if numConfs*10 < possible_numConfs: numConfs = min(int(numConfs * 1.5), numConfs + 1000, possible_numConfs, requested_num_confs + 1000)
+            elif numConfs*5 < possible_numConfs: numConfs = min(int(numConfs * 1.25), numConfs + 500, possible_numConfs, requested_num_confs + 1000)
             else: numConfs = numConfs#min(numConfs, num_confs_by_rotbonds)
 
         # Molecules which don't have rings are not of interest --> only sample limitedly.
@@ -1159,8 +1171,8 @@ def gen_conf_chunk(df: pd.DataFrame, args, input_file='0'):
     if 'mol' not in df.columns:
         df['mol'] = df['smiles'].apply(Chem.MolFromSmiles)
     df = filters.Filters.remove_exotic_chem_to_db2(df)
-    randomSeed, numConfs, VERBOSE, cleanup, energywindow, timeout, request_alignment, nr, numcores, mode, tolerance = \
-        args.randomSeed, args.numconfs, args.debug, args.cleanup, args.energywindow, args.timeout, args.rigid, args.nringconfs, args.numcores, args.mode, args.tolerance
+    randomSeed, numConfs, VERBOSE, cleanup, energywindow, timeout, request_alignment, nr, numcores, mode, tolerance, allowNonring, eps = \
+        args.randomSeed, args.numconfs, args.debug, args.cleanup, args.energywindow, args.timeout, args.rigid, args.nringconfs, args.numcores, args.mode, args.tolerance, args.allowNonring, args.eps
     
     ignoreTorlib = (args.mode == 'ignoretorlib')
     request_alignment = Chem.MolFromSmarts(utils.canonicalize_if_smiles(request_alignment)) if request_alignment else None
@@ -1279,7 +1291,8 @@ def gen_conf_chunk(df: pd.DataFrame, args, input_file='0'):
                     confgen.conf_sampling(numConfs=numConfs,
                                         energywindow=energywindow,
                                         ignoreTorlib=ignoreTorlib,
-                                        AllowNonRing=False,
+                                        AllowNonRing=allowNonring,
+                                        eps = args.eps,
                                         request_alignment=request_alignment,
                                         )
                 except Exception as e:
@@ -1355,6 +1368,8 @@ def main():
     parser.add_argument('--format', '-f', type=str, nargs='+', default=['db2.tgz'], choices=['db2', 'db2.tgz', 'pdbqt', 'sdf', 'mol2'], help='Output format(s) (e.g., db2.tgz, pdbqt, sdf, mol2).')
     parser.add_argument('--mode', '-mode', type=str, default='fixed', choices=['fixed', 'random', 'ignoretorlib'], help='Mode for conformer generation (fixed, random, ignoretorlib).')
     parser.add_argument('--tolerance', '-tol', type=float, default=30, help='Tolerance for dihedral angle sampling (default: 30).')
+    parser.add_argument('--allowNonring', '-anr', action='store_true', help='Allow full sampling of non-ring compounds.')
+    parser.add_argument('--eps', type=float, default=1, help='The dielectric constant for electrostatic calculations (default: 1 - vacuum).')
     parser.add_argument('--numconfs', '-nconfs', type=int, default=2000, help='Number of conformers to generate (default: 2000).')
     parser.add_argument('--nringconfs', '-nr', type=int, default=1, help='Number of ring conformers to generate (default: 1).')
     parser.add_argument('--debug', '-d', action='store_true', help='Enable verbose output for debugging.')
