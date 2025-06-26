@@ -160,9 +160,8 @@ Date: 2024-09-14
     </dihedral_sets>
   </ring>
 
-  <!-- Still lacks cyclohexene+sp2-1,2,3 and cyclohexene+sp2-1,2,4-->
   <ring name="cyclohexene_sp2-1,2,4_">
-    <smarts smarts="*1=,:*-[A^3]-[*^2]-[A^3]-[A^3]-1"/>
+    <smarts smarts="[*^2]1~[*^2]-[A^3]-[*^2]-[A^3]-[A^3]-1"/>
     <ref ref=""/>
     <dihedral_sets>
       <set dihedral="'-15', '45', '-60', '45', '-15', '0'" value="1"/>
@@ -175,7 +174,7 @@ Date: 2024-09-14
   </ring> 
 
 <ring name="cyclohexene_sp2-1,2,3_">
-    <smarts smarts="*1=,:*-[*^2]-[A^3]-[A^3]-[A^3]-1"/>
+    <smarts smarts="[*^2]1~[*^2]~[*^2]-[A^3]-[A^3]-[A^3]-1"/>
     <ref ref=""/>
     <dihedral_sets>
       <set dihedral="'0', '-30', '60', '-45', '20', '0'" value="1"/> <!--CCDC CUPVAO CUPTUG JOBDIQ-->
@@ -204,11 +203,22 @@ Date: 2024-09-14
   </ring>
   <ring name="cycloheptatriene">
     <note note="prefered boat form, not planar"/>
-    <smarts smarts="*1=,:*-*=,:*-*=,:*-A-1"/>
+    <smarts smarts="[*^2]1~[*^2]-[*^2]~[*^2]-[*^2]~[*^2]-[A;$([A^3]),$(A=!@[*!X1])]-1"/>
     <ref ref="https://doi.org/10.1016/0166-1280(82)80039-0"/>
     <dihedral_sets>
-      <set dihedral="'30', '0', '-30', '0', '45', '-45', '0'" value="1"/>
-      <set dihedral="'-30', '0', '30', '0', '-45', '45', '0'" value="2"/>
+      <set dihedral="'30', '0', '-30', '0', '60', '-60', '0'" value="1"/>
+      <set dihedral="'-30', '0', '30', '0', '-60', '60', '0'" value="2"/>
+    </dihedral_sets>
+  </ring>
+  <ring name="cyclohepta-1,4-diene-3-sp2"> 
+    <note note="Nortriptyline - butterfly conformation"/>
+    <smarts smarts="[*^2]1~[*^2]-[A^3,O]-[A^3,O]-[*^2]~[*^2]-[A^2]-1"/>
+    <ref ref=""/>
+    <dihedral_sets>
+      <set dihedral="'15', '-70', '70', '0', '-60', '45', '0'" value="1"/>
+      <set dihedral="'70', '-70', '15', '0', '45', '-60', '0'" value="2"/>
+      <set dihedral="'-15', '70', '-70', '0', '60', '-45', '0'" value="3"/>
+      <set dihedral="'-70', '70', '-15', '0', '-45', '60', '0'" value="4"/>
     </dihedral_sets>
   </ring>
   <ring name="cyclohepta-1,3-diene-like">
@@ -221,8 +231,8 @@ Date: 2024-09-14
     </dihedral_sets>
   </ring>
   <ring name="cyclohepta-1,4-diene-like">
-    <note note=""/>
-    <smarts smarts="[*^2]1~[*^2]-[*^2]~[*^2]-A-A-A-1"/>
+    <note note="C2 form non-planar is more stable than Cs form non-planar by 10 kcal/mol (below ref)"/>
+    <smarts smarts="[*^2]1~[*^2]-A-[*^2]~[*^2]-A-A-1"/>
     <ref ref="https://doi.org/10.1016/0166-1280(82)80039-0"/>
     <dihedral_sets>
       <set dihedral="'20', '-20', '0', '40', '-55', '40', '0'" value="1"/>
