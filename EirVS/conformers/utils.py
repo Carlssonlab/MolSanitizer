@@ -65,7 +65,8 @@ symmetric_patterns_file = Path(__file__).parent.parent / 'Data' / 'symmetric_sma
 symmetric_patterns_df = pd.read_csv(symmetric_patterns_file, sep=r'\s+', header=None, names=['pattern', 'name', 'num_scaled'])
 symmetric_patterns_df['mol'] = symmetric_patterns_df['pattern'].apply(lambda x: Chem.MolFromSmarts(x))
 amide_pattern_mol = Chem.MolFromSmarts('[$(C=O):1]!@[NX3:2]') 
-prim_amidines_guanidines_pattern_mol = Chem.MolFromSmarts('[#1:1][NH2,NX3H1:2]!@-[CX3+0;$(C(~[NH2])(~[NH2])~*):3]~[NH2:4]')
+prim_amidines_guanidines_pattern_mol = [Chem.MolFromSmarts('[#1:1][NH2,NX3H1:2]!@-[CX3+0;$(C(~[NH2])(~[NH2])~*):3]~[NH2:4]'), 
+                                        Chem.MolFromSmarts('[#1:1][NX3H2:2]!@-[#6:2]~[#7&+1]')] #in ring
 
 def embed_smiles_corina(smiles, name, numringconfs, VERBOSE):
     '''
@@ -966,8 +967,9 @@ def count_confs_by_rotbonds_v2(mol, rot_bonds, ignoretorlib = False, amide_bonds
 
     # Zero out fluctuations for primary amidines, guanidines:
     uniq_matches_prim_amidines_guanidines = set()
-    for match in mol.GetSubstructMatches(prim_amidines_guanidines_pattern_mol):
-        uniq_matches_prim_amidines_guanidines.add(tuple(sorted(match[1:3])))
+    for patt in prim_amidines_guanidines_pattern_mol:
+        for match in mol.GetSubstructMatches(patt):
+            uniq_matches_prim_amidines_guanidines.add(tuple(sorted(match[1:3])))
 
     for bond_key in list(uniq_matches_prim_amidines_guanidines):
         if bond_key not in bond_to_rule: continue
