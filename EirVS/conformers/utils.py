@@ -321,6 +321,9 @@ def get_dfs_path(mol, start_idx, forbidden_idxs):
     return path
 
 def identical_substituents(mol, idx2, idx3, idx4, idx5):
+    '''
+    A symmetrical check using the fragment SMILES and depth-first search
+    '''
     # Create forbidden indices set
     forbidden_idxs = {idx3, idx2}
 
@@ -990,10 +993,18 @@ def count_confs_by_rotbonds_v2(mol, rot_bonds, ignoretorlib = False, amide_bonds
         if VERBOSE:
             print(f"\tFound symmetric pattern: {sym_row['name']}")
         period = 360 / sym_row['num_scaled']
+        check_symmetric_using_dfs = True if sym_row['name'].startswith('general') else False
         for match in matches:
+            if check_symmetric_using_dfs:
+                # Use a dfs to traverse in the Molecule graph, then compare the fragment smiles
+                idx2, idx3, idx4, idx5 = match[0], match[1], match[2], match[-1]
+                if not(identical_substituents(mol, idx2, idx3, idx4, idx5)): continue
+            
             bond_key = tuple(sorted(match[:2]))
             if bond_key not in bond_to_rule:
                 continue
+            if VERBOSE:
+                print(f'\tRemove duplicated rotation for {bond_key}')
             rule = bond_to_rule[bond_key]
             angles, scores = [], []
             if len(rule[2][0]) < 4:
