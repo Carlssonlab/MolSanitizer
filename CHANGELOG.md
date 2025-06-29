@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### 🚀 Features
 
+- More general approach for reducing redundant symmetric rotations using graph traversing method. - ([263a452](https://github.com/phonglam3103/EirVS/commit/263a4521847b27dd32973c7f4e6ee15d9b97148f))
 - Allow the modification of Dielectric constant from the CLI and the API - ([d978f58](https://github.com/phonglam3103/EirVS/commit/d978f58781fd03389f05d9111063340b8a082fb4))
 - Updated new entries for small-ring library. Always enumerate the two puckering forms of cycloheptatriene and cyclohepta-1,4-diene-3-sp2 - ([d90b73d](https://github.com/phonglam3103/EirVS/commit/d90b73d27b0eef74043ed607e97684e55467a0eb))
 - New symmetric patterns - ([4aa9345](https://github.com/phonglam3103/EirVS/commit/4aa934508efd4786e9865dd52ea091471ab1f770))
