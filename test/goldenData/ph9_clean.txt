@@ -58,3 +58,7 @@ C#CCN[C@@H]1CCc2ccccc21 53
 NCC(F)(F)F 54
 NCC(F)F 55
 CN[C@@H]1[C@H](O[C@H]2[C@H](O[C@H]3[C@H](O)[C@@H](O)[C@H]([NH+]=C(N)N)[C@@H](O)[C@@H]3[NH+]=C(N)N)O[C@@H](C)[C@]2(O)C=O)O[C@@H](CO)[C@H](O)[C@H]1O 56
+Cc1nc2ccccc2[nH]1 57
+Nc1nc2ccccc2[nH]1 58
+Nc1[nH]cc[nH+]1 59_1
+Nc1ncc[nH]1 59_2
