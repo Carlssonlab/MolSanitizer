@@ -9,9 +9,10 @@
 carboxylic_acid	4	ACID	0	[OH1&+0;$(O-C=O)!$(O~C~[-1]):1]>>[OH0&-:1]
 hydroxamic_acid	9	ACID	0	[OH1&+0;$(O-[#7][#6]=O)!$(O~[#7]~[-1]):1]>>[OH0&-:1]
 #OH-ACIDITY-PHENOL
-nitro_phenols	7	ACID	0	[OH1&+0;$(O-[$(a1a(-N(=O)O)aaa[a;!$(a[F,Cl,Br,I])]1),$(a1[a;!$(a[F,Cl,Br,I])]aa(-N(=O)O)a[a;!$(a[F,Cl,Br,I])]1),$(a1[a;!$(a[F,Cl,Br,I])]a(-N(=O)O)aa(-N(=O)O)[a;!$(a[F,Cl,Br,I])]1)])!$(O~*~*~[-1]):1]>>[OH0&-:1]
+mono-/di-meta-nitro_phenols	7	ACID	0	[OH1&+0;$(O-[$(a1a(-N(=O)O)a[a;!$(a(-N(=O)O))]a[a;!$(a[F,Cl,Br,I])!$(a(-N(=O)O))]1),$(a1[a;!$(a[F,Cl,Br,I])!$(a(-N(=O)O))]aa(-N(=O)O)a[a;!$(a[F,Cl,Br,I])!$(a(-N(=O)O))]1),$(a1[a;!$(a[F,Cl,Br,I])!$(a(-N(=O)O))]a(-N(=O)O)aa(-N(=O)O)[a;!$(a[F,Cl,Br,I])!$(a(-N(=O)O))]1)])!$(O~*~*~[-1]):1]>>[OH0&-:1]
+di,tri-nitrophenols	3	ACID	0	[OH1&+0;$(O-[$(a1a(-N(=O)O)aa(-N(=O)O)aa1),$(a1a(-N(=O)O)aaaa1-N(=O)O)])!$(O~*~*~[-1]):1]>>[OH0&-:1]
 trihalo_phenols	6	ACID	0	[OH1&+0;$(O-a1a(-[F,Cl,Br])[a;!$(a-N(=O)O)]a(-[F,Cl,Br])[a;!$(a-N(=O)O)]a1(-[F,Cl,Br])):1]>>[OH0&-:1]
-halo_nitro_phenols	5	ACID	0	[OH1&+0;$(O-[$(a1a(-N(=O)O)aaaa1[F,Cl,Br,I]),$(a1a([F,Cl,Br,I])aa(-N(=O)O)aa1),$(a1aa(-N(=O)O)aa(-N(=O)O)a1[F,Cl,Br,I])])!$(O~*~*~[-1]):1]>>[OH0&-:1]
+halo_nitro_phenols	5	ACID	0	[OH1&+0;$(O-[$(a1a(-N(=O)O)a[a;!$(a(-N(=O)O))]aa1[F,Cl,Br,I]),$(a1a([F,Cl,Br,I])aa(-N(=O)O)a[a;!$(a(-N(=O)O))]1),$(a1[a;!$(a(-N(=O)O))]a(-N(=O)O)[a;!$(a(-N(=O)O))]a(-N(=O)O)a1[F,Cl,Br,I])])!$(O~*~*~[-1]):1]>>[OH0&-:1]
 p-phenylog_sulfuric_acid	7	ACID	0	[OH1&+0;$(O-[$(a1[a;!$(a-S(=O)(=O)[O-])]aa(-S(=O)(=O)[OH,O-])aa1)])!$(O~*~*~[-1]):1]>>[OH0&-:1]
 #OH-ACIDITY-HETEROATOM
 borate	8	ACID	0	[BH0&+0;$(B([OH])(O)[a,O]):1]>>[B&-:1][OH]
