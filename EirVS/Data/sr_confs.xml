@@ -203,7 +203,7 @@ Date: 2024-09-14
   </ring>
   <ring name="cycloheptatriene">
     <note note="prefered boat form, not planar"/>
-    <smarts smarts="[*^2]1~[*^2]-[*^2]~[*^2]-[*^2]~[*^2]-[A;$([A^3]),$(A=!@[*!X1])]-1"/>
+    <smarts smarts="[*^2]1~[*^2]-[*^2]~[*^2]-[*^2]~[*^2]-[A;$([A^3]),$([N^2]),$(A=!@[*!X1])]-1"/>
     <ref ref="https://doi.org/10.1016/0166-1280(82)80039-0"/>
     <dihedral_sets>
       <set dihedral="'30', '0', '-30', '0', '60', '-60', '0'" value="1"/>
