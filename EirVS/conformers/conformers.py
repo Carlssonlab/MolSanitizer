@@ -388,7 +388,7 @@ class ConformerGenerator:
             
             if utils.find_cycloheptatriene(self.mol_H): 
                 self.num_ring_confs = max(2, self.num_ring_confs) # Cycloheptatriene has two puckering ring conformations
-                logger.info(f"Found cycloheptatriene in {self.name}, setting num_ring_confs to {self.num_ring_confs}")
+                print(f"Found cycloheptatriene in {self.name}, setting num_ring_confs to {self.num_ring_confs}")
 
             while len(self.ring_confs) < self.num_ring_confs and temp_list:
                 lowest_energy_entry = temp_list.pop(0)

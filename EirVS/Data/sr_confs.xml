@@ -206,8 +206,8 @@ Date: 2024-09-14
     <smarts smarts="[*^2]1~[*^2]-[*^2]~[*^2]-[*^2]~[*^2]-[A;$([A^3]),$([N^2]),$(A=!@[*!X1])]-1"/>
     <ref ref="https://doi.org/10.1016/0166-1280(82)80039-0"/>
     <dihedral_sets>
-      <set dihedral="'30', '0', '-30', '0', '60', '-60', '0'" value="1"/>
-      <set dihedral="'-30', '0', '30', '0', '-60', '60', '0'" value="2"/>
+      <set dihedral="'30', '0', '-30', '0', '50', '-50', '0'" value="1"/>
+      <set dihedral="'-30', '0', '30', '0', '-50', '50', '0'" value="2"/>
     </dihedral_sets>
   </ring>
   <ring name="cyclohepta-1,4-diene-3-sp2"> 
