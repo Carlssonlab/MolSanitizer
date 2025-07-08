@@ -1,0 +1,41 @@
+# In this file, you can set default values for parser, 
+# so that you don't need to specify the flags every time
+# you run the program.
+
+#===============SINGLE MODE================
+# Configurations for MolSanitizer single mode
+# EMBED_METHOD: Method for embedding the compound. Choose from 'rdkit', 'obabel', 'corina'
+# CORINA: Path to the corina executable file
+# TIMEOUT: Timeout for the initial embedding of each compound in minutes (default: 2 minutes)
+# MAX_STEREOISOMERS: Maximum number of stereoisomers to be generated for each compound (default: 8)
+# ENERGY_WINDOW: Energy window for the conformer generation (default: 25 kcal/mol)
+# NUMCONFS: Number of conformers to be generated for each compound (default: 2000)
+
+EMBED_METHOD: 'rdkit' # choose from 'rdkit', 'obabel', 'corina'
+CORINA: '/proj/carlssonlab/corina/corina-4.2/corina'
+ENERGY_WINDOW: 25
+NUMCONFS: 2000
+MAX_STEREOISOMERS: 8
+TIMEOUT: 2
+PH: 7
+PH_RANGE: 0 # 0 means choose specific pH=7 (default), 2 means will sample pH 5 and 9
+
+#================BATCH MODE=================
+# Configuration file for MolSanitizer batch mode
+# Please approximate that each entry can take up to 2 minutes to process, but the average time could be much less. 
+# If you have ~ 5000 compounds, it will take around 3 days to process all of them. 
+# But for the safety, we recommend to set the time limit to 5 days (120 hours).
+# LINE_PER_JOB: Number of compounds per job
+# TIME_LIMIT: Time limit for each job in hours (default: 96 hours)
+# MAX_ARRAY_SIZE: Maximum of jobs per array allowed to be submitted at the same time 
+#                 (for Tetralith is 2000. Check by: 'scontrol show config | grep MaxArraySize')
+# MAX_JOBS: Maximum number of jobs running at the same time
+# MAX_LIMIT_PROJECT: Maximum number of jobs allowed for a project account (for example: naiss2023-3-39 is 5000 jobs)
+SLURM_ACCOUNT: 'naiss2024-3-45'
+LINES_PER_JOB: 200
+TIME_LIMIT: 96
+MAX_ARRAY_SIZE: 2000
+MAX_JOBS: 1000
+MAX_LIMIT_PROJECT: 5000
+
+
