@@ -15,10 +15,10 @@ from rdkit.Chem import rdDistGeom, rdForceFieldHelpers, rdMolTransforms, rdDistG
 
 from pathlib import Path
 from scipy.spatial.distance import pdist, squareform
-from EirVS.amsol import run_amsol
-from EirVS.db2 import mol2db2, mol2, solv
+from msani.amsol import run_amsol
+from msani.db2 import mol2db2, mol2, solv
 from . import smi2db2_utils
-from EirVS.filtering import strain_filter
+from msani.filtering import strain_filter
 
 import random
 import time
@@ -30,7 +30,7 @@ import os,  shutil
 import copy
 import pandas as pd
 import itertools
-logger = logging.getLogger('eirvs')
+logger = logging.getLogger('msani')
 
 #rotatable_pattern=r'[*]~[*;!$(*#*)!$([!#6&X2H])!$([!#6&X3H2])]-&!@[*;!$(*#*)!$([!#6&X2H])!$([!#6&X3H2])]~[*]'
 rotatable_pattern=r'[*]~[*;!$(*#*)]-&!@[*;!$(*#*)]~[*]'
@@ -380,7 +380,7 @@ def find_rigid_part(mol, rigid_rules, request_alignment=None):
     
 
 def log_error(smiles, name):
-    with open('eirvs_error.log', 'a') as f:
+    with open('msani_error.log', 'a') as f:
         f.write(f"{smiles} \t {name}\n")
 
 
@@ -752,7 +752,7 @@ def conf_sampling(rigid_scaffolds, name, smiles, numConfs, sulfo_matches,
         List[List[mol2.Mol2]]: A nested list containing Mol2 objects for each rigid scaffold, each with their respective conformers.
     
     Notes:
-        For assymetric sulfonamides, there would be two versions of rigid scaffolds handled by EirVS.
+        For assymetric sulfonamides, there would be two versions of rigid scaffolds handled by msani.
     """
     num_confs_by_rotbonds, match_torlib = count_confs_by_rotbonds(rigid_scaffolds[0], ignoreTorlib, VERBOSE)
     requested_num_confs = numConfs
@@ -941,8 +941,8 @@ def gen_conf_chunk(df: pd.DataFrame, args, input_file='0'):
     
     env = setup_env()
     if args.timing: 
-        if not(os.path.exists('eirvs_timing.csv')): 
-            with open('eirvs_timing.csv', 'w') as f: f.write('Name,Initial embedding,AMSOL,Torsional sampling,Mol2DB2,Total\n')
+        if not(os.path.exists('msani_timing.csv')): 
+            with open('msani_timing.csv', 'w') as f: f.write('Name,Initial embedding,AMSOL,Torsional sampling,Mol2DB2,Total\n')
         logging_time = ""
     
     # Test mode in unittest, not to produce redundant files here
@@ -1152,7 +1152,7 @@ def gen_conf_chunk(df: pd.DataFrame, args, input_file='0'):
                     os.rmdir(folder)
                 except: pass
     if args.timing:
-        with open('eirvs_timing.csv', 'a') as f:
+        with open('msani_timing.csv', 'a') as f:
             f.write(logging_time)
 
 def gen_conf_chunk_corina(df: pd.DataFrame, args, input_file='0'):
@@ -1163,8 +1163,8 @@ def gen_conf_chunk_corina(df: pd.DataFrame, args, input_file='0'):
     request_alignment = Chem.MolFromSmarts(smi2db2_utils.canonicalize_if_smiles(request_alignment)) if request_alignment else None
     env = setup_env()
     if args.timing: 
-        if not(os.path.exists('eirvs_timing.csv')): 
-            with open('eirvs_timing.csv', 'w') as f: f.write('Name,Initial embedding,AMSOL,Torsional sampling,Mol2DB2,Total\n')
+        if not(os.path.exists('msani_timing.csv')): 
+            with open('msani_timing.csv', 'w') as f: f.write('Name,Initial embedding,AMSOL,Torsional sampling,Mol2DB2,Total\n')
         logging_time = ""
     processed_mols = set()
     os.makedirs(f"db2", exist_ok=True)
@@ -1335,5 +1335,5 @@ def gen_conf_chunk_corina(df: pd.DataFrame, args, input_file='0'):
                     os.rmdir(folder)
                 except: pass
     if args.timing:
-        with open('eirvs_timing.csv', 'a') as f:
+        with open('msani_timing.csv', 'a') as f:
             f.write(logging_time)

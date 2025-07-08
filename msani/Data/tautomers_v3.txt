@@ -1,8 +1,8 @@
-# This tautomer transform file is part of the EirVS project.
+# This tautomer transform file is part of the MolSanitizer project.
 # Lines start with # or empty lines are skipped.
 # The rules are constructed as: name    enumerate	smarts      reference
 # Only the first 3 columns are read.
-# Last update: April 30th, 2025
+# Last update: July 7th, 2025
 #HYPERVALENT-S
 H-lambda4-sulphane_to_lambda2-CH0	0	[SX3H:1]=[C&H0:2]>>[S&H0:1][CH:2]
 H-lambda4-sulphane_to_lambda2-CH1	0	[SX3H:1]=[CH:2]>>[S&H0:1][CH2:2]

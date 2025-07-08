@@ -8,7 +8,7 @@ from rdkit.Chem.MolStandardize import rdMolStandardize
 import pandas as pd
 import logging
 
-logger = logging.getLogger('eirvs')
+logger = logging.getLogger('msani')
 RDLogger.DisableLog('rdApp.*') # To disable error messages with kekulizing tautomers from RDKit
 
 class Filters():
@@ -420,32 +420,7 @@ class Filters():
             return 'SMARTS' in first_line
         
     @staticmethod
-    def loadSMARTSdata(smartsFile: str, unwanted_option=None) -> pd.DataFrame:
-        """Load SMARTS patterns from a file and convert them to RDKit molecule objects.
-
-        Args:
-            smartsFile (str): Path to the file containing the SMARTS patterns.
-            unwanted_option (list): The mode input by the user. Defaults to None.
-
-        Returns:
-            pd.DataFrame: A DataFrame containing the SMARTS patterns and their corresponding RDKit molecule objects.
-        """
-        if unwanted_option is not None: 
-            # Using default substructure file 
-            smarts_df = pd.read_csv(smartsFile, sep=r'\s+', header=0, names=['smarts','label', 'reason', 'mode', 'ref'])
-            smarts_df = smarts_df[smarts_df["mode"].isin(unwanted_option)]
-        else:
-            # Using customized substructure file
-            has_header = Filters.check_header(smartsFile)
-            if has_header:
-                logger.info(f'Found header in {smartsFile}')
-                smarts_df = pd.read_csv(smartsFile, sep=r'\s+', header=0, usecols=[0,1], names=['smarts','label'])
-            else:
-                smarts_df = pd.read_csv(smartsFile, sep=r'\s+', header=None, usecols=[0,1], names=['smarts','label'])
-
-        smarts_df['mol'] = smarts_df['smarts'].apply(lambda x: Chem.MolFromSmarts(x)) #do we need mergeHs here?
-        
-        return smarts_df
+    
 
     @staticmethod
     def filterbysmarts(mol, smarts_df: pd.DataFrame) -> str:
@@ -471,7 +446,7 @@ class Filters():
         smartsFile = Path(__file__).parent.parent / 'Data' / 'filter_out.csv'
 
         # Load smarts to clean  from file
-        unwanted_df = Filters.loadSMARTSdata(smartsFile.resolve(), unwanted_option)
+        unwanted_df = loadSMARTSdata(smartsFile.resolve(), unwanted_option)
         logger.info(f'Parsed {len(unwanted_df)} substructures from: {smartsFile}')
         # Apply reactions to each SMILES in the DataFrame
         df_clean = df.copy()
@@ -498,7 +473,7 @@ class Filters():
             pd.DataFrame: A new DataFrame chunk with molecules that passed the filter.
         """
         # Load smarts to clean  from file
-        unwanted_df = Filters.loadSMARTSdata(smartsFile)
+        unwanted_df = loadSMARTSdata(smartsFile)
 
         # Apply reactions to each SMILES in the DataFrame
         df_clean = df.copy()
@@ -539,6 +514,33 @@ class Filters():
         if self.pains:
             df = Filters.painsFilter(df, rejectedFile, debug)
         return df
+
+def loadSMARTSdata(smartsFile: str, unwanted_option=None) -> pd.DataFrame:
+        """Load SMARTS patterns from a file and convert them to RDKit molecule objects.
+
+        Args:
+            smartsFile (str): Path to the file containing the SMARTS patterns.
+            unwanted_option (list): The mode input by the user. Defaults to None.
+
+        Returns:
+            pd.DataFrame: A DataFrame containing the SMARTS patterns and their corresponding RDKit molecule objects.
+        """
+        if unwanted_option is not None: 
+            # Using default substructure file 
+            smarts_df = pd.read_csv(smartsFile, sep=r'\s+', header=0, names=['smarts','label', 'reason', 'mode', 'ref'])
+            smarts_df = smarts_df[smarts_df["mode"].isin(unwanted_option)]
+        else:
+            # Using customized substructure file
+            has_header = Filters.check_header(smartsFile)
+            if has_header:
+                logger.info(f'Found header in {smartsFile}')
+                smarts_df = pd.read_csv(smartsFile, sep=r'\s+', header=0, usecols=[0,1], names=['smarts','label'])
+            else:
+                smarts_df = pd.read_csv(smartsFile, sep=r'\s+', header=None, usecols=[0,1], names=['smarts','label'])
+
+        smarts_df['mol'] = smarts_df['smarts'].apply(lambda x: Chem.MolFromSmarts(x)) #do we need mergeHs here?
+        
+        return smarts_df
 
 against_humanity = Chem.MolFromSmarts('[O+0&H0,SX2+0&H0,NX2,F,Cl,Br,I]-[PX4](=O)(A)[A;$([F,Cl,Br,I,SX2,NX2]),$(C#N),$([O,S]a)]')
 hold_up = '''⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣀⣀⣀⣀⣀⣀⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀

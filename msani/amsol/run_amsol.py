@@ -3,7 +3,7 @@ import subprocess
 import platform
 from pathlib import Path
 from openbabel import openbabel as ob
-from EirVS.amsol import mol2amsol
+from msani.amsol import mol2amsol
 import gzip
 
 # Refactored by Thua-Phong Lam, Jens Carlsson lab, Uppsala University (July, 2024)

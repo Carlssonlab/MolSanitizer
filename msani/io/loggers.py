@@ -1,12 +1,12 @@
 import logging
 from pathlib import Path
-from EirVS.api import loadSMARTSdata
+from msani.filtering.filters import loadSMARTSdata
 import os
-logger = logging.getLogger('eirvs')
+logger = logging.getLogger('msani')
 
 def setup_logger(log_file):
     # Create a logger object
-    logger = logging.getLogger('eirvs')
+    logger = logging.getLogger('msani')
     logger.setLevel(logging.DEBUG)  # Set the default logging level
 
     # Create a file handler for logging to a file

@@ -4,13 +4,13 @@ except ImportError:
     print("""Please install the meeko package using "pip install meeko" to use this script.""")
     exit(1)
 from . import smi2db2_utils
-from EirVS.filtering import strain_filter
+from msani.filtering import strain_filter
 from rdkit import Chem
 from rdkit.Chem import rdDistGeom, rdForceFieldHelpers
 import pandas as pd
 import logging
 import os
-logger = logging.getLogger('eirvs')
+logger = logging.getLogger('msani')
 
 planar_lib, non_planar_lib = strain_filter.parse_sr_confs_library()
 

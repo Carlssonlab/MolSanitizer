@@ -1,7 +1,7 @@
 """https://greglandrum.github.io/rdkit-blog/posts/2023-02-04-working-with-conformers.html"""
 # Author: Thua-Phong Lam, Jens Carlsson Lab, Uppsala University, July 2024
 # This script is used to filter out conformers that do not satisfy the torsion rules in the torlib (last update 2022).
-# This is a part of the EirVS project. But could be used as a standalone script.
+# This is a part of the MolSanitizer project. But could be used as a standalone script.
 # strain_filter.py -i mol2_file.mol2 -tol 1 -p prefix
 import xml.etree.ElementTree as ET
 from rdkit import Chem

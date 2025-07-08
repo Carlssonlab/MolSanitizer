@@ -18,8 +18,7 @@ O=C1O[C@H]([C@@H](O)CO)C([O-])=C1O 16
 C[C@H]1c2cccc(O)c2C(=O)C2=C(O)[C@]3(O)C(=O)C(C(N)=O)=C([O-])[C@@H]([NH+](C)C)[C@@H]3[C@@H](O)[C@@H]21 17_1
 C[C@H]1c2cccc(O)c2C(=O)C2=C([O-])[C@]3(O)C(=O)C(C(N)=O)=C([O-])[C@@H]([NH+](C)C)[C@@H]3[C@@H](O)[C@@H]21 17_2
 CC(=O)CC(c1ccccc1)c1c([O-])c2ccccc2oc1=O 18
-Cc1ccc(C(=O)c2cc(O)c([O-])c([N+](=O)[O-])c2)cc1 19_1
-Cc1ccc(C(=O)c2cc(O)c(O)c([N+](=O)[O-])c2)cc1 19_2
+Cc1ccc(C(=O)c2cc(O)c([O-])c([N+](=O)[O-])c2)cc1 19
 Sc1ccccc1 20_1
 [S-]c1ccccc1 20_2
 O=c1[cH-]c(=O)[nH]c(=O)[nH]1 21
@@ -47,8 +46,7 @@ N=C(N)NC(=[NH2+])NCCc1ccccc1 39_1
 N=C(NCCc1ccccc1)NC(N)=[NH2+] 39_2
 CC1(C)[NH+]=C(N)N=C(N)N1c1ccc(Cl)cc1 40
 O=S(=O)([O-])c1c(O)ccc2ccccc12 41
-O=S(=O)([O-])c1ccc(O)c2ccccc12 42_1
-O=S(=O)([O-])c1ccc([O-])c2ccccc12 42_2
+O=S(=O)([O-])c1ccc(O)c2ccccc12 42
 O=[N+]([O-])c1cc(Cl)c([O-])c(Cl)c1 43
 Nc1c2ccccc2nc2cccc(O)c12 44
 C[NH+]1CCOCC1 45

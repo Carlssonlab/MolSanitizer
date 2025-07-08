@@ -14,17 +14,17 @@ from .moltransform.neutralizer import Neutralizer
 import multiprocessing as mp
 import pandas as pd
 import logging
-logger = logging.getLogger('eirvs')
+logger = logging.getLogger('msani')
 RDLogger.DisableLog('rdApp.*') # To disable error messages with kekulizing tautomers from RDKit
 
-class EirVS:
+class msani:
     """
-    A class to store the filter options and conduct chemical modifications for EirVS. 
+    A class to store the filter options and conduct chemical modifications for MolSanitizer. 
     Initialize the class with the desired filter options and apply the filters to the input DataFrame.
     
     Example use:
 
-        processor = EirVS(
+        processor = msani(
                     removesalts=True,
                     ha='>10',
                     logp='<5',
@@ -88,24 +88,7 @@ class EirVS:
         attrs = ', '.join(f'{k}={v!r}' for k, v in self.__dict__.items())
         return f'{cls_name}\n({attrs})'
     
-    
-    @staticmethod
-    def load_reactions(file_path):
-        """Load the reactions from a file containing SMARTS strings.
 
-        Args:
-            file_path (str): Path to the file containing the reactions in SMARTS strings.
-
-        Returns:
-            list: A list containing the reactions in the form of [rdkit.Chem.rdChemReactions object, name].
-        """
-        reactions = []
-        with open(file_path, 'r') as file:
-            for line in file:
-                smarts = line.strip().split()
-                if smarts:
-                    reactions.append([AllChem.ReactionFromSmarts(smarts[0]), smarts[1]])
-        return reactions
 
     @staticmethod
     def _generate_stereoisomers(mol, max_isomers):
@@ -138,7 +121,7 @@ class EirVS:
         # If max_isomers is set to 1, return the original molecule and let the RDKit/CORINA guess it.
         if max_isomers == 1: return [row_data]
         try:
-            isomers = EirVS._generate_stereoisomers(mol, max_isomers=max_isomers)
+            isomers = msani._generate_stereoisomers(mol, max_isomers=max_isomers)
         except Exception as e:
             logger.error(f"Error generating stereoisomers for compound {row_data['ids']}: {row_data['smiles']}")
             isomers = [mol]
@@ -183,7 +166,7 @@ class EirVS:
         pd.DataFrame: Expanded DataFrame with each stereoisomer as a separate row.
         """
         # Partial function to fix max_isomers as an argument
-        process_func = partial(EirVS._process_molecule_stereoisomer, max_isomers=max_isomers)
+        process_func = partial(msani._process_molecule_stereoisomer, max_isomers=max_isomers)
         results = []
 
         with mp.Pool(processes=numcores) as pool:
@@ -258,51 +241,7 @@ class EirVS:
                               debug=self.debug)
             df = ionizer.ionize_df(df)
             
-        if self.stereoisomers: df = EirVS.enum_stereoisomers(df, max_isomers=self.max_stereoisomers, debug=self.debug, numcores=self.numcores)
+        if self.stereoisomers: df = msani.enum_stereoisomers(df, max_isomers=self.max_stereoisomers, debug=self.debug, numcores=self.numcores)
         return df
     
-
-def loadSMARTSdata(smartsFile: str, unwanted_option=None) -> pd.DataFrame:
-        """Load SMARTS patterns from a file and convert them to RDKit molecule objects.
-
-        Args:
-            smartsFile (str): Path to the file containing the SMARTS patterns.
-            unwanted_option (list): The mode input by the user. Defaults to None.
-
-        Returns:
-            pd.DataFrame: A DataFrame containing the SMARTS patterns and their corresponding RDKit molecule objects.
-        """
-        if unwanted_option is not None: 
-            # Using default substructure file 
-            smarts_df = pd.read_csv(smartsFile, sep=r'\s+', header=0, names=['smarts','label', 'reason', 'mode', 'ref'])
-            smarts_df = smarts_df[smarts_df["mode"].isin(unwanted_option)]
-        else:
-            # Using customized substructure file
-            has_header = Filters.check_header(smartsFile)
-            if has_header:
-                logger.info(f'Found header in {smartsFile}')
-                smarts_df = pd.read_csv(smartsFile, sep=r'\s+', header=0, usecols=[0,1], names=['smarts','label'])
-            else:
-                smarts_df = pd.read_csv(smartsFile, sep=r'\s+', header=None, usecols=[0,1], names=['smarts','label'])
-
-        smarts_df['mol'] = smarts_df['smarts'].apply(lambda x: Chem.MolFromSmarts(x)) #do we need mergeHs here?
-        
-        return smarts_df
-
-def load_reactions(file_path):
-        """Load the reactions from a file containing SMARTS strings.
-
-        Args:
-            file_path (str): Path to the file containing the reactions in SMARTS strings.
-
-        Returns:
-            list: A list containing the reactions in the form of [rdkit.Chem.rdChemReactions object, name].
-        """
-        reactions = []
-        with open(file_path, 'r') as file:
-            for line in file:
-                smarts = line.strip().split()
-                if smarts:
-                    reactions.append([AllChem.ReactionFromSmarts(smarts[0]), smarts[1]])
-        return reactions
 

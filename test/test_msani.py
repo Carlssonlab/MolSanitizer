@@ -10,13 +10,13 @@ import platform
 
 
 import pandas as pd
-import EirVS.cli as cli
-from EirVS.batchmode import Split_Submit_jobs
-from EirVS.io import parsers
+import msani.cli as cli
+from msani.batchmode import Split_Submit_jobs
+from msani.io import parsers
 
 OS = platform.system()
 
-class TestEirVS(unittest.TestCase):
+class Test_MolSanitizer(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         """Set up class-level paths before running tests."""
@@ -201,7 +201,7 @@ class TestEirVS(unittest.TestCase):
 
     def test_integrity(self):
         with tempfile.TemporaryDirectory() as temp_dir:
-            from EirVS.io import parsers
+            from msani.io import parsers
             args = self.generate_mock_arguments([f'{self.path}/in_enamine.txt'], ['enamine','lazy', 'test'], temp_dir)
             args = parsers.Sanitycheck(args)
             cli.clean_data(args)
@@ -279,28 +279,28 @@ class TestEirVS(unittest.TestCase):
             os.chdir(batch_dir)
 
             # Check for required files
-            required_files = ['submit_eirvs.sh', 'in0000.smi', 'in0001.smi']
+            required_files = ['submit_msani.sh', 'in0000.smi', 'in0001.smi']
             for file in required_files:
                 with self.subTest(file=file):
                     self.assertTrue(os.path.exists(file), f"{file} was not created.")
 
-            # Validate submit_eirvs.sh content
+            # Validate submit_msani.sh content
             expected_template = [
                 '#!/bin/bash\n',
                 '#SBATCH -A dummy_output\n',
                 '#SBATCH -n 1\n',
-                '#SBATCH -J eirvs_3d\n',
+                '#SBATCH -J msani_3d\n',
                 '#SBATCH -t 96:00:00\n',
                 '#SBATCH --mail-type=FAIL\n'
             ]
 
-            with open('submit_eirvs.sh', 'r') as f:
+            with open('submit_msani.sh', 'r') as f:
                 file_contents = f.readlines()
-                self.assertEqual(file_contents[:6], expected_template, "submit_eirvs.sh header is incorrect.")
+                self.assertEqual(file_contents[:6], expected_template, "submit_msani.sh header is incorrect.")
 
                 # Extract and verify flags
                 command_line = file_contents[16].strip()
-                extracted_flags = command_line.split('/eirvs -i $smiles_file ')[-1].split(' --')
+                extracted_flags = command_line.split('/msani -i $smiles_file ')[-1].split(' --')
 
                 # Ensure applied_flags match extracted_flags
                 with self.subTest(msg="Checking applied flags"):
@@ -380,6 +380,8 @@ class TestEirVS(unittest.TestCase):
             "mw": None,
             "chiral": None,
             "nringconfs": 1,
+            "allowNonring": False,
+            "eps": 1,
             "rigid": None
          } 
         for mode in modes: 

@@ -20,9 +20,9 @@ additional_substituted_nitrogen = Chem.MolFromSmarts('*-[nX3&+0:1]:[a:2]:[a:3]')
 amide_substructure = Chem.MolFromSmarts('[O:1]=[CX3:2]!@[N&+0:3](-[!#1:4])-[#1:5]')
 symmetric_ring = Chem.MolFromSmarts('*!@-a1[cH][cH][a][cH][cH]1')
 
-with open(Path(__file__).parent.parent / 'eirvs_configurations.yaml') as confFile:
-    eirvs_configurations = yaml.full_load(confFile)
-CORINA_EXE = eirvs_configurations['CORINA']
+with open(Path(__file__).parent.parent / 'msani_configurations.yaml') as confFile:
+    msani_configurations = yaml.full_load(confFile)
+CORINA_EXE = msani_configurations['CORINA']
 
 class Mol2Writer:
     def __init__(self, mol=None):

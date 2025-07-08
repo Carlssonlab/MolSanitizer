@@ -12,7 +12,7 @@ from functools import partial
 from .neutralizer import Neutralizer
 
 RDLogger.DisableLog('rdApp.*') # To disable error messages with kekulizing tautomers from RDKit
-logger = logging.getLogger('eirvs')
+logger = logging.getLogger('msani')
 PROTONATION_RULES_PATH = Path(__file__).parent.parent / 'Data' / 'ionizations_v3.txt'
 
 class Ionizer:
@@ -40,7 +40,7 @@ class Ionizer:
         Example use:
         ----------
         
-        >>> from EirVS.ionizer import Ionizer\n
+        >>> from msani.ionizer import Ionizer\n
         >>> ionizer = Ionizer(pH = 7, pH_range = 2)\n
         >>> results = ionizer.ionize(smiles = 'CCc1ccc(CCOc2ccc(CC3SC(=O)NC3=O)cc2)nc1')\n
         >>> df = ionizer.ionize_df(mol_df, pH=7, pH_range=0, num_cores=1, debug=False)\n
@@ -231,7 +231,6 @@ class Ionizer:
                 if rule[1] == 'heteroacid' and pH > 6.0 and \
                     mol.HasSubstructMatch(Chem.MolFromSmarts('[OH1&+0;$(O-P(=O)(-[OH])-[#6&+0,#8&+0])]')): # Special case for phosphates
                         rule_combinations.append('phosphate-2stage')
-        
         return tuple(rule_combinations)
     
     def ionize(self, smiles: str = None, mol: Chem.Mol = None) -> list:

@@ -13,10 +13,10 @@ from rdkit import Chem
 from rdkit.Chem import rdDistGeom, rdForceFieldHelpers, rdMolAlign, rdMolTransforms, PropertyPickleOptions
 from pathlib import Path
 
-from EirVS.conformers import utils, mol2writer
-from EirVS.filtering import strain_filter, filters
-from EirVS.amsol import run_amsol
-from EirVS.db2 import solv
+from msani.conformers import utils, mol2writer
+from msani.filtering import strain_filter, filters
+from msani.amsol import run_amsol
+from msani.db2 import solv
 
 import pandas as pd
 import numpy as np
@@ -31,7 +31,7 @@ import tarfile, io
 import time
 import argparse
 
-logger = logging.getLogger('eirvs')
+logger = logging.getLogger('msani')
 
 planar_lib, non_planar_lib = strain_filter.parse_sr_confs_library()
 
@@ -40,7 +40,7 @@ class ConformerGenerator:
     Class to generate conformers from SMILES strings.
     
     Examples:
-    >>> from EirVS.conformers.conformers import ConformerGenerator
+    >>> from msani.conformers.conformers import ConformerGenerator
     >>> smiles = 'CC(=O)C1=CC=CC=C1C(=O)O'
     >>> name = 'test'
     >>> confgen = ConformerGenerator(smiles, name, randomSeed=42, method='rdkit', num_ring_confs=1, numcores=1)
@@ -604,7 +604,7 @@ class ConformerGenerator:
             request_alignment (list): List of atom indices for alignment.
         
         Notes:
-            For assymetric sulfonamides, there would be two versions of rigid scaffolds handled by EirVS.
+            For assymetric sulfonamides, there would be two versions of rigid scaffolds handled by msani.
         """
         self.conf_sampled = True
         self.mp.SetMMFFEleTerm(True) #Turn on back otherwise it would produce unfeasible conformers
@@ -1171,8 +1171,8 @@ def gen_conf_chunk(df: pd.DataFrame, args, input_file='0'):
     if 'mol' not in df.columns:
         df['mol'] = df['smiles'].apply(Chem.MolFromSmiles)
     df = filters.Filters.remove_exotic_chem_to_db2(df)
-    randomSeed, numConfs, VERBOSE, cleanup, energywindow, timeout, request_alignment, nr, numcores, mode, tolerance, allowNonring, eps = \
-        args.randomSeed, args.numconfs, args.debug, args.cleanup, args.energywindow, args.timeout, args.rigid, args.nringconfs, args.numcores, args.mode, args.tolerance, args.allowNonring, args.eps
+    randomSeed, numConfs, VERBOSE, cleanup, energywindow, timeout, request_alignment, nr, numcores, mode, tolerance, allowNonring = \
+        args.randomSeed, args.numconfs, args.debug, args.cleanup, args.energywindow, args.timeout, args.rigid, args.nringconfs, args.numcores, args.mode, args.tolerance, args.allowNonring
     
     ignoreTorlib = (args.mode == 'ignoretorlib')
     request_alignment = Chem.MolFromSmarts(utils.canonicalize_if_smiles(request_alignment)) if request_alignment else None
@@ -1189,8 +1189,8 @@ def gen_conf_chunk(df: pd.DataFrame, args, input_file='0'):
     env = setup_env()
 
     if args.timing: 
-        if not(os.path.exists('eirvs_timing.csv')): 
-            with open('eirvs_timing.csv', 'w') as f: f.write('Name,Initial embedding,AMSOL,Torsional sampling,Mol2DB2,Total\n')
+        if not(os.path.exists('msani_timing.csv')): 
+            with open('msani_timing.csv', 'w') as f: f.write('Name,Initial embedding,AMSOL,Torsional sampling,Mol2DB2,Total\n')
         logging_time = ""
     
     # Check if the output file already exists. A sign of unfinished job
@@ -1341,7 +1341,7 @@ def gen_conf_chunk(df: pd.DataFrame, args, input_file='0'):
         except: pass
 
     if args.timing:
-        with open('eirvs_timing.csv', 'a') as f:
+        with open('msani_timing.csv', 'a') as f:
             f.write(logging_time)
 
 class CustomHelpFormatter(argparse.RawTextHelpFormatter):

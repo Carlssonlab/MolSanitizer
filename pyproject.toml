@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "EirVS"
+name = "MolSanitizer"
 version = "0.3.0"
 description = "An Efficient In-silico Refinement pipeline for Virtual Screening (protonation, tautomers,...)"
 readme = "README.md"
@@ -29,21 +29,22 @@ dependencies = [
     "numpy",
     "rdkit>=2024.09.3",
     "meeko",
+    "scipy",
     "pyaml"
 ]
 
 [project.urls]
-Homepage = "https://github.com/phonglam3103/EirVS.git"
+Homepage = "https://github.com/phonglam3103/MolSanitizer.git"
 
 [project.scripts]
-eirvs = "EirVS.cli:main"
-eirvs_batch = "EirVS.batchmode:main"
-strain = "EirVS.filtering.strain_filter:main"
-charger = "EirVS.moltransform.ionizer:main"
-tautomerizer = "EirVS.moltransform.tautomerizer:main"
-gen3d = "EirVS.conformers.conformers:main"
+msani = "msani.cli:main"
+msani_batch = "msani.batchmode:main"
+strain = "msani.filtering.strain_filter:main"
+charger = "msani.moltransform.ionizer:main"
+tautomerizer = "msani.moltransform.tautomerizer:main"
+gen3d = "msani.conformers.conformers:main"
 
 [tool.setuptools]
-packages = ["EirVS"]
+packages = ["msani"]
 
 

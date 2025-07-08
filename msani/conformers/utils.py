@@ -15,11 +15,11 @@ from scipy.spatial.distance import pdist, squareform
 from collections import defaultdict
 from pathlib import Path
 
-from EirVS.filtering import strain_filter
-from EirVS.db2 import mol2db2, mol2
+from msani.filtering import strain_filter
+from msani.db2 import mol2db2, mol2
 
 
-logger = logging.getLogger('eirvs')
+logger = logging.getLogger('msani')
 
 # Define SMARTS patterns for various functional groups
 sulfonamide_like_substructure = Chem.MolFromSmarts("[*:1][S;$(S(=*)=*):2]-!@[N&+0;!$([NH2]):3](-[*,#1:4])-[*,#1:5]")
@@ -54,9 +54,9 @@ rigid_rules = pd.read_csv(rigid_rule_files, header=None, sep =r'\s+', names=['SM
 rigid_rules['mol'] = rigid_rules['SMARTS'].apply(lambda x: Chem.MolFromSmarts(x))
 rotatable_pattern=r'[*]~[*;!$(*#*)]-&!@[*;!$(*#*)]~[*]'
 
-with open(Path(__file__).parent.parent / 'eirvs_configurations.yaml') as confFile:
-    eirvs_configurations = yaml.full_load(confFile)
-CORINA_EXE = eirvs_configurations['CORINA']
+with open(Path(__file__).parent.parent / 'msani_configurations.yaml') as confFile:
+    msani_configurations = yaml.full_load(confFile)
+CORINA_EXE = msani_configurations['CORINA']
 
 # These below are for the new more deterministic method
 rotatable_pattern_not_terminal = r'''*~[!$(*#*)&!D1&!$(C(F)(F)F)&!$(C(Cl)(Cl)Cl)&!$(C(Br)(Br)Br)&!$([CH3])]-!@[!$(*#*)&!D1&!$(C(F)(F)F)&!$(C(Cl)(Cl)Cl)&!$(C(Br)(Br)Br)&!$([CH3])]~*'''
@@ -777,7 +777,7 @@ def find_rigid_part(mol, request_alignment=None):
     
 
 def log_error(smiles, name):
-    with open('eirvs_error.log', 'a') as f:
+    with open('msani_error.log', 'a') as f:
         f.write(f"{smiles} \t {name}\n")
 
 def Align_ConvertToDb2(ring_conf, rigid_scaffold, solv_obj, name, smiles, longname):

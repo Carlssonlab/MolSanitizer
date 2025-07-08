@@ -14,7 +14,7 @@ from rdkit.Chem import AllChem, rdchem
 #from .molvs_tautomers import TautomerEnumerator
 
 RDLogger.DisableLog('rdApp.*') # To disable error messages with kekulizing tautomers from RDKit
-logger = logging.getLogger('eirvs')
+logger = logging.getLogger('msani')
 
 TAUTOMER_RULES_PATH = Path(__file__).parent.parent / 'Data' / 'tautomers_v3.txt'
 
@@ -90,7 +90,7 @@ class Tautomerizer:
     Example use:
     ----------
     
-    >>> from EirVS.moltransform.tautomerizer import Tautomerizer\n
+    >>> from msani.moltransform.tautomerizer import Tautomerizer\n
     >>> tautomerizer = Tautomerizer(numcores= 4, neutralize= False)\n
     >>> tautomers = tautomerizer.tautomerize(smiles='c1ccccc1O')\n
     >>> tautomers = tautomerizer.tautomerize(mol = RDKit Mol object)\n

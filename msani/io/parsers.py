@@ -5,10 +5,10 @@ import yaml
 
 
 import logging
-logger = logging.getLogger('eirvs')
+logger = logging.getLogger('msani')
 
 
-with open(Path(__file__).parent.parent / 'eirvs_configurations.yaml') as confFile:
+with open(Path(__file__).parent.parent / 'msani_configurations.yaml') as confFile:
     configurations = yaml.full_load(confFile)
     slurm_account = configurations['SLURM_ACCOUNT']
     time_limit = configurations['TIME_LIMIT']
@@ -23,23 +23,23 @@ with open(Path(__file__).parent.parent / 'eirvs_configurations.yaml') as confFil
     pH = configurations['PH']
     pH_range = configurations['PH_RANGE']
 
-info_batch = f"""EirVS - A package to prepare SMILES databases
-        This is a batch version of the EirVS package. 
+info_batch = f"""MolSanitizer - A package to prepare SMILES databases
+        This is a batch version of the MolSanitizer package. 
         It reads a list of input files, splits the files into chunks of "--lines_per_job" and processes them parallelly on the HPC.
-        For more information, use eirvs_batch -h
+        For more information, use msani_batch -h
 
-        Default settings (modifiable in eirvs_configurations.yaml):
+        Default settings (modifiable in msani_configurations.yaml):
         Project name: {slurm_account}
         Time limit: {time_limit} hour(s)
         Number of compounds per job: {lines_per_job} 
         Maximum jobs at the same time: {max_jobs} job(s)
 
         Ex. run
-        eirvs_batch -i example.smi -l 50 --db2
-        eirvs_batch -i example.smi -l 50 --stereoisomers --protonation --db2 --nocleanup
+        msani_batch -i example.smi -l 50 --db2
+        msani_batch -i example.smi -l 50 --stereoisomers --protonation --db2 --nocleanup
         """
 
-info_standalone = """EirVS - A package to prepare SMILES databases
+info_standalone = """MolSanitizer - A package to prepare SMILES databases
 
         Ex. input file (space or tab-separated file):
             COCCC(=O)Nc1ncc(s1)Br  CP000000418470
@@ -47,10 +47,10 @@ info_standalone = """EirVS - A package to prepare SMILES databases
             CC(C)(C)CNC(=O)c1ccsc1Br  CP000001634597
 
         Ex. run
-        eirvs -i example.smi --removesalts --pains --unwanted all --stereoisomers --protonation
-        eirvs -i example.smi --logp "<=500" --hba "<=10" --hbd "<=5" --mw "<=500" -3d -f pdbqt
-        eirvs -i example.smi --pains --unwanted regular optional --stereoisomers --protonation
-        eirvs -i example.smi --pains --unwanted all --protonation -p 7 -r 1 --tautomers --stereoisomers -3d -f db2.tgz
+        msani -i example.smi --removesalts --pains --unwanted all --stereoisomers --protonation
+        msani -i example.smi --logp "<=500" --hba "<=10" --hbd "<=5" --mw "<=500" -3d -f pdbqt
+        msani -i example.smi --pains --unwanted regular optional --stereoisomers --protonation
+        msani -i example.smi --pains --unwanted all --protonation -p 7 -r 1 --tautomers --stereoisomers -3d -f db2.tgz
         """
 
 class CustomHelpFormatter(argparse.RawTextHelpFormatter):
@@ -149,7 +149,7 @@ def parseArguments(args = None, batch_mode = False):
     misc_group.add_argument("--help", "-h", action="help", help="Show this help message and exit")
     misc_group.add_argument('--timing', action='store_true', help=argparse.SUPPRESS)
     misc_group.add_argument('--test', action='store_true', help=argparse.SUPPRESS)
-    misc_group.add_argument('--version', '-v', action='store_true', help = 'Show the current version of EirVS')
+    misc_group.add_argument('--version', '-v', action='store_true', help = 'Show the current version of MolSanitizer')
 
     if batch_mode:
         # Group 6: Batch mode options
