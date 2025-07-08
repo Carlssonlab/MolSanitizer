@@ -13,6 +13,14 @@ All notable changes to this project will be documented in this file.
 - New symmetric patterns - ([4aa9345](https://github.com/phonglam3103/EirVS/commit/4aa934508efd4786e9865dd52ea091471ab1f770))
 - Improved implementation of OpenBabel-based embedding. CLI version is chosen as it is more accurate for embedding of very difficule compounds. - ([6e05081](https://github.com/phonglam3103/EirVS/commit/6e05081dd4f679ceff0401d56b70e805dc271a05))
 
+### 🐛 Bug Fixes
+
+- Updated p-EWG phenol rule, remove redundant duplicated rules. - ([dde92a8](https://github.com/phonglam3103/EirVS/commit/dde92a8b57dd3fda15e0093902f70e7d99a26ce7))
+
+### 🚜 Refactor
+
+- Change the name back to MolSanitizer - ([20b3af8](https://github.com/phonglam3103/EirVS/commit/20b3af8abaaac243d148abaebdfb04235ff68245))
+
 ## [0.3.0] - 2025-06-19
 
 ### 🚀 Features
