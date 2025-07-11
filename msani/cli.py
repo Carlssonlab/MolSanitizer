@@ -7,20 +7,34 @@ __place__ = "Jens Carlsson lab, Uppsala University, Sweden"
 __license__ = "GPLv2"
 __version__ = "0.3.0"
 
+
 import logging
 logger = logging.getLogger('msani')
 
-import pandas as pd
+from pandas import DataFrame, read_csv  # only what you use
 
 import pathlib
 import os
 import time
 import sys
 
-from .io import parsers, loggers
-from . import api
+from msani.io import parsers, loggers
+from msani import api
 
 from rdkit import Chem, rdBase
+
+version_text = f"""Python version: {sys.version.split('|')[0]}
+MolSanitizer version: {__version__}
+RDKit version: {rdBase.rdkitVersion}"""
+
+logo=""" __  __         _  _____                _  _    _                 
+|  \/  |       | |/  ___|              (_)| |  (_)                
+| .  . |  ___  | |\ `--.   __ _  _ __   _ | |_  _  ____ ___  _ __ 
+| |\/| | / _ \ | | `--. \ / _` || '_ \ | || __|| ||_  // _ \| '__|
+| |  | || (_) || |/\__/ /| (_| || | | || || |_ | | / /|  __/| |   
+\_|  |_/ \___/ |_|\____/  \__,_||_| |_||_| \__||_|/___|\___||_|   
+"""
+
 
 def process_enamine_name(chunk):
     # Split the 'smiles' column by space
@@ -73,7 +87,7 @@ def get_output_files(args, input_file_path):
 def read_input_file(input_file, is_enamine, is_synthon):
     if is_synthon:
         logger.info('Using Synthon format for parsing')
-        return pd.read_csv(
+        return read_csv(
             input_file,
             sep=r'\s+',
             names=['smiles', 'ids', 'highlights'],
@@ -84,7 +98,7 @@ def read_input_file(input_file, is_enamine, is_synthon):
         )
     if is_enamine:
         logger.info('Using Enamine format for parsing')
-        return pd.read_csv(
+        return read_csv(
             input_file,
             sep='\t',
             names=['smiles', 'ids'],
@@ -94,7 +108,7 @@ def read_input_file(input_file, is_enamine, is_synthon):
             dtype={'smiles': str, 'ids': str}  # Enforce string types
         )
     else:
-        return pd.read_csv(
+        return read_csv(
             input_file,
             sep=r'\s+',
             names=['smiles', 'ids'],
@@ -104,48 +118,6 @@ def read_input_file(input_file, is_enamine, is_synthon):
             dtype={'smiles': str, 'ids': str}  # Enforce string types
         )
     
-# def process_files(args, start_time: int):
-#     if args.standardize:
-#         logger.warning('standardize predictor format preparation selected. Will skip all other flags and only standardize the molecules using RDKit default functions.')
-
-#     for input_file in args.input_files:
-#         input_file_path = pathlib.Path(input_file)
-#         logger.info(f'Processing: {input_file}')
-
-#         output_file, rejected_file = get_output_files(args, input_file_path)
-#         if os.path.exists(rejected_file): os.remove(rejected_file)
-        
-#         df_input = read_input_file(input_file, args.enamine, args.synthon)
-
-#         for step, chunk in enumerate(df_input, start=1):
-#             if args.enamine: chunk = process_enamine_name(chunk)
-#             chunk = apply_filters(chunk, args, rejected_file)
-#             if not chunk.empty:
-#                 if args.synthon and not(args.standardize):
-#                     chunk.to_csv(output_file, index=False, mode='a', columns=['smiles', 'ids', 'highlights'], header=False, sep=' ')
-#                 else:
-#                     chunk.to_csv(output_file, index=False, mode='a', columns=['smiles', 'ids'], header=False, sep=' ')
-
-
-#             if args.db2:
-#                 from .conformers import smi2db2
-#                 if args.corina:
-#                     smi2db2.gen_conf_chunk_corina(chunk, args, input_file_path.stem)
-#                 else:
-#                     smi2db2.gen_conf_chunk(chunk, args, input_file_path.stem)
-            
-#             if args.pdbqt:
-#                 from .conformers import smi2pdbqt
-#                 smi2pdbqt.gen_conf_chunk(chunk, args)
-#             if not args.test:
-#                 if step == 1: time_step1 = time.time()-start_time
-#                 if step == 2:
-#                     log_step_time(time_step1, 1)
-#                     log_step_time(time.time()-start_time, 2)
-#                 elif step > 2:
-#                     log_step_time(time.time()-start_time, step)
-#                 start_time = time.time()
-
 def process_files(args, start_time: int):
     if args.standardize:
         logger.warning('standardize predictor format preparation selected. Will skip all other flags and only standardize the molecules using RDKit default functions.')
@@ -170,7 +142,7 @@ def process_files(args, start_time: int):
 
 
             if args.gen3d:
-                from .conformers import conformers
+                from msani.conformers import conformers
                 conformers.gen_conf_chunk(chunk, args, input_file_path.stem)
             
 
@@ -185,19 +157,19 @@ def process_files(args, start_time: int):
 
 def process_smiles(args):
     rejected_file = "msani_rejected.txt"
-    chunk = pd.DataFrame({'smiles': args.smiles, 'ids': range(len(args.smiles))})
-    chunk['ids'] = chunk['ids'].astype(str)
-    chunk['mol'] = chunk['smiles'].apply(Chem.MolFromSmiles)
+    chunk = DataFrame({'smiles': args.smiles, 'ids': range(len(args.smiles))})
+    chunk = chunk.assign(ids=chunk['ids'].astype(str))
+    chunk = chunk.assign(mol=chunk['smiles'].apply(Chem.MolFromSmiles))
     
     chunk = apply_filters(chunk, args, rejected_file)
 
     if args.gen3d:
-        from .conformers import conformers
+        from msani.conformers import conformers
         if os.path.exists('db2/0.db2'): os.remove('db2/0.db2') # 0 is the default name
         conformers.gen_conf_chunk(chunk, args)
     
     print('Processed SMILES:')
-    for i, row in chunk.iterrows():
+    for _, row in chunk.iterrows():
         print(row['smiles'])
 
 def clean_data(args):
@@ -206,7 +178,7 @@ def clean_data(args):
     logger.info(f'RDKit version: {rdkit_version}')        
     if args.smiles:
         process_smiles(args)
-    else:
+    elif args.input_files:
         process_files(args, start_time)
 
     log_execution_time(start_time, args.test)
@@ -226,13 +198,15 @@ def generateCustomTemplate(args):
         print(f"Other arguments are skipped, the program exitted normally.")
 
 def main():
-
+    print(logo)
+    if len(sys.argv) == 1:
+        print(version_text)
+        print("No arguments provided. Use -h or --help for usage instructions.")
+        sys.exit(0)
     args = parsers.parseArguments(sys.argv[1:])
     args = parsers.Sanitycheck(args)
     if args.version:
-        print(f"Python version: {sys.version.split('|')[0]}")
-        print(f"MolSanitizer version: {__version__}")
-        print(f"RDKit version: {rdBase.rdkitVersion}")
+        print(version_text)
         return
    
     if args.create_custom: 

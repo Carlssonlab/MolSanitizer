@@ -5,7 +5,7 @@ from rdkit.Chem import  SaltRemover, rdMolDescriptors
 from rdkit.Chem.Descriptors import MolLogP
 from rdkit.Chem.MolStandardize import rdMolStandardize
 
-import pandas as pd
+from pandas import DataFrame, read_csv
 import logging
 
 logger = logging.getLogger('msani')
@@ -42,14 +42,14 @@ class Filters():
         return f'{cls_name}({attrs})'
     
     @staticmethod
-    def remove_invalid_SMILES(df:pd.DataFrame) -> pd.DataFrame:
+    def remove_invalid_SMILES(df:DataFrame) -> DataFrame:
         """Remove rows with invalid SMILES from the input DataFrame.
 
         Args:
-            df (pd.DataFrame): Input DataFrame with 'smiles' column containing SMILES strings.
+            df (DataFrame): Input DataFrame with 'smiles' column containing SMILES strings.
 
         Returns:
-            pd.DataFrame: A new DataFrame chunk with valid SMILES strings.
+            DataFrame: A new DataFrame chunk with valid SMILES strings.
         """
         # Log rows where 'mol' is None before dropping
         invalid_rows = df[df['mol'].isna()]
@@ -62,7 +62,7 @@ class Filters():
         return df_cleaned
     
     @staticmethod
-    def remove_exotic_chem_to_db2(df:pd.DataFrame) -> pd.DataFrame:
+    def remove_exotic_chem_to_db2(df:DataFrame) -> DataFrame:
         '''
         These are substructures that are not supported by either MMFF94(s)
         and Mol2 format so could not be DB2-compatible.
@@ -70,9 +70,9 @@ class Filters():
         and atom types not supported by the Mol2 format.
 
         Args:
-            df (pd.DataFrame): Input DataFrame with 'mol' column containing RDKit molecule objects.
+            df (DataFrame): Input DataFrame with 'mol' column containing RDKit molecule objects.
         Returns:
-            pd.DataFrame: A new DataFrame chunk with molecules that are DB2-compatible.
+            DataFrame: A new DataFrame chunk with molecules that are DB2-compatible.
 
         '''
         exotic_chems = Chem.MolFromSmarts('[$([*X{5-}]),$([#35!X1]),$([#53!X1]),$([*;!$([#1,#6,#7,#8,#9,#14,#15,#16,#17,#35,#53,#26,#3,#11,#19,#30,#20,#29,#12])])]')
@@ -106,15 +106,15 @@ class Filters():
         return res
 
     @staticmethod
-    def saltstripping(df: pd.DataFrame, debug = False) -> pd.DataFrame:
+    def saltstripping(df: DataFrame, debug = False) -> DataFrame:
         """Remove salts from the input molecules using the RDKit SaltRemover class.
 
         Args:
-            df (pd.DataFrame): Input DataFrame with 'mol' column containing RDKit molecule objects.
+            df (DataFrame): Input DataFrame with 'mol' column containing RDKit molecule objects.
             debug (bool, optional): Debug mode. Defaults to False.
 
         Returns:
-            pd.DataFrame: A new DataFrame chunk with salt-stripped molecules.
+            DataFrame: A new DataFrame chunk with salt-stripped molecules.
         """
         # Get the absolute path to the template SMARTS file using pathlib
         smartsFile = Path(__file__).parent.parent / 'Data' / 'salt_stripping.txt'
@@ -150,16 +150,17 @@ class Filters():
             raise ValueError(f"Invalid condition: {condition}, supported formats: range (e.g. 1-5), greater than (or equal to) (e.g. >= 5), less than or equal to (e.g. <= 5), equal to (e.g. 5).")
 
     @staticmethod    
-    def filter_by_ha(df, filter_query, rejectedFile, debug = False) -> pd.DataFrame:
+    def filter_by_ha(df, filter_query, rejectedFile, debug = False) -> DataFrame:
         """Filter out molecules with heavy atoms only using the RDKit Mol.GetNumHeavyAtoms() function.
 
         Args:
-            df (pd.DataFrame): Input DataFrame with 'mol' column containing RDKit molecule objects.
+            df (DataFrame): Input DataFrame with 'mol' column containing RDKit molecule objects.
             debug (bool, optional): Debug mode. Defaults to False.
 
         Returns:
-            pd.DataFrame: A new DataFrame chunk with molecules containing heavy atoms.
+            DataFrame: A new DataFrame chunk with molecules containing heavy atoms.
         """
+        df = df.copy()
         df['ha'] = df['mol'].apply(lambda x: x.GetNumHeavyAtoms())
         query = Filters.convert_to_query(filter_query, 'ha')
         rejected_df = df.query(f'not ({query})').copy()
@@ -172,17 +173,18 @@ class Filters():
         return df
 
     @staticmethod
-    def filter_by_logp(df, filter_query, rejectedFile, debug = False) -> pd.DataFrame:
+    def filter_by_logp(df, filter_query, rejectedFile, debug = False) -> DataFrame:
         """Filter out molecules with a logP value upto the defined value using the RDKit Crippen logP calculation.
 
         Args:
-            df (pd.DataFrame): Input DataFrame with 'mol' column containing RDKit molecule objects.
+            df (DataFrame): Input DataFrame with 'mol' column containing RDKit molecule objects.
             rejectedFile (_type_): Path to the file to save rejected molecules.
             debug (bool, optional): Debug mode. Defaults to False.
 
         Returns:
-            pd.DataFrame: A new DataFrame chunk with molecules containing the specified logP value.
+            DataFrame: A new DataFrame chunk with molecules containing the specified logP value.
         """
+        df = df.copy()
         df['logp'] = df['mol'].apply(lambda x: (MolLogP(x))*100)
         query = Filters.convert_to_query(filter_query, 'logp')
         rejected_df = df.query(f'not ({query})').copy()
@@ -195,16 +197,17 @@ class Filters():
 
         return df
     
-    def filter_by_hba(df, filter_query, rejectedFile, debug = False) -> pd.DataFrame:
+    def filter_by_hba(df, filter_query, rejectedFile, debug = False) -> DataFrame:
         """Filter out molecules with required number of H-bond acceptors using the RDKit CalcNumHBA().
         NOTE: It is by intention that the function uses CalcNumHBA() instead of CalcNumLipinskiHBA() was used as we believe that it better represents the chemistry.
         Args:
-            df (pd.DataFrame): Input DataFrame with 'mol' column containing RDKit molecule objects.
+            df (DataFrame): Input DataFrame with 'mol' column containing RDKit molecule objects.
             debug (bool, optional): Debug mode. Defaults to False.
 
         Returns:
-            pd.DataFrame: A new DataFrame chunk with molecules containing heavy atoms.
+            DataFrame: A new DataFrame chunk with molecules containing heavy atoms.
         """
+        df = df.copy()
         df['hba'] = df['mol'].apply(lambda x: rdMolDescriptors.CalcNumHBA(x))
         query = Filters.convert_to_query(filter_query, 'hba')
         rejected_df = df.query(f'not ({query})').copy()
@@ -216,16 +219,17 @@ class Filters():
         df.query(query, inplace=True)
         return df
     
-    def filter_by_hbd(df, filter_query, rejectedFile, debug = False) -> pd.DataFrame:
+    def filter_by_hbd(df, filter_query, rejectedFile, debug = False) -> DataFrame:
         """Filter out molecules with required number of H-bond donors using the RDKit CalcNumLipinskiHBD().
         NOTE: It is by intention that the function uses CalcNumLipinskiHBD() instead of CalcNumHBD() was used as we believe that it better represents the chemistry.
         Args:
-            df (pd.DataFrame): Input DataFrame with 'mol' column containing RDKit molecule objects.
+            df (DataFrame): Input DataFrame with 'mol' column containing RDKit molecule objects.
             debug (bool, optional): Debug mode. Defaults to False.
 
         Returns:
-            pd.DataFrame: A new DataFrame chunk with molecules containing heavy atoms.
+            DataFrame: A new DataFrame chunk with molecules containing heavy atoms.
         """
+        df = df.copy()
         df['hbd'] = df['mol'].apply(lambda x: rdMolDescriptors.CalcNumLipinskiHBD(x))
         query = Filters.convert_to_query(filter_query, 'hbd')
         rejected_df = df.query(f'not ({query})').copy()
@@ -237,15 +241,16 @@ class Filters():
         df.query(query, inplace=True)
         return df
 
-    def filter_by_mw(df, filter_query, rejectedFile, debug = False) -> pd.DataFrame:
+    def filter_by_mw(df, filter_query, rejectedFile, debug = False) -> DataFrame:
         """Filter out molecules with required molecular weight using the RDKit GetMolWt().
         Args:
-            df (pd.DataFrame): Input DataFrame with 'mol' column containing RDKit molecule objects.
+            df (DataFrame): Input DataFrame with 'mol' column containing RDKit molecule objects.
             debug (bool, optional): Debug mode. Defaults to False.
 
         Returns:
-            pd.DataFrame: A new DataFrame chunk with molecules containing heavy atoms.
+            DataFrame: A new DataFrame chunk with molecules containing heavy atoms.
         """
+        df = df.copy()
         df['mw'] = df['mol'].apply(lambda x: rdMolDescriptors.CalcExactMolWt(x))
         query = Filters.convert_to_query(filter_query, 'mw')
         rejected_df = df.query(f'not ({query})').copy()
@@ -272,15 +277,16 @@ class Filters():
         return len(unassigned)
     
     @staticmethod
-    def filter_by_chiralcenters(df, filter_query, rejectedFile, debug = False) -> pd.DataFrame:
+    def filter_by_chiralcenters(df, filter_query, rejectedFile, debug = False) -> DataFrame:
         """Filter out molecules with required number of unspecified chiral centers.
         Args:
-            df (pd.DataFrame): Input DataFrame with 'mol' column containing RDKit molecule objects.
+            df (DataFrame): Input DataFrame with 'mol' column containing RDKit molecule objects.
             debug (bool, optional): Debug mode. Defaults to False.
 
         Returns:
-            pd.DataFrame: A new DataFrame chunk with molecules containing heavy atoms.
+            DataFrame: A new DataFrame chunk with molecules containing heavy atoms.
         """
+        df = df.copy()
         df['chiralcenters'] = df['mol'].apply(lambda x: rdMolDescriptors.CalcNumUnspecifiedAtomStereoCenters(x))
         query = Filters.convert_to_query(filter_query, 'chiralcenters')
         rejected_df = df.query(f'not ({query})').copy()
@@ -319,7 +325,7 @@ class Filters():
         return taut_uncharged_parent_clean_mol
 
     @staticmethod
-    def standarizeFilters(df: pd.DataFrame) -> pd.DataFrame:
+    def standarizeFilters(df: DataFrame) -> DataFrame:
 
 
         # follows the steps in
@@ -365,17 +371,17 @@ class Filters():
             return 'OK'
         
     @staticmethod
-    def painsFilter(df: pd.DataFrame, rejectedFile: str, debug: bool = False) -> pd.DataFrame:
+    def painsFilter(df: DataFrame, rejectedFile: str, debug: bool = False) -> DataFrame:
         """
         Detect and filter out molecules with PAINS functional groups using the RDKit PAINS catalog.
 
         Args:
-            df (pd.DataFrame): Input DataFrame with 'mol' column containing RDKit molecule objects.
+            df (DataFrame): Input DataFrame with 'mol' column containing RDKit molecule objects.
             rejectedFile (str): Path to the file to save rejected molecules.
             debug (bool, optional): Debug mode. Defaults to False.
 
         Returns:
-            pd.DataFrame: A new DataFrame chunk with molecules that passed the PAINS filter.
+            DataFrame: A new DataFrame chunk with molecules that passed the PAINS filter.
         """
         # Set up the PAINS catalog
         from rdkit.Chem.FilterCatalog import FilterCatalog, FilterCatalogParams
@@ -423,24 +429,24 @@ class Filters():
     
 
     @staticmethod
-    def filterbysmarts(mol, smarts_df: pd.DataFrame) -> str:
+    def filterbysmarts(mol, smarts_df: DataFrame) -> str:
         for _, substructure in smarts_df.iterrows():
             if mol.HasSubstructMatch(substructure.mol):
                 return substructure.label
         return 'OK'
     
     @staticmethod
-    def unwantedFilter(df: pd.DataFrame, rejectedFile, unwanted_option, debug = False) -> pd.DataFrame:
+    def unwantedFilter(df: DataFrame, rejectedFile, unwanted_option, debug = False) -> DataFrame:
         """Filter out unwanted substructures using a default list of SMARTS patterns.
 
             Args:
-                df (pd.DataFrame): Input DataFrame with 'mol' column containing RDKit molecule objects.
+                df (DataFrame): Input DataFrame with 'mol' column containing RDKit molecule objects.
                 rejectedFile (str): Path to the file to save rejected molecules.
                 unwanted_option (list): The mode input by thle user.
                 debug (bool, optional): Debug mode. Defaults to False.
 
             Returns:
-                pd.DataFrame: A new DataFrame chunk with molecules that passed the filter.
+                DataFrame: A new DataFrame chunk with molecules that passed the filter.
         """
         # Get the absolute path to the template SMARTS file using pathlib
         smartsFile = Path(__file__).parent.parent / 'Data' / 'filter_out.csv'
@@ -460,17 +466,17 @@ class Filters():
 
 
     @staticmethod
-    def customFilter(df: pd.DataFrame, rejectedFile, smartsFile, debug = False) -> pd.DataFrame:
+    def customFilter(df: DataFrame, rejectedFile, smartsFile, debug = False) -> DataFrame:
         """Filter out unwanted substructures using a customized list of SMARTS patterns.
 
         Args:
-            df (pd.DataFrame): Input DataFrame with 'mol' column containing RDKit molecule objects.
+            df (DataFrame): Input DataFrame with 'mol' column containing RDKit molecule objects.
             rejectedFile (_type_): Path to the file to save rejected molecules.
             smartsFile (_type_): Path to the file containing the customized list of SMARTS patterns.
             debug (bool, optional): Debug mode. Defaults to False.
 
         Returns:
-            pd.DataFrame: A new DataFrame chunk with molecules that passed the filter.
+            DataFrame: A new DataFrame chunk with molecules that passed the filter.
         """
         # Load smarts to clean  from file
         unwanted_df = loadSMARTSdata(smartsFile)
@@ -482,16 +488,16 @@ class Filters():
         rejected_df.to_csv(rejectedFile, index=False, mode='a', columns=['smiles','ids','reason'], sep = ' ', header=False)
         return df_clean[df_clean['reason']=='OK']
     
-    def filter_df(self, df: pd.DataFrame, rejectedFile: str, debug: bool = False) -> pd.DataFrame:
+    def filter_df(self, df: DataFrame, rejectedFile: str, debug: bool = False) -> DataFrame:
         """Apply the filters to the input DataFrame.
 
         Args:
-            df (pd.DataFrame): Input DataFrame with 'mol' column containing RDKit molecule objects.
+            df (DataFrame): Input DataFrame with 'mol' column containing RDKit molecule objects.
             rejectedFile (str): Path to the file to save rejected molecules.
             debug (bool, optional): Debug mode. Defaults to False.
 
         Returns:
-            pd.DataFrame: A new DataFrame chunk with molecules that passed all the filters.
+            DataFrame: A new DataFrame chunk with molecules that passed all the filters.
         """
         if self.removesalts:
             df = Filters.saltstripping(df, debug)
@@ -515,7 +521,7 @@ class Filters():
             df = Filters.painsFilter(df, rejectedFile, debug)
         return df
 
-def loadSMARTSdata(smartsFile: str, unwanted_option=None) -> pd.DataFrame:
+def loadSMARTSdata(smartsFile: str, unwanted_option=None) -> DataFrame:
         """Load SMARTS patterns from a file and convert them to RDKit molecule objects.
 
         Args:
@@ -523,20 +529,20 @@ def loadSMARTSdata(smartsFile: str, unwanted_option=None) -> pd.DataFrame:
             unwanted_option (list): The mode input by the user. Defaults to None.
 
         Returns:
-            pd.DataFrame: A DataFrame containing the SMARTS patterns and their corresponding RDKit molecule objects.
+            DataFrame: A DataFrame containing the SMARTS patterns and their corresponding RDKit molecule objects.
         """
         if unwanted_option is not None: 
             # Using default substructure file 
-            smarts_df = pd.read_csv(smartsFile, sep=r'\s+', header=0, names=['smarts','label', 'reason', 'mode', 'ref'])
+            smarts_df = read_csv(smartsFile, sep=r'\s+', header=0, names=['smarts','label', 'reason', 'mode', 'ref'])
             smarts_df = smarts_df[smarts_df["mode"].isin(unwanted_option)]
         else:
             # Using customized substructure file
             has_header = Filters.check_header(smartsFile)
             if has_header:
                 logger.info(f'Found header in {smartsFile}')
-                smarts_df = pd.read_csv(smartsFile, sep=r'\s+', header=0, usecols=[0,1], names=['smarts','label'])
+                smarts_df = read_csv(smartsFile, sep=r'\s+', header=0, usecols=[0,1], names=['smarts','label'])
             else:
-                smarts_df = pd.read_csv(smartsFile, sep=r'\s+', header=None, usecols=[0,1], names=['smarts','label'])
+                smarts_df = read_csv(smartsFile, sep=r'\s+', header=None, usecols=[0,1], names=['smarts','label'])
 
         smarts_df['mol'] = smarts_df['smarts'].apply(lambda x: Chem.MolFromSmarts(x)) #do we need mergeHs here?
         

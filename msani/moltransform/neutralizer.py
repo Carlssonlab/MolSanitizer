@@ -1,4 +1,4 @@
-import pandas as pd
+from pandas import DataFrame, read_csv
 import argparse
 from rdkit import Chem
 
@@ -60,7 +60,7 @@ class Neutralizer:
     @classmethod
     def neutralize_df(cls, df,
                       mol_column='mol',
-                      smiles_column = 'smiles') -> pd.DataFrame:
+                      smiles_column = 'smiles') -> DataFrame:
         """
         Neutralize molecules in a DataFrame.
 
@@ -79,8 +79,8 @@ class Neutralizer:
         """
         df = df.copy()
         if mol_column not in df.columns:
-            df[mol_column] = df[smiles_column].apply(Chem.MolFromSmiles)
-        df[mol_column] = df[mol_column].apply(cls.neutralize_mol)
+            df.loc[:, mol_column] = df[smiles_column].apply(Chem.MolFromSmiles)
+        df.loc[:, mol_column] = df[mol_column].apply(cls.neutralize_mol)
 
         return df
 
@@ -116,7 +116,7 @@ def main():
         results = neutralizer.neutralize_smiles(smiles = args.smiles)
         print(results)
     else:
-        df = pd.read_csv(args.input, sep =r'\s+', header=None, names=['smiles', 'ids'])
+        df = read_csv(args.input, sep =r'\s+', header=None, names=['smiles', 'ids'])
         neutralized_df = neutralizer.neutralize_df(df)
         neutralized_df[['smiles', 'ids']].to_csv(args.output, index=False, header=False, sep =' ')
 

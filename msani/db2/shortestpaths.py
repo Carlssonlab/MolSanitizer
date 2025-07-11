@@ -2,7 +2,7 @@
 #adaptation of shortest paths code from my phd for more general case. kind of.
 #no objects, just a method, gpl since penn/phd
 
-from . import priodict
+from msani.db2 import priodict
 
 def shortestPaths(nodes, edges, startDist, initialNodes):
   '''simple shortest paths algorithm, using advanced data structure. calculates

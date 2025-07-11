@@ -18,8 +18,8 @@ from msani.filtering import strain_filter, filters
 from msani.amsol import run_amsol
 from msani.db2 import solv
 
-import pandas as pd
-import numpy as np
+from pandas import DataFrame, read_csv  # only what you use
+from numpy import empty, array, vstack
 import logging
 import os
 import multiprocessing
@@ -256,7 +256,7 @@ class ConformerGenerator:
                 params.pruneRmsThresh = 0.35 
             params.randomSeed = self.randomSeed # For reproducibility
             params.useRandomCoords = True
-            conf_ring_descriptors_df = pd.DataFrame()
+            conf_ring_descriptors_df = DataFrame()
             for cid in rdDistGeom.EmbedMultipleConfs(self.mol_H, numConfs=self.num_initialConfs, params=params):
                 ff = rdForceFieldHelpers.MMFFGetMoleculeForceField(self.mol_H, self.mp, confId=cid)
                 if self.conjugated_substituted_nitrogen_5aro:
@@ -502,7 +502,7 @@ class ConformerGenerator:
         if self.mode == 'random':
                 n_transform = len(match_torlib)  # Number of rotatable bonds
                 visitting = [0 for _ in range(n_transform)]
-                if visited is None: visited = np.empty((0, n_transform))
+                if visited is None: visited = empty((0, n_transform))
 
                 # New approach: use angles
                 while len(product) < numConfs:
@@ -516,13 +516,13 @@ class ConformerGenerator:
                         visitting[bond_idx] = random_angle
                         rdMolTransforms.SetDihedralDeg(mol.GetConformer(0), *bond[1], value=random_angle)
 
-                    if utils.is_similar_conformer(np.array(visitting), visited, tol = self.tolerance) or \
+                    if utils.is_similar_conformer(array(visitting), visited, tol = self.tolerance) or \
                         utils.check_too_close_nonbonded_atoms(mol.GetConformer(0), mol, bonded_pairs, same_parent_pairs, threshold = self.threshold):
                         attempts += 1
                         if attempts > max_attempts:
                             break
                         continue
-                    visited = np.vstack((visited, visitting))
+                    visited = vstack((visited, visitting))
                     ff = rdForceFieldHelpers.MMFFGetMoleculeForceField(mol, self.mp, confId=0)
                     energy = ff.CalcEnergy()
                     if energy < min_energy: min_energy = min(energy, min_energy)
@@ -937,7 +937,8 @@ class ConformerGenerator:
             filename (str): The name of the output PDBQT file. If None, defaults to self.name.pdbqt.
         """
         try:
-            from meeko import MoleculePreparation, PDBQTWriterLegacy
+            from meeko.preparation import MoleculePreparation
+            from meeko.writer import PDBQTWriterLegacy
         except ImportError:
             print("""Please install the meeko package using "pip install meeko" to use this script.""")
             exit(1)
@@ -1144,11 +1145,11 @@ def write_to_tarball(ball, data, name):
     tar.size = len(data)
     ball.addfile(tar, io.BytesIO(data))
 
-def gen_conf_chunk(df: pd.DataFrame, args, input_file='0'):
+def gen_conf_chunk(df: DataFrame, args, input_file='0'):
     """
     Generate conformers for a given DataFrame of SMILES strings and save them in different formats.
     Args:
-        df (pd.DataFrame): DataFrame containing SMILES strings and other relevant information.
+        df (DataFrame): DataFrame containing SMILES strings and other relevant information.
         args (Namespace): 
             Parsed arguments containing various configuration options, including:
             - randomSeed (int): Seed for random number generation.
@@ -1169,7 +1170,7 @@ def gen_conf_chunk(df: pd.DataFrame, args, input_file='0'):
         input_file (str): Name of the input file (default is '0').
     """
     if 'mol' not in df.columns:
-        df['mol'] = df['smiles'].apply(Chem.MolFromSmiles)
+        df.loc[:,'mol'] = df['smiles'].apply(Chem.MolFromSmiles)
     df = filters.Filters.remove_exotic_chem_to_db2(df)
     randomSeed, numConfs, VERBOSE, cleanup, energywindow, timeout, request_alignment, nr, numcores, mode, tolerance, allowNonring = \
         args.randomSeed, args.numconfs, args.debug, args.cleanup, args.energywindow, args.timeout, args.rigid, args.nringconfs, args.numcores, args.mode, args.tolerance, args.allowNonring
@@ -1397,11 +1398,11 @@ def main():
                 parser.error(f'The input file: {inFile} does not exist.')
         args.input_files = [Path(inFile).resolve() for inFile in args.input_files]
         for inFile in args.input_files:
-            gen_conf_chunk(pd.read_csv(inFile, sep=' ', header=None, names=['smiles', 'ids']), args, inFile.stem)
+            gen_conf_chunk(read_csv(inFile, sep=' ', header=None, names=['smiles', 'ids']), args, inFile.stem)
     else:
         if args.smiles is not None:
             smiles = args.smiles
-            df = pd.DataFrame({'smiles': [smiles], 'ids': ['0']})
+            df = DataFrame({'smiles': [smiles], 'ids': ['0']})
             gen_conf_chunk(df, args)
         else:
             parser.error('Please provide either input files or SMILES strings.')

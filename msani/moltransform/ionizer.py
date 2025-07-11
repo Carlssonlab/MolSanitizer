@@ -1,5 +1,5 @@
 import argparse
-import pandas as pd
+from pandas import DataFrame, read_csv, concat
 import logging
 import multiprocessing as mp
 
@@ -9,7 +9,7 @@ from rdkit import Chem, RDLogger
 from rdkit.Chem import AllChem
 from functools import partial
 
-from .neutralizer import Neutralizer
+from msani.moltransform.neutralizer import Neutralizer
 
 RDLogger.DisableLog('rdApp.*') # To disable error messages with kekulizing tautomers from RDKit
 logger = logging.getLogger('msani')
@@ -98,15 +98,15 @@ class Ionizer:
         with open(file_path, 'r') as f:
             uncommented = [line for line in f if not (line.startswith('#')) and line.strip()]
 
-        rules = pd.read_csv(StringIO(''.join(uncommented)), sep=r"\s+", header=None,
+        rules = read_csv(StringIO(''.join(uncommented)), sep=r"\s+", header=None,
                             names=['FUNCTIONAL_GROUP', 'pKa', 'TYPE', 'Enumerate', 'REACTION', 'REF'])
         
-        rules['Mol'] = rules['REACTION'].apply(lambda x: AllChem.ReactionFromSmarts(x))
+        rules.loc[:, 'Mol'] = rules['REACTION'].apply(lambda x: AllChem.ReactionFromSmarts(x))
         acid_rules = rules[rules['TYPE'] == 'ACID'].copy()
         base_rules = rules[rules['TYPE'] == 'BASE'].copy()
         acid_rules.sort_values(by=['pKa', 'Enumerate'], ascending=[True, False], inplace=True)
         base_rules.sort_values(by=['pKa', 'Enumerate'], ascending=[False, False], inplace=True)
-        rules = pd.concat([acid_rules, base_rules], ignore_index=True)
+        rules = concat([acid_rules, base_rules], ignore_index=True)
         return rules
     
     def extract_necessary_rules(self, pH: int):
@@ -117,7 +117,7 @@ class Ionizer:
             pH (int): The pH value to filter the rules.
             
         Returns:
-            pd.DataFrame: Filtered rules based on the pH.
+            DataFrame: Filtered rules based on the pH.
         """
 
         # Filter based on pH for ACID and BASE rules
@@ -274,16 +274,16 @@ class Ionizer:
 
  
     def ionize_df_mp(self,
-                     df: pd.DataFrame,
+                     df: DataFrame,
                      smiles_column: str = 'smiles',
                      name_column: str = 'ids',
-                     mol_column: str = 'mol') -> pd.DataFrame:
+                     mol_column: str = 'mol') -> DataFrame:
         """
         Protonate the input molecules using multiprocessing with chunked DataFrame processing.
         """
         # Ensure mol_column exists
         if mol_column not in df.columns:
-            df[mol_column] = df[smiles_column].apply(Chem.MolFromSmiles)
+            df.loc[:,mol_column] = df[smiles_column].apply(Chem.MolFromSmiles)
 
         # Determine number of cores
         num_cores = min(self.num_cores, len(df))  # Prevent using more cores than data chunks
@@ -307,24 +307,24 @@ class Ionizer:
                 except Exception as e:
                     logger.error(f"Error processing a molecule batch: {str(e)}")
 
-        return pd.DataFrame(results)
+        return DataFrame(results)
     
     def ionize_df(self, 
-                  df: pd.DataFrame,
+                  df: DataFrame,
                   smiles_column: str = 'smiles',
                   name_column: str = 'ids',
-                  mol_column: str = 'mol') -> pd.DataFrame:
+                  mol_column: str = 'mol') -> DataFrame:
         """
         Protonate the input molecules using multiprocessing or single core based on `num_cores`.
         """
         if len(df) == 0:
             return df
         if mol_column not in df.columns:
-            df[mol_column] = df[smiles_column].apply(lambda x: Chem.MolFromSmiles(x))
+            df.loc[:,mol_column] = df[smiles_column].apply(lambda x: Chem.MolFromSmiles(x))
         if self.num_cores > 1:
             return self.ionize_df_mp(df, smiles_column, name_column, mol_column)
         else:
-            return pd.DataFrame(_process_ionization_rows(df, self, smiles_column, mol_column, name_column))
+            return DataFrame(_process_ionization_rows(df, self, smiles_column, mol_column, name_column))
 
 
 def _process_ionization_rows(df, ionizer, smiles_column, mol_column, name_column):
@@ -373,7 +373,7 @@ def main():
         for result in results:
             print(result)
     else:
-        df = pd.read_csv(args.input, sep =r'\s+', header=None, names=['smiles', 'ids'])
+        df = read_csv(args.input, sep =r'\s+', header=None, names=['smiles', 'ids'])
         ionized_df = ionizer.ionize_df(df)
         ionized_df[['smiles', 'ids']].to_csv(args.output, index=False, header=False, sep =' ')
 

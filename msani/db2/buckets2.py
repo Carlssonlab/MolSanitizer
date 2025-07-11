@@ -1,4 +1,4 @@
-from .geometry import distL2Squared3
+from msani.db2.geometry import distL2Squared3
 import itertools
 import math
 

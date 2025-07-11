@@ -5,16 +5,16 @@
 
 #import string
 import sys
-from . import sybyl2dock
-from . import atom_color_table
 import collections
 import gzip
 import operator
-from . import floydwarshall  # all pairs shortest paths routine
-from . import shortestpaths  # from one point to all others
-from . import geometry  # for distance function
-from . import unionfind2
-from . import divisive_clustering
+from msani.db2 import sybyl2dock
+from msani.db2 import atom_color_table
+from msani.db2 import floydwarshall  # all pairs shortest paths routine
+from msani.db2 import shortestpaths  # from one point to all others
+from msani.db2 import geometry  # for distance function
+from msani.db2 import unionfind2
+from msani.db2 import divisive_clustering
 
 class Mol2(object):
   '''reads mol2 files into a bunch of lists (for speed instead of objects).

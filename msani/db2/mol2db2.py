@@ -5,18 +5,17 @@
 #import string
 import sys
 import optparse
-from . import sybyl2dock
-from . import mol2
-from . import hierarchy
-from . import solv
-from . import clash
-from . import hydrogens
+from msani.db2 import mol2
+from msani.db2 import hierarchy
+from msani.db2 import solv
+from msani.db2 import clash
+from msani.db2 import hydrogens
+from msani.db2.hierarchy import TooBigError
+
 import time
-import math
 import io
 from pathlib import Path
 
-from .hierarchy import TooBigError
 
 def mol2db2_quick(mol2file, solvfile, clashfile = Path(__file__).parent / 'clashfile.txt', disttol = 0.001):
   #argv = ["-s", solvfile, "-d", clashfile]

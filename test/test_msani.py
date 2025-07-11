@@ -9,8 +9,8 @@ from os import system
 import platform
 
 
-import pandas as pd
-import msani.cli as cli
+from pandas import read_csv
+from msani import cli
 from msani.batchmode import Split_Submit_jobs
 from msani.io import parsers
 
@@ -309,8 +309,8 @@ class Test_MolSanitizer(unittest.TestCase):
 
     def compare_relative(self, newfile: str, goldenfile: str):
         # Read the files into dataframes
-        df1 = pd.read_csv(newfile, header=None, sep=r'\s+')
-        df2 = pd.read_csv(goldenfile, header=None, sep=r'\s+')
+        df1 = read_csv(newfile, header=None, sep=r'\s+')
+        df2 = read_csv(goldenfile, header=None, sep=r'\s+')
 
         # Extract the first column from both dataframes
         column1_df1 = df1.iloc[:, 0]

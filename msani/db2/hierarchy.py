@@ -5,17 +5,15 @@
 
 #import string
 import sys
-from .unionfind2 import unionFind
-from .geometry import distL2Squared3
-from . import geometry
-from . import buckets
+from msani.db2.unionfind2 import unionFind
+from msani.db2.geometry import distL2Squared3
+from msani.db2 import geometry
+from msani.db2 import buckets2
+
 import gzip
 import operator
 import math
 import time
-from . import shortestpaths
-import itertools
-from . import buckets2
 import io
 
 def printClusterHelper(clusterList):

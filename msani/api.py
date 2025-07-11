@@ -1,18 +1,17 @@
 
 
 from rdkit import Chem, RDLogger
-from rdkit.Chem import AllChem
 from rdkit.Chem.EnumerateStereoisomers import EnumerateStereoisomers, StereoEnumerationOptions
 
 from functools import partial
 
-from .filtering.filters import Filters, against_humanity, hold_up
-from .moltransform.tautomerizer import Tautomerizer
-from .moltransform.ionizer import Ionizer
-from .moltransform.neutralizer import Neutralizer
+from msani.filtering.filters import Filters, against_humanity, hold_up
+from msani.moltransform.tautomerizer import Tautomerizer
+from msani.moltransform.ionizer import Ionizer
+from msani.moltransform.neutralizer import Neutralizer
 
 import multiprocessing as mp
-import pandas as pd
+from pandas import DataFrame  # only what you use
 import logging
 logger = logging.getLogger('msani')
 RDLogger.DisableLog('rdApp.*') # To disable error messages with kekulizing tautomers from RDKit
@@ -111,7 +110,7 @@ class msani:
         """
         A wrapper to generate stereoisomers for a given molecule using multiprocessing.
         Args:
-        row_data (pd.Series): A row from the input DataFrame containing ['smiles', 'ids', 'mol'] and optionally 'highlights'.
+        row_data (Series): A row from the input DataFrame containing ['smiles', 'ids', 'mol'] and optionally 'highlights'.
         max_isomers (int): Maximum number of stereoisomers to generate.
 
         Returns:
@@ -152,18 +151,18 @@ class msani:
         return result
 
     @staticmethod
-    def enum_stereoisomers(df: pd.DataFrame, max_isomers=8, numcores=4, debug=False) -> pd.DataFrame:
+    def enum_stereoisomers(df: DataFrame, max_isomers=8, numcores=4, debug=False) -> DataFrame:
         """
         Generate stereoisomers for molecules in the 'smiles' column and expand the DataFrame using multiprocessing.
         
         Args:
-        df (pd.DataFrame): DataFrame with 'smiles' and 'ids' columns.
+        df (DataFrame): DataFrame with 'smiles' and 'ids' columns.
         max_isomers (int): Maximum number of stereoisomers to generate for each molecule.
         numcores (int): Number of processes to use. Default is 4.
         debug (bool): Enable debug messages.
         
         Returns:
-        pd.DataFrame: Expanded DataFrame with each stereoisomer as a separate row.
+        DataFrame: Expanded DataFrame with each stereoisomer as a separate row.
         """
         # Partial function to fix max_isomers as an argument
         process_func = partial(msani._process_molecule_stereoisomer, max_isomers=max_isomers)
@@ -193,20 +192,20 @@ class msani:
                         'highlights': highlights
                     })
 
-        return pd.DataFrame(results)
+        return DataFrame(results)
 
-    def run(self, df: pd.DataFrame, rejected_file = None) -> pd.DataFrame:
+    def run(self, df: DataFrame, rejected_file = None) -> DataFrame:
         """
         Perform preparation on the input DataFrame using the specified filters and rule-based chemical modifications.
         
         Args:
-            df (pd.DataFrame): Input DataFrame with ['smiles', 'ids'] columns. 
+            df (DataFrame): Input DataFrame with ['smiles', 'ids'] columns. 
             
         Returns:
-            pd.DataFrame: A new DataFrame chunk with molecules that passed the filters.
+            DataFrame: A new DataFrame chunk with molecules that passed the filters.
         """
-        df['mol'] = df['smiles'].apply(lambda x: Chem.MolFromSmiles(x))
-        df['against_humanity'] = df['mol'].apply(lambda x: x.HasSubstructMatch(against_humanity) if x else False)
+        df.loc[:, 'mol'] = df['smiles'].apply(lambda x: Chem.MolFromSmiles(x))
+        df.loc[:, 'against_humanity'] = df['mol'].apply(lambda x: x.HasSubstructMatch(against_humanity) if x else False)
         if len(df[df['against_humanity'] == True]) > 0:
             print(hold_up)
         df = Filters.remove_invalid_SMILES(df)

@@ -13,9 +13,9 @@ import os
 import sys
 import time
 import math
-import yaml
 import subprocess
 
+from yaml import full_load
 from pathlib import Path
 from .io import parsers
 from rdkit import rdBase
@@ -95,7 +95,7 @@ remove_lock_files = '''
 rm -f "${log_prefix}.lock"
 '''
 with open(os.path.join(os.path.dirname(__file__), 'msani_configurations.yaml')) as confFile:
-    configurations = yaml.full_load(confFile)
+    configurations = full_load(confFile)
     slurm_account = configurations['SLURM_ACCOUNT']
     time_limit = configurations['TIME_LIMIT']
     lines_per_job = configurations['LINES_PER_JOB']

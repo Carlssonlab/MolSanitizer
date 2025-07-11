@@ -1,10 +1,10 @@
 import argparse
 import multiprocessing as mp
-import pandas as pd
 import logging
+from pandas import DataFrame, read_csv
 from itertools import tee
 
-from .neutralizer import Neutralizer
+from msani.moltransform.neutralizer import Neutralizer
 from pathlib import Path
 
 from functools import partial
@@ -342,15 +342,15 @@ class Tautomerizer:
         return unique_tautomers
     
     def tautomerize_df_mp(self, 
-                          df: pd.DataFrame,
+                          df: DataFrame,
                           smiles_column: str = 'smiles',
                           mol_column: str = 'mol',
-                          name_column: str = 'ids') -> pd.DataFrame:
+                          name_column: str = 'ids') -> DataFrame:
         """
         Tautomerize a dataframe of molecules using multiprocessing with chunked processing.
         """
         if mol_column not in df.columns:
-            df[mol_column] = df[smiles_column].apply(Chem.MolFromSmiles)
+            df.loc[:,mol_column] = df[smiles_column].apply(Chem.MolFromSmiles)
 
         num_cores = min(self.numcores, len(df))  # Avoid using more cores than data chunks
         chunks = [df.iloc[i::num_cores] for i in range(num_cores)]
@@ -370,24 +370,24 @@ class Tautomerizer:
                 except Exception as e:
                     logger.error(f"Error processing a tautomer batch: {str(e)}")
 
-        return pd.DataFrame(results)
+        return DataFrame(results)
 
     def tautomerize_df(self, 
-                       df: pd.DataFrame,
+                       df: DataFrame,
                        smiles_column: str = 'smiles',
                        mol_column: str = 'mol',
-                       name_column: str = 'ids') -> pd.DataFrame:
+                       name_column: str = 'ids') -> DataFrame:
         """
         Tautomerize a dataframe of molecules using multiprocessing or single-core based on `num_cores`.
         """
         if df.empty:
             return df
         if mol_column not in df.columns:
-            df[mol_column] = df[smiles_column].apply(Chem.MolFromSmiles)
+            df.loc[:,mol_column] = df[smiles_column].apply(Chem.MolFromSmiles)
         if self.numcores > 1:
             return self.tautomerize_df_mp(df, smiles_column, mol_column, name_column)
         else:
-            return pd.DataFrame(_process_tautomer_rows(df, self, smiles_column, mol_column, name_column))
+            return DataFrame(_process_tautomer_rows(df, self, smiles_column, mol_column, name_column))
 
                        
 
@@ -434,7 +434,7 @@ def main():
         tautomers = tautomerizer.tautomerize(smiles=args.smiles)
         for tautomer in tautomers: print(tautomer)
     elif args.input:
-        df = pd.read_csv(args.input, names = ['smiles', 'ids'], sep = r'\s+', header=None)
+        df = read_csv(args.input, names = ['smiles', 'ids'], sep = r'\s+', header=None)
         tautomers = tautomerizer.tautomerize_df(df)
         tautomers[['smiles', 'ids']].to_csv(args.output, header=False, sep = ' ', index=False)
 

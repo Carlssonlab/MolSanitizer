@@ -1,7 +1,7 @@
 import argparse
 
 from pathlib import Path
-import yaml
+from yaml import full_load
 
 
 import logging
@@ -9,7 +9,7 @@ logger = logging.getLogger('msani')
 
 
 with open(Path(__file__).parent.parent / 'msani_configurations.yaml') as confFile:
-    configurations = yaml.full_load(confFile)
+    configurations = full_load(confFile)
     slurm_account = configurations['SLURM_ACCOUNT']
     time_limit = configurations['TIME_LIMIT']
     lines_per_job = configurations['LINES_PER_JOB']

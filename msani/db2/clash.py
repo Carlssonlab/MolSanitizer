@@ -6,9 +6,8 @@
 #import string
 from __future__ import print_function
 import sys
-from .geometry import distL2Squared3
+from msani.db2.geometry import distL2Squared3
 from collections import defaultdict
-from . import buckets2
 import operator
 
 class Clash(object):

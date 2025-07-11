@@ -6,8 +6,7 @@
 #written generally to cluster lists of points, returns indices into the
 #original lists as lists of lists where each sub-list is a cluster
 
-import sys
-from . import pca  # for bisective PCA part of clustering
+from msani.db2 import pca  # for bisective PCA part of clustering
 try:
   import LinearAlgebra  # for error handling. ugh. numeric
 except:

@@ -7,9 +7,8 @@
 #import string
 import sys
 import math
-from . import geometry
-from . import combinatorics
-from collections import defaultdict
+from msani.db2 import geometry
+from msani.db2 import combinatorics
 
 class Hydrogens(object):
   '''holds parameters that determine what a rotatable terminal hydrogen is

@@ -6,7 +6,7 @@
 #only compare to reasonably nearby points
 #assumes tolerance <<<< 1
 
-from .geometry import distL2Squared3
+from msani.db2.geometry import distL2Squared3
 import math
 
 class Bucket3d(object):

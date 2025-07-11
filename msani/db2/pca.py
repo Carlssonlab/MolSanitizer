@@ -6,7 +6,7 @@
 #let penn & ucsf spend millions on lawyers, i've got work to do.
 
 try:  # to use numeric (old)
-  import numpy as np
+  from numpy import array, dot
   from numpy import matrix as Matrix
   from numpy.linalg import eig as eigenvectors
 except ImportError:  # use numpy (new)
@@ -17,7 +17,7 @@ except ImportError:
   print("you do not have numpy or numeric installed under this python version")
   exit(1)
 import operator  # for sorting tricks
-from . import geometry  # for getAverage of points, and dot product
+from msani.db2 import geometry  # for getAverage of points, and dot product
 import math
 
 def pca2d(pointList):
@@ -79,11 +79,11 @@ def flatten(pointListList):
 def pcaN3d(pointListList):
   '''sets up the pca for a list of list of points in 3d. solves eig problem.
   the pointListList is a list of sets of points of the same length.'''
-  data = np.array(pointListList)
+  data = array(pointListList)
   flat = data.reshape(data.shape[0], -1)
   normalized = flat - flat.mean(axis=0)
   flop = normalized.T
-  outer = np.dot(flop, flop.T)
+  outer = dot(flop, flop.T)
   val, vec = eigenvectors(outer)
   return val, vec
 

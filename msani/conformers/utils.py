@@ -7,7 +7,7 @@ import os, shutil
 import itertools
 import copy
 import numpy as np
-import pandas as pd
+from pandas import DataFrame, concat, read_csv  # only what you use
 import random
 import logging
 
@@ -50,7 +50,7 @@ const_rule = [(-120, 30, 30, 1), (-60, 30, 30, 1), (0, 30, 30, 1), (60, 30, 30, 
 Torlib = strain_filter.parse_torlib()
 
 rigid_rule_files = Path(__file__).parent.parent / 'Data' / 'rigid_part_rules.txt'
-rigid_rules = pd.read_csv(rigid_rule_files, header=None, sep =r'\s+', names=['SMARTS','label'])
+rigid_rules = read_csv(rigid_rule_files, header=None, sep =r'\s+', names=['SMARTS','label'])
 rigid_rules['mol'] = rigid_rules['SMARTS'].apply(lambda x: Chem.MolFromSmarts(x))
 rotatable_pattern=r'[*]~[*;!$(*#*)]-&!@[*;!$(*#*)]~[*]'
 
@@ -62,7 +62,7 @@ CORINA_EXE = msani_configurations['CORINA']
 rotatable_pattern_not_terminal = r'''*~[!$(*#*)&!D1&!$(C(F)(F)F)&!$(C(Cl)(Cl)Cl)&!$(C(Br)(Br)Br)&!$([CH3])]-!@[!$(*#*)&!D1&!$(C(F)(F)F)&!$(C(Cl)(Cl)Cl)&!$(C(Br)(Br)Br)&!$([CH3])]~*'''
 downscaled_torlib = strain_filter.parse_torlib(downscale_GG_rule = True)
 symmetric_patterns_file = Path(__file__).parent.parent / 'Data' / 'symmetric_smarts.txt'
-symmetric_patterns_df = pd.read_csv(symmetric_patterns_file, sep=r'\s+', header=None, names=['pattern', 'name', 'num_scaled'])
+symmetric_patterns_df = read_csv(symmetric_patterns_file, sep=r'\s+', header=None, names=['pattern', 'name', 'num_scaled'])
 symmetric_patterns_df['mol'] = symmetric_patterns_df['pattern'].apply(lambda x: Chem.MolFromSmarts(x))
 amide_pattern_mol = Chem.MolFromSmarts('[$(C=O):1]!@[NX3:2]') 
 prim_amidines_guanidines_pattern_mol = [Chem.MolFromSmarts('[#1:1][NH2,NX3H1:2]!@-[CX3+0;$(C(~[NH2])(~[NH2])~*):3]~[NH2:4]'), 
@@ -427,12 +427,12 @@ def classify_confs(conf,
     temp_dict['sulfo_descriptors'] = sulfo_descriptors if sulfo_descriptors else [-1]
 
     # Create dataframe and append to conf_ring_descriptors_df
-    temp_df = pd.DataFrame([temp_dict])
-    conf_ring_descriptors_df = pd.concat([conf_ring_descriptors_df, temp_df], ignore_index=True)
+    temp_df = DataFrame([temp_dict])
+    conf_ring_descriptors_df = concat([conf_ring_descriptors_df, temp_df], ignore_index=True)
 
     return conf_ring_descriptors_df
 
-def remove_unfavorable_confs(conf_ring_descriptors_df: pd.DataFrame, name: str ='0')-> pd.DataFrame:
+def remove_unfavorable_confs(conf_ring_descriptors_df: DataFrame, name: str ='0')-> DataFrame:
     for column in conf_ring_descriptors_df.columns[2:-2]:
         if (conf_ring_descriptors_df[column] == -1).all():
             conf_ring_descriptors_df.drop(columns=[column], inplace=True)

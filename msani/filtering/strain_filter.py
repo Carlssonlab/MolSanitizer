@@ -9,7 +9,8 @@ from rdkit.Chem import rdMolTransforms
 from pathlib import Path
 import os
 from os import sys
-import numpy as np
+from numpy.linalg import norm
+from numpy import array, cross, dot
 import argparse
 
 
@@ -142,21 +143,21 @@ def handle_lp_rules(mol, rule, match_5_atoms):
 
     normalized_positions = []
     for pos in neighbor_positions:
-        distance = np.linalg.norm(N_pos - pos)
+        distance = norm(N_pos - pos)
         normalized_pos = N_pos + (pos - N_pos) / distance
         normalized_positions.append(normalized_pos)
-    normalized_positions = np.array(normalized_positions)
+    normalized_positions = array(normalized_positions)
 
     # Calculate vectors for the plane
     vec1 = normalized_positions[1] - normalized_positions[0]
     vec2 = normalized_positions[2] - normalized_positions[0]
 
     # Calculate the normal vector to the plane formed by the three neighbors
-    normal_vector = np.cross(vec1, vec2)
-    normal_vector /= np.linalg.norm(normal_vector)
+    normal_vector = cross(vec1, vec2)
+    normal_vector /= norm(normal_vector)
 
     # Calculate the vector from nitrogen to the projection point
-    projection_length = np.dot(N_pos - normalized_positions[0], normal_vector)
+    projection_length = dot(N_pos - normalized_positions[0], normal_vector)
     projection_point = N_pos - projection_length * normal_vector    
     
     vector_N_to_projection = projection_point - N_pos

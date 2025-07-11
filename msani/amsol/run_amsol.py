@@ -2,7 +2,7 @@ import os
 import subprocess
 import platform
 from pathlib import Path
-from openbabel import openbabel as ob
+from openbabel.openbabel import OBMol, OBConversion
 from msani.amsol import mol2amsol
 import gzip
 
@@ -24,9 +24,9 @@ if not AMSOLEXE.exists():
 
 
 def convert_to_ZmatMOPAC(input_file, output_file, VERBOSE=False):
-    obConversion = ob.OBConversion()
+    obConversion = OBConversion()
     obConversion.SetInAndOutFormats("mol2", "mopin")
-    mol = ob.OBMol()
+    mol = OBMol()
     obConversion.ReadFile(mol, input_file)
     obConversion.WriteFile(mol, output_file)
 
