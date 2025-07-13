@@ -4,10 +4,6 @@ from pathlib import Path
 from yaml import full_load
 
 
-import logging
-logger = logging.getLogger('msani')
-
-
 with open(Path(__file__).parent.parent / 'msani_configurations.yaml') as confFile:
     configurations = full_load(confFile)
     slurm_account = configurations['SLURM_ACCOUNT']
