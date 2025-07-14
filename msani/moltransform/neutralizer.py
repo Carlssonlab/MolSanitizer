@@ -1,5 +1,7 @@
-from pandas import DataFrame, read_csv
 import argparse
+
+from pandas import DataFrame, read_csv
+
 from rdkit import Chem
 
 

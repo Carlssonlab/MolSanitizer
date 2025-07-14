@@ -1,18 +1,16 @@
-
+import logging
+import multiprocessing as mp
+from functools import partial
 
 from rdkit import Chem, RDLogger
 from rdkit.Chem.EnumerateStereoisomers import EnumerateStereoisomers, StereoEnumerationOptions
-
-from functools import partial
+from pandas import DataFrame  # only what you use
 
 from msani.filtering.filters import Filters, against_humanity, hold_up
 from msani.moltransform.tautomerizer import Tautomerizer
 from msani.moltransform.ionizer import Ionizer
 from msani.moltransform.neutralizer import Neutralizer
 
-import multiprocessing as mp
-from pandas import DataFrame  # only what you use
-import logging
 logger = logging.getLogger('msani')
 RDLogger.DisableLog('rdApp.*') # To disable error messages with kekulizing tautomers from RDKit
 

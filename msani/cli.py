@@ -7,21 +7,19 @@ __place__ = "Jens Carlsson lab, Uppsala University, Sweden"
 __license__ = "GPLv2"
 __version__ = "0.3.0"
 
-
-import logging
-logger = logging.getLogger('msani')
-
-from pandas import DataFrame, read_csv  # only what you use
-
 import pathlib
 import os
 import time
 import sys
+import logging
+
+from pandas import DataFrame, read_csv  # only what you use
+from rdkit import Chem, rdBase
 
 from msani.io import parsers, loggers
 from msani import api
 
-from rdkit import Chem, rdBase
+logger = logging.getLogger('msani')
 
 version_text = f"""Python version: {sys.version.split('|')[0]}
 MolSanitizer version: {__version__}

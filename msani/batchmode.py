@@ -17,8 +17,9 @@ import subprocess
 
 from yaml import full_load
 from pathlib import Path
-from .io import parsers
 from rdkit import rdBase
+
+from msani.io import parsers
 
 slurm_header = '''#!/bin/bash
 #SBATCH -A PROJECT_NAME

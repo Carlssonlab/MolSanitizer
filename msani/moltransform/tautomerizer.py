@@ -1,16 +1,17 @@
 import argparse
 import multiprocessing as mp
 import logging
-from pandas import DataFrame, read_csv
+import shutil
+from functools import partial
 from itertools import tee
 
-from msani.moltransform.neutralizer import Neutralizer
+from pandas import DataFrame, read_csv
 from pathlib import Path
-
-from functools import partial
 from rdkit import Chem, RDLogger
 from rdkit.Chem import AllChem, rdchem
 
+from msani.moltransform.neutralizer import Neutralizer
+from msani.io.parsers import CustomHelpFormatter
 #from .molvs_tautomers import TautomerEnumerator
 
 RDLogger.DisableLog('rdApp.*') # To disable error messages with kekulizing tautomers from RDKit
@@ -67,6 +68,15 @@ def check_configurations(matches, mol):
             bond = mol.GetBondBetweenAtoms(bond_idx[0], bond_idx[1])
             config.append(bond.GetBondType())
     return config
+
+logo = """ _____           _                            _              
+|_   _|         | |                          (_)             
+  | | __ _ _   _| |_ ___  _ __ ___   ___ _ __ _ _______ _ __ 
+  | |/ _` | | | | __/ _ \| '_ ` _ \ / _ \ '__| |_  / _ \ '__|
+  | | (_| | |_| | || (_) | | | | | |  __/ |  | |/ /  __/ |   
+  \_/\__,_|\__,_|\__\___/|_| |_| |_|\___|_|  |_/___\___|_|   
+                                        From MolSanitizer
+                                        """
 
 class Tautomerizer:
     """
@@ -420,18 +430,30 @@ def _process_tautomer_rows(df, tautomerizer, smiles_column, mol_column, name_col
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Tautomerize a molecule')
+    print(logo)
+    parser = argparse.ArgumentParser(description='Tautomerize a molecule', formatter_class=CustomHelpFormatter)
     parser.add_argument('-i', '--input', default=None, type=str, help='Input file containing SMILES strings and names')
     parser.add_argument('-s', '--smiles', default=None, type=str, help='SMILES string of the molecule')
+    parser.add_argument('-l', '--library', default=TAUTOMER_RULES_PATH, type=str, help='Tautomer rules file (default: msani/Data/tautomers_v3.txt)')
+    parser.add_argument('-t', '--template', action='store_true', help='Create a template for tautomer rules')
     parser.add_argument('-d', '--debug', action='store_true', help='Enable debug mode')
     parser.add_argument('-o', '--output', default='tautomers_output.smi', type=str, help='Output file')
     parser.add_argument('-j', '--numcores', default=4, type=int, help='Number of cores to use for multiprocessing')
     args = parser.parse_args()
     if args.smiles and args.input:
         raise ValueError("Either SMILES or input file must be provided.")
-    tautomerizer = Tautomerizer(debug=args.debug)
+    if args.template:
+        # Copy the tautomer rules file to the current directory
+        output_filename = f"tautomer_template_msani.txt"
+        shutil.copy(TAUTOMER_RULES_PATH, output_filename)
+        print(f"Successfully create a template for tautomerization to {output_filename}")
+        return
+    tautomerizer = Tautomerizer(smartsFile=args.library,
+                                numcores=args.numcores,
+                                debug=args.debug)
     if args.smiles:
         tautomers = tautomerizer.tautomerize(smiles=args.smiles)
+        print(f"Tautomerized SMILES:")
         for tautomer in tautomers: print(tautomer)
     elif args.input:
         df = read_csv(args.input, names = ['smiles', 'ids'], sep = r'\s+', header=None)

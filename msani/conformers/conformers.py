@@ -7,19 +7,8 @@
     Should try to sample all possible conformations based on dihedral angles sampling based on: https://github.com/dkoes/rdkit-scripts/blob/master/rdallconf.py
 """
 # Author: Thua-Phong Lam, Jens Carlsson lab, Uppsala University
-# Date: 2025-05-05
+# Date: 2025-07-14
 
-from rdkit import Chem
-from rdkit.Chem import rdDistGeom, rdForceFieldHelpers, rdMolAlign, rdMolTransforms, PropertyPickleOptions
-from pathlib import Path
-
-from msani.conformers import utils, mol2writer
-from msani.filtering import strain_filter, filters
-from msani.amsol import run_amsol
-from msani.db2 import solv
-
-from pandas import DataFrame, read_csv  # only what you use
-from numpy import empty, array, vstack
 import logging
 import os
 import multiprocessing
@@ -31,9 +20,23 @@ import tarfile, io
 import time
 import argparse
 
-logger = logging.getLogger('msani')
+from pandas import DataFrame, read_csv  # only what you use
+from numpy import empty, array, vstack
+from pathlib import Path
+from rdkit import Chem
+from rdkit.Chem import rdDistGeom, rdForceFieldHelpers, rdMolAlign, rdMolTransforms, PropertyPickleOptions
 
+from msani.io.parsers import CustomHelpFormatter
+from msani.conformers import utils, mol2writer
+from msani.filtering import strain_filter, filters
+from msani.amsol import run_amsol
+from msani.db2 import solv
+
+
+
+logger = logging.getLogger('msani')
 planar_lib, non_planar_lib = strain_filter.parse_sr_confs_library()
+
 
 class ConformerGenerator:
     '''
@@ -122,8 +125,18 @@ class ConformerGenerator:
                 raise ValueError(f"Invalid embedding method: {self.method}. Supported methods are: rdkit, obabel, corina.")
             
     @classmethod
-    def from_existing_data(cls, smiles, name, amsol_mol, ring_confs = None, mol2_str = None, request_alignment = None, mode:str = 'vs', tolerance = 30, VERBOSE=False):
+    def from_existing_data(cls,
+                           smiles,
+                           name,
+                           amsol_mol,
+                           ring_confs = None,
+                           mol2_str = None,
+                           request_alignment = None,
+                           mode:str = 'vs',
+                           tolerance = 30,
+                           VERBOSE=False):
         """Alternative constructor that initializes from existing data"""
+
         # Create a minimal instance
         instance = cls(smiles, name=name, pre_embed=True)
         
@@ -411,7 +424,7 @@ class ConformerGenerator:
         '''
         Embed the SMILES string using Open Babel. CLI version is used as it is found more flexible 
         than the RDKit version.'''
-                                        # add hs; gen3d
+                                        # -h: add hs; gen3d
         cmd = ["obabel", f"-:{self.smiles}", "-h", "--gen3d", "-osdf"]
 
         # Execute the command and capture stdout
@@ -682,9 +695,31 @@ class ConformerGenerator:
     # Deterministic sampling
     # This is still experimental, call conf_samplingv2, where Torlib is read differently
     # and the angle chosen would be deterministic. By default, peak +- 30 degrees, if tol2 >= 30.
-    def stochastic_sampling_v2(self, mol, angle_map, score_map, numConfs, possible_numConfs, importance_order,
-                        window = 25, max_attempts=50_000, product=list()):
-        """"""
+    def stochastic_sampling_v2(self,
+                               mol,
+                               angle_map,
+                               score_map,
+                               numConfs,
+                               possible_numConfs,
+                               importance_order,
+                               window = 25,
+                               max_attempts=50_000,
+                               product=list()):
+        """
+        Perform stochastic sampling of conformers based on a given angle map and score map.
+        Args:
+            mol (Chem.Mol): The molecule to sample conformers for.
+            angle_map (dict): A dictionary mapping bond indices to tuples of (bond, dihedral atoms, possible angles).
+            score_map (dict): A dictionary mapping bond indices to scores for each possible angle.
+            numConfs (int): The number of conformers to generate.
+            possible_numConfs (int): The total number of possible conformations.
+            importance_order (list): A list of weights for the importance of each bond.
+            window (float): The energy window for accepting conformers.
+            max_attempts (int): The maximum number of attempts to generate conformers.
+            product (list): A list to store the generated conformers and their energies.
+        Returns:
+            product (list): A list of tuples containing the generated conformers and their energies.
+        """
         bonded_pairs, same_parent_pairs = utils.precompute_bonded_and_same_parent_pairs(mol)
         attempts = 0
         min_energy = 1e6
@@ -796,7 +831,14 @@ class ConformerGenerator:
                 
         return product
     
-    def conf_samplingv2(self, numConfs=2000, energywindow = 25, AllowNonRing=False, request_alignment=None):
+    def conf_samplingv2(self,
+                        numConfs=2000,
+                        energywindow = 25,
+                        AllowNonRing=False,
+                        request_alignment=None):
+        """
+        Perceive the allowed dihedral angles and call stochastic sampling to generate conformers.
+        """
         rot_bonds = utils.getDihedralMatches_v2(self.ring_confs[0])
         possible_numConfs, angle_map, score_map = utils.count_confs_by_rotbonds_v2(self.ring_confs[0],
                                                                                    rot_bonds,
@@ -815,8 +857,6 @@ class ConformerGenerator:
 
         # Find the rigid part only once outside the loop to save processing time
         self.atom_maps, self.label_map = utils.find_rigid_part(self.ring_confs[0], request_alignment)
-
-
 
         if request_alignment and not self.atom_maps:
             utils.log_error(self.smiles, self.name)
@@ -911,7 +951,8 @@ class ConformerGenerator:
 
     def to_mol2(self, filename = None):
         """
-        Write the conformers to an Mol2 file.
+        Write the conformers to a Mol2 file.
+
         Args:
             filename (str): The name of the output Mol2 file. If None, defaults to self.name.sdf.
         """
@@ -1137,10 +1178,12 @@ def setup_env():
     return env
 
 def write_to_file(content, file):
+    """Write content to a file."""
     with open(file, "w") as f:
         f.write(content)
 
 def write_to_tarball(ball, data, name):
+    """Write data to a tarball with the specified name."""
     tar = tarfile.TarInfo(name=name)
     tar.size = len(data)
     ball.addfile(tar, io.BytesIO(data))
@@ -1345,20 +1388,6 @@ def gen_conf_chunk(df: DataFrame, args, input_file='0'):
         with open('msani_timing.csv', 'a') as f:
             f.write(logging_time)
 
-class CustomHelpFormatter(argparse.RawTextHelpFormatter):
-    def _format_action_invocation(self, action):
-        """
-        Override to customize the argument display in the help message.
-        Suppress the metavar formatting like `$short $metavar, $long=$metavar`.
-        """
-        if not action.option_strings:
-            return super()._format_action_invocation(action)
-
-        parts = []
-        for option_string in action.option_strings:
-            parts.append(option_string)
-        return ', '.join(parts)
-    
 def main():
     parser = argparse.ArgumentParser(description="Generate conformers for a given SMILES string/file.\nTwo-column files are required.",
                                      formatter_class=CustomHelpFormatter,

@@ -1,20 +1,33 @@
 import argparse
-from pandas import DataFrame, read_csv, concat
 import logging
+import shutil
 import multiprocessing as mp
-
 from io import StringIO
+from functools import partial
+
+from pandas import DataFrame, read_csv, concat
 from pathlib import Path
 from rdkit import Chem, RDLogger
 from rdkit.Chem import AllChem
-from functools import partial
 
 from msani.moltransform.neutralizer import Neutralizer
+from msani.io.parsers import CustomHelpFormatter
 
 RDLogger.DisableLog('rdApp.*') # To disable error messages with kekulizing tautomers from RDKit
 logger = logging.getLogger('msani')
 PROTONATION_RULES_PATH = Path(__file__).parent.parent / 'Data' / 'ionizations_v3.txt'
 
+logo=""" _____            _              
+|_   _|          (_)             
+  | |  ___  _ __  _ _______ _ __ 
+  | | / _ \| '_ \| |_  / _ \ '__|
+ _| || (_) | | | | |/ /  __/ |   
+ \___/\___/|_| |_|_/___\___|_|   
+                                 
+                From MolSanitizer
+"""
+
+    
 class Ionizer:
     """
         A class to protonate the input molecules using a set of predefined reactions.
@@ -352,24 +365,37 @@ def _process_ionization_rows(df, ionizer, smiles_column, mol_column, name_column
     return results
 
 def main():
-    parser = argparse.ArgumentParser(description='Protonate a molecule or a file of SMILES')
+    print(logo)
+    parser = argparse.ArgumentParser(description='Protonate a molecule or a file of SMILES', formatter_class=CustomHelpFormatter)
     parser.add_argument('-i', '--input', default=None, type=str, help='Input file containing SMILES strings and names')
+    parser.add_argument('-l', '--library', default=PROTONATION_RULES_PATH, type=str, help='Protonation rules file (default: msani/Data/ionizations_v3.txt)')
+    parser.add_argument('-t', '--template', action='store_true', help='Create a template for protonation rules')
     parser.add_argument('-s', '--smiles', default=None, type=str, help='SMILES string of the molecule')
     parser.add_argument('-p', '--pH', default=7, type=int, help='pH value to use for ionization')
     parser.add_argument('-r', '--pH_range', default=0, type=int, help='Range of pH values to consider for ionization')
     parser.add_argument('-d', '--debug', action='store_true', help='Enable debug mode')
     parser.add_argument('-j', '--num_cores', default=4, type=int, help='Number of cores to use for multiprocessing')
     parser.add_argument('-o', '--output', default='protonated_molecules.smi', type=str, help='Output file to save protonated molecules')
+
     args = parser.parse_args()
     if args.smiles and args.input:
         raise ValueError("Either SMILES or input file must be provided.")
-
+    
+    if args.template:
+        # Copy the ionization rules file to the current directory
+        output_filename = f"ionization_template_msani.txt"
+        shutil.copy(PROTONATION_RULES_PATH, output_filename)
+        print(f"Successfully create a template for protonation to {output_filename}")
+        return  # Exit after creating the library
+    
     ionizer = Ionizer(pH = args.pH, 
+                      smartsFile = args.library,
                       pH_range = args.pH_range, 
                       num_cores = args.num_cores,
                       debug = args.debug)
     if args.smiles:
         results = ionizer.ionize(smiles = args.smiles)
+        print(f"Protonated SMILES:")
         for result in results:
             print(result)
     else:

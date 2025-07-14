@@ -1,16 +1,20 @@
-from rdkit import Chem
-from rdkit.Chem import rdMolTransforms, rdMolAlign
-from rdkit.Chem.rdchem import Mol, Conformer
 
-import yaml, subprocess
-import os, shutil
+
+import subprocess
+import os
+import shutil
 import itertools
 import copy
-import numpy as np
-from pandas import DataFrame, concat, read_csv  # only what you use
 import random
 import logging
 
+import numpy as np
+import yaml
+
+from pandas import DataFrame, concat, read_csv  # only what you use
+from rdkit import Chem
+from rdkit.Chem import rdMolTransforms, rdMolAlign
+from rdkit.Chem.rdchem import Mol, Conformer
 from scipy.spatial.distance import pdist, squareform
 from collections import defaultdict
 from pathlib import Path
@@ -824,6 +828,9 @@ def softmax_weights(scores, T=1.0):
     return w / w.sum()
 
 def get_importance_order(mol, rot_bonds, debug = False):
+    """
+    Calculate the importance order of rotatable bonds based on their centrality in the molecule.
+    """
     dists = Chem.GetDistanceMatrix(mol)
     bond_scores = [bond_centrality((b[0],b[1]), dists) for b in rot_bonds]
 
@@ -920,9 +927,10 @@ def count_confs_by_rotbonds_v2(mol, rot_bonds, ignoretorlib = False, amide_bonds
         VERBOSE (bool): If True, print detailed steps.
 
     Returns:
-        tuple: (total_confs, bond_to_rule_angle_dict)
+        tuple: (total_confs, angle_map, score_map)
             - total_confs (int): Estimated number of conformations.
-            - bond_to_rule_angle_dict (dict): Map of bond keys to discretized torsion rules.
+            - angle_map (dict): Mapping of bond indices to possible angles.
+            - score_map (dict): Mapping of bond indices to scores for each angle.
     """
     # Step 1: Match torsion rules and rotatable bonds
 
@@ -930,7 +938,7 @@ def count_confs_by_rotbonds_v2(mol, rot_bonds, ignoretorlib = False, amide_bonds
 
     amide_atoms = set()
     if (amide_bonds):
-        for a, b, c, d, e in amide_bonds:
+        for _, b, c, _, _ in amide_bonds:
             amide_atoms.add(b)
             amide_atoms.add(c)
 
