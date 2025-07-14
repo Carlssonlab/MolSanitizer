@@ -19,6 +19,7 @@ All notable changes to this project will be documented in this file.
 
 ### 🚜 Refactor
 
+- Updated imports according to PEP8 - ([bc857fb](https://github.com/phonglam3103/MolSanitizer/commit/bc857fbf34d23f23e413e96bc606cd7083e5bf95))
 - Change the name back to MolSanitizer - ([20b3af8](https://github.com/phonglam3103/MolSanitizer/commit/20b3af8abaaac243d148abaebdfb04235ff68245))
 
 ## [0.3.0] - 2025-06-19
