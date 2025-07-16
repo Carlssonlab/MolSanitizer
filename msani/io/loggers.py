@@ -67,7 +67,7 @@ def arguments(args):
 
     if args.unwanted: 
         logger.info(f"Unwanted filter: {args.unwanted}")
-        smartsFile = Path(__file__).parent.parent / 'Data' / 'filter_out.csv'
+        smartsFile = Path(__file__).parent.parent / 'Data' / 'filter_out.txt'
         temp_df = loadSMARTSdata(smartsFile.resolve(), args.unwanted)
         logger.info(f'Parsed {len(temp_df)} substructures from: {smartsFile}')
     

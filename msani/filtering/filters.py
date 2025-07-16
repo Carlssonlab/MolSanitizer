@@ -449,7 +449,7 @@ class Filters():
                 DataFrame: A new DataFrame chunk with molecules that passed the filter.
         """
         # Get the absolute path to the template SMARTS file using pathlib
-        smartsFile = Path(__file__).parent.parent / 'Data' / 'filter_out.csv'
+        smartsFile = Path(__file__).parent.parent / 'Data' / 'filter_out.txt'
 
         # Load smarts to clean  from file
         unwanted_df = loadSMARTSdata(smartsFile.resolve(), unwanted_option)
