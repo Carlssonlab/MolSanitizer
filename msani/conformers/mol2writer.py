@@ -7,7 +7,10 @@ class Mol2Writer:
     A class to convert the RDKit Mol Object to Mol2 format. 
     Only the first conformer of the Mol object is written out.
     '''
-    def __init__(self, mol = None, mol2_template: str = None, atom_attributes = False):
+    def __init__(self,
+                 mol = None,
+                 mol2_template: str = None,
+                 atom_attributes:bool = False):
         """
         Initialize the writer with an optional RDKit Mol object.
         Args:
@@ -78,6 +81,7 @@ class Mol2Writer:
     def _read_mol2_template(self, mol2_template):
         """
         Read a MOL2 template file and extract atom types and bonds.
+        mol2_template: str - The Mol2 atom types from CORINA.
         """
         atom_types = []
         bonds = []
@@ -304,7 +308,9 @@ class Mol2Writer:
         
         return lines
     
-    def _generate_mol2_string(self, mol, confId=0):
+    def _generate_mol2_string(self, 
+                              mol, 
+                              confId=0):
         """
         Generate the MOL2 file content as a string with aligned columns.
         """
