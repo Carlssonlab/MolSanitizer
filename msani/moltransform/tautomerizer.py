@@ -102,8 +102,14 @@ class Tautomerizer:
     
     >>> from msani.moltransform.tautomerizer import Tautomerizer\n
     >>> tautomerizer = Tautomerizer(numcores= 4, neutralize= False)\n
+    Tautomerize a molecule from a SMILES
     >>> tautomers = tautomerizer.tautomerize(smiles='c1ccccc1O')\n
-    >>> tautomers = tautomerizer.tautomerize(mol = RDKit Mol object)\n
+
+    Tautomerize a molecule from an RDKit Mol object
+    >>> mol = Chem.MolFromSmiles('c1ccccc1O')\n
+    >>> tautomers = tautomerizer.tautomerize(mol = mol)\n
+
+    Tautomerize a DataFrame of molecules with SMILES strings:
     >>> tautomers_df = tautomerize_df(df, smiles_column = 'smiles', name_column = 'ids')"""
 
     def __init__(self,
@@ -117,6 +123,7 @@ class Tautomerizer:
         self.taurdkit = taurdkit
         self.neutralize = neutralize
         self.numcores = numcores
+        if smartsFile is None: smartsFile = TAUTOMER_RULES_PATH
         self.reactions = self.load_reactions(smartsFile)
         self.standardizing_reactions = [r for r in self.reactions if not r[1]]
         self.enumerating_reactions = [r for r in self.reactions if r[1]]

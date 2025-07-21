@@ -43,10 +43,11 @@ def apply_filters(chunk, args, rejected_file):
     processor = api.msani(
         removesalts=args.removesalts, custom= args.custom, unwanted=args.unwanted,
         pains=args.pains, ha=args.ha, logp=args.logp, hba=args.hba, hbd=args.hbd, 
-        mw=args.mw, chiral = args.chiral, tautomers=args.tautomers, taurdkit=args.taurdkit, neutralize=args.neutralize,
-        stereoisomers=args.stereoisomers, max_stereoisomers=args.max_stereoisomers,
-        protonation=args.protonation, pH=args.pH, pH_range=args.pH_range, 
-        numcores=args.numcores, standardize=args.standardize, debug=args.debug)
+        mw=args.mw, chiral = args.chiral, tautomers=args.tautomers, taurdkit=args.taurdkit, 
+        neutralize=args.neutralize, stereoisomers=args.stereoisomers, 
+        max_stereoisomers=args.max_stereoisomers, protonation=args.protonation, pH=args.pH, 
+        pH_range=args.pH_range, numcores=args.numcores, standardize=args.standardize, 
+        protonation_library=args.protlib, tautomer_library=args.taulib,  debug=args.debug)
     chunk = processor.run(chunk, rejected_file)
     return chunk
 
@@ -183,20 +184,25 @@ def clean_data(args):
 
 
 
-def generateCustomTemplate(args):
+def generateCustomTemplate(args, filename):
     """Generate the custom template for substructure filtering 
     by copying the default template to the current directory.
     """
-    file = os.path.join(os.path.dirname(__file__), 'Data', 'filter_out.csv')
-    if args.prefix is not None: os.system(f"cp {file} {args.prefix}.txt") 
-    else: os.system(f"cp {file} template.txt")
-    if not (args.test): 
-        print(f"Generated template substructure list as template.txt")
-        print(f"The first two columns (SMARTS and LABEL) are required for substructure filtering.")
-        print(f"Other arguments are skipped, the program exitted normally.")
+    import pkgutil
+    data = pkgutil.get_data('msani', f'Data/{filename}')
+    if data is None:
+        raise FileNotFoundError(f"Could not find Data/{filename} inside the binary.")
+
+    output_filename = f"{args.prefix}.txt" if args.prefix else filename
+    with open(output_filename, 'wb') as f:
+        f.write(data)
+
+    if not args.test:
+        print(f"Generated template file: {output_filename}")
 
 def main():
-    print(logo)
+    job_id = os.getenv('SLURM_JOB_ID')
+    if job_id is None: print(logo)
     if len(sys.argv) == 1:
         print(version_text)
         print("No arguments provided. Use -h or --help for usage instructions.")
@@ -207,8 +213,15 @@ def main():
         print(version_text)
         return
    
-    if args.create_custom: 
-        generateCustomTemplate(args)
+    if args.create_custom or args.create_protlib or args.create_taulib: 
+        if args.create_custom:
+            generateCustomTemplate(args, filename = 'filter_out.txt')
+        if args.create_protlib:
+            generateCustomTemplate(args, filename = 'ionizations_v3.txt')
+        if args.create_taulib:
+            generateCustomTemplate(args, filename = 'tautomers_v3.txt')
+        print("MolSanitizer templates have been generated. The program exits normally.")
+        
     else:
         if args.input_files is not None and args.smiles is None:
             input_path = pathlib.Path(args.input_files[0])
@@ -222,8 +235,6 @@ def main():
         loggers.arguments(args)
         clean_data(args)
         logger.info(f"***********  MOLSANITIZER FINISHED  ***************")
-
-
 
 if __name__=="__main__":
     main()

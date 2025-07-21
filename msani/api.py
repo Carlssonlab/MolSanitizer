@@ -55,6 +55,8 @@ class msani:
                 pH_range = 0,
                 numcores = 1,
                 standardize = False,
+                protonation_library = None,
+                tautomer_library = None,
                 debug = False):
 
         self.removesalts = removesalts
@@ -79,6 +81,8 @@ class msani:
         self.standardize = standardize    
         self.debug = debug
         self.numcores = numcores
+        self.protonation_library = protonation_library
+        self.tautomer_library = tautomer_library
     
     def __repr__(self):
         cls_name = self.__class__.__name__
@@ -204,8 +208,7 @@ class msani:
         """
         df.loc[:, 'mol'] = df['smiles'].apply(lambda x: Chem.MolFromSmiles(x))
         df.loc[:, 'against_humanity'] = df['mol'].apply(lambda x: x.HasSubstructMatch(against_humanity) if x else False)
-        if len(df[df['against_humanity'] == True]) > 0:
-            print(hold_up)
+        if len(df[df['against_humanity'] == True]) > 0: print(hold_up)
         df = Filters.remove_invalid_SMILES(df)
         if self.standardize: df = Filters.remove_exotic_chem_to_db2(df)
         if self.removesalts: df = Filters.saltstripping(df, debug=self.debug)
@@ -221,17 +224,33 @@ class msani:
         
         if self.tautomers or self.protonation:
             if self.neutralize: df = Neutralizer.neutralize_df(df)
+            
         if self.tautomers: 
-            tautomerizer = Tautomerizer(taurdkit=self.taurdkit, 
-                                        debug=self.debug, 
-                                        neutralize=False,
-                                        numcores=self.numcores) # Already neutralized
+            tautomerizer = Tautomerizer(smartsFile=self.tautomer_library,
+                                        taurdkit = self.taurdkit, 
+                                        debug = self.debug, 
+                                        neutralize = False,
+                                        numcores = self.numcores) # Already neutralized
             df = tautomerizer.tautomerize_df(df)
-        if self.pains: df = Filters.painsFilter(df, rejectedFile=rejected_file, debug=self.debug)
-        if self.unwanted is not None: df = Filters.unwantedFilter(df, rejectedFile=rejected_file, unwanted_option=self.unwanted, debug=self.debug)
-        if self.custom is not None: df = Filters.customFilter(df, rejectedFile=rejected_file, smartsFile = self.custom,  debug=self.debug)
+
+        if self.pains: df = Filters.painsFilter(df,
+                                                rejectedFile = rejected_file,
+                                                debug = self.debug)
+        if self.unwanted is not None: 
+            df = Filters.unwantedFilter(df,
+                                        rejectedFile = rejected_file,
+                                        unwanted_option = self.unwanted,
+                                        debug = self.debug)
+            
+        if self.custom is not None: 
+            df = Filters.customFilter(df,
+                                      rejectedFile = rejected_file,
+                                      smartsFile = self.custom,
+                                      debug = self.debug)
+            
         if self.protonation: 
-            ionizer = Ionizer(pH = self.pH,
+            ionizer = Ionizer(smartsFile = self.protonation_library,
+                              pH = self.pH,
                               pH_range = self.pH_range,
                               num_cores=self.numcores,
                               neutralize=False,

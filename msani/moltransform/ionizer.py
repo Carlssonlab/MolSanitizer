@@ -55,7 +55,11 @@ class Ionizer:
         
         >>> from msani.ionizer import Ionizer\n
         >>> ionizer = Ionizer(pH = 7, pH_range = 2)\n
+
+        ionize a single molecule from SMILES string:\n
         >>> results = ionizer.ionize(smiles = 'CCc1ccc(CCOc2ccc(CC3SC(=O)NC3=O)cc2)nc1')\n
+
+        ionize a DataFrame of molecules with SMILES strings:\n
         >>> df = ionizer.ionize_df(mol_df, pH=7, pH_range=0, num_cores=1, debug=False)\n
         """
     def __init__(self,
@@ -65,10 +69,12 @@ class Ionizer:
                  num_cores: int = 1,
                  neutralize: bool = True,
                  debug = False):
+        
         self.pH = pH
         self.pH_range = pH_range
         self.num_cores = num_cores
         self.debug = debug
+        if smartsFile is None: smartsFile = PROTONATION_RULES_PATH
         self.rules = self.load_protonation_rules(smartsFile)
         self.enumerating_rules = self.rules[self.rules['Enumerate'] == 1]['FUNCTIONAL_GROUP'].to_list()
         self.neutralize = neutralize
