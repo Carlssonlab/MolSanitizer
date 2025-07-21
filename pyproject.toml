@@ -39,7 +39,7 @@ Homepage = "https://github.com/phonglam3103/MolSanitizer.git"
 msani = "msani.cli:main"
 msani_batch = "msani.batchmode:main"
 strain = "msani.filtering.strain_filter:main"
-charger = "msani.moltransform.ionizer:main"
+ionizer = "msani.moltransform.ionizer:main"
 tautomerizer = "msani.moltransform.tautomerizer:main"
 gen3d = "msani.conformers.conformers:main"
 
