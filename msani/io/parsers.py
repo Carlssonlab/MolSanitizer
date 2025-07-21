@@ -203,7 +203,7 @@ def Sanitycheck(args: dict):
         args.removesalts = True
         args.tautomers = True
         args.pains = True
-        args.unwanted = ['regular']
+        args.unwanted = ['all']
         args.stereoisomers = True
         args.protonation = True
 
