@@ -6,6 +6,8 @@ All notable changes to this project will be documented in this file.
 
 ### 🚀 Features
 
+- Support the extraction of the protonation/tautomerization rules and allow the use of customized transformation rules. - ([85a10ba](https://github.com/phonglam3103/MolSanitizer/commit/85a10ba4fd682f6f88a3d858232da19d384d7710))
+- Hide advanced options in the help text by default, enabled by the -xh or --help_advanced flag. - ([a11c1de](https://github.com/phonglam3103/MolSanitizer/commit/a11c1dec3b6fdafff227db3de23ea66c2c1340bd))
 - Updated ionizer so that more probable (de)protonation sites get (de)protonated first (eg. guanidines > amines > imidazoles) - ([b66bed6](https://github.com/phonglam3103/MolSanitizer/commit/b66bed6cec9001cfed513a09297b16a42f29a225))
 - More general approach for reducing redundant symmetric rotations using graph traversing method. - ([263a452](https://github.com/phonglam3103/MolSanitizer/commit/263a4521847b27dd32973c7f4e6ee15d9b97148f))
 - Allow the modification of Dielectric constant from the CLI and the API - ([d978f58](https://github.com/phonglam3103/MolSanitizer/commit/d978f58781fd03389f05d9111063340b8a082fb4))
