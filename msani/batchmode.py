@@ -21,6 +21,16 @@ from rdkit import rdBase
 
 from msani.io import parsers
 
+logo=""" __  __         _  _____                _  _    _                 
+|  \/  |       | |/  ___|              (_)| |  (_)                
+| .  . |  ___  | |\ `--.   __ _  _ __   _ | |_  _  ____ ___  _ __ 
+| |\/| | / _ \ | | `--. \ / _` || '_ \ | || __|| ||_  // _ \| '__|
+| |  | || (_) || |/\__/ /| (_| || | | || || |_ | | / /|  __/| |   
+\_|  |_/ \___/ |_|\____/  \__,_||_| |_||_| \__||_|/___|\___||_|   
+
+                                                In the batch mode
+"""
+
 slurm_header = '''#!/bin/bash
 #SBATCH -A PROJECT_NAME
 #SBATCH -n 1
@@ -217,7 +227,7 @@ def Split_Submit_jobs(args: dict, parser):
     if args.test: 
         test_batch_mode(args)
     else:
-        print(f"\nStarting MolSanitizer in batch mode\n")
+        print(logo)
         print(f"Using project name (-A): {args.proj_name}")
         print(f"Time limit for each job (-tl): {args.timelimit} hours")
         print(f"Maximum number of jobs in an array: {max_array_size} jobs")
