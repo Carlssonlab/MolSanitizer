@@ -75,8 +75,8 @@ def get_output_files(args, input_file_path):
         output_file = f"{args.prefix}_clean.txt"
         rejected_file = f"{args.prefix}_rejected.txt"
     else:
-        output_file = input_file_path.with_name(f"{input_file_path.stem}_clean{input_file_path.suffix}")
-        rejected_file = input_file_path.with_name(f"{input_file_path.stem}_rejected{input_file_path.suffix}")
+        output_file = pathlib.Path(f"{input_file_path.stem}_clean{input_file_path.suffix}")
+        rejected_file = pathlib.Path(f"{input_file_path.stem}_rejected{input_file_path.suffix}")
 
     if os.path.exists(output_file):
         os.remove(output_file)
