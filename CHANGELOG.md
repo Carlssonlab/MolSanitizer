@@ -17,6 +17,7 @@ All notable changes to this project will be documented in this file.
 
 ### 🐛 Bug Fixes
 
+- Unify the score of benzene to other aromatic rings. This should fix the prioritization of benzene over pyridine. - ([f5e60f1](https://github.com/phonglam3103/MolSanitizer/commit/f5e60f166ac56eed9e56802e2e5214c7bd10669c))
 - Fix a bug that the check of chiralities did not work - ([4a73775](https://github.com/phonglam3103/MolSanitizer/commit/4a7377579114cdfc2df9e10b1e46dd0a5bb867d3))
 - Updated p-EWG phenol rule, remove redundant duplicated rules. - ([dde92a8](https://github.com/phonglam3103/MolSanitizer/commit/dde92a8b57dd3fda15e0093902f70e7d99a26ce7))
 
