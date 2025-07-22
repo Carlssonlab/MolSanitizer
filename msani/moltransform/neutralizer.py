@@ -105,13 +105,14 @@ class Neutralizer:
         return Chem.MolToSmiles(neutralized_mol)
 
 def main():
-    parser = argparse.ArgumentParser(description='Protonate a molecule or a file of SMILES')
+    parser = argparse.ArgumentParser(description='Neutralize a molecule or a file of SMILES')
     parser.add_argument('-i', '--input', default=None, type=str, help='Input file containing SMILES strings and names')
     parser.add_argument('-s', '--smiles', default=None, type=str, help='SMILES string of the molecule')
     parser.add_argument('-o', '--output', default='neutralized_molecules.smi', type=str, help='Output file to save protonated molecules')
     args = parser.parse_args()
     neutralizer = Neutralizer()
-    if args.smiles and args.input:
+
+    if (args.smiles and args.input) or (not args.smiles and not args.input):
         raise ValueError("Either SMILES or input file must be provided.")
 
     if args.smiles:
