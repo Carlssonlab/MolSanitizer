@@ -17,6 +17,7 @@ All notable changes to this project will be documented in this file.
 
 ### 🐛 Bug Fixes
 
+- Fix a bug that the check of chiralities did not work - ([4a73775](https://github.com/phonglam3103/MolSanitizer/commit/4a7377579114cdfc2df9e10b1e46dd0a5bb867d3))
 - Updated p-EWG phenol rule, remove redundant duplicated rules. - ([dde92a8](https://github.com/phonglam3103/MolSanitizer/commit/dde92a8b57dd3fda15e0093902f70e7d99a26ce7))
 
 ### 🚜 Refactor
