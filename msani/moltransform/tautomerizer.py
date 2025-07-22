@@ -9,44 +9,47 @@ from pandas import DataFrame, read_csv
 from pathlib import Path
 from rdkit import Chem, RDLogger
 from rdkit.Chem import AllChem, rdchem
+from rdkit.Chem.MolStandardize import rdMolStandardize
 
 from msani.moltransform.neutralizer import Neutralizer
 from msani.io.parsers import CustomHelpFormatter
-#from .molvs_tautomers import TautomerEnumerator
 
 RDLogger.DisableLog('rdApp.*') # To disable error messages with kekulizing tautomers from RDKit
 logger = logging.getLogger('msani')
 
 TAUTOMER_RULES_PATH = Path(__file__).parent.parent / 'Data' / 'tautomers_v3.txt'
 
-# These can be reused along multiprocessing and needs to be outside the class to resolve pickling problem.
-# Old RDKit TautomerEnumerator
-from rdkit.Chem.MolStandardize import rdMolStandardize
 TAUTOMER_PARAMS = rdMolStandardize.CleanupParameters()
 TAUTOMER_PARAMS.tautomerRemoveSp3Stereo = False
 TAUTOMER_PARAMS.tautomerRemoveBondStereo = False
 TAUTOMER_PARAMS.tautomerRemoveIsotopicHs = False
 TAUTOMER_PARAMS.maxTransforms = 1000
 TAUTOMER_PARAMS.maxTautomers = 1000
-te = rdMolStandardize.TautomerEnumerator(TAUTOMER_PARAMS) 
 
-allylic = Chem.MolFromSmarts('[CX4&!H0;!$(C-[!#6&!H0])]-[CX3;!$(C-[!#6&!H0])]=!@[CX3;!$(C-[!#6&!H0])]')
+TE = rdMolStandardize.TautomerEnumerator(TAUTOMER_PARAMS) 
+
+allylic = Chem.MolFromSmarts(
+    '[CX4&!H0;!$(C-[!#6&!H0])]-[CX3;!$(C-[!#6&!H0])]=!@[CX3;!$(C-[!#6&!H0])]'
+    )
 
 try:
     substructure_terms = rdMolStandardize.GetDefaultTautomerScoreSubstructs()
     del substructure_terms[8] #Methyl rule. We don't want to penalize terminal alkenes.
-    substructure_terms.append(rdMolStandardize.SubstructTerm("amide", "[NH1,NH2]-C=O", 1))
-    substructure_terms.append(rdMolStandardize.SubstructTerm("corr_rdkit_feature1", "a1:a:a2:a:a:a:a:a-2:a:1", 199))
+    substructure_terms.append(
+        rdMolStandardize.SubstructTerm("amide", "[NH1,NH2]-C=O", 1)
+        )
+    substructure_terms.append(
+        rdMolStandardize.SubstructTerm("corr_rdkit_feature1", "a1:a:a2:a:a:a:a:a-2:a:1", 199)
+        )
     #substructure_terms.append(rdMolStandardize.SubstructTerm("aromatic methylidene", "c=C", -1))
 except AttributeError as e:
     from rdkit import rdBase
     rdkit_version = rdBase.rdkitVersion
     print(f'The new tautomerizer requires RDKit version >= 2024.9.3, your current version: {rdkit_version}')
-    print(f'Use `pip install rdkit==2024.9.6`')
+    print(f'Use `pip install rdkit>=2024.9.3`')
     exit(1)
-# DEBUG:
-# for rule in substructure_terms:
-#     print(rule.name, rule.smarts, rule.score)
+
+
 def score_func(mol):
     """Customized scoring function for tautomerizer: from
     https://github.com/rdkit/rdkit/blob/master/Code/GraphMol/MolStandardize/Wrap/testMolStandardize.py"""
@@ -180,7 +183,7 @@ class Tautomerizer:
             max_score = -9999
             
             # Enumerate the tautomers
-            for tau in te.Enumerate(mol):
+            for tau in TE.Enumerate(mol):
                 score = score_func(tau)
                 tautomers.append((tau, score))
                 if score > max_score: max_score = score
@@ -332,21 +335,28 @@ class Tautomerizer:
         if self.neutralize:
             mol = Neutralizer.neutralize_mol(mol)
         if self.taurdkit:
-            intial_mol = Chem.Mol(mol)
+            initial_mol = Chem.Mol(mol)
             # Step 1: Use RDKit TautomerEnumerator to canonicalize the input molecule
             rdkit_canonical = self.tautomer_canonicalize_rdkit(mol)
-            initial_chiral_centers = len(Chem.FindMolChiralCenters(intial_mol))
+            initial_chiral_centers = len(Chem.FindMolChiralCenters(initial_mol))
             rdkit_chiral_centers = len(Chem.FindMolChiralCenters(rdkit_canonical))
             # Canonicalization loses the stereochemistry,
             # so we keep the original molecule if it has more chiral centers
-            if self.debug: print(f"\tInitial chiral centers: {initial_chiral_centers}, RDKit canonical chiral centers: {rdkit_chiral_centers}")
-            mol = intial_mol if rdkit_chiral_centers < initial_chiral_centers else rdkit_canonical
-
-            intial_defined_double_bonds = self.count_defined_stereo_doublebonds(intial_mol) # Number of defined double bonds
-            rdkit_defined_double_bonds = self.count_defined_stereo_doublebonds(rdkit_canonical) # Number of defined double bonds
-            if self.debug: print(f"\tInitial defined double bonds: {intial_defined_double_bonds}, RDKit canonical defined double bonds: {rdkit_defined_double_bonds}")
+            if self.debug: 
+                print(f"\tInitial chiral centers: {initial_chiral_centers}, RDKit canonical chiral centers: {rdkit_chiral_centers}")
+            
+            # Number of defined double bonds
+            intial_defined_double_bonds = self.count_defined_stereo_doublebonds(initial_mol) 
+            # Number of defined double bonds
+            rdkit_defined_double_bonds = self.count_defined_stereo_doublebonds(rdkit_canonical) 
+            if self.debug: 
+                print(f"\tInitial defined double bonds: {intial_defined_double_bonds}, RDKit canonical defined double bonds: {rdkit_defined_double_bonds}")
             # If the canonical tautomer has less defined double bonds, we keep the original molecule
-            mol = intial_mol if rdkit_defined_double_bonds < intial_defined_double_bonds else rdkit_canonical
+            if rdkit_defined_double_bonds < intial_defined_double_bonds or\
+                rdkit_chiral_centers < initial_chiral_centers:
+                if self.debug: print("\tViolation of stereochemistry, using the original molecule")
+                mol = initial_mol 
+            else: mol = rdkit_canonical
         
         # Step 2: Standardize the molecule
         standardized_mol = self.standardize(mol)
@@ -432,8 +442,6 @@ def _process_tautomer_rows(df, tautomerizer, smiles_column, mol_column, name_col
                                 'highlights': highlights})
 
     return results
-
-
 
 
 def main():
