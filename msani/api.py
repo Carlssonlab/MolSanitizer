@@ -207,8 +207,8 @@ class msani:
             DataFrame: A new DataFrame chunk with molecules that passed the filters.
         """
         df.loc[:, 'mol'] = df['smiles'].apply(lambda x: Chem.MolFromSmiles(x))
-        df.loc[:, 'against_humanity'] = df['mol'].apply(lambda x: x.HasSubstructMatch(against_humanity) if x else False)
-        if len(df[df['against_humanity'] == True]) > 0: print(hold_up)
+        # df.loc[:, 'against_humanity'] = df['mol'].apply(lambda x: x.HasSubstructMatch(against_humanity) if x else False)
+        # if len(df[df['against_humanity'] == True]) > 0: print(hold_up)
         df = Filters.remove_invalid_SMILES(df)
         if self.standardize: df = Filters.remove_exotic_chem_to_db2(df)
         if self.removesalts: df = Filters.saltstripping(df, debug=self.debug)
@@ -258,6 +258,9 @@ class msani:
             df = ionizer.ionize_df(df)
             
         if self.stereoisomers: df = msani.enum_stereoisomers(df, max_isomers=self.max_stereoisomers, debug=self.debug, numcores=self.numcores)
+        if (not(self.protonation) and not(self.protonation) and not(self.stereoisomers)):
+            # If no SMILES processing , just return a canonical SMILES of the input
+            df.loc[:, 'smiles'] = df['mol'].apply(lambda x: Chem.MolToSmiles(x))
         return df
     
 

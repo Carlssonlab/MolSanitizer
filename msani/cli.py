@@ -39,7 +39,7 @@ def process_enamine_name(chunk):
     chunk['smiles'] = chunk['smiles'].apply(lambda x: x.split()[0])
     return chunk
 
-def apply_filters(chunk, args, rejected_file):
+def apply_processes(chunk, args, rejected_file):
     processor = api.msani(
         removesalts=args.removesalts, custom= args.custom, unwanted=args.unwanted,
         pains=args.pains, ha=args.ha, logp=args.logp, hba=args.hba, hbd=args.hbd, 
@@ -132,19 +132,17 @@ def process_files(args, start_time: int):
 
         for step, chunk in enumerate(df_input, start=1):
             if args.enamine: chunk = process_enamine_name(chunk)
-            chunk = apply_filters(chunk, args, rejected_file)
+            chunk = apply_processes(chunk, args, rejected_file)
             if not chunk.empty:
                 if args.synthon and not(args.standardize):
                     chunk.to_csv(output_file, index=False, mode='a', columns=['smiles', 'ids', 'highlights'], header=False, sep=' ')
                 else:
                     chunk.to_csv(output_file, index=False, mode='a', columns=['smiles', 'ids'], header=False, sep=' ')
 
-
             if args.gen3d:
                 from msani.conformers import conformers
                 conformers.gen_conf_chunk(chunk, args, input_file_path.stem)
             
-
             if not args.test:
                 if step == 1: time_step1 = time.time()-start_time
                 if step == 2:
@@ -160,7 +158,7 @@ def process_smiles(args):
     chunk = chunk.assign(ids=chunk['ids'].astype(str))
     chunk = chunk.assign(mol=chunk['smiles'].apply(Chem.MolFromSmiles))
     
-    chunk = apply_filters(chunk, args, rejected_file)
+    chunk = apply_processes(chunk, args, rejected_file)
 
     if args.gen3d:
         from msani.conformers import conformers
