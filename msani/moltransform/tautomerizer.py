@@ -29,7 +29,7 @@ TAUTOMER_PARAMS.maxTautomers = 1000
 TE = rdMolStandardize.TautomerEnumerator(TAUTOMER_PARAMS) 
 
 allylic = Chem.MolFromSmarts(
-    '[CX4&!H0;!$(C-[!#6&!H0])]-[CX3;!$(C-[!#6&!H0])]=!@[CX3;!$(C-[!#6&!H0])]'
+    '[CX4&!H0;!$(C-[!#6&!H0])]-[CX3;!$(C-[!#6&!H0])]=[CX3;!$(C-[!#6&!H0])]'
     )
 
 try:
@@ -37,6 +37,9 @@ try:
     del substructure_terms[8] #Methyl rule. We don't want to penalize terminal alkenes.
     substructure_terms.append(
         rdMolStandardize.SubstructTerm("amide", "[NH1,NH2]-C=O", 1)
+        )
+    substructure_terms.append(
+        rdMolStandardize.SubstructTerm("benzene", "c1ccccc1", -150)
         )
     substructure_terms.append(
         rdMolStandardize.SubstructTerm("corr_rdkit_feature1", "a1:a:a2:a:a:a:a:a-2:a:1", 199)
