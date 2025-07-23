@@ -66,13 +66,13 @@ class Ionizer:
                  smartsFile = PROTONATION_RULES_PATH,
                  pH: int = 7,
                  pH_range: int = 0,
-                 num_cores: int = 1,
+                 numcores: int = 1,
                  neutralize: bool = True,
                  debug = False):
         
         self.pH = pH
         self.pH_range = pH_range
-        self.num_cores = num_cores
+        self.numcores = numcores
         self.debug = debug
         if smartsFile is None: smartsFile = PROTONATION_RULES_PATH
         self.rules = self.load_protonation_rules(smartsFile)
@@ -313,10 +313,10 @@ class Ionizer:
             df.loc[:,mol_column] = df[smiles_column].apply(Chem.MolFromSmiles)
 
         # Determine number of cores
-        num_cores = min(self.num_cores, len(df))  # Prevent using more cores than data chunks
+        numcores = min(self.numcores, len(df))  # Prevent using more cores than data chunks
 
         # Split DataFrame into chunks
-        chunks = [df.iloc[i::num_cores] for i in range(num_cores)]
+        chunks = [df.iloc[i::numcores] for i in range(numcores)]
 
         # Create a partial function for multiprocessing
         process_func = partial(_process_ionization_rows, ionizer=self,
@@ -325,7 +325,7 @@ class Ionizer:
                                name_column=name_column)
 
         results = []
-        with mp.Pool(processes=num_cores) as pool:
+        with mp.Pool(processes=numcores) as pool:
             async_results = [pool.apply_async(process_func, (chunk,)) for chunk in chunks]
 
             for async_result in async_results:
@@ -342,7 +342,7 @@ class Ionizer:
                   name_column: str = 'ids',
                   mol_column: str = 'mol') -> DataFrame: 
         """
-        Protonate the input molecules using multiprocessing or single core based on `num_cores`.
+        Protonate the input molecules using multiprocessing or single core based on `numcores`.
         
         Parameters:
             df (DataFrame): The input DataFrame containing SMILES strings.
@@ -357,7 +357,7 @@ class Ionizer:
             return df
         if mol_column not in df.columns:
             df.loc[:,mol_column] = df[smiles_column].apply(lambda x: Chem.MolFromSmiles(x))
-        if self.num_cores > 1:
+        if self.numcores > 1:
             return self.ionize_df_mp(df, smiles_column, name_column, mol_column)
         else:
             return DataFrame(_process_ionization_rows(df, self, smiles_column, mol_column, name_column))
@@ -397,7 +397,7 @@ def main():
     parser.add_argument('-p', '--pH', default=7, type=int, help='pH value to use for ionization')
     parser.add_argument('-r', '--pH_range', default=0, type=int, help='Range of pH values to consider for ionization')
     parser.add_argument('-d', '--debug', action='store_true', help='Enable debug mode')
-    parser.add_argument('-j', '--num_cores', default=4, type=int, help='Number of cores to use for multiprocessing')
+    parser.add_argument('-j', '--numcores', default=4, type=int, help='Number of cores to use for multiprocessing')
     parser.add_argument('-o', '--output', default='protonated_molecules.smi', type=str, help='Output file to save protonated molecules')
 
     args = parser.parse_args()
@@ -414,7 +414,7 @@ def main():
     ionizer = Ionizer(pH = args.pH, 
                       smartsFile = args.library,
                       pH_range = args.pH_range, 
-                      num_cores = args.num_cores,
+                      numcores = args.numcores,
                       debug = args.debug)
     if args.smiles:
         results = ionizer.ionize(smiles = args.smiles)
