@@ -233,3 +233,4 @@ C[S+]([O-])C	sulphone_1
 C[S+2]([O-])([O-])C	sulphone_2
 Cc2c1ccccc1c(O)n2C	1-OH-isoindole_to_phthalimidine-CH0
 Cn2cc1ccccc1c2O	1-OH-isoindole_to_phthalimidine-CH1
+O=c1[nH]c(C)ccn1 2-pyrimidinones

@@ -173,6 +173,7 @@ vinylog-nitroso_to_oxime-AH2	0	[O:1]=[NX2:2]-[*:3]=,:[*:4]-,:[AH2:5]>>[OH:1][N:2
 6-F-3-ketopyrazinamide_to_3-OH	0	[nX2:1]1[c;$(c-!@C(=O)[NH,NH2]):2][c:3](=[O:4])[nH:5][c;!$(c~[OX1,OH]):6][c;$(c-F):7]1>>[n:1]1[c:2][c:3](-[OH:4])[n&H0:5][c:6][c:7]1	10.1021/acs.joc.3c00777
 pyrimidine-4(1H)-one_to_4(3H)-one	0	[a;!$(a~[OX1,OH]):1]1[nX2:2][c:3](=[O,SX1:4])[a;!$(a~[OX1,OH]):5][a;!$(a~[OX1,OH]):6][nH:7]1>>[a:1]1[nH:2][c:3](=[O,S:4])[a:5][a:6][n&H0:7]1
 6-OH-pyrimidine-4(1H)-one_to_4(3H)-one	0	[c;!$(c~[OX1,OH]):1]1[nX2:2][c:3](=[O,N:4])[c;!$(c~[OX1,OH]):5][c:6]([O,N:8])[nH:7]1>>[c:1]1[nH:2][c:3](=[O,N:4])[c:5][c:6]([O,N:8])[n&H0:7]1
+2-pyrimidinones	1	[O:1]=[c:2]1[nH:3][c;!$(c~[OX1,OH])!$(c(:a)(:a):a):4][c;!$(c~[OX1,OH])!$(c(:a)(:a):a):5][c;!$(c~[OX1,OH])!$(c(:a)(:a):a)!$(c-[NX3&+0]):6][nX2:7]1>>[O:1]=[c:2]1[n&H0:3][c:4][c:5][c:6][nH:7]1	10.1002/anie.201801485
 3H-cytosine_to_1H	0	[c;$(c=O):1]1[nH:2][c:3](-[NX3&+0:4])[c;!$(c~[OX1,OH]):5][c;!$(c~[OX1,OH]):6][nX2:7]1>>[c:1]1[n&H0:2][c:3](-[N:4])[c:5][c:6][nH:7]1
 pyridazine-3,4-dione_to_4-OH-3-one	0	[nX3:1]1[nH:2][c,nX2;!$(c~[OX1,OH]):3][c,nX2;!$(c~[OX1,OH]):4][c:5](=[O:6])[c:7]1=[O:8]>>[n:1]1[n&H0:2][c,n:3][c,n:4][c:5]([OH:6])[c:7]1=[O:8]	10.1007/BF00809443
 3H-quinazoline_to_1H	0	[nX2&H0:1][c:2]1[c;!$(c~[OX1,OH,SX2H,SX1]):3][c;!$(c~[OX1,OH,SX2H,SX1]):4][c;!$(c~[OX1,OH,SX2H,SX1]):5][c;!$(c~[OX1,OH,SX2H,SX1]):6][c:7]1[a;!$(c~[OX1,OH,SX2H,SX1]):8][nH:9]>>[nH:1][c:2]1[c:3][c:4][c:5][c:6][c:7]1[a:8][n&H0:9]
