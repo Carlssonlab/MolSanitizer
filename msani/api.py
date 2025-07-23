@@ -14,14 +14,14 @@ from msani.moltransform.neutralizer import Neutralizer
 logger = logging.getLogger('msani')
 RDLogger.DisableLog('rdApp.*') # To disable error messages with kekulizing tautomers from RDKit
 
-class msani:
+class Msani:
     """
     A class to store the filter options and conduct chemical modifications for MolSanitizer. 
     Initialize the class with the desired filter options and apply the filters to the input DataFrame.
     
     Example use:
 
-        processor = msani(
+        processor = Msani(
                     removesalts=True,
                     ha='>10',
                     logp='<5',

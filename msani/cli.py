@@ -17,7 +17,7 @@ from pandas import DataFrame, read_csv  # only what you use
 from rdkit import Chem, rdBase
 
 from msani.io import parsers, loggers
-from msani import api
+from msani.api import Msani  
 
 logger = logging.getLogger('msani')
 
@@ -40,7 +40,7 @@ def process_enamine_name(chunk):
     return chunk
 
 def apply_processes(chunk, args, rejected_file):
-    processor = api.msani(
+    processor = Msani(
         removesalts=args.removesalts, custom= args.custom, unwanted=args.unwanted,
         pains=args.pains, ha=args.ha, logp=args.logp, hba=args.hba, hbd=args.hbd, 
         mw=args.mw, chiral = args.chiral, tautomers=args.tautomers, taurdkit=args.taurdkit, 
