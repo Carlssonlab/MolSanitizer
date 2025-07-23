@@ -101,8 +101,10 @@ aro-glutarimide-enol_to_glutarimide-CH1	0	[O,SX1:7]=[c:1]1[n:2][c:3](-[OH,SX2H1:
 12:34-exo-2-OH-indole_to_oxindole-AH0	0	[*&H0;!$(*-,:[#6]=*)!$([#8]):11]=[a:12][a:13]=[#6:14]-[c:1]1[c:2](-[OH:3])[n:4][c:5]2[c:6][c:7][c:8][c:9][c:10]12>>[*H:11]-[a:12][a:13]-[#6:14]=[C:1]1[C:2](=[O&H0:3])[N:4][c:5]2[c:6][c:7][c:8][c:9][c:10]12
 1:2-3-exo-2-ketoindolequinone_to_indole_AH2	0	[O:1]=[C:2]1[N:3]=[c:4]([c:5][c:6][c:7][c:8]2)[c:9]2=[C:10]1[a:11][a:12][NH2:13]>>[O:1]=[C:2]1[NH:3][c:4]([c:5][c:6][c:7][c:8]2)[c:9]2[C:10]1=[*:11]~[*:12]=[NH:13]
 1:2-3-exo-2-ketoindolequinone_to_indole_AH1	0	[O:1]=[C:2]1[N:3]=[c:4]([c:5][c:6][c:7][c:8]2)[c:9]2=[C:10]1[a:11][a:12][OH,NH,SX2H:13]>>[O:1]=[C:2]1[NH:3][c:4]([c:5][c:6][c:7][c:8]2)[c:9]2[C:10]1=[*:11]~[*:12]=[O&H0,N&H0,S&H0:13]
-OH-thiazolone_to_thiazolidinedione-CH0	0	[cH0;!$(c~[OX1,OH]):1]1[s:2][c:3](=[O,SX1:4])[n:5][c:6]1[OH:7]>>[CH:1]1[S:2][C:3](=[O,S:4])[N:5][C:6]1=[O&H0:7]
-OH-thiazolone_to_thiazolidinedione-CH1	0	[cH1:1]1[s:2][c:3](=[O,SX1:4])[n:5][c:6]1[OH:7]>>[CH2:1]1[S:2][C:3](=[O,S:4])[N:5][C:6]1=[O&H0:7]
+OH-thiazolone_to_thiazolidinedione-CH0	0	[cH0;!$(c~[OX1,OH]):1]1[s:2][c:3](=[O,SX1,NX2:4])[n:5][c:6]1[OH:7]>>[CH:1]1[S:2][C:3](=[O,S,N:4])[N:5][C:6]1=[O&H0:7]
+OH-thiazolone_to_thiazolidinedione-CH1	0	[cH1:1]1[s:2][c:3](=[O,SX1,NX2:4])[n:5][c:6]1[OH:7]>>[CH2:1]1[S:2][C:3](=[O,S,N:4])[N:5][C:6]1=[O&H0:7]
+1-OH-isoindole_to_phthalimidine-CH0	0	[OH:1]-[c:2]1[nX3:3][cH0;!$(c~[OX1,OH]):4][c:5]2[a:6][a:7][a:8][a:9][c:10]12>>[O&H0:1]=[C:2]1[N:3][CH:4][c:5]2[a:6][a:7][a:8][a:9][c:10]12
+1-OH-isoindole_to_phthalimidine-CH1	0	[OH:1]-[c:2]1[nX3:3][cH1:4][c:5]2[a:6][a:7][a:8][a:9][c:10]12>>[O&H0:1]=[C:2]1[N:3][CH2:4][c:5]2[a:6][a:7][a:8][a:9][c:10]12
 12-exo-3-OH-indole_to_oxindole-CH0	0	[CH0;!$(C-,:[#6]=*):1]=[C:2][c:3]1[n:4][c:5]2[c:6][c:7][c:8][c:9][c:10]2[c:11]1[OH:12]>>[CH1:1][C:2]=[C:3]1[N:4][c:5]2[c:6][c:7][c:8][c:9][c:10]2[C:11]1=[O&H0:12]
 12-exo-3-OH-indole_to_oxindole-CH1	0	[CH1;!$(C-,:[#6]=*):1]=[C:2][c:3]1[n:4][c:5]2[c:6][c:7][c:8][c:9][c:10]2[c:11]1[OH:12]>>[CH2:1][C:2]=[C:3]1[N:4][c:5]2[c:6][c:7][c:8][c:9][c:10]2[C:11]1=[O&H0:12]
 12-exo-3-OH-indole_to_oxindole-CH2	0	[CH2:1]=[C:2][c:3]1[n:4][c:5]2[c:6][c:7][c:8][c:9][c:10]2[c:11]1[OH:12]>>[CH3:1][C:2]=[C:3]1[N:4][c:5]2[c:6][c:7][c:8][c:9][c:10]2[C:11]1=[O&H0:12]
@@ -121,7 +123,7 @@ anthracene-9-ol_to_anthrone-CH1	0	[OH:1]-[c:2]1[c;$(c(:a)(:c):c):3][c;$(c(:a)(:c
 3-OH-furan/thiophene_to_3-keto-CH0	0	[OH:1]-[c:2]1[a;!$(a~[OX1,OH]):3][a;!$(a~[OX1,OH]):4][o,s:5][aH0;!$(a~[OX1,OH])!$(a-[NX3,F,Cl,Br,I]):6]1>>[O&H0:1]=[C:2]1[A:3]=[A:4][O,S:5][AH1:6]1	10.1021/jo01052a048,10.1107/S0567740870002455
 3-OH-furan/thiophene_to_3-keto-CH1	0	[OH:1]-[c:2]1[a;!$(a~[OX1,OH]):3][a;!$(a~[OX1,OH]):4][o,s:5][aH1:6]1>>[O&H0:1]=[C:2]1[A:3]=[A:4][O,S:5][AH2:6]1	10.1021/jo01052a048,10.1107/S0567740870002455
 3-OH-azoles_to_3-keto-CH0	0	[OH:1]-[c:2]1[nX2,c;!$(c~[OX1,OH]):3][c;!$(c~[OX1,OH]):4][nX3:5][cH0;!$(c~[OX1,OH])!$(c-[NX3,F,Cl,Br,I])!$(c1(~[#6]=O)c([OH])[c,n;$([c,n](:a)(:a):a)][c;$(c(:a)(:a):a)]n1)!$(c1(~[#6]=O)c([OH])[c,n][c;$(c(:a)(:a):a)][n;$(n(:a)(:a):a)]1):6]1>>[O&H0:1]=[C:2]1[N,C:3]=[C:4][N:5][CH1:6]1	10.1016/S0040-4020(00)00709-2,10.1248/yakushi1947.90.3_251,10.1039/P19830002219
-3-OH-azoles_to_3-keto-CH1	0	[OH:1]-[c:2]1[nX2,c;!$(c~[OX1,OH]):3][c;!$(c~[OX1,OH]):4][nX3:5][cH1:6]1>>[O&H0:1]=[C:2]1[N,C:3]=[C:4][N:5][CH2:6]1
+3-OH-azoles_to_3-keto-CH1	0	[OH:1]-[c:2]1[nX2,c;!$(c~[OX1,OH]):3][c;!$(c~[OX1,OH]):4][nX3;!$(n(:a)(:a):a):5][cH1:6]1>>[O&H0:1]=[C:2]1[N,C:3]=[C:4][N:5][CH2:6]1	10.1016/S0040-4020(01)87522-0,10.1016/j.steroids.2013.07.006
 4-OH-imidazoles_to_4-keto-CH0	0	[OH:1]-[c:2]1[nH:3][c;!$(c~[OX1,OH]):4][nX2:5][cH0;!$(c~[OX1,OH]):6]1>>[O&H0:1]=[C:2]1[N&H0:3]=[C:4][NH:5][CH1:6]1
 4-OH-imidazoles_to_4-keto-CH1	0	[OH:1]-[c:2]1[nH:3][c;!$(c~[OX1,OH]):4][nX2:5][cH1:6]1>>[O&H0:1]=[C:2]1[N&H0:3]=[C:4][NH:5][CH2:6]1
 2-OH-furan/thiophene/pyrrole_to_5H-keto-CH0	0	[OH:1][c:2]1[nX3,o,s:3][cH0;!$(c-[*^2])!$(c~[OX1,OH])!$(c(:a)(:a):a):4][c!$(c~[OX1,OH])!$(c(:a)(:a):a):5][c!$(c~[OX1,OH])!$(c(:a)(:a):a):6]1>>[O&H0:1]=[C:2]1[N,O,S:3][CH:4][C:5]=[C:6]1
