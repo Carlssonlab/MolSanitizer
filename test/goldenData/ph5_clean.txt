@@ -74,3 +74,4 @@ O=[N+]([O-])c1cc(O)cc([N+](=O)[O-])c1 m,m-di-EWG-phenols
 CC(=O)[S-] thiocarboxylic_1
 CC(=O)[S-] thiocarboxylic_2
 S=C([S-])c1ccccc1 dithiocarboxylic_acid
+CC(=O)N=C1NCC(=O)N1 acyl_guanidine

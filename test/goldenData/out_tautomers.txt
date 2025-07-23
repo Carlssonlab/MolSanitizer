@@ -245,3 +245,5 @@ CC(=O)NN=C1C=CC=CC1=O N-acyldiazo-o-phenol_to_ketohydrazide
 CC(=O)NN=C1C=CC(=O)C=C1 N-acyldiazo-p-phenol_to_ketohydrazide
 CS(C)=O sulphone_1
 CS(C)(=O)=O sulphone_2
+CC1c2ccccc2C(=O)N1C	1-OH-isoindole_to_phthalimidine-CH0
+CN1Cc2ccccc2C1=O	1-OH-isoindole_to_phthalimidine-CH1
