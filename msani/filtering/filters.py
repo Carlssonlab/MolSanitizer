@@ -12,6 +12,80 @@ logger = logging.getLogger('msani')
 RDLogger.DisableLog('rdApp.*') # To disable error messages with kekulizing tautomers from RDKit
 
 class Filters():
+    """A class to apply various filtering operations on molecular data.
+        
+    Parameters
+    ---------
+        
+
+        removesalts: bool, default False.
+            Remove salts from the input molecules. Only the largest fragment will be retained if the salt is not in the database.
+        
+        ha: str, default None.
+            Filter molecules by the number of heavy atoms. Accepts a string in the format '1-5', '>=5', '<=5', or '5'.
+        
+        logp: str, default None.
+            Filter molecules by the logP value. Accepts a string in the format '1-5', '>=5', '<=5', or '5'.
+        
+        hba: str, default None.
+            Filter molecules by the number of H-bond acceptors. Accepts a string in the format '1-5', '>=5', '<=5', or '5'.
+
+        hbd: str, default None.
+            Filter molecules by the number of H-bond donors. Accepts a string in the format '1-5', '>=5', '<=5', or '5'.
+
+        mw: str, default None.
+            Filter molecules by the molecular weight. Accepts a string in the format '1-5', '>=5', '<=5', or '5'.
+
+        chiral: str, default None.
+            Filter molecules by the number of unspecified chiral centers. Accepts a string in the format '1-5', '>=5', '<=5', or '5'.
+
+        custom: str, default None.
+            Path to a custom SMARTS file for filtering molecules. The file should contain SMARTS patterns, one per line.
+
+        unwanted: list of str. Default None.
+            Filter molecules by unwanted substructures. Acceptes in ['regular', 'optional', 'special']
+
+        pains: bool, default False.
+            Apply the PAINS filter to the molecules. If True, it will check for PAINS functional groups.
+
+        rejectedFile: str, default 'rejected_entries.txt'.
+            Path to the file where rejected molecules will be saved. The file will be created if it does not exist.
+
+        debug: bool, default False.
+            Print debug message
+
+    Example use:
+    ----------
+        
+    >>> from msani.filtering.filters import Filters\n
+    >>> filters = Filters(removesalts=True,
+                            ha='>=5',
+                            logp='<=3.5',
+                            hba='1-3',
+                            hbd='1-2',
+                            mw='200-500',
+                            chiral='0-2',
+                            custom='path/to/custom.smarts',
+                            unwanted=['regular'],
+                            pains=True,
+                            rejectedFile='rejected.txt',
+                            debug=True)\n
+
+    >>> filtered_df = filters.filter_df(df)\n
+    
+    the Filters class also has multiple static methods that can be used independently:\n
+
+    >>> df = Filters.filter_by_ha(df, self.ha, rejectedFile, debug)
+    >>> df = Filters.filter_by_logp(df, self.logp, rejectedFile, debug)
+    >>> df = Filters.filter_by_hba(df, self.hba, rejectedFile, debug)
+    >>> df = Filters.filter_by_hbd(df, self.hbd, rejectedFile, debug)
+    >>> df = Filters.filter_by_mw(df, self.mw, rejectedFile, debug)
+    >>> df = Filters.filter_by_chiralcenters(df, self.chiral, rejectedFile, debug)
+    >>> df = Filters.customFilter(df, rejectedFile, self.custom, debug)
+    >>> df = Filters.unwantedFilter(df, rejectedFile, self.unwanted, debug)
+    >>> df = Filters.painsFilter(df, rejectedFile, debug)
+    
+    """
     def __init__(self, 
                  removesalts = False, 
                  ha = None,
