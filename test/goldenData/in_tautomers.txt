@@ -229,3 +229,5 @@ CC(C(C1=CC=CC=C1)=NC)C2=CC=CC=C2	a,b-diaroimine_to_enamine-CH1-NH0
 OC(C)=NO	imindiole_to_hydroxamate
 OC1=C(N=NC(C)=O)C=CC=C1	N-acyldiazo-o-phenol_to_ketohydrazide
 O=C(C)N=NC1=CC=C(O)C=C1	N-acyldiazo-p-phenol_to_ketohydrazide
+C[S+]([O-])C	sulphone_1
+C[S+2]([O-])([O-])C	sulphone_2
