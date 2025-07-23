@@ -279,7 +279,7 @@ class Test_MolSanitizer(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             from msani.io import parsers
             args = self.generate_mock_arguments([f'{self.path}/in_enamine.txt'],
-                                                ['enamine','lazy', 'test'], temp_dir)
+                                                ['extended','lazy', 'test'], temp_dir)
             args = parsers.Sanitycheck(args)
             cli.clean_data(args)
             self.compare_relative(f'{temp_dir}/dummy_output_clean.txt',
@@ -430,7 +430,7 @@ class Test_MolSanitizer(unittest.TestCase):
         args = {
             'input_files': in_files,
             'format': None,
-            'enamine': False,
+            'extended': False,
             'lazy': False,
             'removesalts' : False, 
             'tautomers' : False, 

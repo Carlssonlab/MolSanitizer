@@ -38,8 +38,8 @@ def arguments(args):
     if args.input_files:
         logger.info(f"Input files: {[str(input_file) for input_file in args.input_files]}")
 
-    if args.enamine: 
-        logger.info(f"Enamine format: {args.enamine}")
+    if args.extended: 
+        logger.info(f"Parsing the extended SMILES format: {args.extended}")
 
     if args.removesalts:
         logger.info(f"Remove salts and retain largest fragments: {args.removesalts}")

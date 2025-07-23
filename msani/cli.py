@@ -128,10 +128,10 @@ def process_files(args, start_time: int):
         output_file, rejected_file = get_output_files(args, input_file_path)
         if os.path.exists(rejected_file): os.remove(rejected_file)
         
-        df_input = read_input_file(input_file, args.enamine, args.synthon)
+        df_input = read_input_file(input_file, args.extended, args.synthon)
 
         for step, chunk in enumerate(df_input, start=1):
-            if args.enamine: chunk = process_enamine_name(chunk)
+            # if args.enamine: chunk = process_enamine_name(chunk)
             chunk = apply_processes(chunk, args, rejected_file)
             if not chunk.empty:
                 if args.synthon and not(args.standardize):

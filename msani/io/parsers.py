@@ -36,19 +36,25 @@ info_batch = f"""MolSanitizer - A package to prepare SMILES databases
         """
 
 info_standalone = """MolSanitizer - A package to prepare SMILES databases
+"""
 
-        Ex. input file (space or tab-separated file):
-            COCCC(=O)Nc1ncc(s1)Br  CP000000418470
-            C1CC(C(=O)NC1)SCCC=CBr  CP000000432409
-            CC(C)(C)CNC(=O)c1ccsc1Br  CP000001634597
+epilog ="""  Example input file (space or tab-separated file):
+        COCCC(=O)Nc1ncc(s1)Br  CP000000418470
+        C1CC(C(=O)NC1)SCCC=CBr  CP000000432409
+        CC(C)(C)CNC(=O)c1ccsc1Br  CP000001634597
 
-        Ex. run
-        msani -i example.smi --removesalts --pains --unwanted all --stereoisomers --protonation
-        msani -i example.smi --logp "<=500" --hba "<=10" --hbd "<=5" --mw "<=500" -3d -f pdbqt
-        msani -i example.smi --pains --unwanted regular optional --stereoisomers --protonation
-        msani -i example.smi --pains --unwanted all --protonation -p 7 -r 1 --tautomers --stereoisomers -3d -f db2.tgz
-        """
-
+  Extended SMILES is supported with the -e flag (SMILES and IDs need to be tab-separated):        
+        CC[C@H]1[C@H](C(=O)N[C@H](C)CCCC(=O)NOCC(F)(F)F)CCN1C |&1:2,3|	Cmp0001
+        CCC(CC(=O)N(CC)CCC(=O)N1CCO[C@H]2COC[C@H]21)C(F)F |&1:17,21|	Cmp0002
+        CC(C)CC(CNC(=O)C1CSC1)C(=O)N[C@H]1C[C@@H](O)[C@H](F)C1 |&1:16,18,20|	Cmp0003
+            
+  Example usage:
+    msani -i example.smi --removesalts --pains --unwanted all --stereoisomers --protonation
+    msani -i example.smi --logp "<=500" --hba "<=10" --hbd "<=5" --mw "<=500" -3d -f pdbqt
+    msani -i example.smi --pains --unwanted regular optional --stereoisomers --protonation
+    msani -i example.smi --pains --unwanted all -prot -p 7 -tau -ste -3d -f db2.tgz
+    
+"""
 class CustomHelpFormatter(argparse.RawTextHelpFormatter):
     def _format_action_invocation(self, action):
         """
@@ -76,13 +82,15 @@ def parseArguments(args = None, batch_mode = False):
     # Create the argument parser
     parser = argparse.ArgumentParser(description=info,
                                      formatter_class=CustomHelpFormatter,
-                                     add_help=False)  # Suppress default -h/--help)
+                                     add_help=False,
+                                     epilog=epilog)  # Suppress default -h/--help)
+
     
     # Group 1: Input and output options
     io_group = parser.add_argument_group("Input and output options")
     io_group.add_argument('--input_files', '-i',  type=str,  default=None, nargs='+', help='Input files containing chemical structures')
     io_group.add_argument('--smiles', '-s', default=None, type=str, nargs='+', help='Input SMILES strings')
-    io_group.add_argument('--enamine', '-e', action='store_true', help='Enamine input format (default: False)')
+    io_group.add_argument('--extended', '-e', action='store_true', help='Extended SMILES reading (tab-separated files supported only) (default: False)')
     io_group.add_argument('--prefix', '-pre', default=None, type=str, help='Prefix for the output files. (defalt: input file name).')
     io_group.add_argument('--synthon', '-stn',  action='store_true', help='Synthon mode (Additional metadata about the capping groups required)')
 
