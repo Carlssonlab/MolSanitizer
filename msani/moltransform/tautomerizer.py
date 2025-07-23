@@ -227,7 +227,7 @@ class Tautomerizer:
             
             
             if len(equal_tautomers) > 1:
-                if self.debug: print(f"\tFound {len(equal_tautomers)} tautomers with the same score: {[t[2] for t in equal_tautomers]}")
+                if self.debug: print(f"\tFound {len(equal_tautomers)} tautomers with the nearly similar score: {[t[2] for t in equal_tautomers]}")
                 matches = mol.GetSubstructMatches(allylic_acrylic)
                 if matches:
                     reference_configuration = check_configurations(matches, mol)
