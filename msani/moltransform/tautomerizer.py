@@ -28,8 +28,8 @@ TAUTOMER_PARAMS.maxTautomers = 1000
 
 TE = rdMolStandardize.TautomerEnumerator(TAUTOMER_PARAMS) 
 
-allylic = Chem.MolFromSmarts(
-    '[CX4&!H0;!$(C-[!#6&!H0])]-[CX3;!$(C-[!#6&!H0])]=[CX3;!$(C-[!#6&!H0])]'
+allylic_acrylic = Chem.MolFromSmarts(
+    '[C;$([CX4&!H0;!$(C-[!#6&!H0])]),$(C(=O)[O,N])]-[CX3;!$(C-[!#6&!H0])]=[CX3;!$(C-[!#6&!H0])]'
     )
 
 try:
@@ -67,7 +67,7 @@ def pairwise(iterable):
     return zip(a, b)
 
 def check_configurations(matches, mol):
-    ''' A helper function to check the configurations of the allylic bonds in the molecule.'''
+    ''' A helper function to check the configurations of the allylic_acrylic bonds in the molecule.'''
     config = []
     for match in matches:
         for bond_idx in (pairwise(match)):
@@ -191,6 +191,9 @@ class Tautomerizer:
                 tautomers.append((tau, score))
                 if score > max_score: max_score = score
 
+            # Sort the tautomers by score
+            tautomers.sort(key=lambda x: (-x[1], Chem.MolToSmiles(x[0])))
+
             if self.debug:
                 print(f"\tInitial score: {score_func(mol)}") # To avoid the warning of not having a score function
                 print(f"\tFound {len(tautomers)} tautomers")
@@ -208,14 +211,11 @@ class Tautomerizer:
             # Emulate the Canonicalize function
             # Pick the one that has the same "configuration" of the double bonds as the input molecule
             # Lexicographically min first
-            equal_tautomers = sorted(
-                [(t[0], t[1], Chem.MolToSmiles(t[0])) for t in tautomers if t[1] >= max_score - 3],
-                key=lambda x: (-x[1], x[2])
-                ) 
+            equal_tautomers = [(t[0], t[1], Chem.MolToSmiles(t[0])) for t in tautomers if t[1] >= max_score - 3] 
             
             if len(equal_tautomers) > 1:
                 if self.debug: print(f"\tFound {len(equal_tautomers)} tautomers with the same score: {[t[2] for t in equal_tautomers]}")
-                matches = mol.GetSubstructMatches(allylic)
+                matches = mol.GetSubstructMatches(allylic_acrylic)
                 if matches:
                     reference_configuration = check_configurations(matches, mol)
                     if self.debug: print(f"\tReference configuration: {reference_configuration}")
@@ -230,18 +230,18 @@ class Tautomerizer:
                         if self.debug: print(f"\tNone of the tautomers have the same configuration as the input molecule.")
                         canonical_tautomer = equal_tautomers[0][0]    
                 else: 
-                    # No allylic bonds found, prioritize the tautomers also without allylic bonds
+                    # No allylic_acrylic bonds found, prioritize the tautomers also without allylic_acrylic bonds
                     canonical_tautomer = None
-                    if self.debug: print(f"\tNo allylic bonds found, picking the first one that also has no allylic bond.")
+                    if self.debug: print(f"\tNo allylic_acrylic bonds found, picking the first one that also has no allylic_acrylic bond.")
                     for tautomer in (equal_tautomers):
-                        matches = tautomer[0].GetSubstructMatches(allylic)
+                        matches = tautomer[0].GetSubstructMatches(allylic_acrylic)
                         if not matches:
                             canonical_tautomer = tautomer[0]
                             if self.debug: print(f'\tChanged to {tautomer[2]}')
                             break
-                    # A fallback if no tautomer without allylic bonds is found
+                    # A fallback if no tautomer without allylic_acrylic bonds is found
                     if canonical_tautomer == None: 
-                        if self.debug: print(f"\tNo tautomer without allylic bonds found, picking the first one.")
+                        if self.debug: print(f"\tNo tautomer without allylic_acrylic bonds found, picking the first one.")
                         canonical_tautomer = equal_tautomers[0][0]
             else:
                 # No equal tautomers found, just pick the first one
@@ -317,8 +317,10 @@ class Tautomerizer:
                     mol: Chem.Mol = None,
                     name: str = None) -> list:
         """
-        Tautomerize the input molecule.
-        Args: (Either SMILES or RDKit molecule object must be provided)
+        Tautomerize the input molecule. (Either SMILES or RDKit molecule object must be provided)
+
+        Args: 
+            
             smiles (str): SMILES string of the molecule.
             mol (rdkit.Chem.rdchem.Mol): RDKit molecule object.
             name (str): Name of the molecule. - mainly for debugging purposes.
@@ -410,6 +412,14 @@ class Tautomerizer:
                        name_column: str = 'ids') -> DataFrame:
         """
         Tautomerize a dataframe of molecules using multiprocessing or single-core based on `num_cores`.
+
+        Args:
+            df (DataFrame): The input DataFrame containing SMILES strings.
+            smiles_column (str): The column name containing SMILES strings (default: 'smiles').
+            mol_column (str): The column name for RDKit molecule objects (default: 'mol').
+            name_column (str): The column name for molecule identifiers (default: 'ids').
+        Returns:
+            DataFrame: A DataFrame with tautomerized molecules, including SMILES and identifiers.
         """
         if df.empty:
             return df
