@@ -209,8 +209,8 @@ class Tautomerizer:
             # Pick the one that has the same "configuration" of the double bonds as the input molecule
             # Lexicographically min first
             equal_tautomers = sorted(
-                [(t[0], t[1], Chem.MolToSmiles(t[0])) for t in tautomers if t[1] == max_score],
-                key=lambda x: x[2]
+                [(t[0], t[1], Chem.MolToSmiles(t[0])) for t in tautomers if t[1] >= max_score - 3],
+                key=lambda x: (-x[1], x[2])
                 ) 
             
             if len(equal_tautomers) > 1:
@@ -241,6 +241,7 @@ class Tautomerizer:
                             break
                     # A fallback if no tautomer without allylic bonds is found
                     if canonical_tautomer == None: 
+                        if self.debug: print(f"\tNo tautomer without allylic bonds found, picking the first one.")
                         canonical_tautomer = equal_tautomers[0][0]
             else:
                 # No equal tautomers found, just pick the first one
