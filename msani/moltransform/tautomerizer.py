@@ -191,16 +191,38 @@ class Tautomerizer:
             
             count_amide_like_input = len(mol.GetSubstructMatches(amide_like))
             if self.debug: print(f"\tInput molecule has {count_amide_like_input} amide-like substructures")
+            Chem.AssignCIPLabels(mol)
+            initial_chiral_centers = len(Chem.FindMolChiralCenters(mol))
+            if self.debug: print(f"\tInitial chiral centers: {initial_chiral_centers}")
+            intial_defined_double_bonds = self.count_defined_stereo_doublebonds(mol) 
+            if self.debug: print(f"\tInitial defined double bonds: {intial_defined_double_bonds}")
 
             # Enumerate the tautomers
             for tau in TE.Enumerate(mol):
-                score = score_func(tau)
+                # Check chiral centers
+                Chem.AssignCIPLabels(tau)
+                tau_chiral_centers = len(Chem.FindMolChiralCenters(tau))
+                if tau_chiral_centers < initial_chiral_centers:
+                    if self.debug: print(f"\t{Chem.MolToSmiles(tau)} has fewer chiral centers than the input, skipping")
+                    continue
+                
+                # Check stereo double bonds
+                tau_defined_double_bonds = self.count_defined_stereo_doublebonds(tau)
+                if tau_defined_double_bonds < intial_defined_double_bonds:
+                    if self.debug: print(f"\t{Chem.MolToSmiles(tau)} has fewer defined double bonds than the input, skipping")
+                    continue
+                
+                # Check amide-like integrity
                 if count_amide_like_input > 0:
                     count_amide_like_tautomer = len(tau.GetSubstructMatches(amide_like))
                     if count_amide_like_tautomer < count_amide_like_input:
-                        if self.debug: print(f"\tTautomer {Chem.MolToSmiles(tau)} has {count_amide_like_tautomer} amide-like substructures, skipping")
+                        if self.debug: print(f"\t{Chem.MolToSmiles(tau)} has {count_amide_like_tautomer} amide-like substructures, skipping")
                         continue
+
+                # All passed, add to the list
+                score = score_func(tau)
                 tautomers.append((tau, score))
+
                 if score > max_score: max_score = score
 
             # Sort the tautomers by score
@@ -354,29 +376,8 @@ class Tautomerizer:
         if self.neutralize:
             mol = Neutralizer.neutralize_mol(mol)
         if self.taurdkit:
-            initial_mol = Chem.Mol(mol)
-            # Step 1: Use RDKit TautomerEnumerator to canonicalize the input molecule
-            rdkit_canonical = self.tautomer_canonicalize_rdkit(mol)
-            initial_chiral_centers = len(Chem.FindMolChiralCenters(initial_mol))
-            rdkit_chiral_centers = len(Chem.FindMolChiralCenters(rdkit_canonical))
-            # Canonicalization loses the stereochemistry,
-            # so we keep the original molecule if it has more chiral centers
-            if self.debug: 
-                print(f"\tInitial chiral centers: {initial_chiral_centers}, RDKit canonical chiral centers: {rdkit_chiral_centers}")
+            mol = self.tautomer_canonicalize_rdkit(mol)
             
-            # Number of defined double bonds
-            intial_defined_double_bonds = self.count_defined_stereo_doublebonds(initial_mol) 
-            # Number of defined double bonds
-            rdkit_defined_double_bonds = self.count_defined_stereo_doublebonds(rdkit_canonical) 
-            if self.debug: 
-                print(f"\tInitial defined double bonds: {intial_defined_double_bonds}, RDKit canonical defined double bonds: {rdkit_defined_double_bonds}")
-            # If the canonical tautomer has less defined double bonds, we keep the original molecule
-            if rdkit_defined_double_bonds < intial_defined_double_bonds or\
-                rdkit_chiral_centers < initial_chiral_centers:
-                if self.debug: print("\tViolation of stereochemistry, using the original molecule")
-                mol = initial_mol 
-            else: mol = rdkit_canonical
-        
         # Step 2: Standardize the molecule
         standardized_mol = self.standardize(mol)
         if self.debug:
