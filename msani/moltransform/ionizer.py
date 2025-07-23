@@ -53,14 +53,14 @@ class Ionizer:
         Example use:
         ----------
         
-        >>> from msani.ionizer import Ionizer\n
+        >>> from msani.moltransform.ionizer import Ionizer\n
         >>> ionizer = Ionizer(pH = 7, pH_range = 2)\n
 
         ionize a single molecule from SMILES string:\n
         >>> results = ionizer.ionize(smiles = 'CCc1ccc(CCOc2ccc(CC3SC(=O)NC3=O)cc2)nc1')\n
 
         ionize a DataFrame of molecules with SMILES strings:\n
-        >>> df = ionizer.ionize_df(mol_df, pH=7, pH_range=0, num_cores=1, debug=False)\n
+        >>> df = ionizer.ionize_df(mol_df)\n
         """
     def __init__(self,
                  smartsFile = PROTONATION_RULES_PATH,
@@ -257,9 +257,9 @@ class Ionizer:
         Protonate the input molecule using a set of predefined reactions.
         
         Parameters:
-    
-            smiles (str): The SMILES string of the molecule.
 
+            smiles (str): The SMILES string of the molecule.
+            
             mol (Chem.Mol): The RDKit molecule object.
             
         Returns:
@@ -299,6 +299,14 @@ class Ionizer:
                      mol_column: str = 'mol') -> DataFrame:
         """
         Protonate the input molecules using multiprocessing with chunked DataFrame processing.
+        Parameters:
+            df (DataFrame): The input DataFrame containing SMILES strings.
+            smiles_column (str): The column name containing SMILES strings (default: smiles).
+            name_column (str): The column name for molecule identifiers (default: ids).
+            mol_column (str): The column name for RDKit molecule objects (default: mol).
+
+        Returns:
+            DataFrame: A DataFrame with protonated molecules, including SMILES and identifiers.
         """
         # Ensure mol_column exists
         if mol_column not in df.columns:
@@ -332,9 +340,18 @@ class Ionizer:
                   df: DataFrame,
                   smiles_column: str = 'smiles',
                   name_column: str = 'ids',
-                  mol_column: str = 'mol') -> DataFrame:
+                  mol_column: str = 'mol') -> DataFrame: 
         """
         Protonate the input molecules using multiprocessing or single core based on `num_cores`.
+        
+        Parameters:
+            df (DataFrame): The input DataFrame containing SMILES strings.
+            smiles_column (str): The column name containing SMILES strings (default: smiles).
+            name_column (str): The column name for molecule identifiers (default: ids).
+            mol_column (str): The column name for RDKit molecule objects (default: mol).
+
+        Returns:
+            DataFrame: A DataFrame with protonated molecules, including SMILES and identifiers.
         """
         if len(df) == 0:
             return df
