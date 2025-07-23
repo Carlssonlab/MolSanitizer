@@ -122,7 +122,7 @@ class Msani:
         # If max_isomers is set to 1, return the original molecule and let the RDKit/CORINA guess it.
         if max_isomers == 1: return [row_data]
         try:
-            isomers = msani._generate_stereoisomers(mol, max_isomers=max_isomers)
+            isomers = Msani._generate_stereoisomers(mol, max_isomers=max_isomers)
         except Exception as e:
             logger.error(f"Error generating stereoisomers for compound {row_data['ids']}: {row_data['smiles']}")
             isomers = [mol]
@@ -167,7 +167,7 @@ class Msani:
         DataFrame: Expanded DataFrame with each stereoisomer as a separate row.
         """
         # Partial function to fix max_isomers as an argument
-        process_func = partial(msani._process_molecule_stereoisomer, max_isomers=max_isomers)
+        process_func = partial(Msani._process_molecule_stereoisomer, max_isomers=max_isomers)
         results = []
 
         with mp.Pool(processes=numcores) as pool:
@@ -257,7 +257,7 @@ class Msani:
                               debug=self.debug)
             df = ionizer.ionize_df(df)
             
-        if self.stereoisomers: df = msani.enum_stereoisomers(df, max_isomers=self.max_stereoisomers, debug=self.debug, numcores=self.numcores)
+        if self.stereoisomers: df = Msani.enum_stereoisomers(df, max_isomers=self.max_stereoisomers, debug=self.debug, numcores=self.numcores)
         if (not(self.protonation) and not(self.protonation) and not(self.stereoisomers)):
             # If no SMILES processing , just return a canonical SMILES of the input
             df.loc[:, 'smiles'] = df['mol'].apply(lambda x: Chem.MolToSmiles(x))
