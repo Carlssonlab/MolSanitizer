@@ -32,6 +32,10 @@ allylic_acrylic = Chem.MolFromSmarts(
     '[C;$([CX4&!H0;!$(C-[!#6&!H0])]),$(C(=O)[O,N])]-[CX3;!$(C-[!#6&!H0])]=[CX3;!$(C-[!#6&!H0])]'
     )
 
+amide_like = Chem.MolFromSmarts(
+    '[#6^2;$([#6](=,:[!#6])~[!#6]),$([#6](~[!#6])(~[!#6])=,:*)]'
+    )
+
 try:
     substructure_terms = rdMolStandardize.GetDefaultTautomerScoreSubstructs()
     del substructure_terms[8] #Methyl rule. We don't want to penalize terminal alkenes.
@@ -185,9 +189,17 @@ class Tautomerizer:
             tautomers = [] # The tautomers would be list of (mol, score)
             max_score = -9999
             
+            count_amide_like_input = len(mol.GetSubstructMatches(amide_like))
+            if self.debug: print(f"\tInput molecule has {count_amide_like_input} amide-like substructures")
+
             # Enumerate the tautomers
             for tau in TE.Enumerate(mol):
                 score = score_func(tau)
+                if count_amide_like_input > 0:
+                    count_amide_like_tautomer = len(tau.GetSubstructMatches(amide_like))
+                    if count_amide_like_tautomer < count_amide_like_input:
+                        if self.debug: print(f"\tTautomer {Chem.MolToSmiles(tau)} has {count_amide_like_tautomer} amide-like substructures, skipping")
+                        continue
                 tautomers.append((tau, score))
                 if score > max_score: max_score = score
 
@@ -212,6 +224,7 @@ class Tautomerizer:
             # Pick the one that has the same "configuration" of the double bonds as the input molecule
             # Lexicographically min first
             equal_tautomers = [(t[0], t[1], Chem.MolToSmiles(t[0])) for t in tautomers if t[1] >= max_score - 3] 
+            
             
             if len(equal_tautomers) > 1:
                 if self.debug: print(f"\tFound {len(equal_tautomers)} tautomers with the same score: {[t[2] for t in equal_tautomers]}")
