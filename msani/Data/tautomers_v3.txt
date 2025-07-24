@@ -128,7 +128,8 @@ anthracene-9-ol_to_anthrone-CH1	0	[OH:1]-[c:2]1[c;$(c(:a)(:c):c):3][c;$(c(:a)(:c
 4-OH-imidazoles_to_4-keto-CH1	0	[OH:1]-[c:2]1[nH:3][c;!$(c~[OX1,OH]):4][nX2:5][cH1:6]1>>[O&H0:1]=[C:2]1[N&H0:3]=[C:4][NH:5][CH2:6]1
 2-OH-furan/thiophene/pyrrole_to_5H-keto-CH0	0	[OH:1][c:2]1[nX3,o,s:3][cH0;!$(c-[*^2])!$(c~[OX1,OH])!$(c(:a)(:a):a):4][c!$(c~[OX1,OH])!$(c(:a)(:a):a):5][c!$(c~[OX1,OH])!$(c(:a)(:a):a):6]1>>[O&H0:1]=[C:2]1[N,O,S:3][CH:4][C:5]=[C:6]1
 2-OH-furan/thiophene/pyrrole_to_5H-keto-CH1	0	[OH:1][c:2]1[nX3,o,s:3][cH1:4][c!$(c~[OX1,OH])!$(c(:a)(:a):a):5][c!$(c~[OX1,OH])!$(c(:a)(:a):a):6]1>>[O&H0:1]=[C:2]1[N,O,S:3][CH2:4][C:5]=[C:6]1
-2-OH-5-sp2-furan/thiophene/pyrrole_to_3H-keto	0	[OH:1][c:2]1[nX3,o,s:3][cH0;!$(c-[*^2])!$(c~[OX1,OH])!$(c(:a)(:a):a):4][c!$(c~[OX1,OH])!$(c(:a)(:a):a):5][c!$(c~[OX1,OH])!$(c(:a)(:a):a):6]1>>[O&H0:1]=[C:2]1[N,O,S:3][CH:4][C:5]=[C:6]1
+2-OH-5-sp2-furan/thiophene/pyrrole_to_3H-keto-CH0	0	[OH:1][c:2]1[nX3,o,s:3][c;$(c-[*^2])!$(c~[OX1,OH])!$(c(:a)(:a):a):4][c!$(c~[OX1,OH])!$(c(:a)(:a):a):5][cH0;!$(c~[OX1,OH])!$(c(:a)(:a):a):6]1>>[O&H0:1]=[C:2]1[N,O,S:3][C:4]=[C:5][CH1:6]1
+2-OH-5-sp2-furan/thiophene/pyrrole_to_3H-keto-CH1	0	[OH:1][c:2]1[nX3,o,s:3][c;$(c-[*^2])!$(c~[OX1,OH])!$(c(:a)(:a):a):4][c!$(c~[OX1,OH]):5][cH1:6]1>>[O&H0:1]=[C:2]1[N,O,S:3][C:4]=[C:5][CH2:6]1
 restore_oxicam-CH1	0	[S;$(S(=O)=O):1]1[N:2][CH1:3][C:4](=[O:5])[c:6][c:7]1>>[S;$(S(=O)=O):1]1[N:2][C&H0:3]=[C:4](-[OH:5])[c:6][c:7]1
 restore_oxicam-CH2	0	[S;$(S(=O)=O):1]1[N:2][CH2:3][C:4](=[O:5])[c:6][c:7]1>>[S;$(S(=O)=O):1]1[N:2][CH1:3]=[C:4](-[OH:5])[c:6][c:7]1
 4-ketocoumarin_to_4-OH-coumarin	0	[o&+0:1]1[c:2](-[OH:3])[c;!$(c~[OX1,OH]):4][c:5](=[O:6])[c;!$(c~[OX1,OH]):7][c;!$(c~[OX1,OH]):8]1>>[o:1]1[c:2](=[O&H0:3])[c:4][c:5](-[OH:6])[c:7][c:8]1
