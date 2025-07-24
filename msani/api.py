@@ -252,7 +252,7 @@ class Msani:
             ionizer = Ionizer(smartsFile = self.protonation_library,
                               pH = self.pH,
                               pH_range = self.pH_range,
-                              num_cores=self.numcores,
+                              numcores=self.numcores,
                               neutralize=False,
                               debug=self.debug)
             df = ionizer.ionize_df(df)
