@@ -2,7 +2,7 @@
 # Lines start with # or empty lines are skipped.
 # The rules are constructed as: name    enumerate	smarts      reference
 # Only the first 3 columns are read.
-# Last update: July 22th, 2025
+# Last update: July 25th, 2025
 #HYPERVALENT-S
 H-lambda4-sulphane_to_lambda2-CH0	0	[SX3H:1]=[C&H0:2]>>[S&H0:1][CH:2]
 H-lambda4-sulphane_to_lambda2-CH1	0	[SX3H:1]=[CH:2]>>[S&H0:1][CH2:2]
@@ -76,6 +76,7 @@ dihydropyran-2,4-dione-CH1	1	[O:1]1[C:2](=[O:3])[CX4H:4][C:5](=[O:6])-[CX4:7]-[C
 furandiol_to_ascorbate-like-CH0	0	[cH0:1]1[o,s:2][c:3]([OH:4])[c:5][c:6]1[OH:7]>>[CH1:1]1[O,S:2][C:3](=[O&H0:4])[C:5]=[C:6]1[OH:7]
 furandiol_to_ascorbate-like-CH1	0	[cH1:1]1[o,s:2][c:3]([OH:4])[c:5][c:6]1[OH:7]>>[CH2:1]1[O,S:2][C:3](=[O&H0:4])[C:5]=[C:6]1[OH:7]
 barbiturate-enol_to_barbiturate-CH0	0	[O:1]=[c:2]1[cH0;!$(c~[OX1,OH])!$(c-C#N)!$(c(-C=O)):3][c:4]([OH1:9])[n:7][c:5](=[O:6])[n:8]1>>[O:1]=[C:2]1[CH:3][C:4](=[O&H0:9])[N:7][C:5](=[O:6])[N:8]1
+acyl-barbiturate-endo-enol_to_exo	0	[O:1]=[c:2]1[c:3](-[C:10]=[O:11])[c:4]([OH1:9])[n:7][c:5](=[O:6])[n:8]1>>[O:1]=[C:2]1[C:3](=[C:10][OH:11])[C:4](=[O&H0:9])[N:7][C:5](=[O:6])[N:8]1
 barbiturate-enol_to_barbiturate-CH1	0	[O:1]=[c:2]1[cH1;!$(c~[OX1,OH])!$(c-C#N)!$(c(-C=O)):3][c:4]([OH1:9])[n:7][c:5](=[O:6])[n:8]1>>[O:1]=[C:2]1[CH2:3][C:4](=[O&H0:9])[N:7][C:5](=[O:6])[N:8]1
 pyrrole-2,5-diol_to_2,5-dione-CH0	0	[#6H0;!$(c~[OX1,OH])!$(c(:a)(:a):a):1]1~[#6;!$(c~[OX1,OH])!$(c(:a)(:a):a):2]~[#6;$([#6]~[OH,OX1]):3]~[#7:4]~[#6:5]:,=1-[OH1:6]>>[CH:1]1~[C:2]~[C;$(C~[OH,OX1]):3]~[N:4]~[C:5]1=[O&H0:6]
 pyrrole-2,5-diol_to_2,5-dione-CH1	0	[#6H1;!$(c~[OX1,OH])!$(c(:a)(:a):a):1]1~[#6;!$(c~[OX1,OH])!$(c(:a)(:a):a):2]~[#6;$([#6]~[OH,OX1]):3]~[#7:4]~[#6:5]:,=1-[OH1:6]>>[CH2:1]1~[C:2]~[C;$(C~[OH,OX1]):3]~[N:4]~[C:5]1=[O&H0:6]
