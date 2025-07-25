@@ -1,9 +1,11 @@
 import argparse
+import logging
 
 from pandas import DataFrame, read_csv
 
 from rdkit import Chem
 
+logger = logging.getLogger('msani')
 
 class Neutralizer:
     """
@@ -32,13 +34,13 @@ class Neutralizer:
         -----
         Adapted from RDKit Cookbook: https://rdkit.org/docs/Cookbook.html
         """
+        input = Chem.MolToSmiles(mol)
         # SMARTS pattern to find charged atoms that can be neutralized
         pattern = Chem.MolFromSmarts("[+1!h0!$([*]~[-1,-2,-3,-4]),-1!$([*]~[+1,+2,+3,+4])]")
 
         # Find all matching atoms
         at_matches = mol.GetSubstructMatches(pattern)
         at_matches_list = [y[0] for y in at_matches]
-
         # If there are charged atoms to neutralize
         if len(at_matches_list) > 0:
             for at_idx in at_matches_list:
@@ -53,6 +55,10 @@ class Neutralizer:
                 atom.UpdatePropertyCache()
 
             # Convert to SMILES and back to ensure the molecule is valid
+            error = Chem.SanitizeMol(mol, catchErrors=True)
+            if error: 
+                logger.info(f"Error neutralizing molecule: {error}")
+                return input
             smiles = Chem.MolToSmiles(mol)
             return Chem.MolFromSmiles(smiles)
         else:
