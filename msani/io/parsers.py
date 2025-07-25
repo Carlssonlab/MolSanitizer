@@ -90,7 +90,7 @@ def parseArguments(args = None, batch_mode = False):
     io_group = parser.add_argument_group("Input and output options")
     io_group.add_argument('--input_files', '-i',  type=str,  default=None, nargs='+', help='Input files containing chemical structures')
     io_group.add_argument('--smiles', '-s', default=None, type=str, nargs='+', help='Input SMILES strings')
-    io_group.add_argument('--extended', '-e', action='store_true', help='Extended SMILES reading (tab-separated files supported only) (default: False)')
+    io_group.add_argument('--extended', '-e', action='store_true', help='Extended SMILES reading (tab-separated files supported only).')
     io_group.add_argument('--prefix', '-pre', default=None, type=str, help='Prefix for the output files. (defalt: input file name).')
     io_group.add_argument('--synthon', '-stn',  action='store_true', help='Synthon mode (Additional metadata about the capping groups required)')
 
@@ -139,14 +139,14 @@ def parseArguments(args = None, batch_mode = False):
     gen3d.add_argument('--method', '-m', choices=['rdkit', 'obabel', 'corina'], dest='method', default = 'rdkit', help=f'Embedding method (default: {embed_method} - options: rdkit, obabel, corina)')
     gen3d.add_argument('--numconfs', '-nconfs', type=int, default=2000, help='Maximum number of conformers to generate (default: 2000)')
     gen3d.add_argument('--randomSeed', '-rs', type=int, default=42, help='Seed for reproducibility (default: 42)' if show_advanced_help else argparse.SUPPRESS)
-    gen3d.add_argument('--timeout', '-to', type=float, default=2, help='Timeout for the initial embedding for each SMILES entry before using OpenBabel\nDefault: 2 minutes')
+    gen3d.add_argument('--timeout', '-to', type=float, default=2, help='Timeout for the initial embedding for each entry before using OpenBabel\nDefault: 2 minutes')
     gen3d.add_argument('--energywindow', '-w', type=float, default=energy_window, help=f'Energy window for sampling the conformations (default: {energy_window} kcal/mol)')
     gen3d.add_argument('--rigid', type = str, default = None, help='Only align the DB2 on this rigid scaffold in SMARTS format. All rings if not provided.' if show_advanced_help else argparse.SUPPRESS)
     gen3d.add_argument('--nringconfs', '-nr', type=int, default=1, help='Maximum number of ring conformers to generate (default: 1)')
     gen3d.add_argument('--mode', '-mode', choices=['fixed', 'random', 'ignoretorlib'], default='fixed', help='Mode for generating conformers\nDefault: fixed - Options: fixed, random, ignoretorlib')
     gen3d.add_argument('--tolerance', '-tol', type=float, default=30, help='Minimum angle for differentiating two conformers (default: 30)' if show_advanced_help else argparse.SUPPRESS)
     gen3d.add_argument('--nocleanup', action='store_false', dest='cleanup', default = True, help='Do not clean up the temporary files' if show_advanced_help else argparse.SUPPRESS)
-    gen3d.add_argument('--allowNonring', action='store_true', help='Allow the full sampling of non-ring compounds (default undersample to 30 confs).')
+    gen3d.add_argument('--allowNonring', action='store_true', help='Allow the full sampling of non-ring comdpounds (default undersample to 30 confs).')
     gen3d.add_argument('--eps', type=float, default=1, help='The dielectric constant for electrostatic calculations (default: 1 - vacuum).' if show_advanced_help else argparse.SUPPRESS)
 
     # Group 5: Miscellaneous
@@ -161,9 +161,10 @@ def parseArguments(args = None, batch_mode = False):
     misc_group.add_argument('--version', '-v', action='store_true', help = 'Show the current version of MolSanitizer')
     misc_group.add_argument('--create_protlib', action='store_true', help='Create a template for customized protonation scheme' if show_advanced_help else argparse.SUPPRESS)
     misc_group.add_argument('--create_taulib', action='store_true', help='Create a template for customized tautomerization scheme' if show_advanced_help else argparse.SUPPRESS)
+    misc_group.add_argument('--create_torsion', action='store_true', help='Create a template for customized torsion definition' if show_advanced_help else argparse.SUPPRESS)
     misc_group.add_argument('--protlib',  type=str, default=None, help='Path to the protonation library file (default: msani/Data/ionizations_v3.txt).' if show_advanced_help else argparse.SUPPRESS)
     misc_group.add_argument('--taulib', type=str, default=None, help='Path to the tautomer library file (default:  msani/Data/tautomers_v3.txt).' if show_advanced_help else argparse.SUPPRESS)
-    
+    misc_group.add_argument('--torsion', '-tor', type=str, default=None, help='Path to the customized torsion definitions.' if show_advanced_help else argparse.SUPPRESS)
 
     if batch_mode:
         # Group 6: Batch mode options
@@ -195,6 +196,24 @@ def parseArguments(args = None, batch_mode = False):
         else:
             args.custom = Path(args.custom).resolve()
 
+    if args.protlib:
+        if not Path(args.protlib).is_file():
+            parser.error(f'The protonation library file: {args.protlib} does not exist.')
+        else:
+            args.protlib = Path(args.protlib).resolve()
+
+    if args.taulib:
+        if not Path(args.taulib).is_file():
+            parser.error(f'The tautomerization library file: {args.taulib} does not exist.')
+        else:
+            args.taulib = Path(args.taulib).resolve()
+
+    if args.torsion:
+        if not Path(args.torsion).is_file():
+            parser.error(f'The torsion definition file: {args.torsion} does not exist.')
+        else:
+            args.torsion = Path(args.torsion).resolve() 
+            
     if batch_mode: return args, parser
     else: return args
 
