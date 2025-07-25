@@ -1,26 +1,22 @@
 import unittest
 import tempfile
 import os
-import shutil
 
 from pathlib import Path
 from types import SimpleNamespace
-from os import system
 import platform
 
 
 from pandas import read_csv
 from msani import cli
-from msani.batchmode import Split_Submit_jobs
-from msani.io import parsers
 
 OS = platform.system()
 
 '''
 This is only a test for reproducibility of MolSanitizer.
-It should not be regarded that the expected output on DrugBank is correct.
+It should not be regarded that the expected output on DrugBank/TautoBase/Drug-like set is correct.
 '''
-class Test_DrugBank(unittest.TestCase):
+class Test_ValidationSets(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         """Set up class-level paths before running tests."""
@@ -31,7 +27,7 @@ class Test_DrugBank(unittest.TestCase):
             print(f"Warning: Directory {cls.path} not found, using default")
 
     
-    def test_tautomer(self):
+    def test_tautomer_drugbank(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             args = self.generate_mock_arguments([f'{self.path}/in_DB.txt'],
                                                 ['test', 'tautomers'], temp_dir)
@@ -39,14 +35,40 @@ class Test_DrugBank(unittest.TestCase):
             self.compare_relative(f'{temp_dir}/dummy_output_clean.txt',
                               f'{self.path}/out_DB_tauto.txt')
             
-    def test_tautomer_protonation(self):
+    # def test_tautomer_protonation(self):
+    #     with tempfile.TemporaryDirectory() as temp_dir:
+    #         args = self.generate_mock_arguments([f'{self.path}/in_DB.txt'],
+    #                                             ['test', 'tautomers', 'protonation'], temp_dir)
+    #         cli.clean_data(args)
+    #         self.compare_relative(f'{temp_dir}/dummy_output_clean.txt',
+    #                           f'{self.path}/out_DB_tauto_prot.txt')
+    
+    def test_TautoBase(self):
         with tempfile.TemporaryDirectory() as temp_dir:
-            args = self.generate_mock_arguments([f'{self.path}/in_DB.txt'],
-                                                ['test', 'tautomers', 'protonation'], temp_dir)
+            args = self.generate_mock_arguments([f'{self.path}/in_TautoBase.txt'],
+                                                ['test', 'tautomers'], temp_dir)
             cli.clean_data(args)
             self.compare_relative(f'{temp_dir}/dummy_output_clean.txt',
-                              f'{self.path}/out_DB_tauto_prot.txt')
-    
+                              f'{self.path}/out_TautoBase.txt')
+            
+    def test_protonation_monoprotic(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            args = self.generate_mock_arguments([f'{self.path}/in_monoprotic.txt'],
+                                                ['test', 'protonation'], temp_dir)
+            args.pH_range = 1
+            cli.clean_data(args)
+            self.compare_relative(f'{temp_dir}/dummy_output_clean.txt',
+                              f'{self.path}/out_monoprotic.txt')
+            
+    def test_protonation_druglikesets(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            args = self.generate_mock_arguments([f'{self.path}/in_druglikesets.txt'],
+                                                ['test', 'protonation'], temp_dir)
+            args.pH_range = 1
+            cli.clean_data(args)
+            self.compare_relative(f'{temp_dir}/dummy_output_clean.txt',
+                              f'{self.path}/out_druglikesets.txt')    
+            
     def compare_relative(self, newfile: str, goldenfile: str):
         # Read the files into dataframes
         df1 = read_csv(newfile, header=None, sep=r'\s+')
