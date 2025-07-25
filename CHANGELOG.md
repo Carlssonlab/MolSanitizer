@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### 🚀 Features
 
+- New flags supported: --extended for extended SMILES supports, --torsion for customized torsion definitions. - ([7d6b4fd](https://github.com/phonglam3103/MolSanitizer/commit/7d6b4fd89cc0a950609e788aac95ba62ca65f351))
 - Support the extraction of the protonation/tautomerization rules and allow the use of customized transformation rules. - ([85a10ba](https://github.com/phonglam3103/MolSanitizer/commit/85a10ba4fd682f6f88a3d858232da19d384d7710))
 - Hide advanced options in the help text by default, enabled by the -xh or --help_advanced flag. - ([a11c1de](https://github.com/phonglam3103/MolSanitizer/commit/a11c1dec3b6fdafff227db3de23ea66c2c1340bd))
 - Updated ionizer so that more probable (de)protonation sites get (de)protonated first (eg. guanidines > amines > imidazoles) - ([b66bed6](https://github.com/phonglam3103/MolSanitizer/commit/b66bed6cec9001cfed513a09297b16a42f29a225))
@@ -17,6 +18,7 @@ All notable changes to this project will be documented in this file.
 
 ### 🐛 Bug Fixes
 
+- Trials to neutralize molecules breaking aromaticity should not fail now - ([5b07800](https://github.com/phonglam3103/MolSanitizer/commit/5b0780016ff29bd0229ca654c6aa28b4f2f335d8))
 - Unify the score of benzene to other aromatic rings. This should fix the prioritization of benzene over pyridine. - ([f5e60f1](https://github.com/phonglam3103/MolSanitizer/commit/f5e60f166ac56eed9e56802e2e5214c7bd10669c))
 - Fix a bug that the check of chiralities did not work - ([4a73775](https://github.com/phonglam3103/MolSanitizer/commit/4a7377579114cdfc2df9e10b1e46dd0a5bb867d3))
 - Updated p-EWG phenol rule, remove redundant duplicated rules. - ([dde92a8](https://github.com/phonglam3103/MolSanitizer/commit/dde92a8b57dd3fda15e0093902f70e7d99a26ce7))
