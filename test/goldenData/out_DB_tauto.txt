@@ -901,7 +901,7 @@ C#CC1(O)CCC2C3CCC4=CC(=O)CCC4=C3C=CC21CC Gestrinone
 CC(c1nc(-c2ccc(C#N)cc2)cs1)C(O)(Cn1cncn1)c1cc(F)ccc1F Isavuconazole
 Nc1ccncc1N Amifampridine
 O=C(NC(Cc1cc(=O)[nH]c2ccccc12)C(=O)O)c1ccc(Cl)cc1 Rebamipide
-O=C(O)CNC(=O)c1c(O)n(C2CCCCC2)c(=O)n(C2CCCCC2)c1=O Daprodustat
+O=C(O)CNC(O)=C1C(=O)N(C2CCCCC2)C(=O)N(C2CCCCC2)C1=O Daprodustat
 CN1C2CCC1CC(OC(=O)c1c[nH]c3ccccc13)C2 Tropisetron
 COC(=O)NC(C)CNc1nccc(-c2cn(C(C)C)nc2-c2cc(Cl)cc(NS(C)(=O)=O)c2F)n1 Encorafenib
 CNCc1cc(-c2ccccc2F)n(S(=O)(=O)c2cccnc2)c1 Vonoprazan
