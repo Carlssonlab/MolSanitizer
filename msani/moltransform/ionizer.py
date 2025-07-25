@@ -370,20 +370,15 @@ def _process_ionization_rows(df, ionizer, smiles_column, mol_column, name_column
     results = []
     for _, row in df.iterrows():
         highlights = row.get('highlights', None)
+        original_idx = row.get('original_idx', None)  # For debugging purposes
         protonated_smiles = ionizer.ionize(mol=row[mol_column])
 
-        if len(protonated_smiles) == 1:
+        for _, smiles in enumerate(protonated_smiles):
             results.append({name_column: row[name_column],
-                            mol_column: Chem.MolFromSmiles(protonated_smiles[0]),
-                            smiles_column: protonated_smiles[0],
-                            'highlights': highlights})
-        else:
-            two_digits = len(protonated_smiles) >= 10
-            for i, smile in enumerate(protonated_smiles):
-                results.append({name_column: f"{row[name_column]}_{i+1:02}" if two_digits else f"{row[name_column]}_{i+1}",
-                                mol_column: Chem.MolFromSmiles(smile),
-                                smiles_column: smile,
-                                'highlights': highlights})
+                            mol_column: Chem.MolFromSmiles(smiles),
+                            smiles_column: smiles,
+                            'highlights': highlights,
+                            'original_idx': original_idx})
     
     return results
 

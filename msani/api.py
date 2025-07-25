@@ -4,7 +4,7 @@ from functools import partial
 
 from rdkit import Chem, RDLogger
 from rdkit.Chem.EnumerateStereoisomers import EnumerateStereoisomers, StereoEnumerationOptions
-from pandas import DataFrame  # only what you use
+from pandas import DataFrame, Series  # only what you use
 
 from msani.filtering.filters import Filters, against_humanity, hold_up
 from msani.moltransform.tautomerizer import Tautomerizer
@@ -195,7 +195,14 @@ class Msani:
                     })
 
         return DataFrame(results)
-
+    
+    def expand_ids(self, group):
+        if len(group) == 1:
+            return group
+        two_digits = len(group) >= 10
+        new_id = [f"{group.iloc[0]}_{i+1:02}" if two_digits else f"{group.iloc[0]}_{i+1}" for i in range(len(group))]
+        return Series(new_id, index=group.index)
+    
     def run(self, df: DataFrame, rejected_file = None) -> DataFrame:
         """
         Perform preparation on the input DataFrame using the specified filters and rule-based chemical modifications.
@@ -223,10 +230,13 @@ class Msani:
             return df
         
         if self.tautomers or self.protonation:
-            if self.neutralize: df = Neutralizer.neutralize_df(df)
+            if self.neutralize: 
+                df = Neutralizer.neutralize_df(df)
+                df = Filters.remove_invalid_SMILES(df)
+            df.loc[:, 'original_idx'] = df.index
             
         if self.tautomers: 
-            tautomerizer = Tautomerizer(smartsFile=self.tautomer_library,
+            tautomerizer = Tautomerizer(smartsFile = self.tautomer_library,
                                         taurdkit = self.taurdkit, 
                                         debug = self.debug, 
                                         neutralize = False,
@@ -252,10 +262,23 @@ class Msani:
             ionizer = Ionizer(smartsFile = self.protonation_library,
                               pH = self.pH,
                               pH_range = self.pH_range,
-                              numcores=self.numcores,
-                              neutralize=False,
+                              numcores = self.numcores,
+                              neutralize = False,
                               debug=self.debug)
             df = ionizer.ionize_df(df)
+
+        if self.tautomers or self.protonation:
+            # Coalesce the 'smiles' column to ensure it is present
+            # Drop duplicate rows based on 'smiles' and 'ids'
+            df = df.drop_duplicates(subset=['smiles', 'ids'], keep='first')
+            # Sort to match original order
+            df = df.sort_values(by=['original_idx', 'ids']).reset_index(drop=True)
+            # Find duplicate ids
+            duplicated_ids = df['ids'][df['ids'].duplicated(keep=False)]
+
+            if not duplicated_ids.empty:
+                # Group duplicates and expand
+                df.loc[duplicated_ids.index, 'ids'] = df.loc[duplicated_ids.index, 'ids'].groupby(df['ids']).transform(self.expand_ids)
             
         if self.stereoisomers: df = Msani.enum_stereoisomers(df, max_isomers=self.max_stereoisomers, debug=self.debug, numcores=self.numcores)
         if (not(self.protonation) and not(self.protonation) and not(self.stereoisomers)):

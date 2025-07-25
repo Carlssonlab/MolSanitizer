@@ -454,20 +454,17 @@ def _process_tautomer_rows(df, tautomerizer, smiles_column, mol_column, name_col
     for _, row in df.iterrows():
         mol = row[mol_column]
         highlights = row.get('highlights', None)
+        original_idx = row.get('original_idx', None)  # For debugging purposes
         tautomers_smiles = tautomerizer.tautomerize(mol=mol, name = row[name_column])
 
-        if len(tautomers_smiles) == 1:
+        
+        for _, tautomer in enumerate(tautomers_smiles):
             results.append({name_column: row[name_column],
-                            mol_column: Chem.MolFromSmiles(tautomers_smiles[0]),
-                            smiles_column: tautomers_smiles[0],
-                            'highlights': highlights})
-        else:
-            two_digits = len(tautomers_smiles) >= 10
-            for i, tautomer in enumerate(tautomers_smiles):
-                results.append({name_column: f"{row[name_column]}_{i+1:02}" if two_digits else f"{row[name_column]}_{i+1}",
-                                mol_column: Chem.MolFromSmiles(tautomer),
-                                smiles_column: tautomer,
-                                'highlights': highlights})
+                            mol_column: Chem.MolFromSmiles(tautomer),
+                            smiles_column: tautomer,
+                            'highlights': highlights,
+                            'original_idx': original_idx
+                            })
 
     return results
 
