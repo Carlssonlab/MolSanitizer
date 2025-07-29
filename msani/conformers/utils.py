@@ -785,8 +785,6 @@ def filter_symmetric_angles(angles, scores, symmetry_angle=180, tolerance=10):
     Returns:
         Tuple: (filtered_angles, filtered_scores)
     """
-    if symmetry_angle == 1:
-        return ([angles[0]], [scores[0]])  # If symmetry_angle is 1, return the first angle and score (Dont rotate this torsion)
     kept_angles = []
     kept_scores = []
 
@@ -903,6 +901,9 @@ def count_confs_by_rotbonds_v2(mol,
             
             bond_key = tuple(sorted(match[:2]))
             if bond_key not in bond_to_rule:
+                continue
+            if period == 1: 
+                bond_to_rule.pop(bond_key)
                 continue
             if VERBOSE:
                 print(f'\tRemove duplicated rotation for {bond_key}')
