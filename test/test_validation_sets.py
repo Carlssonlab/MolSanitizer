@@ -76,12 +76,12 @@ class Test_ValidationSets(unittest.TestCase):
             
     def compare_relative(self, newfile: str, goldenfile: str, inputfile:str):
         # Read the files into dataframes
-        df1 = read_csv(newfile, header=None, sep=r'\s+')
-        df2 = read_csv(goldenfile, header=None, sep=r'\s+')
-        inputdf = read_csv(inputfile, header=None, sep=r'\s+')
+        df1 = read_csv(newfile, header=None, sep=r'\s+', names=['smiles', 'ids'], dtype={'smiles': str, 'ids': str})
+        df2 = read_csv(goldenfile, header=None, sep=r'\s+', names=['smiles', 'ids'], dtype={'smiles': str, 'ids': str})
+        inputdf = read_csv(inputfile, header=None, sep=r'\s+', names=['smiles', 'ids'], dtype={'smiles': str, 'ids': str})
         # Extract the first column from both dataframes
-        column1_df1 = df1.iloc[:, 0]
-        column1_df2 = df2.iloc[:, 0]
+        column1_df1 = df1.loc[:, 'smiles']
+        column1_df2 = df2.loc[:, 'smiles']
 
         # Convert the first column of df1 and df2 into sets
         set1 = set(column1_df1)
@@ -94,19 +94,19 @@ class Test_ValidationSets(unittest.TestCase):
             diff_set1 = set()
             diff_set2 = set()
             
-            if not df1.empty and not df1[df1.iloc[:, 0].isin(diff)].empty:
+            if not df1.empty and not df1[df1.loc[:, 'smiles'].isin(diff)].empty:
                 # Extract column 1 values, split at "_" and take first part
-                diff_set1 = set(df1[df1.iloc[:, 0].isin(diff)].iloc[:, 1].apply(lambda x: str(x)[:-2] if '_' in x else x))
+                diff_set1 = set(df1[df1.loc[:, 'smiles'].isin(diff)].loc[:, 'ids'].apply(lambda x: str(x)[:-2] if '_' in x else str(x)))
             
-            if not df2.empty and not df2[df2.iloc[:, 0].isin(diff)].empty:
+            if not df2.empty and not df2[df2.loc[:, 'smiles'].isin(diff)].empty:
                 # Do the same for df2
-                diff_set2 = set(df2[df2.iloc[:, 0].isin(diff)].iloc[:, 1].apply(lambda x: str(x)[:-2] if '_' in x else x))
+                diff_set2 = set(df2[df2.loc[:, 'smiles'].isin(diff)].loc[:,  'ids'].apply(lambda x: str(x)[:-2] if '_' in x else str(x)))
             total_diff = diff_set1.union(diff_set2)
             print(f"Difference in files:")
-            inputdf['mismatch'] = inputdf.iloc[:, 1].apply(lambda x: any(x.startswith(y) for y in total_diff))
+            inputdf['mismatch'] = inputdf.loc[:,  'ids'].apply(lambda x: any(str(x).startswith(y) for y in total_diff))
             mismatch_df_input = inputdf[inputdf['mismatch'] == True]
             for _, row in mismatch_df_input.iterrows():
-                print(row[0] + " " + row[1])
+                print(row['smiles'] + " " + row['ids'])
         # Check if the sets are equal
         self.assertEqual(set1, set2, "Files' contents differ")
 
