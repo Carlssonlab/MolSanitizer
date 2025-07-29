@@ -899,7 +899,7 @@ class ConformerGenerator:
                                                     visited = None)
                 
                 if len(product) == 0: 
-                    print(f'Failed for stochastic sampling (generated {len(product)} confs), use the original conformation')
+                    print(f'Failed for stochastic sampling for {self.name} (generated {len(product)} confs), use the original conformation')
                     continue
 
             product.sort(key=lambda x: x[1]) #Sort by energy
