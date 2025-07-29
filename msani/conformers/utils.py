@@ -529,7 +529,7 @@ def count_confs_by_rotbonds(mol,
     matched_rules = torlib.get_match_dihedral(mol)
     amide_atoms = set()
     if (amide_bonds):
-        for _, b, c, _, _ in amide_bonds:
+        for b, c in amide_bonds:
             amide_atoms.add(b)
             amide_atoms.add(c)
     # Pre-compute a dictionary of rules by bond
@@ -823,12 +823,11 @@ def count_confs_by_rotbonds_v2(mol,
             - score_map (dict): Mapping of bond indices to scores for each angle.
     """
     # Step 1: Match torsion rules and rotatable bonds
-
     matched_rules = torlib.get_match_dihedral(mol)
 
     amide_atoms = set()
     if (amide_bonds):
-        for _, b, c, _, _ in amide_bonds:
+        for b, c in amide_bonds:
             amide_atoms.add(b)
             amide_atoms.add(c)
 
