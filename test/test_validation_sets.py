@@ -27,21 +27,23 @@ class Test_ValidationSets(unittest.TestCase):
             print(f"Warning: Directory {cls.path} not found, using default")
 
     
-    def test_tautomer_drugbank(self):
+    def test_tau_drugbank(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             args = self.generate_mock_arguments([f'{self.path}/in_DB.txt'],
                                                 ['test', 'tautomers'], temp_dir)
             cli.clean_data(args)
             self.compare_relative(f'{temp_dir}/dummy_output_clean.txt',
-                              f'{self.path}/out_DB_tauto.txt')
+                              f'{self.path}/out_DB_tauto.txt',
+                              f'{self.path}/in_DB.txt')
             
-    # def test_tautomer_protonation(self):
-    #     with tempfile.TemporaryDirectory() as temp_dir:
-    #         args = self.generate_mock_arguments([f'{self.path}/in_DB.txt'],
-    #                                             ['test', 'tautomers', 'protonation'], temp_dir)
-    #         cli.clean_data(args)
-    #         self.compare_relative(f'{temp_dir}/dummy_output_clean.txt',
-    #                           f'{self.path}/out_DB_tauto_prot.txt')
+    def test_tau_prot_drugbank(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            args = self.generate_mock_arguments([f'{self.path}/in_DB.txt'],
+                                                ['test', 'tautomers', 'protonation'], temp_dir)
+            cli.clean_data(args)
+            self.compare_relative(f'{temp_dir}/dummy_output_clean.txt',
+                              f'{self.path}/out_DB_tauto_prot7.txt',
+                              f'{self.path}/in_DB.txt')
     
     def test_TautoBase(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -49,7 +51,8 @@ class Test_ValidationSets(unittest.TestCase):
                                                 ['test', 'tautomers'], temp_dir)
             cli.clean_data(args)
             self.compare_relative(f'{temp_dir}/dummy_output_clean.txt',
-                              f'{self.path}/out_TautoBase.txt')
+                              f'{self.path}/out_TautoBase.txt',
+                              f'{self.path}/in_TautoBase.txt')
             
     def test_protonation_monoprotic(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -58,7 +61,8 @@ class Test_ValidationSets(unittest.TestCase):
             args.pH_range = 1
             cli.clean_data(args)
             self.compare_relative(f'{temp_dir}/dummy_output_clean.txt',
-                              f'{self.path}/out_monoprotic.txt')
+                              f'{self.path}/out_monoprotic.txt',
+                              f'{self.path}/in_monoprotic.txt')
             
     def test_protonation_druglikesets(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -67,13 +71,14 @@ class Test_ValidationSets(unittest.TestCase):
             args.pH_range = 1
             cli.clean_data(args)
             self.compare_relative(f'{temp_dir}/dummy_output_clean.txt',
-                              f'{self.path}/out_druglikesets.txt')    
+                              f'{self.path}/out_druglikesets.txt', 
+                              f'{self.path}/in_druglikesets.txt')    
             
-    def compare_relative(self, newfile: str, goldenfile: str):
+    def compare_relative(self, newfile: str, goldenfile: str, inputfile:str):
         # Read the files into dataframes
         df1 = read_csv(newfile, header=None, sep=r'\s+')
         df2 = read_csv(goldenfile, header=None, sep=r'\s+')
-
+        inputdf = read_csv(inputfile, header=None, sep=r'\s+')
         # Extract the first column from both dataframes
         column1_df1 = df1.iloc[:, 0]
         column1_df2 = df2.iloc[:, 0]
@@ -82,6 +87,26 @@ class Test_ValidationSets(unittest.TestCase):
         set1 = set(column1_df1)
         set2 = set(column1_df2)
 
+        diff = set1.difference(set2).union(set2.difference(set1))
+        if set1 != set2:
+            print(str(len(diff)) + "differences found between the files")
+            # Get rows where column 0 is in diff, extract column 1 values
+            diff_set1 = set()
+            diff_set2 = set()
+            
+            if not df1.empty and not df1[df1.iloc[:, 0].isin(diff)].empty:
+                # Extract column 1 values, split at "_" and take first part
+                diff_set1 = set(df1[df1.iloc[:, 0].isin(diff)].iloc[:, 1].apply(lambda x: str(x)[:-2] if '_' in x else x))
+            
+            if not df2.empty and not df2[df2.iloc[:, 0].isin(diff)].empty:
+                # Do the same for df2
+                diff_set2 = set(df2[df2.iloc[:, 0].isin(diff)].iloc[:, 1].apply(lambda x: str(x)[:-2] if '_' in x else x))
+            total_diff = diff_set1.union(diff_set2)
+            print(f"Difference in files:")
+            inputdf['mismatch'] = inputdf.iloc[:, 1].apply(lambda x: any(x.startswith(y) for y in total_diff))
+            mismatch_df_input = inputdf[inputdf['mismatch'] == True]
+            for _, row in mismatch_df_input.iterrows():
+                print(row[0] + " " + row[1])
         # Check if the sets are equal
         self.assertEqual(set1, set2, "Files' contents differ")
 
