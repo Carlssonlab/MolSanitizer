@@ -91,7 +91,12 @@ class TorsionLibrary:
                         except ValueError:
                             print(f"Invalid angle or weight in row: {row}. Skipping.")
                             continue
-                    custom_rules.append((smarts, pattern, TorsionLibrary.get_atoms_template(pattern), temp))
+                    custom_rules.append(
+                                        (smarts,
+                                        pattern,
+                                        TorsionLibrary.get_atoms_template(pattern),
+                                        temp)
+                                        )
         if debug: 
             print('\tAdding custom rules:')
             for rule in custom_rules:
@@ -141,28 +146,23 @@ class TorsionLibrary:
                 continue
             else:
                 pattern = Chem.MolFromSmarts(Rule.get("smarts"))
-                if self.downscale_GG_rule:
-                    if Rule.get("smarts") == "[*:1]~[CX4:2]!@[OX2:3]~[*:4]" or Rule.get("smarts") == "[*:1]~[OX2:2]!@[P:3]~[*:4]":
-                        self.Torlib.append(
-                            (Rule.get("smarts"),
-                            (pattern),
-                            TorsionLibrary.get_atoms_template(pattern),           # Special treatment for aliphatic hydroxyls and phosphates
-                            [(((float(angle.get("value")))), float(0), float(0), round(float(angle.get("score"))+0.05, 2)) for angle in Rule.iter(tag='angle')])
-                            )
-                    else:
-                        self.Torlib.append(
-                            (Rule.get("smarts"),
-                            (pattern),
-                            TorsionLibrary.get_atoms_template(pattern),     # Do not include tolerance2 here for undersample of GG rules. Below doubled tolerance1 is intentional
-                            [(((float(angle.get("value")))), float(angle.get("tolerance1")), float(angle.get("tolerance1")), round(float(angle.get("score"))+0.05, 2)) for angle in Rule.iter(tag='angle')])
-                            )
+                if Rule.get("smarts") == "[*:1]~[CX4:2]!@[OX2:3]~[*:4]" or\
+                    Rule.get("smarts") == "[*:1]~[OX2:2]!@[P:3]~[*:4]" or\
+                    Rule.get("smarts") == "[*:1]~[CX4:2]!@[SX2:3]~[*:4]":
+                    self.Torlib.append(
+                        (Rule.get("smarts"),
+                        (pattern),
+                        TorsionLibrary.get_atoms_template(pattern),           # Special treatment for aliphatic hydroxyls and phosphates
+                        [(((float(angle.get("value")))), float(0), float(0), round(float(angle.get("score"))+0.05, 2)) for angle in Rule.iter(tag='angle')])
+                        )
                 else:
-                    self.Torlib.append((Rule.get("smarts"),
-                            (pattern),
-                            TorsionLibrary.get_atoms_template(pattern),
-                            [(((float(angle.get("value")))), float(angle.get("tolerance1")), float(angle.get("tolerance2")), round(float(angle.get("score"))+0.05, 2)) for angle in Rule.iter(tag='angle')])
-                            )
-    
+                    self.Torlib.append(
+                        (Rule.get("smarts"),
+                        (pattern),
+                        TorsionLibrary.get_atoms_template(pattern),     
+                        [(((float(angle.get("value")))), float(angle.get("tolerance1")), float(angle.get("tolerance2")), round(float(angle.get("score"))+0.05, 2)) for angle in Rule.iter(tag='angle')])
+                        )
+                
 
     def get_match_dihedral(self, mol):
         """This function filters the molecule by the torsion rules in the Torlib.

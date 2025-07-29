@@ -37,7 +37,7 @@ from msani.db2 import solv
 logger = logging.getLogger('msani')
 
 srlib = torsions.SmallRingLibrary()
-torlib = torsions.TorsionLibrary(downscale_GG_rule = True)
+torlib = torsions.TorsionLibrary()
 
 class ConformerGenerator:
     '''
