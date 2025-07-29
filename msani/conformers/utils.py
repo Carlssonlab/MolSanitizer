@@ -904,6 +904,7 @@ def count_confs_by_rotbonds_v2(mol,
                 continue
             if period == 1: 
                 bond_to_rule.pop(bond_key)
+                rot_bonds.remove(bond_key)
                 continue
             if VERBOSE:
                 print(f'\tRemove duplicated rotation for {bond_key}')
@@ -960,7 +961,7 @@ def count_confs_by_rotbonds_v2(mol,
         for angle, score in zip(angle_map.values(), score_map.values()):
             print(f"\t{angle[0]}: {angle[1]} -> Angles: {angle[2]}, Scores: {score}")
 
-    return total_confs, angle_map, score_map
+    return total_confs, angle_map, score_map, rot_bonds
 
 def within_tolerance(angle, center, tolerance):
     """

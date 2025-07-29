@@ -605,6 +605,7 @@ class ConformerGenerator:
                                                     ignoretorlib = ignoreTorlib,
                                                     torlib = self.torlib,
                                                     VERBOSE = self.VERBOSE)
+        
         requested_num_confs = numConfs
         #if VERBOSE: print(f"\t{num_confs_by_rotbonds} {num_confs_H} {num_rotatable_H} {numConfs}")
 
@@ -821,13 +822,13 @@ class ConformerGenerator:
         """
         Perceive the allowed dihedral angles and call stochastic sampling to generate conformers.
         """
-        possible_numConfs, angle_map, score_map = utils.count_confs_by_rotbonds_v2(mol = self.ring_confs[0],
+        possible_numConfs, angle_map, score_map, rot_bonds = utils.count_confs_by_rotbonds_v2(mol = self.ring_confs[0],
                                                                                    rot_bonds = self.rot_bonds,
                                                                                    amide_bonds = self.amide_linkages,
                                                                                    ignoretorlib = ignoreTorlib,
                                                                                    torlib = torlib,
                                                                                    VERBOSE=self.VERBOSE)
-        importance_order = utils.get_importance_order(self.ring_confs[0], self.rot_bonds)
+        importance_order = utils.get_importance_order(self.ring_confs[0], rot_bonds)
         requested_num_confs = numConfs
 
         if self.VERBOSE:
@@ -863,12 +864,12 @@ class ConformerGenerator:
               
             # Only remap the match_torlib when sulfo_matches is found
             if self.sulfo_matches: 
-                possible_numConfs, angle_map, score_map = utils.count_confs_by_rotbonds_v2(mol = mol,
-                                                                                           rot_bonds = self.rot_bonds,
-                                                                                           ignoretorlib = ignoreTorlib,
-                                                                                           amide_bonds = self.amide_linkages,
-                                                                                           torlib = torlib,
-                                                                                           VERBOSE = self.VERBOSE)
+                possible_numConfs, angle_map, score_map, _ = utils.count_confs_by_rotbonds_v2(mol = mol,
+                                                                                            rot_bonds = self.rot_bonds,
+                                                                                            ignoretorlib = ignoreTorlib,
+                                                                                            amide_bonds = self.amide_linkages,
+                                                                                            torlib = torlib,
+                                                                                            VERBOSE = self.VERBOSE)
             if self.VERBOSE: print('\tRunning stochastic torsional sampling')
             
             product = self.stochastic_sampling_v2(mol = processing_mol,
