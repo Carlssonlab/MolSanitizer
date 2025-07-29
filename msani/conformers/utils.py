@@ -781,7 +781,8 @@ def filter_symmetric_angles(angles, scores, symmetry_angle=180, tolerance=10):
     Returns:
         Tuple: (filtered_angles, filtered_scores)
     """
-
+    if symmetry_angle == 1:
+        return ([angles[0]], [scores[0]])  # If symmetry_angle is 1, return the first angle and score (Dont rotate this torsion)
     kept_angles = []
     kept_scores = []
 
@@ -914,10 +915,6 @@ def count_confs_by_rotbonds_v2(mol,
             filtered_angles, filtered_scores = filter_symmetric_angles(angles, scores, period, 10)
             rule[2] = list(zip(filtered_angles, filtered_scores))
 
-    if VERBOSE:
-        print("\nFinal processed torsion rules:")
-        for bond, rule in bond_to_rule.items():
-            print(f"\tBond {bond}: {rule}")
 
     # Step 4: Discretize angles and estimate total possible conformations
     angle_map = {}
@@ -953,6 +950,11 @@ def count_confs_by_rotbonds_v2(mol,
         angle_map[bond_idx] = [name, atom_indices, deduplicated_angles]
         score_map[bond_idx] = deduplicated_scores
         total_confs *= total_angles
+
+    if VERBOSE:
+        print("\nFinal processed torsion rules:")
+        for angle, score in zip(angle_map.values(), score_map.values()):
+            print(f"\t{angle[0]}: {angle[1]} -> Angles: {angle[2]}, Scores: {score}")
 
     return total_confs, angle_map, score_map
 
