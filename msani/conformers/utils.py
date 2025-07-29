@@ -572,16 +572,20 @@ def count_confs_by_rotbonds(mol,
             temp = []
            
             for peak in rule[2]:
+                if period == 1:
+                    temp.append(peak)
+                    break
                 is_similar = any(period - 10 < abs(peak[0] - existing_peak[0]) < period + 10
                     for existing_peak in temp)
                 if not is_similar:
                     temp.append(peak)
             rule[2] = temp
     match_torlib_clean = []
+    for rule in bond_to_rule.values():
+        match_torlib_clean.append(rule)
     if VERBOSE:
         print("\nFinal processed torsion rules:")
-        for rule in bond_to_rule.values():
-            match_torlib_clean.append(rule)
+        for rule in match_torlib_clean:
             print(f"\t{rule}")
 
     return match_torlib_clean
