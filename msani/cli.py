@@ -236,7 +236,7 @@ def main():
         if args.input_files is not None and args.smiles is None:
             input_path = pathlib.Path(args.input_files[0])
             if args.prefix is not None: log_file = f'{args.prefix}.log' 
-            else: log_file = input_path.with_suffix('.log')
+            else: log_file = pathlib.Path(f"{input_path.stem}.log")
         else: log_file = 'msani.log'
         loggers.setup_logger(log_file)
         original_command = ' '.join(sys.argv)
