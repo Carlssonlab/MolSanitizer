@@ -262,13 +262,13 @@ class TorsionLibrary:
                 #print("first assumption correct")
                 for angle in rule[3]:
                     new_angle = list(angle)
-                    new_angle[0] = normalize_angle(new_angle[0] - diff_angle1_lp)
+                    new_angle[0] = round(normalize_angle(new_angle[0] - diff_angle1_lp), 1)
                     new_angles.append(new_angle)
                 return [rule[0], (idx_1, idx_2, idx_3, idx_4), new_angles]
             else:
                 for angle in rule[3]:
                     new_angle = list(angle)
-                    new_angle[0] = normalize_angle(new_angle[0] - diff_angle2_lp)
+                    new_angle[0] = round(normalize_angle(new_angle[0] - diff_angle2_lp), 1)
                     new_angles.append(new_angle)
                 return [rule[0], (idx_1, idx_2, idx_3, idx_5), new_angles]
             
