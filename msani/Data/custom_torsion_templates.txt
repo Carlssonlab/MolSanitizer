@@ -1,0 +1,8 @@
+# Template for customized torsion driving
+# Format: Comma separated. Weight is optional, not set = equal weights
+# In case using commas in SMARTS, put it in quotation marks ("text") 
+# SMARTS, possible angle values (sep by space), weight (optional)
+# Example:
+# [O:1]=[C:2]-[N:3][H:4], 180
+# "[O:1]=[C:2]-[N,O,X:3][!H:4]", 0 180
+# [*:1]~[CX4:2]!@[OX2:3]~[*:4], 0 120 240, 1 1 1

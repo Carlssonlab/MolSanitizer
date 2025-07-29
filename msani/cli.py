@@ -135,9 +135,19 @@ def process_files(args, start_time: int):
             chunk = apply_processes(chunk, args, rejected_file)
             if not chunk.empty:
                 if args.synthon and not(args.standardize):
-                    chunk.to_csv(output_file, index=False, mode='a', columns=['smiles', 'ids', 'highlights'], header=False, sep=' ')
+                    chunk.to_csv(output_file,
+                                 index=False,
+                                 mode='a',
+                                 columns=['smiles', 'ids', 'highlights'],
+                                 header=False,
+                                 sep=' ')
                 else:
-                    chunk.to_csv(output_file, index=False, mode='a', columns=['smiles', 'ids'], header=False, sep=' ')
+                    chunk.to_csv(output_file,
+                                 index=False,
+                                 mode='a',
+                                 columns=['smiles', 'ids'],
+                                 header=False,
+                                 sep=' ')
 
             if args.gen3d:
                 from msani.conformers import conformers
@@ -211,13 +221,15 @@ def main():
         print(version_text)
         return
    
-    if args.create_custom or args.create_protlib or args.create_taulib: 
+    if args.create_custom or args.create_protlib or args.create_taulib or args.create_torsion: 
         if args.create_custom:
             generateCustomTemplate(args, filename = 'filter_out.txt')
         if args.create_protlib:
             generateCustomTemplate(args, filename = 'ionizations_v3.txt')
         if args.create_taulib:
             generateCustomTemplate(args, filename = 'tautomers_v3.txt')
+        if args.create_torsion:
+            generateCustomTemplate(args, filename = 'custom_torsion_templates.txt')
         print("MolSanitizer templates have been generated. The program exits normally.")
         
     else:

@@ -1,3 +1,8 @@
+[*:1]-[CH3] methyl  360
+[*:1]-C(F)(F)F trifluoromethyl  360 
+[*:1]-C(Cl)(Cl)Cl  tricloromethyl  3
+[*:1]-C(Br)(Br)Br  tribroromethyl  3
+[*:1]-C(I)(I)I  triidomethyl  3
 [*:1]-[*X4^3:1](-[CH3])(-[CH3])-[CH3]   tertbutyl    3
 [!#1:1]-[NX4&+1H3] protonated_prim_amines 3
 [*:1]-[S:2](=O)(=O)-[O-] sulfates_sulfonates 3
