@@ -79,3 +79,6 @@ Clc1ccccc1C(c1ccccc1)(c1ccccc1)n1ccnc1	imidazole_non-2-amino
 CNc1ncc[nH]1	2-aminoimidazole
 CNc2nc1ccccc1[nH]2	2-aminobenzimidazole
 Cc2nc1ccccc1[nH]2	benzimidazoles_non-2-amino
+O=C1c2c(C(c3c1c(OC)ccc3)=O)c(O)ccc2O anthracyclines
+O=C1C(O)C(C(C)O1)=O enolize_vinylog_acid-CH1
+O=C1CC(C=CO1)=O enolize_vinylog_acid-CH2
