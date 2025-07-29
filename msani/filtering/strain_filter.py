@@ -3,16 +3,16 @@
 # This script is used to filter out conformers that do not satisfy the torsion rules in the torlib (last update 2022).
 # This is a part of the MolSanitizer project. But could be used as a standalone script.
 # strain_filter.py -i mol2_file.mol2 -tol 1 -p prefix
-import xml.etree.ElementTree as ET
-from rdkit import Chem
-from rdkit.Chem import rdMolTransforms
-from pathlib import Path
+
 import os
-from os import sys
-from numpy.linalg import norm
-from numpy import array, cross, dot
 import argparse
 
+from pathlib import Path
+from rdkit import Chem
+from rdkit.Chem import rdMolTransforms
+
+from msani.conformers.torsions import TorsionLibrary
+from msani.conformers.utils import within_tolerance
 
 def get_atoms_template(pattern):
     pattern_atoms = pattern.GetAtoms()
@@ -34,227 +34,7 @@ def get_atoms_mol(matches, template_map):
     return filtered_matches
 
 
-def parse_torlib(xml_file = Path(__file__).parent.parent / 'Data' / 'modified_tor_lib_2020.xml', downscale_GG_rule = False):
-    """This function parse the torlib by the specific class to general class GG, 
-    and return a list of tuples with the following format:
-    (smarts, rdkit object of the smarts, 4_to_5_atoms_template, [(prefered, tolerance), ...])
-    downscale_GG_rule (default False): either to undersample the general rules (GG), added for extensive2
-    Returns:
-        Torlib: list of tuples with the following format:
-        (smarts, rdkit object of the smarts, 4_to_5_atoms_template, [(prefered, tolerance), ...])
-    """
-    tree = ET.parse(xml_file)
-    root = tree.getroot()
-    Torlib = []
-    for Class in (root.iter(tag='hierarchyClass')):
-        if Class.get("name") != "GG": #Not the general class
-            for Rule in Class.iter(tag='torsionRule'):
-                if  "N_lp" in Rule.get("smarts"): continue
-                else:
-                    pattern = Chem.MolFromSmarts(Rule.get("smarts"))
-                    Torlib.append((Rule.get("smarts"),
-                                (pattern),
-                                get_atoms_template(pattern),
-                                [(((float(angle.get("value")))), float(angle.get("tolerance1")), float(angle.get("tolerance2")), round(float(angle.get("score"))+0.05, 2)) for angle in Rule.iter(tag='angle')]))
 
-    for Rule in root.find("hierarchyClass[@name='GG']").iter("torsionRule"):
-        if  "N_lp" in Rule.get("smarts"): 
-            continue
-        else:
-            pattern = Chem.MolFromSmarts(Rule.get("smarts"))
-            if downscale_GG_rule:
-                if Rule.get("smarts") == "[*:1]~[CX4:2]!@[OX2:3]~[*:4]" or Rule.get("smarts") == "[*:1]~[OX2:2]!@[P:3]~[*:4]":
-                    Torlib.append((Rule.get("smarts"),
-                        (pattern),
-                        get_atoms_template(pattern),           # Special treatment for aliphatic hydroxyls and phosphates
-                        [(((float(angle.get("value")))), float(0), float(0), round(float(angle.get("score"))+0.05, 2)) for angle in Rule.iter(tag='angle')]))
-                else:
-                    Torlib.append((Rule.get("smarts"),
-                            (pattern),
-                            get_atoms_template(pattern),     # Do not include tolerance2 here for undersample of GG rules. Below doubled tolerance1 is intentional
-                            [(((float(angle.get("value")))), float(angle.get("tolerance1")), float(angle.get("tolerance1")), round(float(angle.get("score"))+0.05, 2)) for angle in Rule.iter(tag='angle')]))
-            else:
-                Torlib.append((Rule.get("smarts"),
-                            (pattern),
-                            get_atoms_template(pattern),
-                            [(((float(angle.get("value")))), float(angle.get("tolerance1")), float(angle.get("tolerance2")), round(float(angle.get("score"))+0.05, 2)) for angle in Rule.iter(tag='angle')]))
-    return Torlib
-
-
-def parse_dihedral_set(dihedral_str):
-    # Remove leading/trailing quotes and split by commas
-    dihedral_list = dihedral_str.replace("'", "").split(', ')
-    return [int(x) for x in dihedral_list]
-
-def parse_sr_confs_library(xml_file = Path(__file__).parent.parent /'Data/sr_confs.xml'):
-    """
-    Parse the XML file containing the SR conformer library and extract the data.
-    """
-    tree = ET.parse(xml_file)
-    root = tree.getroot()
-    planar = []
-    non_planar = []
-    for ring in root.findall('ring'):
-        name = ring.get('name')  # Extract the ring name
-        smarts = ring.find('smarts').get('smarts')  # Extract the smarts string
-        mol = Chem.MolFromSmarts(smarts)  # Create RDKit molecule from smarts
-        
-        dihedral_sets = []
-        for dihedral_set in ring.find('dihedral_sets').findall('set'):
-            dihedral_str = dihedral_set.get('dihedral')  # Extract dihedral string
-            dihedral_list = parse_dihedral_set(dihedral_str)  # Parse dihedral to list of ints
-            #value = int(dihedral_set.get('value'))  # Extract the value
-            dihedral_sets.append(tuple(dihedral_list))
-        
-        # Append the tuple of extracted data
-        if 'planar' in name: planar.append((name, smarts, mol, dihedral_sets))
-        else: non_planar.append((name, smarts, mol, dihedral_sets))
-    return planar, non_planar
-
-def normalize_degree(degree):
-    """Normalize the degree to the range [-180, 180]."""
-    while degree > 180:
-        degree -= 360
-    while degree < -180:
-        degree += 360
-    return degree
-
-def handle_lp_rules(mol, rule, match_5_atoms):
-    """From the three neighboring atoms to the N atom in the sulfonamide,
-    estimate the position of the lone pair and apply the corresponding rule from the TorLib.
-
-    Args:
-        mol (_type_): _description_
-        Torlib (_type_): _description_
-        match_5_atoms (_type_): _description_
-    """
-
-    temp_conf = mol.GetConformer(0)
-    
-    idx_1, idx_2, idx_3, idx_4, idx_5 = match_5_atoms # atom_1, S, N, atom_4, atom_5
-    positions = mol.GetConformer().GetPositions()
-    N_pos = positions[idx_3]
-    neighbor_positions = positions[[idx_2, idx_4, idx_5]] 
-    
-    # Normalize the distances from nitrogen to each of the neighbors, 
-    # form a plane by the three normalized neighbors
-    # and calculate the normal vector to the plane.
-    # The normal vector will be used to estimate the position of the lone pair.
-
-    normalized_positions = []
-    for pos in neighbor_positions:
-        distance = norm(N_pos - pos)
-        normalized_pos = N_pos + (pos - N_pos) / distance
-        normalized_positions.append(normalized_pos)
-    normalized_positions = array(normalized_positions)
-
-    # Calculate vectors for the plane
-    vec1 = normalized_positions[1] - normalized_positions[0]
-    vec2 = normalized_positions[2] - normalized_positions[0]
-
-    # Calculate the normal vector to the plane formed by the three neighbors
-    normal_vector = cross(vec1, vec2)
-    normal_vector /= norm(normal_vector)
-
-    # Calculate the vector from nitrogen to the projection point
-    projection_length = dot(N_pos - normalized_positions[0], normal_vector)
-    projection_point = N_pos - projection_length * normal_vector    
-    
-    vector_N_to_projection = projection_point - N_pos
-
-    # Predict the lone pair position by extending the vector in the opposite direction
-    lone_pair_position = N_pos - vector_N_to_projection * 5
-
-    # Create an editable molecule
-    editable_mol = Chem.EditableMol(mol)
-
-    # Add a dummy atom (e.g., using '*' for dummy) to represent the lone pair
-    dummy_atom = Chem.Atom('*')
-    dummy_idx = editable_mol.AddAtom(dummy_atom)
-
-    # Update the molecule
-    temp_mol = editable_mol.GetMol()
-    conf = temp_mol.GetConformer()
-    conf.SetAtomPosition(dummy_idx, lone_pair_position)
-    diff_angle1_lp = round(abs(rdMolTransforms.GetDihedralDeg(conf,*(dummy_idx, idx_2, idx_3, idx_4))), 2)
-    diff_angle2_lp = round(abs(rdMolTransforms.GetDihedralDeg(conf,*(dummy_idx, idx_2, idx_3, idx_5))), 2)
-    #print(diff_angle1_lp, diff_angle2_lp)
-    # What we want:                                                In case we choose the wrong reference for rotating, we have:
-    #                                 lp                                    
-    #                                 |                                              | (not in 0 to -90 deg)
-    #                                 N                                              N - lp                          
-    #   (first quarter: 0 to 90)    / | \   (fourth quarter: 0 to -90)              /   
-
-    # Idea: randomly rotate the dihedral 1,2,3,4 to +90 degrees (1st quarter), 
-    # if the dihedral 1,2,3,5 is within 0 to -90 degrees (fourth quarter), 1,2,3,4 is the correct reference for rotating
-    # else, choose 1,2,3,5
-    rdMolTransforms.SetDihedralDeg(temp_conf,*(idx_1, idx_2, idx_3, idx_4),value = 90)
-    angle_2 = rdMolTransforms.GetDihedralDeg(temp_conf,*(idx_1, idx_2, idx_3, idx_5))
-    #print(angle_2)
-    new_angles = []
-    if within_tolerance(angle_2, -45, 45):
-        #print("first assumption correct")
-        for angle in rule[3]:
-            new_angle = list(angle)
-            new_angle[0] = normalize_degree(new_angle[0] - diff_angle1_lp)
-            new_angles.append(new_angle)
-        return [rule[0], (idx_1, idx_2, idx_3, idx_4), new_angles]
-    else:
-        for angle in rule[3]:
-            new_angle = list(angle)
-            new_angle[0] = normalize_degree(new_angle[0] - diff_angle2_lp)
-            new_angles.append(new_angle)
-        return [rule[0], (idx_1, idx_2, idx_3, idx_5), new_angles]
-
-
-def get_match_dihedral(mol, Torlib):
-    """This function filters the molecule by the torsion rules in the Torlib.
-       
-
-    Args:
-        mol (_type_): _description_
-        Torlib (_type_): _description_
-    """
-    match = []
-    seen = set()
-    for idx,rule in enumerate(Torlib):
-        matches = mol.GetSubstructMatches(rule[1])
-        if len(matches)>0:
-            matches_atoms = get_atoms_mol(matches, rule[2])
-            if len(matches_atoms[0]) == 5: #Handle lonepair rules
-                #print(matches_atoms[0])
-                for (a, b, c, d, e) in matches_atoms: 
-                    if ((b,c) not in seen) and ((c,b) not in seen):
-                        seen.add((b,c))
-                        match.append(handle_lp_rules(mol, rule, (a, b, c, d, e)))
-            
-            else:
-                for (a, b, c, d) in matches_atoms:
-                    if ((b,c) not in seen) and ((c,b) not in seen):
-                        seen.add((b,c))
-                        match.append([rule[0], (a, b, c, d), rule[3].copy()])
-    return match
-
-
-def within_tolerance(angle, center, tolerance):
-    """
-    Check if an angle falls within a specified tolerance range around a central angle in the [-180, 180] range.
-
-    Args:
-    angle (float): The angle to check.
-    center (float): The central angle.
-    tolerance (float): The tolerance range.
-
-    Returns:
-    bool: True if the angle is within the tolerance range, False otherwise.
-    """
-    # Normalize angle and center to the [-180, 180] range
-    angle = (angle + 180) % 360 - 180
-    center = (center + 180) % 360 - 180
-    
-    # Calculate the difference considering wrap-around
-    diff = (angle - center + 180) % 360 - 180
-    return abs(diff) <= tolerance
 
 
 def extract_peaks(match, current_rot_bond):
@@ -318,7 +98,7 @@ def process_one_mol(current_comments_str, current_mol2_str, prefix, input, tol, 
     if debug: print(f'Processing {name}')
     if mol:
         if debug: print(f"SMILES: {Chem.MolToSmiles(mol)}")
-        match = get_match_dihedral(mol, Torlib)
+        match = Torlib.get_match_dihedral(mol)
         relaxed_angles = [False for _ in match]
         for rule_id, rule in enumerate(match):
             dihedral = rdMolTransforms.GetDihedralDeg(mol.GetConformer(0), *rule[1])
@@ -380,8 +160,8 @@ def strain_filter(args, Torlib):
         process_mol2_file(input_file, args.tolerance, args.prefix, Torlib, args.debug)
 
 def main():
-    Torlib = parse_torlib()
-    args = parseArguments(sys.argv[1:])
+    Torlib = TorsionLibrary()
+    args = parseArguments(os.sys.argv[1:])
     strain_filter(args, Torlib)
 
 if __name__ == "__main__":
