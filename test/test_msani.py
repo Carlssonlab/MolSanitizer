@@ -312,6 +312,32 @@ class Test_MolSanitizer(unittest.TestCase):
         shutil.rmtree(f"{temp_dir}")
         tmp_obj.cleanup()
 
+    def test_db2_sulfonamide(self):
+        tmp_obj = tempfile.TemporaryDirectory()
+        temp_dir = tmp_obj.name
+        args = self.generate_mock_arguments([f'{self.path}/in_sulfonamide.smi'],
+                                            ['gen3d', 'test'], temp_dir)
+        args.format = ['db2']        
+        args.prefix = Path(temp_dir)
+
+        cli.clean_data(args)
+        # If the file was produced
+        self.assertTrue(Path(f"{temp_dir}/db2/N-Methylbenzenesulfonamide.db2").exists(),
+                        "DB2 file was not created.")
+        
+        # If produce 1 conformer
+        n_rigid = 0
+        with open(f"{temp_dir}/db2/N-Methylbenzenesulfonamide.db2") as db2_file:
+            for line in db2_file:
+                if line.startswith('M '): n_rigid += 1
+            del db2_file
+        n_rigid /= 5 # 5 lines per rigid scaffold
+        # Check if the two regioisomers were generated
+        self.assertEqual(n_rigid, 2, 'DB2 file was not created correctly.')
+        os.chdir(self.path)
+        shutil.rmtree(f"{temp_dir}")
+        tmp_obj.cleanup()
+        
     def test_pdbqt_generation(self):
         #with tempfile.TemporaryDirectory() as temp_dir:
             try:
