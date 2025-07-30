@@ -1,0 +1,3 @@
+O=C(N[C@H]1C[C@@H](C(=O)NOCCc2ccccc2)C1)c1nsnc1O mol1
+Cc1cc(C(=O)NC[C@H]2C[C@@H](C(=O)NCC3CCCC3)C2)[nH]c(=O)n1 mol2_1
+Cc1cc(C(=O)NC[C@H]2C[C@@H](C(=O)NCC3CCCC3)C2)nc(=O)[nH]1 mol2_2
