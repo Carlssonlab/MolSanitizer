@@ -509,17 +509,23 @@ class ConformerGenerator:
         """
         
         """
+        random.seed(self.randomSeed)
         if product: min_energy = min([conf[1] for conf in product])
         else: min_energy = 1e6
 
         attempts = 0
-        max_stagnation = min(max_attempts // 10, 2000)  # Stop if no progress
+        max_stagnation = min(max_attempts // 10, 5000)  # Stop if no progress
         stagnation_counter = 0
         last_product_size = 0
 
         bonded_pairs, same_parent_pairs = utils.precompute_bonded_and_same_parent_pairs(mol)
         n_transform = len(match_torlib)  # Number of rotatable bonds
         visitting = [0 for _ in range(n_transform)]
+        
+        # First, reset all the dihedral to 0.
+        for rule in match_torlib:
+            rdMolTransforms.SetDihedralDeg(mol.GetConformer(0), *rule[1], 0)
+
         if visited is None: visited = empty((0, n_transform))
         # New approach: use angles
         while len(product) < numConfs:
@@ -555,12 +561,14 @@ class ConformerGenerator:
             if energy < min_energy: min_energy = energy
             if energy <= min_energy + window: 
                 product.append((Chem.Conformer(mol.GetConformer(0)), energy))
-                last_product_size += 1
+
             # Check for early stopping conditions
-            if len(product) == last_product_size:
-                stagnation_counter += 1
-            else:
-                stagnation_counter = 0
+                if len(product) == last_product_size:
+                    stagnation_counter += 1
+                else:
+                    stagnation_counter = 0
+                    last_product_size = len(product)
+                
                 
         return product
 
@@ -599,12 +607,14 @@ class ConformerGenerator:
                                  AllowNonRing = AllowNonRing,
                                  request_alignment = request_alignment)
             return
-        match_torlib = utils.count_confs_by_rotbonds(mol = self.ring_confs[0],
-                                                     rot_bonds = self.rot_bonds,
-                                                     amide_bonds = self.amide_linkages,
-                                                     ignoretorlib = ignoreTorlib,
-                                                     torlib = self.torlib,
-                                                     VERBOSE = self.VERBOSE)
+        possible_numConfs, match_torlib = utils.count_confs_by_rotbonds(
+                                                    mol = self.ring_confs[0],
+                                                    rot_bonds = self.rot_bonds,
+                                                    amide_bonds = self.amide_linkages,
+                                                    ignoretorlib = ignoreTorlib,
+                                                    torlib = self.torlib,
+                                                    VERBOSE = self.VERBOSE
+                                                )
         
         requested_num_confs = numConfs
         #if VERBOSE: print(f"\t{num_confs_by_rotbonds} {num_confs_H} {num_rotatable_H} {numConfs}")
@@ -618,12 +628,13 @@ class ConformerGenerator:
             return
         # For very flexible molecules, we need to sample more, then filter by energy later
         else:
-            numConfs = min(numConfs*1.5, numConfs + 1000)
+            numConfs = min(numConfs*1.5, numConfs + 1000, possible_numConfs)
             
 
         if self.VERBOSE:
             rigid_info = f'\tFound {self.atom_maps} ({self.label_map}) as a rigid part' if self.label_map else f'\tFound {self.atom_maps} (rings) as rigid parts'
             print(rigid_info)
+            print("\tMaximum possible conformers based on rotatable bonds: ", possible_numConfs)
 
 
         if (len(match_torlib) == 0):
@@ -637,7 +648,7 @@ class ConformerGenerator:
               
             # Only remap the match_torlib when sulfo_matches is found
             if self.sulfo_matches: 
-                match_torlib = utils.count_confs_by_rotbonds(
+                _, match_torlib = utils.count_confs_by_rotbonds(
                                                             mol = mol,
                                                             rot_bonds = self.rot_bonds,
                                                             amide_bonds = self.amide_linkages,
@@ -647,14 +658,15 @@ class ConformerGenerator:
                                                             )
             if self.VERBOSE: print('\tRunning stochastic torsional sampling')
             
-            product = self.stochastic_sampling(mol = processing_mol,
+            product = self.stochastic_sampling( mol = processing_mol,
                                                 tolerance_level = 2,
                                                 match_torlib = match_torlib,
                                                 numConfs = numConfs,
                                                 window = energywindow,
                                                 max_attempts = 50000,
                                                 product = list(),
-                                                visited = None)
+                                                visited = None
+                                                )
 
             if len(product) == 0: # No conformers are generated, use initial conformation instead
                 print(f'Failed for stochastic sampling (generated {len(product)} confs), use the original conformation')
@@ -702,11 +714,11 @@ class ConformerGenerator:
         Returns:
             product (list): A list of tuples containing the generated conformers and their energies.
         """
+        random.seed(self.randomSeed)
         bonded_pairs, same_parent_pairs = utils.precompute_bonded_and_same_parent_pairs(mol)
         attempts = 0
         min_energy = 1e6
-
-        
+  
         if possible_numConfs <= max_attempts: # Try 
             # Generate all combinations, then randomly taken from them, only valid for small combinatorial space
             # If the number of conformations is manageable, we can enumerate all combinations
@@ -804,12 +816,14 @@ class ConformerGenerator:
                 if energy < min_energy: min_energy = energy
                 if energy <= min_energy + window: 
                     product.append((Chem.Conformer(mol.GetConformer(0)), energy))
-                    last_product_size += 1
+                
                 # Check for early stopping conditions
                 if len(product) == last_product_size:
                     stagnation_counter += 1
                 else:
                     stagnation_counter = 0
+                    last_product_size = len(product)
+                    
                 
         return product
     
@@ -884,12 +898,13 @@ class ConformerGenerator:
             
             if len(product) == 0:
                 print(f'Failed to find any confs for {self.name} (generated {len(product)} confs), using the random dihedral angles approach as a fallback')
-                match_torlib = utils.count_confs_by_rotbonds(mol = self.ring_confs[0],
+                possible_numConfs, match_torlib = utils.count_confs_by_rotbonds(mol = self.ring_confs[0],
                                                              rot_bonds = self.rot_bonds,
                                                              amide_bonds = self.amide_linkages,
                                                              ignoretorlib = ignoreTorlib,
                                                              torlib = self.torlib,
                                                              VERBOSE = self.VERBOSE)
+                numConfs = min(numConfs*1.5, numConfs + 1000, possible_numConfs)
                 product = self.stochastic_sampling( mol = processing_mol,
                                                     tolerance_level = 2, 
                                                     match_torlib = match_torlib,

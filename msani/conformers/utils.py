@@ -579,15 +579,22 @@ def count_confs_by_rotbonds(mol,
                 if not is_similar:
                     temp.append(peak)
             rule[2] = temp
+    
+    total_confs = 1
+    
     match_torlib_clean = []
     for rule in bond_to_rule.values():
         match_torlib_clean.append(rule)
+        total_angles = 0
+        for peak in rule[2]:
+            total_angles += (peak[2]*2/30 + 1)
+        total_confs *= total_angles
     if VERBOSE:
         print("\nFinal processed torsion rules:")
         for rule in match_torlib_clean:
             print(f"\t{rule}")
 
-    return match_torlib_clean
+    return int(total_confs), match_torlib_clean
 
 def get_random_angle(mean, tolerance, method='gauss', rounding = False):
     """
@@ -956,10 +963,6 @@ def count_confs_by_rotbonds_v2(mol,
         score_map[bond_idx] = deduplicated_scores
         total_confs *= total_angles
 
-    if VERBOSE:
-        print("\nFinal processed torsion rules:")
-        for angle, score in zip(angle_map.values(), score_map.values()):
-            print(f"\t{angle[0]}: {angle[1]} -> Angles: {angle[2]}, Scores: {score}")
 
     return total_confs, angle_map, score_map, rot_bonds
 
