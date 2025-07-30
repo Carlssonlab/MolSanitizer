@@ -98,7 +98,7 @@ def process_one_mol(current_comments_str, current_mol2_str, prefix, input, tol, 
     if debug: print(f'Processing {name}')
     if mol:
         if debug: print(f"SMILES: {Chem.MolToSmiles(mol)}")
-        match = Torlib.get_match_dihedral(mol)
+        match = Torlib.get_match_dihedral(mol, mode = 'random')
         relaxed_angles = [False for _ in match]
         for rule_id, rule in enumerate(match):
             dihedral = rdMolTransforms.GetDihedralDeg(mol.GetConformer(0), *rule[1])

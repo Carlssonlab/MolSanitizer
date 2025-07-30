@@ -23,20 +23,13 @@ class TorsionLibrary:
     and handle the torsion rules.
     """
     
-    def __init__(self,
-                 xml_file = TORLIB_XML,
-                 downscale_GG_rule = False):
+    def __init__(self, xml_file = TORLIB_XML):
         self.xml_file = xml_file
-        self.downscale_GG_rule = downscale_GG_rule
         self.parse_torlib()
     
     def __repr__(self):
         print("Torsion Library from:", self.xml_file)
-        print("Number of rules:", len(self.Torlib))
-    
-    def __len__(self):
-        """Return the number of torsion rules in the library."""
-        return len(self.Torlib)
+        print("Number of rules:", len(self.Torlib_specific + self.Torlib_general))
 
     def add_custom_rule(self, smarts, angles, weights):
         """
@@ -55,7 +48,7 @@ class TorsionLibrary:
         for angle, score in zip(angles, weights):
             temp.append((angle, 0, 0, score))
         rule.append((smarts, pattern, TorsionLibrary.get_atoms_template(pattern), temp))
-        self.Torlib[:0] = rule  # Insert at the beginning of the list
+        self.Torlib_specific[:0] = rule  # Insert at the beginning of the list
 
     def add_custom_rules_from_file(self, file_path, debug = False):
         """
@@ -102,7 +95,7 @@ class TorsionLibrary:
             for rule in custom_rules:
                 print('\t' + str(rule))
         if custom_rules:
-            self.Torlib[:0] = custom_rules  # Insert at the beginning of the list
+            self.Torlib_specific[:0] = custom_rules  # Insert at the beginning of the list
         else:
             print("No valid custom rules found in the file.")
 
@@ -127,20 +120,21 @@ class TorsionLibrary:
         
         tree = ET.parse(self.xml_file)
         root = tree.getroot()
-        self.Torlib = []
+        self.Torlib_specific = []
         for Class in (root.iter(tag='hierarchyClass')):
             if Class.get("name") != "GG": #Not the general class
                 for Rule in Class.iter(tag='torsionRule'):
                     if  "N_lp" in Rule.get("smarts"): continue
                     else:
                         pattern = Chem.MolFromSmarts(Rule.get("smarts"))
-                        self.Torlib.append(
+                        self.Torlib_specific.append(
                             (Rule.get("smarts"),
                             (pattern),
                             TorsionLibrary.get_atoms_template(pattern),
                             [(((float(angle.get("value")))), float(angle.get("tolerance1")), float(angle.get("tolerance2")), round(float(angle.get("score"))+0.05, 2)) for angle in Rule.iter(tag='angle')])
                             )
 
+        self.Torlib_general = []
         for Rule in root.find("hierarchyClass[@name='GG']").iter("torsionRule"):
             if  "N_lp" in Rule.get("smarts"): 
                 continue
@@ -149,14 +143,14 @@ class TorsionLibrary:
                 if Rule.get("smarts") == "[*:1]~[CX4:2]!@[OX2:3]~[*:4]" or\
                     Rule.get("smarts") == "[*:1]~[OX2:2]!@[P:3]~[*:4]" or\
                     Rule.get("smarts") == "[*:1]~[CX4:2]!@[SX2:3]~[*:4]":
-                    self.Torlib.append(
+                    self.Torlib_general.append(
                         (Rule.get("smarts"),
                         (pattern),
                         TorsionLibrary.get_atoms_template(pattern),           # Special treatment for aliphatic hydroxyls and phosphates
                         [(((float(angle.get("value")))), float(0), float(0), round(float(angle.get("score"))+0.05, 2)) for angle in Rule.iter(tag='angle')])
                         )
                 else:
-                    self.Torlib.append(
+                    self.Torlib_general.append(
                         (Rule.get("smarts"),
                         (pattern),
                         TorsionLibrary.get_atoms_template(pattern),     
@@ -164,13 +158,13 @@ class TorsionLibrary:
                         )
                 
 
-    def get_match_dihedral(self, mol):
+    def get_match_dihedral(self, mol, mode = 'fixed'):
         """This function filters the molecule by the torsion rules in the Torlib.
         
 
         Args:
-            mol (_type_): _description_
-            Torlib (_type_): _description_
+            mol (Chem.Mol): The RDKit molecule object to be filtered.
+            mode (str): The mode of filtering. Can be 'fixed' or 'random
         """
 
         def get_atoms_mol(matches, template_map):
@@ -274,7 +268,7 @@ class TorsionLibrary:
             
         match = []
         seen = set()
-        for rule in self.Torlib:
+        for rule in self.Torlib_specific:
             matches = mol.GetSubstructMatches(rule[1])
             if len(matches)>0:
                 matches_atoms = get_atoms_mol(matches, rule[2])
@@ -290,6 +284,19 @@ class TorsionLibrary:
                         if ((b,c) not in seen) and ((c,b) not in seen):
                             seen.add((b,c))
                             match.append([rule[0], (a, b, c, d), rule[3].copy()])
+        
+        for rule in self.Torlib_general:
+            matches = mol.GetSubstructMatches(rule[1])
+            if len(matches)>0:
+                matches_atoms = get_atoms_mol(matches, rule[2])
+                for (a, b, c, d) in matches_atoms:
+                    if ((b,c) not in seen) and ((c,b) not in seen):
+                        seen.add((b,c))
+                        temp_rule = rule[3].copy()
+                        if mode == 'fixed':
+                            # Downscale the tolerance 2 to tolerance 1 for the general rules
+                            temp_rule = [(peak[0], peak[1], peak[1], peak[3]) for peak in rule[3]] 
+                        match.append([rule[0], (a, b, c, d), temp_rule])
         return match
 
 class SmallRingLibrary:

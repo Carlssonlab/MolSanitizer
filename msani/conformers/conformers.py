@@ -36,8 +36,8 @@ from msani.db2 import solv
 
 logger = logging.getLogger('msani')
 
-srlib = torsions.SmallRingLibrary()
-torlib = torsions.TorsionLibrary()
+SRLib = torsions.SmallRingLibrary()
+Torlib = torsions.TorsionLibrary()
 
 class ConformerGenerator:
     '''
@@ -56,20 +56,20 @@ class ConformerGenerator:
     '''
     def __init__(self, 
                  smiles, 
-                 name='test', 
-                 forcefield='MMFF94s',
-                 method='rdkit',
-                 pre_embed=False,
-                 randomSeed=42, 
-                 num_ring_confs=1, 
-                 numcores=1, 
-                 request_alignment=None,
-                 ignoreTorlib=False,
-                 threshold=1.6,
-                 mode='fixed',
-                 tolerance=30,
-                 torlib=torlib,
-                 VERBOSE=False):
+                 name = 'test', 
+                 forcefield = 'MMFF94s',
+                 method = 'rdkit',
+                 pre_embed = False,
+                 randomSeed = 42, 
+                 num_ring_confs = 1, 
+                 numcores = 1, 
+                 request_alignment = None,
+                 ignoreTorlib = False,
+                 threshold = 1.6,
+                 mode = 'fixed',
+                 tolerance = 30,
+                 torlib = Torlib,
+                 VERBOSE = False):
         """
         Initialize the ConformerGenerator object.
         
@@ -187,7 +187,7 @@ class ConformerGenerator:
         # Get ring information
         self.planar_rings, self.non_planar_rings = utils.get_flexible_ring(
             self.mol_H, 
-            srlib
+            SRLib
         )
         
         # Get other important substructures.
@@ -447,7 +447,7 @@ class ConformerGenerator:
         barbiturate_matches = utils.find_barbiturates(mol_rdkit)
         hydantoin_matches = utils.find_hydantoins(mol_rdkit)
         substituted_N_barbi_hydan_like = utils.find_substituted_N_barbi_hydan_like(mol_rdkit, barbiturate_matches, hydantoin_matches)
-        planar_rings, _ = utils.get_flexible_ring(mol_rdkit, srlib) 
+        planar_rings, _ = utils.get_flexible_ring(mol_rdkit, SRLib) 
         self.mp = rdForceFieldHelpers.MMFFGetMoleculeProperties(mol_rdkit, mmffVariant="MMFF94s")
         self.mp.SetMMFFEleTerm(False)
         ff = rdForceFieldHelpers.MMFFGetMoleculeForceField(mol_rdkit, self.mp, confId=0)
@@ -600,11 +600,11 @@ class ConformerGenerator:
                                  request_alignment = request_alignment)
             return
         match_torlib = utils.count_confs_by_rotbonds(mol = self.ring_confs[0],
-                                                    rot_bonds = self.rot_bonds,
-                                                    amide_bonds = self.amide_linkages,
-                                                    ignoretorlib = ignoreTorlib,
-                                                    torlib = self.torlib,
-                                                    VERBOSE = self.VERBOSE)
+                                                     rot_bonds = self.rot_bonds,
+                                                     amide_bonds = self.amide_linkages,
+                                                     ignoretorlib = ignoreTorlib,
+                                                     torlib = self.torlib,
+                                                     VERBOSE = self.VERBOSE)
         
         requested_num_confs = numConfs
         #if VERBOSE: print(f"\t{num_confs_by_rotbonds} {num_confs_H} {num_rotatable_H} {numConfs}")
@@ -826,7 +826,7 @@ class ConformerGenerator:
                                                                                    rot_bonds = self.rot_bonds,
                                                                                    amide_bonds = self.amide_linkages,
                                                                                    ignoretorlib = ignoreTorlib,
-                                                                                   torlib = torlib,
+                                                                                   torlib = self.torlib,
                                                                                    VERBOSE=self.VERBOSE)
         importance_order = utils.get_importance_order(self.ring_confs[0], rot_bonds)
         requested_num_confs = numConfs
@@ -868,7 +868,7 @@ class ConformerGenerator:
                                                                                             rot_bonds = self.rot_bonds,
                                                                                             ignoretorlib = ignoreTorlib,
                                                                                             amide_bonds = self.amide_linkages,
-                                                                                            torlib = torlib,
+                                                                                            torlib = self.torlib,
                                                                                             VERBOSE = self.VERBOSE)
             if self.VERBOSE: print('\tRunning stochastic torsional sampling')
             
@@ -885,11 +885,11 @@ class ConformerGenerator:
             if len(product) == 0:
                 print(f'Failed to find any confs for {self.name} (generated {len(product)} confs), using the random dihedral angles approach as a fallback')
                 match_torlib = utils.count_confs_by_rotbonds(mol = self.ring_confs[0],
-                                                            rot_bonds = self.rot_bonds,
-                                                            amide_bonds = self.amide_linkages,
-                                                            ignoretorlib = ignoreTorlib,
-                                                            torlib = torlib,
-                                                            VERBOSE = self.VERBOSE)
+                                                             rot_bonds = self.rot_bonds,
+                                                             amide_bonds = self.amide_linkages,
+                                                             ignoretorlib = ignoreTorlib,
+                                                             torlib = self.torlib,
+                                                             VERBOSE = self.VERBOSE)
                 product = self.stochastic_sampling( mol = processing_mol,
                                                     tolerance_level = 2, 
                                                     match_torlib = match_torlib,
@@ -1214,7 +1214,7 @@ def gen_conf_chunk(df: DataFrame, args, input_file='0'):
     request_alignment = Chem.MolFromSmarts(utils.canonicalize_if_smiles(request_alignment)) if request_alignment else None
     if not(ignoreTorlib):
         if args.torsion:
-            torlib.add_custom_rules_from_file(args.torsion, debug = VERBOSE)
+            Torlib.add_custom_rules_from_file(args.torsion, debug = VERBOSE)
 
     # Test mode in unittest, not to produce redundant files here
     if args.test: 

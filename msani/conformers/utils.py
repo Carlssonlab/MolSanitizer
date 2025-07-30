@@ -526,7 +526,7 @@ def count_confs_by_rotbonds(mol,
     bond_to_rule (dict): A dictionary mapping each rotatable bond to its corresponding rule.
     """
 
-    matched_rules = torlib.get_match_dihedral(mol)
+    matched_rules = torlib.get_match_dihedral(mol, mode = 'random')
     amide_atoms = set()
     if (amide_bonds):
         for b, c in amide_bonds:
@@ -548,7 +548,6 @@ def count_confs_by_rotbonds(mol,
             if ignoretorlib and len(set(bond) & amide_atoms) <= 1:
                 rule_copy[2] = const_rule
             bond_to_rule[bond] = rule_copy
-    
     for _, sym_row in symmetric_patterns_df.iterrows():
         matches = mol.GetSubstructMatches(sym_row['mol'])
         if not matches:
@@ -825,7 +824,8 @@ def count_confs_by_rotbonds_v2(mol,
             - score_map (dict): Mapping of bond indices to scores for each angle.
     """
     # Step 1: Match torsion rules and rotatable bonds
-    matched_rules = torlib.get_match_dihedral(mol)
+    rot_bonds = rot_bonds.copy()
+    matched_rules = torlib.get_match_dihedral(mol, mode = 'fixed')
 
     amide_atoms = set()
     if (amide_bonds):
