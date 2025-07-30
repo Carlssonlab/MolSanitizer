@@ -131,6 +131,16 @@ class Mol2Writer:
 
     def _pre_assign_atom_types(self, mol, atom_types):
         """Use SMARTS to identify known functional groups and assign their atom types directly."""
+        # Amide CONH
+        # Pattern: [C;X3](=O)N
+        # Match order: C_idx, O_idx, N_idx
+        for match in mol.GetSubstructMatches(self.smarts_patterns['amide']):
+            c_idx, o_idx, n_idx = match
+            atom_types[c_idx] = 'C.2'
+            atom_types[o_idx] = 'O.2'
+            atom_types[n_idx] = 'N.am'
+            self.amide_bonds.add(tuple(sorted((c_idx, n_idx))))
+
         # Carboxylate COO-
         # Pattern: [C;X3](=O)[O-]
         # Match order: C_idx, O(double) idx, O(-) idx
@@ -149,16 +159,6 @@ class Mol2Writer:
             atom_types[o_double_idx] = 'O.2'
             # The OH oxygen in a COOH is neutral -> O.2
             atom_types[o_oh_idx] = 'O.2'
-
-        # Amide CONH
-        # Pattern: [C;X3](=O)N
-        # Match order: C_idx, O_idx, N_idx
-        for match in mol.GetSubstructMatches(self.smarts_patterns['amide']):
-            c_idx, o_idx, n_idx = match
-            atom_types[c_idx] = 'C.2'
-            atom_types[o_idx] = 'O.2'
-            atom_types[n_idx] = 'N.am'
-            self.amide_bonds.add(tuple(sorted((c_idx, n_idx))))
 
 
         # Phosphate
