@@ -913,6 +913,14 @@ def count_confs_by_rotbonds_v2(mol,
                 bond_to_rule.pop(bond_key)
                 rot_bonds.remove(bond_key)
                 continue
+
+            if sym_row['name'] == 'tri_large_halogeno_methyl':
+                # Special case for tri_large_halogeno_methyl, where we want to permute + 30o.
+                rule = bond_to_rule[bond_key]
+                peaks = rule[2]
+                angles = [normalize_angle(peaks[0][0] + x) for x in [0, -30, 30]]
+                scores = [peaks[0][3], round(peaks[0][3]/2, 2), round(peaks[0][3]/2, 2)]
+                rule[2] = list(zip(angles, scores))
             if VERBOSE:
                 print(f'\tRemove duplicated rotation for {bond_key}')
             rule = bond_to_rule[bond_key]
