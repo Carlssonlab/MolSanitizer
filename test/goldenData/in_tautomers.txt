@@ -235,3 +235,9 @@ Cc2c1ccccc1c(O)n2C	1-OH-isoindole_to_phthalimidine-CH0
 Cn2cc1ccccc1c2O	1-OH-isoindole_to_phthalimidine-CH1
 O=c1[nH]c(C)ccn1 2-pyrimidinones
 CC(=O)c1c(O)n(C)c(=O)n(C)c1=O acyl-barbiturate-endo-enol_to_exo
+Cc1[nH]c(O)cc1O	pyrrole-2,4-diol_to_tetramic-acid-CH0
+Oc1c[nH]c(O)c1	pyrrole-2,4-diol_to_tetramic-acid-CH1
+CC(=O)c1c(O)[nH]c(C)c1O	3-acylpyrrole-2,4-diol_to_tetramic-acid-CH0-NH0
+CN=C(C)c1c(O)c[nH]c1O	3-acylpyrrole-2,4-diol_to_tetramic-acid-CH1-NH0
+CC(=N)c1c(O)[nH]c(C)c1O	3-acylpyrrole-2,4-diol_to_tetramic-acid-CH0-NH1
+CC(=N)c1c(O)c[nH]c1O	3-acylpyrrole-2,4-diol_to_tetramic-acid-CH1-NH1

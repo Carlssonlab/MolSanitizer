@@ -24,7 +24,7 @@ CC1=CC(=O)c2ccccc2C1=O Menadione
 Nc1ncnc2[nH]cnc12 Adenine
 CCC(C)C(=O)OC1CC(O)C=C2C=CC(C)C(CCC(O)CC(O)CC(=O)[O-])C21 Pravastatin
 COCCCCC(=NOCC[NH3+])c1ccc(C(F)(F)F)cc1 Fluvoxamine
-CCCCC(=O)N(Cc1ccc(-c2ccccc2-c2nn[n-]n2)cc1)C(C(=O)[O-])C(C)C Valsartan
+CCCCC(=O)N(Cc1ccc(-c2ccccc2-c2nnn[n-]2)cc1)C(C(=O)[O-])C(C)C Valsartan
 CCOC(=O)C(CCc1ccccc1)[NH2+]C(C)C(=O)N1C(C(=O)[O-])CC2CCCC21 Ramipril
 CC(Cc1ccc(O)c(O)c1)C(C)Cc1ccc(O)c(O)c1 Masoprocol
 CC1(C)OC2CC3C4CC(F)C5=CC(=O)C=CC5(C)C4C(O)CC3(C)C2(C(=O)CO)O1 Flunisolide
@@ -470,7 +470,7 @@ CC(OC1OCC[NH+](Cc2n[nH]c(=O)[nH]2)C1c1ccc(F)cc1)c1cc(C(F)(F)F)cc(C(F)(F)F)c1 Apr
 COc1ccc2c3c1OC1CC(O)C=CC31CC[NH+](C)C2 Galantamine
 CCC(=C(c1ccccc1)c1ccc(OCC[NH+](C)C)cc1)c1ccccc1 Tamoxifen
 O=C(OCc1ccccc1)c1ccccc1 Benzyl_benzoate
-CCCCc1nc(Cl)c(CO)n1Cc1ccc(-c2ccccc2-c2nn[n-]n2)cc1 Losartan
+CCCCc1nc(Cl)c(CO)n1Cc1ccc(-c2ccccc2-c2nnn[n-]2)cc1 Losartan
 CSc1ccc2c(c1)N(CCC1CCCC[NH+]1C)c1ccccc1S2 Thioridazine
 CCOC(=O)Nc1ccc2c(c1)N(C(=O)CC[NH+]1CCOCC1)c1ccccc1S2 Moricizine
 CC(=O)CC(c1ccccc1)c1c([O-])c2ccccc2oc1=O Warfarin
@@ -658,7 +658,7 @@ CCOC(=O)C(CCc1ccccc1)[NH2+]C(C)C(=O)N1Cc2ccccc2CC1C(=O)[O-] Quinapril
 CC[NH+](CC)CCOc1ccc(C(=C(Cl)c2ccccc2)c2ccccc2)cc1 Clomifene
 O=[N+]([O-])OC1COC2C(O[N+](=O)[O-])COC12 Isosorbide_dinitrate
 O=P([O-])([O-])C(O)(Cc1cccnc1)P(=O)([O-])[O-] Risedronic_acid
-Cc1cccn2c(=O)c(-c3nn[n-]n3)cnc12 Pemirolast
+Cc1cccn2c(=O)c(-c3nnn[n-]3)cnc12 Pemirolast
 CCCCNc1cc(C(=O)[O-])cc(S(N)(=O)=O)c1Oc1ccccc1 Bumetanide
 Cn1nc(C(=O)NC2CC3CCCC(C2)[NH+]3C)c2ccccc21 Granisetron
 CC=C(C(=CC)c1ccc(O)cc1)c1ccc(O)cc1 Dienestrol
@@ -785,7 +785,7 @@ CCOC(=O)C1=C(C)NC(C)=C(C(=O)OC)C1c1cccc(Cl)c1Cl Felodipine
 COc1c(C)c2c(c(O)c1CC=C(C)CCC(=O)[O-])C(=O)OC2 Mycophenolic_acid
 CC(C)c1ccc2oc3nc(N)c(C(=O)[O-])cc3c(=O)c2c1 Amlexanox
 CC(=O)N1CCN(c2ccc(OCC3COC(Cn4ccnc4)(c4ccc(Cl)cc4Cl)O3)cc2)CC1 Ketoconazole
-CCCCC1=NC2(CCCC2)C(=O)N1Cc1ccc(-c2ccccc2-c2nn[n-]n2)cc1 Irbesartan
+CCCCC1=NC2(CCCC2)C(=O)N1Cc1ccc(-c2ccccc2-c2nnn[n-]2)cc1 Irbesartan
 CCC1(O)C(=O)OCc2c1cc1n(c2=O)Cc2cc3c(C[NH+](C)C)c(O)ccc3nc2-1 Topotecan
 C#CC1(OC(N)=O)CCCCC1 Ethinamate
 CCCN(CCC)S(=O)(=O)c1ccc(C(=O)[O-])cc1 Probenecid
@@ -1381,7 +1381,7 @@ O=C1C2C3CCC(C3)C2C(=O)N1CC1CCCCC1C[NH+]1CCN(c2nsc3ccccc23)CC1 Lurasidone
 CCCSc1nc(NC2CC2c2ccc(F)c(F)c2)c2nnn(C3CC(OCCO)C(O)C3O)c2n1 Ticagrelor
 CC(C)OC(=O)CCCC=CCC1C(O)CC(O)C1C=CC(F)(F)COc1ccccc1 Tafluprost
 CC(C)(C)c1cc(C(C)(C)C)c(NC(=O)c2c[nH]c3ccccc3c2=O)cc1O Ivacaftor
-CCOc1nc2cccc(C(=O)OCc3oc(=O)oc3C)c2n1Cc1ccc(-c2ccccc2-c2noc(=O)[nH]2)cc1 Azilsartan_medoxomil
+CCOc1nc2cccc(C(=O)OCc3oc(=O)oc3C)c2n1Cc1ccc(-c2ccccc2-c2noc([O-])n2)cc1 Azilsartan_medoxomil
 COC(=O)C1C(c2ccc([123I])cc2)CC2CCC1[NH+]2CCCF Ioflupane_I-123
 Cc1c(O)c(=O)ccn1C Deferiprone
 CS(=O)(=O)c1ccc(C(=O)Nc2ccc(Cl)c(-c3ccccn3)c2)c(Cl)c1 Vismodegib

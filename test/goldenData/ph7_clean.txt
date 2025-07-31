@@ -38,7 +38,6 @@ O=[N+]([O-])c1ccccc1[S-] halo,nitro_arothiols
 CC(=O)[S-] thiocarboxylic_acid
 CCC(=O)[S-] thiocarboxylic_acid-tauto
 S=C([S-])c1ccccc1 dithiocarboxylic_acid
-CCCCC1=NC2(CCCC2)C(=O)N1Cc1ccc(-c2ccccc2-c2nn[n-]n2)cc1 tetrazole
 O=c1[nH]c(=O)c2[nH]cnc2[nH]1 xanthine_N1,3
 O=c1[n-]c(=O)c2[nH]c(=O)[nH]c2[nH]1 uric_acid-like_1
 O=c1[n-]c2[nH]c(=O)[nH]c2c(=O)[nH]1 uric_acid-like_2
@@ -100,3 +99,16 @@ Cc1nc2ccccc2[nH]1 benzimidazoles_non-2-amino
 COc1cccc2c1C(=O)c1c(O)ccc(O)c1C2=O anthracyclines
 CC1OC(=O)C(O)=C1[O-] enolize_vinylog_acid-CH1
 O=c1cc([O-])cco1 enolize_vinylog_acid-CH2
+[O-]c1nc(CCc2ccccc2)no1 oxa/thiadiazol-5-one
+[O-]c1nc(CCc2ccccc2)no1 oxa/thiadiazol-5-ol
+[O-]c1cc(Cc2ccccc2)on1 isoxazol-3-ol
+[O-]c1cc(Cc2ccccc2)on1 isoxazol-3-one
+CC1=C([O-])C(C)NC1=O tetramic-acid
+CC([O-])=C1C(=O)NC(C)C1=O 3-acyltetramic-acid
+CC1=C([O-])C(C)NC1=O enolize_tetramic-acid-CH1
+O=C1C=C([O-])C(Cc2ccccc2)N1 enolize_tetramic-acid-CH2
+CC([O-])=C1C(=O)NC(C)C1=O enolize_3-acyltetramic-acid
+c1ccc(CCc2nnn[n-]2)cc1 1H-tetrazole
+CCCCC1=NC2(CCCC2)C(=O)N1Cc1ccc(-c2ccccc2-c2nnn[n-]2)cc1 3H-tetrazole_1
+CN=c1[n-]nnn1C 3H-tetrazole_2
+O=S1[N-]C(CCc2ccccc2)=NO1 oxathiadiazole-2-oxide

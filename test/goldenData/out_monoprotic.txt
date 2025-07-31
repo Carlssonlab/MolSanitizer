@@ -1555,8 +1555,8 @@ CN(C)c1[nH]c2cc3c(cc2[nH+]1)CCCC3 perrin2748_1
 CN(C)c1nc2cc3c(cc2[nH]1)CCCC3 perrin2748_2
 Nc1[nH]c2cc3c(cc2[nH+]1)CCCC3 perrin2745_1
 Nc1nc2cc3c(cc2[nH]1)CCCC3 perrin2745_2
-S=c1nn[n-]n1-c1ccccc1 serjeant3646
-Brc1ccc(Cc2nn[n-]n2)cc1 4248718
+[S-]c1nnnn1-c1ccccc1 serjeant3646
+Brc1ccc(Cc2nnn[n-]2)cc1 4248718
 c1ccc(CCc2nnn[n-]2)cc1 148550
 Cc1nnn[n-]1 107152
 O=C(CCc1ccccc1)NO 2255742
