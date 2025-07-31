@@ -523,8 +523,10 @@ class ConformerGenerator:
         visitting = [0 for _ in range(n_transform)]
         
         # First, reset all the dihedral to 0.
-        for rule in match_torlib:
-            rdMolTransforms.SetDihedralDeg(mol.GetConformer(0), *rule[1], 0)
+        for idx, rule in enumerate(match_torlib):
+            angle = rule[2][0][0]
+            rdMolTransforms.SetDihedralDeg(mol.GetConformer(0), *rule[1], angle)
+            visitting[idx] = angle
 
         if visited is None: visited = empty((0, n_transform))
         # New approach: use angles
