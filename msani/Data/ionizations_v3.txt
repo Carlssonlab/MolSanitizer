@@ -22,7 +22,8 @@ o-EWG-phenols	7	ACID	1	[OH1&+0;$(O-[$(a1[a;$(a-[*H0&+]),$(a-C#N),$(a(:a)(:a)-,:*
 p-EWG-phenols	8	ACID	1	[OH1&+0;$(O-a1[a;!$(a-[*H0&+,*&-,F,Cl,Br,I])!$(a-C#N)!$(a(:a)(:a)-,:*=[O,N])][a;!$(a-[*H0&+,*&-])!$(a-C#N)!$(a(:a)(:a)-,:*=[O,N])][a;$(a-[*H0&+]),$(a-C#N),$(a(:a)(:a)-,:*=[O,N])][a;!$(a-[*H0&+,*&-])!$(a-C#N)!$(a(:a)(:a)-,:*=[O,N])][a;!$(a-[*H0&+,*&-,F,Cl,Br,I])!$(a-C#N)!$(a(:a)(:a)-,:*=[O,N])]1)!$(O-a:a-[*&+0]~[*-]):1]>>[OH0&-:1]
 m,m-di-EWG-phenols	7	ACID	1	[OH1&+0;$(O-a1[a;!$(a-[*H0&+,*&-,F,Cl,Br,I])!$(a-C#N)!$(a(:a)(:a)-,:*=[O,N])][a;$(a-[*H0&+]),$(a-C#N),$(a(:a)(:a)-,:*=[O,N])][a;!$(a-[*H0&+,*&-,F,Cl,Br,I])!$(a-C#N)!$(a(:a)(:a)-,:*=[O,N])][a;$(a-[*H0&+]),$(a-C#N),$(a(:a)(:a)-,:*=[O,N])][a;!$(a-[*H0&+,*&-,F,Cl,Br,I])!$(a-C#N)!$(a(:a)(:a)-,:*=[O,N])]1)!$(O-a:a-[*&+0]~[*-]):1]>>[OH0&-:1]
 anthracyclines	8	ACID	1	[OH1&+0;$(O-a1aa[a;!$(a~[*&-1])]a2A(=O)aaA(=O)a12)!$(O~*~*~[-1])!$(O-a:a-[A&+0](=O)[O-])!$(O-a:a-[A&+0](=O)-N-O)!$(O-a:a-,:[#6](=O)-,:a:a-[O-]):1]>>[OH0&-:1]
-oxa/thiadiazol-5-one	6	ACID	0       [O:1]=[c:2]1[nH:3][c:4][nX2:5][o,sX2:6]1>>[O-:1][c:2]1[n&H0:3][c:4][nX2:5][o,s:6]1	10.1021/acs.jmedchem.5b01963
+oxa/thiadiazol-5-one	6	ACID	0       [O:1]=[c:2]1[nH:3][c:4][nX2:5][o,sX2:6]1>>[O-:1][c:2]1[n&H0:3][c:4][n:5][o,s:6]1	10.1021/acs.jmedchem.5b01963
+oxa/thiadiazol-5-one	6	ACID	0       [O:1]=[c:2]1[nX2:3][c:4][nH:5][o,sX2:6]1>>[O-:1][c:2]1[n:3][c:4][n&H0:5][o,s:6]1	10.1021/acs.jmedchem.5b01963
 oxa/thiadiazol-5-ol	6	ACID	0       [OH:1][c:2]1[nX2:3][c:4][nX2:5][o,sX2:6]1>>[OH0&-:1][c:2]1[n:3][c:4][nX2:5][o,s:6]1	10.1021/acs.jmedchem.5b01963
 isoxazol-3-ol	5	ACID	0       [OH:1][c:2]1[nX2:3][o:4][c:5][c;!$(c~[*-])!$(c~*~[*-]):6]1>>[OH0&-:1][c:2]1[n:3][o:4][c:5][c:6]1	10.1021/acs.jmedchem.5b01963
 isoxazol-3-one	5	ACID	0       [O:1]=[c:2]1[nH:3][o:4][c:5][c;!$(c~[*-])!$(c~*~[*-]):6]1>>[O-:1][c:2]1[nH0:3][o:4][c:5][c:6]1	10.1021/acs.jmedchem.5b01963
