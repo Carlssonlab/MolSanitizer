@@ -36,6 +36,8 @@ amide_like = Chem.MolFromSmarts(
     '[#6^2;$([#6](=,:[!#6])~[!#6]),$([#6](~[!#6])(~[!#6])=,:*)]'
     )
 
+sulfoximine_like = Chem.MolFromSmarts('S=N')
+
 try:
     substructure_terms = rdMolStandardize.GetDefaultTautomerScoreSubstructs()
     del substructure_terms[8] #Methyl rule. We don't want to penalize terminal alkenes.
@@ -190,12 +192,15 @@ class Tautomerizer:
             max_score = -9999
             
             count_amide_like_input = len(mol.GetSubstructMatches(amide_like))
-            if self.debug: print(f"\tInput molecule has {count_amide_like_input} amide-like substructures")
             Chem.AssignCIPLabels(mol)
             initial_chiral_centers = len(Chem.FindMolChiralCenters(mol))
-            if self.debug: print(f"\tInitial chiral centers: {initial_chiral_centers}")
             intial_defined_double_bonds = self.count_defined_stereo_doublebonds(mol) 
-            if self.debug: print(f"\tInitial defined double bonds: {intial_defined_double_bonds}")
+            initial_sulfoximine_like = len(mol.GetSubstructMatches(sulfoximine_like))
+
+            if self.debug: 
+                print(f"\tInput molecule has {count_amide_like_input} amide-like substructures")
+                print(f"\tInitial defined double bonds: {intial_defined_double_bonds}")
+                print(f"\tInitial chiral centers: {initial_chiral_centers}")
 
             # Enumerate the tautomers
             for tau in TE.Enumerate(mol):
@@ -218,7 +223,13 @@ class Tautomerizer:
                     if count_amide_like_tautomer < count_amide_like_input:
                         if self.debug: print(f"\t{Chem.MolToSmiles(tau)} has {count_amide_like_tautomer} amide-like substructures, skipping")
                         continue
-
+                # Check sulfoximine-like integrity
+                if initial_sulfoximine_like > 0:
+                    count_sulfoximine_like_tautomer = len(tau.GetSubstructMatches(sulfoximine_like))
+                    if count_sulfoximine_like_tautomer < initial_sulfoximine_like:
+                        if self.debug: print(f"\t{Chem.MolToSmiles(tau)} has {count_sulfoximine_like_tautomer} sulfoximine-like substructures, skipping")
+                        continue
+                    
                 # All passed, add to the list
                 score = score_func(tau)
                 tautomers.append((tau, score))
