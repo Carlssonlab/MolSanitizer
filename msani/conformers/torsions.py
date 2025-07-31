@@ -93,7 +93,7 @@ class TorsionLibrary:
         if debug: 
             print('\tAdding custom rules:')
             for rule in custom_rules:
-                print('\t' + str(rule))
+                print(f'\t{rule[0]}: {rule[3]}')
         if custom_rules:
             self.Torlib_specific[:0] = custom_rules  # Insert at the beginning of the list
         else:

@@ -228,7 +228,6 @@ class Msani:
         if self.standardize: 
             df = Filters.standarizeFilters(df)
             return df
-        
         if self.tautomers or self.protonation:
             if self.neutralize: 
                 df = Neutralizer.neutralize_df(df)
@@ -242,7 +241,6 @@ class Msani:
                                         neutralize = False,
                                         numcores = self.numcores) # Already neutralized
             df = tautomerizer.tautomerize_df(df)
-
         if self.pains: df = Filters.painsFilter(df,
                                                 rejectedFile = rejected_file,
                                                 debug = self.debug)
@@ -266,8 +264,7 @@ class Msani:
                               neutralize = False,
                               debug=self.debug)
             df = ionizer.ionize_df(df)
-
-        if self.tautomers or self.protonation:
+        if (self.tautomers or self.protonation) and not(df.empty):
             # Coalesce the 'smiles' column to ensure it is present
             # Drop duplicate rows based on 'smiles' and 'ids'
             df = df.drop_duplicates(subset=['smiles', 'ids'], keep='first')
