@@ -440,7 +440,7 @@ class ConformerGenerator:
         
         # Set molecule properties
         mol_rdkit.SetProp("_Name", self.name)
-
+        self.mol_H = Chem.Mol(mol_rdkit) 
         conjugated_substituted_nitrogen_5aro = utils.find_conjugated_substituted_nitrogen_5aro(mol_rdkit)
         conjugated_substituted_nitrogen_6aro = utils.find_conjugated_substituted_nitrogen_6aro(mol_rdkit)
 
@@ -498,6 +498,7 @@ class ConformerGenerator:
         rigid_scaffolds, and flexible_scaffolds
         '''
         self.mol2_str, self.ring_confs = utils.embed_smiles_corina(self.smiles, self.name, self.num_ring_confs, self.VERBOSE)
+        self.mol_H = Chem.Mol(self.ring_confs[0])
         self.mp = rdForceFieldHelpers.MMFFGetMoleculeProperties(self.ring_confs[0], mmffVariant="MMFF94s")
         self.amsol_mol = Chem.Mol(self.ring_confs[0]) # An RDKit Mol Object with upto 10 confs for AMSOL
         self.sulfo_matches = [] # No sulfonamide flipping in CORINA
@@ -599,7 +600,7 @@ class ConformerGenerator:
         self.mp.SetMMFFDielectricConstant(eps) #Set the dielectric constant for electrostatic interactions
         if self.request_alignment is None and request_alignment is not None:
             self.request_alignment = request_alignment
-        self.rot_bonds = utils.getDihedralMatches(self.mol_H)
+        self.rot_bonds = utils.getDihedralMatches(self.ring_confs[0])
 
         if self.mode == 'fixed' or self.mode == 'ignoretorlib':
             # This is still experimental, call conf_samplingv2, where Torlib is read differently
