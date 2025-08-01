@@ -21,12 +21,13 @@ from msani.db2 import mol2db2, mol2
 logger = logging.getLogger('msani')
 
 # Define SMARTS patterns for various functional groups
-sulfonamide_like_substructure = Chem.MolFromSmarts("[*:1][S;$(S(=*)=*):2]-!@[N&+0;!$([NH2]):3](-[*,#1:4])-[*,#1:5]")
+sulfonamide_like_substructure = Chem.MolFromSmarts("[*:1][S;$(S(=*)=*):2]-!@[N&+0;!$([NH2]):3](-[*,#1;!$(C=A):4])-[*,#1;!$(C=A):5]")
+substituted_C_cyclohexane = Chem.MolFromSmarts('[!#1]-!@[CH]1-[A]~[A]~[A]-[A]-[A]-1')
 flippable_Ns_1 = Chem.MolFromSmarts("[!#1:1]-!@[NH+;!$(N-*=*):2]1-[A:3]-[A:4]-[A]-[A:6]-[A:5]-1")
 flippable_Ns_2 = Chem.MolFromSmarts("[*:1]-!@[N+0;!$(N-*=*):2]1-[A:3]-[A:4]-[A]-[A:6]-[A:5]-1")
-substituted_C_cyclohexane = Chem.MolFromSmarts('[!#1:1]-!@[CH:2]1-[A^3:3]-[A^3:4]-[A^3]-[A^3:6]-[A^3:5]-1')
-substituted_C_cyclohex_23_enyl = Chem.MolFromSmarts('[!#1:1]-!@[CH:2]1-[*^2]~[*^2]-[A^3]-[A^3]-[A^3]-1')
-substituted_C_cyclohex_34_enyl = Chem.MolFromSmarts('[!#1:1]-!@[CH:2]1-[A^3]-[*^2]~[*^2]-[A^3]-[A^3]-1')
+# substituted_C_cyclohexane = Chem.MolFromSmarts('[!#1:1]-!@[CH:2]1-[A^3:3]-[A^3:4]-[A]-[A^3:6]-[A^3:5]-1')
+# substituted_C_cyclohex_23_enyl = Chem.MolFromSmarts('[!#1:1]-!@[CH:2]1-[*^2]~[*^2]-[A^3]-[A^3]-[A^3]-1')
+# substituted_C_cyclohex_34_enyl = Chem.MolFromSmarts('[!#1:1]-!@[CH:2]1-[A^3]-[*^2]~[*^2]-[A^3]-[A^3]-1')
 
 conjugated_substituted_nitrogen_5aro = Chem.MolFromSmarts('*-[nX3&+0:1]1[a:2][a:3][a:4][a:5]1')
 conjugated_substituted_nitrogen_6aro = Chem.MolFromSmarts('*-[nX3&+0:1]1[a:2][a:3][a:4][a:5][a:6]1')
@@ -128,9 +129,9 @@ def find_flipped_carbon(mol_H: Mol):
     '''
     Find the flippable carbon in the molecule. Mainly for substituted cyclohexane
     '''
-    return mol_H.GetSubstructMatches(substituted_C_cyclohexane) + \
-        mol_H.GetSubstructMatches(substituted_C_cyclohex_23_enyl) +\
-            mol_H.GetSubstructMatches(substituted_C_cyclohex_34_enyl)
+    return mol_H.GetSubstructMatches(substituted_C_cyclohexane) #+ \
+        # mol_H.GetSubstructMatches(substituted_C_cyclohex_23_enyl) +\
+            # mol_H.GetSubstructMatches(substituted_C_cyclohex_34_enyl)
 
 def find_conjugated_substituted_nitrogen_5aro(mol_H: Mol):
     '''
