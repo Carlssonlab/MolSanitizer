@@ -201,13 +201,34 @@ Date: 2024-09-14
       <set dihedral="'-60', '60', '-60', '60', '-60', '60'" value="2"/>
     </dihedral_sets>
   </ring>
+  <ring name="cycloheptatriene_allsp2">
+    <note note="prefered boat form, not planar"/>
+    <smarts smarts="[*^2]1~[*^2]~[*^2]~[*^2]~[*^2]~[*^2]~[*^2]~1"/>
+    <ref ref="https://doi.org/10.1016/0166-1280(82)80039-0"/>
+    <dihedral_sets>
+      <set dihedral="'30', '0', '-30', '0', '55', '-55', '0'" value="1"/>
+      <set dihedral="'0', '-30', '0', '55', '-55', '0', '30'" value="2"/>
+      <set dihedral="'-30', '0', '55', '-55', '0', '30', '0'" value="3"/>
+      <set dihedral="'0', '55', '-55', '0', '30', '0', '-30'" value="4"/>
+      <set dihedral="'55', '-55', '0', '30', '0', '-30', '0'" value="5"/>
+      <set dihedral="'-55', '0', '30', '0', '-30', '0', '55'" value="6"/>
+      <set dihedral="'0', '30', '0', '-30', '0', '55', '-55'" value="7"/>
+      <set dihedral="'-30', '0', '30', '0', '-55', '55', '0'" value="8"/>
+      <set dihedral="'0', '30', '0', '-55', '55', '0', '-30'" value="9"/>
+      <set dihedral="'30', '0', '-55', '55', '0', '-30', '0'" value="10"/>
+      <set dihedral="'0', '-55', '55', '0', '-30', '0', '30'" value="11"/>
+      <set dihedral="'-55', '55', '0', '-30', '0', '30', '0'" value="12"/>
+      <set dihedral="'55', '0', '-30', '0', '30', '0', '-55'" value="13"/>
+      <set dihedral="'0', '-30', '0', '30', '0', '-55', '55'" value="14"/>
+    </dihedral_sets>
+  </ring>  
   <ring name="cycloheptatriene">
     <note note="prefered boat form, not planar"/>
     <smarts smarts="[*^2]1~[*^2]-[*^2]~[*^2]-[*^2]~[*^2]-[A;$([A^3]),$([N^2]),$(A=!@[*!X1])]-1"/>
     <ref ref="https://doi.org/10.1016/0166-1280(82)80039-0"/>
     <dihedral_sets>
-      <set dihedral="'30', '0', '-30', '0', '50', '-50', '0'" value="1"/>
-      <set dihedral="'-30', '0', '30', '0', '-50', '50', '0'" value="2"/>
+      <set dihedral="'30', '0', '-30', '0', '55', '-55', '0'" value="1"/>
+      <set dihedral="'-30', '0', '30', '0', '-55', '55', '0'" value="2"/>
     </dihedral_sets>
   </ring>
   <ring name="cyclohepta-1,4-diene-3-sp2"> 
