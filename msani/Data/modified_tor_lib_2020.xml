@@ -98,6 +98,9 @@
       Added:
       [cH1:1][c:2](c[F,Cl,Br,I])!@[O:3][CRH1:4] ortho-halogen substituted aromatic ring as it can have an additional +-90 peaks  
       [nH:1][c:2]!@[CX3:3]([NX3H1,NX3H2])=[O:4] two NH groups should not pointing against each other
+
+     August 1 2025
+      Modified the N_lp sulfonamide rules so that it won't match the SO2-NH with N being conjugated with the substituents and show no puckering effects.
 --> 
 
 <library>
@@ -71281,25 +71284,25 @@ All the angles here were added to make the hydroxyl coplanar with the ring-->
  </hierarchyClass>
  <hierarchyClass id1="S" id2="N" name="SN" smarts="[#16:2]!@[#7:3]">
   <!-- The folloiwing four rules are alternatives for N_lp rules in the original TorLib-->
-   <torsionRule smarts="[!#1:1][$(S(=O)=O):2]!@[NX3&amp;!+1:3](@[C&amp;r3:4])@[C&amp;r3:5]">
+   <torsionRule smarts="[!#1:1][$(S(=O)=O):2]!@[NX3&amp;!+1:3](-[*;!$([C&amp;r3])!$(C=A):4])-[*;!$([C&amp;r3])!$(C=A):5]">
       <angleList>
          <angle score="13.64" tolerance1="20" tolerance2="40" value="-50" />
          <angle score="8.59" tolerance1="20" tolerance2="40" value="50" />
          <angle score="2.02" tolerance1="10" tolerance2="20" value="180" />
       </angleList>
    </torsionRule>
-   <torsionRule smarts="[C:1][$(S(=O)=O):2]!@[NX3&amp;!+1:3](-[*;!$([C&amp;r3]):4])-[*;!$([C&amp;r3]):5]">
+   <torsionRule smarts="[C:1][$(S(=O)=O):2]!@[NX3&amp;!+1:3](-[*;!$([C&amp;r3])!$(C=A):4])-[*;!$([C&amp;r3])!$(C=A):5]">
       <angleList>
          <angle score="26.22" tolerance1="20" tolerance2="30" value="180" />
          <angle score="4.05" tolerance1="20" tolerance2="30" value="0" />
       </angleList>
    </torsionRule>
-   <torsionRule smarts="[c:1][$(S(=O)=O):2]!@[NX3&amp;!+1:3](-[*;!$([C&amp;r3]):4])-[*;!$([C&amp;r3]):5]">
+   <torsionRule smarts="[c:1][$(S(=O)=O):2]!@[NX3&amp;!+1:3](-[*;!$([C&amp;r3])!$(C=A):4])-[*;!$([C&amp;r3])!$(C=A):5]">
       <angleList>
          <angle score="31.56" tolerance1="20" tolerance2="25" value="180" />
       </angleList>
    </torsionRule>
-   <torsionRule smarts="[!#1:1][$(S(=O)=O):2]!@[NX3&amp;!+1:3](-[*;!$([C&amp;r3]):4])-[*;!$([C&amp;r3]):5]">
+   <torsionRule smarts="[!#1:1][$(S(=O)=O):2]!@[NX3&amp;!+1:3](-[*;!$([C&amp;r3])!$(C=A):4])-[*;!$([C&amp;r3])!$(C=A):5]">
       <angleList>
          <angle score="31.03" tolerance1="20" tolerance2="30" value="180" />
       </angleList>
