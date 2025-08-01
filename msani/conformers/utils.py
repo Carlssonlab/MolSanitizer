@@ -22,7 +22,7 @@ logger = logging.getLogger('msani')
 
 # Define SMARTS patterns for various functional groups
 sulfonamide_like_substructure = Chem.MolFromSmarts("[*:1][S;$(S(=*)=*):2]-!@[N&+0;!$([NH2]):3](-[*,#1;!$(C=A):4])-[*,#1;!$(C=A):5]")
-substituted_C_cyclohexane = Chem.MolFromSmarts('[!#1]-!@[CH]1-[A]~[A]~[A]-[A]-[A]-1')
+substituted_C_cyclohexane = Chem.MolFromSmarts('[!#1]-!@[CH]1-[*]~[*]~[*]-[A]-[A]-1')
 flippable_Ns_1 = Chem.MolFromSmarts("[!#1:1]-!@[NH+;!$(N-*=*):2]1-[A:3]-[A:4]-[A]-[A:6]-[A:5]-1")
 flippable_Ns_2 = Chem.MolFromSmarts("[*:1]-!@[N+0;!$(N-*=*):2]1-[A:3]-[A:4]-[A]-[A:6]-[A:5]-1")
 # substituted_C_cyclohexane = Chem.MolFromSmarts('[!#1:1]-!@[CH:2]1-[A^3:3]-[A^3:4]-[A]-[A^3:6]-[A^3:5]-1')
