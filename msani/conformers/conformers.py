@@ -199,6 +199,7 @@ class ConformerGenerator:
         self.hydantoin_matches = utils.find_hydantoins(self.mol_H)
         self.substituted_N_barbi_hydan_like = utils.find_substituted_N_barbi_hydan_like(self.mol_H, self.barbiturate_matches, self.hydantoin_matches)
         self.amide_linkages = utils.find_amide(self.mol_H)
+        self.cycloheptatriene_like = utils.find_cycloheptatriene(self.mol_H)
         
         # Only find flippable Ns if we need multiple conformations
         self.flippable_Ns = utils.find_flipped_nitrogen(self.mol_H)
@@ -403,7 +404,7 @@ class ConformerGenerator:
             align_on = list(self.planar_rings)[0] if self.planar_rings else (1, 2, 3)
             temp_list = conf_ring_descriptors_df.values.tolist()
             
-            if utils.find_cycloheptatriene(self.mol_H): 
+            if  self.cycloheptatriene_like: 
                 self.num_ring_confs = max(2, self.num_ring_confs) # Cycloheptatriene has two puckering ring conformations
                 print(f"Found cycloheptatriene in {self.name}, setting num_ring_confs to {self.num_ring_confs}")
 
