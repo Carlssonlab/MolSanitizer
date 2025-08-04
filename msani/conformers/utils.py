@@ -22,7 +22,7 @@ logger = logging.getLogger('msani')
 
 # Define SMARTS patterns for various functional groups
 sulfonamide_like_substructure = Chem.MolFromSmarts("[*:1][S;$(S(=*)=*):2]-!@[N&+0;!$([NH2]):3](-[*,#1;!$(C=A):4])-[*,#1;!$(C=A):5]")
-substituted_C_cyclohexane = Chem.MolFromSmarts('[!#1]-!@[CH]1-[*]~[*]~[*]-[A]-[A]-1')
+substituted_C_cyclohexane = Chem.MolFromSmarts('[!#1]-!@[CH]1-[*]~[*]~[*]~[*]-[A]-1')
 flippable_Ns_1 = Chem.MolFromSmarts("[!#1:1]-!@[NH+;!$(N-*=*):2]1-[A:3]-[A:4]-[A]-[A:6]-[A:5]-1")
 flippable_Ns_2 = Chem.MolFromSmarts("[*:1]-!@[N+0;!$(N-*=*):2]1-[A:3]-[A:4]-[A]-[A:6]-[A:5]-1")
 # substituted_C_cyclohexane = Chem.MolFromSmarts('[!#1:1]-!@[CH:2]1-[A^3:3]-[A^3:4]-[A]-[A^3:6]-[A^3:5]-1')
@@ -351,7 +351,7 @@ def classify_confs(conf,
                    flippable_Cs, 
                    sulfo_matches, 
                    conf_ring_descriptors_df, 
-                   tolerance=20):
+                   tolerance=25):
     
     temp_dict = {
         'Conformer': conf,
@@ -772,7 +772,7 @@ def discretinize_dihedrals(typical, tolerance, step = 30):
     # angles = [typical + i * step for i in range(-n_steps, n_steps + 1)]
     angles = [typical, typical - step, typical + step] #Only sample 3 angles for each dihedral
 
-    normalized_angles = [(angle + 180) % 360 - 180 for angle in angles]
+    normalized_angles = [round((angle + 180) % 360 - 180, 1) for angle in angles]
     return normalized_angles
 
 def angular_diff(a, b):
