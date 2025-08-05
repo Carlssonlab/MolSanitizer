@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### 🚀 Features
 
+- Added new small ring entries and modified cycloheptadiene entries - ([a9823be](https://github.com/phonglam3103/MolSanitizer/commit/a9823be385d2751774eaf5fdd79a5b4fa0996e7a))
 - Don't enumerate sulfonamides with non-puckering N and merged the flippable Cs SMARTS. - ([56b518f](https://github.com/phonglam3103/MolSanitizer/commit/56b518f49a78416971e213764461ac6ceb818022))
 - Allow the definition of custom torsions `-tor` or `--torsion` flags. Use `--create_torsion` to create a template. - ([875d1e9](https://github.com/phonglam3103/MolSanitizer/commit/875d1e928b6f59eccba8dc238132a37e30b58a03))
 - New flags supported: --extended for extended SMILES supports, --torsion for customized torsion definitions. - ([7d6b4fd](https://github.com/phonglam3103/MolSanitizer/commit/7d6b4fd89cc0a950609e788aac95ba62ca65f351))
