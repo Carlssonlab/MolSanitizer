@@ -256,3 +256,9 @@ CC(O)=C1C(=O)NC(C)C1=O 3-acylpyrrole-2,4-diol_to_tetramic-acid-CH0-NH0
 CNC(C)=C1C(=O)CNC1=O 3-acylpyrrole-2,4-diol_to_tetramic-acid-CH1-NH0
 CC(N)=C1C(=O)NC(C)C1=O 3-acylpyrrole-2,4-diol_to_tetramic-acid-CH0-NH1
 CC(N)=C1C(=O)CNC1=O 3-acylpyrrole-2,4-diol_to_tetramic-acid-CH1-NH1
+CN=C1NC(=O)C(=Cc2c[nH]c3ccccc23)N1C azaenol_to_amide-NH0
+CC(N)=O azaenol_to_amide-NH1
+Cc1c(O)c(=O)n(C)c2ccccc12 3-imino/ketoquinolinone_to_amino/hydroxy-NH0-CH1
+Cn1c(=O)c(O)cc2ccccc21 3-imino/ketoquinolinone_to_amino/hydroxy-NH0-CH2
+Cc1c(N)c(=O)n(C)c2ccccc12 3-iminoquinolinone_to_amino-NH1-CH1
+Cn1c(=O)c(N)cc2ccccc21 3-iminoquinolinone_to_amino-NH1-CH2
