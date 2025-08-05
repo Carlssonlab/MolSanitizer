@@ -573,7 +573,7 @@ def count_confs_by_rotbonds(mol,
            
             for peak in rule[2]:
                 if period == 1:
-                    temp.append(peak)
+                    temp.append((peak[0], peak[1], 30, peak[3]))
                     break
                 is_similar = any(period - 10 < abs(peak[0] - existing_peak[0]) < period + 10
                     for existing_peak in temp)

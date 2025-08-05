@@ -524,9 +524,11 @@ class ConformerGenerator:
         n_transform = len(match_torlib)  # Number of rotatable bonds
         visitting = [0 for _ in range(n_transform)]
         
-        # First, reset all the dihedral to 0.
+        # First, reset all the dihedrals.
         for idx, rule in enumerate(match_torlib):
-            angle = rule[2][0][0]
+            angle = utils.get_random_angle(rule[2][0][0],
+                                           rule[2][0][tolerance_level], 
+                                           method = 'uniform')
             rdMolTransforms.SetDihedralDeg(mol.GetConformer(0), *rule[1], angle)
             visitting[idx] = angle
 
@@ -549,7 +551,7 @@ class ConformerGenerator:
                                                       )
                 visitting[bond_idx] = random_angle
                 rdMolTransforms.SetDihedralDeg(mol.GetConformer(0), *bond[1], value=random_angle)
-
+            #print(visitting)
             if utils.is_similar_conformer(array(visitting), visited, tol = self.tolerance) or \
                 utils.check_too_close_nonbonded_atoms(mol.GetConformer(0), mol, bonded_pairs, same_parent_pairs, threshold = self.threshold):
                 attempts += 1
