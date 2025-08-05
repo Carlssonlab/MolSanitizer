@@ -36,9 +36,13 @@ amide_like = Chem.MolFromSmarts(
     '[#6^2;$([#6](=,:[!#6])~[!#6]),$([#6](~[!#6])(~[!#6])=,:*)]'
     )
 
-carboxylic_acid = Chem.MolFromSmarts('C(=O)[OH]')
+carboxylic_acid = Chem.MolFromSmarts(
+    'C(=O)[OH]'
+    )
 
-sulfoximine_like = Chem.MolFromSmarts('S=N')
+sulfoximine_like = Chem.MolFromSmarts(
+    'S=N'
+    )
 
 try:
     substructure_terms = rdMolStandardize.GetDefaultTautomerScoreSubstructs()
@@ -52,7 +56,10 @@ try:
     substructure_terms.append(
         rdMolStandardize.SubstructTerm("corr_rdkit_feature1", "a1:a:a2:a:a:a:a:a-2:a:1", 199)
         )
-    #substructure_terms.append(rdMolStandardize.SubstructTerm("aromatic methylidene", "c=C", -1))
+    # Fix "Oc1cc2oc(cc(cn[nH]3)c3n4)c4c2cc1" getting aromatic benzoquinone
+    substructure_terms.append(
+        rdMolStandardize.SubstructTerm("aromatic benzoquinone", "A=c1ccc(:a)cc1", -100)
+        )
 except AttributeError as e:
     from rdkit import rdBase
     rdkit_version = rdBase.rdkitVersion
