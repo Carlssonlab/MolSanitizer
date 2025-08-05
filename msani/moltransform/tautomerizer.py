@@ -36,6 +36,8 @@ amide_like = Chem.MolFromSmarts(
     '[#6^2;$([#6](=,:[!#6])~[!#6]),$([#6](~[!#6])(~[!#6])=,:*)]'
     )
 
+carboxylic_acid = Chem.MolFromSmarts('C(=O)[OH]')
+
 sulfoximine_like = Chem.MolFromSmarts('S=N')
 
 try:
@@ -192,13 +194,15 @@ class Tautomerizer:
             max_score = -9999
             
             count_amide_like_input = len(mol.GetSubstructMatches(amide_like))
+            count_carboxylic_acid = len(mol.GetSubstructMatches(carboxylic_acid))
             Chem.AssignCIPLabels(mol)
             initial_chiral_centers = len(Chem.FindMolChiralCenters(mol))
             intial_defined_double_bonds = self.count_defined_stereo_doublebonds(mol) 
             initial_sulfoximine_like = len(mol.GetSubstructMatches(sulfoximine_like))
 
             if self.debug: 
-                print(f"\tInput molecule has {count_amide_like_input} amide-like substructures")
+                print(f"\tInitial amide-like substructures: {count_amide_like_input} ")
+                print(f"\tInitial carboxylic acid substructures: {count_carboxylic_acid}")
                 print(f"\tInitial defined double bonds: {intial_defined_double_bonds}")
                 print(f"\tInitial chiral centers: {initial_chiral_centers}")
 
@@ -223,6 +227,14 @@ class Tautomerizer:
                     if count_amide_like_tautomer < count_amide_like_input:
                         if self.debug: print(f"\t{Chem.MolToSmiles(tau)} has {count_amide_like_tautomer} amide-like substructures, skipping")
                         continue
+
+                # Check carboxylic acid integrity
+                if count_carboxylic_acid > 0:
+                    count_carboxylic_acid_tautomer = len(tau.GetSubstructMatches(carboxylic_acid))
+                    if count_carboxylic_acid_tautomer < count_carboxylic_acid:
+                        if self.debug: print(f"\t{Chem.MolToSmiles(tau)} has {count_carboxylic_acid_tautomer} carboxylic acid substructures, skipping")
+                        continue
+
                 # Check sulfoximine-like integrity
                 if initial_sulfoximine_like > 0:
                     count_sulfoximine_like_tautomer = len(tau.GetSubstructMatches(sulfoximine_like))
