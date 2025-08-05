@@ -31,7 +31,7 @@ class TorsionLibrary:
         print("Torsion Library from:", self.xml_file)
         print("Number of rules:", len(self.Torlib_specific + self.Torlib_general))
 
-    def add_custom_rule(self, smarts, angles, weights):
+    def add_custom_rule(self, smarts, angles, weights, debug = False):
         """
         Add a custom torsion rule to the library.
         This method allows users to add custom torsion rules one by one.
@@ -48,7 +48,23 @@ class TorsionLibrary:
         for angle, score in zip(angles, weights):
             temp.append((angle, 0, 0, score))
         rule.append((smarts, pattern, TorsionLibrary.get_atoms_template(pattern), temp))
-        self.Torlib_specific[:0] = rule  # Insert at the beginning of the list
+        found = False
+        for idx, existing_rule in enumerate(self.Torlib_specific):
+            if existing_rule[0] == smarts:
+                if debug: print(f"Rule with SMARTS {smarts} already exists. Updating the rule.")
+                self.Torlib_specific[idx] = rule
+                found = True
+                break
+        for idx, existing_rule in enumerate(self.Torlib_general):
+            if existing_rule[0] == smarts:
+                if debug: print(f"Rule with SMARTS {smarts} already exists. Updating the rule.")
+                self.Torlib_general[idx] = rule
+                found = True
+                break
+        if not found:
+            if debug: print(f"Adding new rule with SMARTS on top priority {smarts}.")
+            # Insert the new rule at the beginning of the list
+            self.Torlib_specific[:0] = rule  # Insert at the beginning of the list
 
     def add_custom_rules_from_file(self, file_path, debug = False):
         """
@@ -58,7 +74,7 @@ class TorsionLibrary:
         Args:
             file_path (str): Path to the file containing custom rules.
         """
-        custom_rules = []
+        custom_rules = dict()
         with open(file_path, 'r') as f:
             reader = csv.reader(f, skipinitialspace=True)
             for row in reader:
@@ -84,18 +100,37 @@ class TorsionLibrary:
                         except ValueError:
                             print(f"Invalid angle or weight in row: {row}. Skipping.")
                             continue
-                    custom_rules.append(
-                                        (smarts,
-                                        pattern,
-                                        TorsionLibrary.get_atoms_template(pattern),
-                                        temp)
-                                        )
+                    custom_rules[smarts] = (smarts,
+                                              pattern,
+                                              TorsionLibrary.get_atoms_template(pattern),
+                                              temp)
+
         if debug: 
             print('\tAdding custom rules:')
-            for rule in custom_rules:
-                print(f'\t{rule[0]}: {rule[3]}')
+            for rule in custom_rules.values():
+                print(f'\t\t{rule[0]}: {rule[3]}')
+                
         if custom_rules:
-            self.Torlib_specific[:0] = custom_rules  # Insert at the beginning of the list
+            # Check if the custom rules already exist in the library
+            for idx, existing_rule in enumerate(self.Torlib_specific):
+                if existing_rule[0] in custom_rules.keys():
+                    if debug: print(f"\t\tRule with SMARTS {existing_rule[0]} already exists. Updating the rule.")
+                    self.Torlib_specific[idx] = custom_rules[existing_rule[0]]
+                    del custom_rules[existing_rule[0]]
+                    continue
+            for idx, existing_rule in enumerate(self.Torlib_general):
+                if existing_rule[0] in custom_rules.keys():
+                    if debug: print(f"\t\tRule with SMARTS {existing_rule[0]} already exists. Updating the rule.")
+                    self.Torlib_general[idx] = custom_rules[existing_rule[0]]
+                    del custom_rules[existing_rule[0]]
+                    continue
+            if custom_rules:
+                if debug: 
+                    print(f"\tRules that will be placed on top of the priority:")
+                    for rule in custom_rules.values():
+                        print(f"\t\t{rule[0]}")
+                remaining_rules = [rule for rule in custom_rules.values()]
+                self.Torlib_specific[:0] = remaining_rules  # Insert at the beginning of the list
         else:
             print("No valid custom rules found in the file.")
 
@@ -124,11 +159,12 @@ class TorsionLibrary:
         for Class in (root.iter(tag='hierarchyClass')):
             if Class.get("name") != "GG": #Not the general class
                 for Rule in Class.iter(tag='torsionRule'):
-                    if  "N_lp" in Rule.get("smarts"): continue
+                    smarts = Rule.get("smarts")
+                    if  "N_lp" in smarts: continue
                     else:
-                        pattern = Chem.MolFromSmarts(Rule.get("smarts"))
+                        pattern = Chem.MolFromSmarts(smarts)
                         self.Torlib_specific.append(
-                            (Rule.get("smarts"),
+                            (smarts,
                             (pattern),
                             TorsionLibrary.get_atoms_template(pattern),
                             [(((float(angle.get("value")))), float(angle.get("tolerance1")), float(angle.get("tolerance2")), round(float(angle.get("score"))+0.05, 2)) for angle in Rule.iter(tag='angle')])
@@ -136,22 +172,23 @@ class TorsionLibrary:
 
         self.Torlib_general = []
         for Rule in root.find("hierarchyClass[@name='GG']").iter("torsionRule"):
-            if  "N_lp" in Rule.get("smarts"): 
+            smarts = Rule.get("smarts")
+            if  "N_lp" in smarts: 
                 continue
             else:
-                pattern = Chem.MolFromSmarts(Rule.get("smarts"))
-                if Rule.get("smarts") == "[*:1]~[CX4:2]!@[OX2:3]~[*:4]" or\
-                    Rule.get("smarts") == "[*:1]~[OX2:2]!@[P:3]~[*:4]" or\
-                    Rule.get("smarts") == "[*:1]~[CX4:2]!@[SX2:3]~[*:4]":
+                pattern = Chem.MolFromSmarts(smarts)
+                if smarts == "[*:1]~[CX4:2]!@[OX2:3]~[*:4]" or\
+                   smarts == "[*:1]~[OX2:2]!@[P:3]~[*:4]" or\
+                   smarts == "[*:1]~[CX4:2]!@[SX2:3]~[*:4]":
                     self.Torlib_general.append(
-                        (Rule.get("smarts"),
+                        (smarts,
                         (pattern),
                         TorsionLibrary.get_atoms_template(pattern),           # Special treatment for aliphatic hydroxyls and phosphates
                         [(((float(angle.get("value")))), float(0), float(0), round(float(angle.get("score"))+0.05, 2)) for angle in Rule.iter(tag='angle')])
                         )
                 else:
                     self.Torlib_general.append(
-                        (Rule.get("smarts"),
+                        (smarts,
                         (pattern),
                         TorsionLibrary.get_atoms_template(pattern),     
                         [(((float(angle.get("value")))), float(angle.get("tolerance1")), float(angle.get("tolerance2")), round(float(angle.get("score"))+0.05, 2)) for angle in Rule.iter(tag='angle')])
