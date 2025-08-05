@@ -1,10 +1,10 @@
-<!-- SmallRing Conformation Library v1.0
+<!-- SmallRing Conformation Library v2.0
 Curated from literature and small molecule crystal structures from CSD and PDB
 Update upto 8-membered rings (cyclooctane)
 
 Authors: Thua-Phong Lam, Szymon Pach.
 Place: Jens Carlsson's Lab, Uppsala University, Sweden.
-Date: 2024-09-14
+Date: 2025-08-05
 -->
 
 <library>
@@ -52,6 +52,12 @@ Date: 2024-09-14
   </ring>
   <ring name="planar-cyclohexa-1,4-dien">
     <smarts smarts="*1=,:*-A-*=*-A-1"/>
+    <dihedral_sets>
+      <set dihedral="'0', '0', '0', '0', '0', '0'" value="1"/>
+    </dihedral_sets>
+  </ring>
+  <ring name="planar-7-member">
+    <smarts smarts="a1aaaaaa1"/>
     <dihedral_sets>
       <set dihedral="'0', '0', '0', '0', '0', '0'" value="1"/>
     </dihedral_sets>
@@ -173,7 +179,7 @@ Date: 2024-09-14
     </dihedral_sets>
   </ring> 
 
-<ring name="cyclohexene_sp2-1,2,3_">
+  <ring name="cyclohexene_sp2-1,2,3_">
     <smarts smarts="[*^2]1~[*^2]~[*^2]-[A^3]-[A^3]-[A^3]-1"/>
     <ref ref=""/>
     <dihedral_sets>
@@ -201,9 +207,9 @@ Date: 2024-09-14
       <set dihedral="'-60', '60', '-60', '60', '-60', '60'" value="2"/>
     </dihedral_sets>
   </ring>
-  <ring name="cycloheptatriene_allsp2">
-    <note note="prefered boat form, not planar"/>
-    <smarts smarts="[*^2]1~[*^2]~[*^2]~[*^2]~[*^2]~[*^2]~[*^2]~1"/>
+  <ring name="cycloheptatriene_tropone_like">
+    <note note="prefered boat form, not planar, ambiguous anchoring points."/>
+    <smarts smarts="[*^2]1~[*^2]~[*^2]~[*^2]~[*^2]~[*^2]-[*^2]-1"/>
     <ref ref="https://doi.org/10.1016/0166-1280(82)80039-0"/>
     <dihedral_sets>
       <set dihedral="'30', '0', '-30', '0', '55', '-55', '0'" value="1"/>
@@ -227,14 +233,14 @@ Date: 2024-09-14
     <smarts smarts="[*^2]1~[*^2]-[*^2]~[*^2]-[*^2]~[*^2]-[A;$([A^3]),$([N^2]),$(A=!@[*!X1])]-1"/>
     <ref ref="https://doi.org/10.1016/0166-1280(82)80039-0"/>
     <dihedral_sets>
-      <set dihedral="'30', '0', '-30', '0', '55', '-55', '0'" value="1"/>
-      <set dihedral="'-30', '0', '30', '0', '-55', '55', '0'" value="2"/>
+      <set dihedral="'30', '0', '-30', '0', '60', '-60', '0'" value="1"/>
+      <set dihedral="'-30', '0', '30', '0', '-60', '60', '0'" value="2"/>
     </dihedral_sets>
   </ring>
-  <ring name="cyclohepta-1,4-diene-3-sp2"> 
+  <ring name="cyclohepta-1,4-diene-3-sp2_"> 
     <note note="Nortriptyline - butterfly conformation"/>
-    <smarts smarts="[*^2]1~[*^2]-[A^3,O]-[A^3,O]-[*^2]~[*^2]-[A^2]-1"/>
-    <ref ref=""/>
+    <smarts smarts="[*^2]1~[*^2]-[A]-[A]-[*^2]~[*^2]-[C^2,O,NH0]-1"/>
+    <ref ref="https://doi.org/10.1002/jps.23310"/>
     <dihedral_sets>
       <set dihedral="'15', '-70', '70', '0', '-60', '45', '0'" value="1"/>
       <set dihedral="'70', '-70', '15', '0', '45', '-60', '0'" value="2"/>
@@ -242,26 +248,62 @@ Date: 2024-09-14
       <set dihedral="'-70', '70', '-15', '0', '-45', '60', '0'" value="4"/>
     </dihedral_sets>
   </ring>
-  <ring name="cyclohepta-1,3-diene-like">
-    <note note=""/>
-    <smarts smarts="[*^2]1~[*^2]-[*^2]~[*^2]-A-A-A-1"/>
-    <ref ref="https://doi.org/10.1016/0166-1280(82)80039-0"/>
+  <ring name="cyclohepta-1,4-diene-3-NH_"> 
+    <note note="Anilines N tries to make planar twisted structures (HBZAZP; PDB ID 3TI1)"/>
+    <smarts smarts="[*^2]1~[*^2]-[A]-[A]-[*^2]~[*^2]-[NH]-1"/>
+    <ref ref="https://pubs.acs.org/doi/10.1021/ci7002494"/>
     <dihedral_sets>
-      <set dihedral="'0', '0', '30', '-70', '70', '-30', '0'" value="1"/>
-      <set dihedral="'0', '0', '-30', '70', '-70', '30', '0'" value="2"/>
+      <set dihedral="'40', '-60', '40', '0', '-10', '-10', '0'" value="1"/>
+      <set dihedral="'-40', '60', '-40', '0', '10', '10', '0'" value="2"/>
     </dihedral_sets>
   </ring>
   <ring name="cyclohepta-1,4-diene-like">
-    <note note="C2 form non-planar is more stable than Cs form non-planar by 10 kcal/mol (below ref)"/>
+    <note note="Could exist in the bend form - more abundant (BUCVAW, 2WKW, CABXIM) or twisted-boat form (1XUO, #TI1, JAMKOX)"/>
     <smarts smarts="[*^2]1~[*^2]-A-[*^2]~[*^2]-A-A-1"/>
-    <ref ref="https://doi.org/10.1016/0166-1280(82)80039-0"/>
+    <ref ref="https://pubs.acs.org/doi/10.1021/ci7002494"/>
     <dihedral_sets>
-      <set dihedral="'20', '-20', '0', '40', '-55', '40', '0'" value="1"/>
-      <set dihedral="'-20', '20', '0', '40', '-55', '40', '0'" value="2"/>
-      <set dihedral="'20', '-20', '0', '-40', '55', '-40', '0'" value="3"/>
-      <set dihedral="'-20', '20', '0', '-40', '55', '-40', '0'" value="4"/>
+      <set dihedral="'-60', '60', '0', '0', '-60', '60', '0'" value="1"/> <!-- bend form -->
+      <set dihedral="'60', '-60', '0', '60', '-60', '0', '0'" value="2"/> <!-- bend form, reversed order of 1 -->
+      <set dihedral="'60', '-60', '0', '0', '60', '-60', '0'" value="3"/> <!-- bend form -->
+      <set dihedral="'-60', '60', '0', '-60', '60', '0', '0'" value="4"/> <!-- bend form, reversed order of 3 -->
+      <set dihedral="'-60', '30', '0', '15', '-60', '60', '0'" value="5"/> <!-- twisted-boat form -->
+      <set dihedral="'30', '-60', '0', '60', '-60', '15', '0'" value="6"/> <!-- twisted-boat form, reversed order of 5 -->
+      <set dihedral="'60', '-30', '0', '-15', '60', '-60', '0'" value="7"/> <!-- twisted-boat form -->
+      <set dihedral="'-30', '60', '0', '-60', '60', '-15', '0'" value="8"/> <!-- twisted-boat form, reversed order of 7 -->
     </dihedral_sets>
   </ring>
+  <ring name="cyclohepta-1,3-diene-5-sp2">
+    <note note="boat like forms; example: ABOTOE DALRUH EQALOA; PDB: 1RH_4KJU_A"/>
+    <smarts smarts="[*^2]1~[*^2]-[*^2]~[*^2]-[C^2,$(N-!@C=O)]-A-A-1"/>
+    <ref ref=""/>
+    <dihedral_sets>
+      <set dihedral="'45', '0', '-60', '15', '60', '-70', '0'" value="1"/>
+      <set dihedral="'-45', '0', '60', '-15', '-60', '70', '0'" value="2"/>
+    </dihedral_sets>
+  </ring>
+  <ring name="cyclohepta-1,3-diene-6-sp2">
+    <note note="twisted-boat like forms; example: DUQGOP EMUXIU HADTEP HADTIT HEWLEC VEHVOU YEPDAB"/>
+    <smarts smarts="[*^2]1~[*^2]-[*^2]~[*^2]-A-[C^2,$(N-!@C=O)]-A-1"/>
+    <ref ref=""/>
+    <dihedral_sets>
+      <set dihedral="'45', '0', '-60', '40', '40', '-70', '0'" value="1"/>
+      <set dihedral="'-45', '0', '60', '-40', '-40', '70', '0'" value="2"/>
+    </dihedral_sets>
+  </ring>
+  <ring name="cyclohepta-1,3-diene-like">
+    <note note="Cs is the most stable form, but C2 is only ~2.3 kcal/mol above. So maybe adopts this as well. C2: YUFFOU; Cs: CEPLIS "/>
+    <smarts smarts="[*^2]1~[*^2]-[*^2]~[*^2]-A-A-A-1"/>
+    <ref ref="https://doi.org/10.1016/0166-1280(82)80039-0; https://pubs.acs.org/doi/10.1021/ci7002494; https://doi.org/10.1016/0040-4020(73)80199-1"/>
+    <dihedral_sets>
+      <set dihedral="'15', '0', '-45', '80', '-45', '0', '0'" value="1"/> <!-- envelope - Cs-->
+      <set dihedral="'15', '0', '0', '-45', '80', '-45', '0'" value="2"/> <!-- envelope - Cs - revese order of 1-->
+      <set dihedral="'-15', '0', '45', '-80', '45', '0', '0'" value="3"/> <!-- envelope - Cs-->
+      <set dihedral="'-15', '0', '0', '45', '-80', '45', '0'" value="4"/> <!-- envelope - Cs revese order of 3-->
+      <set dihedral="'-45', '0', '70', '-45', '-45', '70', '0'" value="5"/> <!-- twisted-boat - C2-->
+      <set dihedral="'45', '0', '-70', '45', '45', '-70', '0'" value="6"/> <!-- twisted-boat - C2-->
+    </dihedral_sets>
+  </ring>
+
   <ring name="sulfamide/sulfate - 7 member">
     <note note="Twisted chair"/>
     <smarts smarts="[S;$(S(=O)(=O))]1-[N,O]-A-A-A-A-[N,O]-1"/>
