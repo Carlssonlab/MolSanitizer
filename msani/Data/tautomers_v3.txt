@@ -146,6 +146,10 @@ restore_oxicam-CH1	0	[S;$(S(=O)=O):1]1[N:2][CH1:3][C:4](=[O:5])[c:6][c:7]1>>[S;$
 restore_oxicam-CH2	0	[S;$(S(=O)=O):1]1[N:2][CH2:3][C:4](=[O:5])[c:6][c:7]1>>[S;$(S(=O)=O):1]1[N:2][CH1:3]=[C:4](-[OH:5])[c:6][c:7]1
 4-ketocoumarin_to_4-OH-coumarin	0	[o&+0:1]1[c:2](-[OH:3])[c;!$(c~[OX1,OH]):4][c:5](=[O:6])[c;!$(c~[OX1,OH]):7][c;!$(c~[OX1,OH]):8]1>>[o:1]1[c:2](=[O&H0:3])[c:4][c:5](-[OH:6])[c:7][c:8]1
 2-OH-pyridin-4-one_to_4-OH-2-one	0	[nH&+0:1]1[c:2](-[OH:3])[c;!$(c~[OX1,OH]):4][c:5](=[O:6])[a;!$(c~[OX1,OH])!$([nH]):7][a;!$(c~[OX1,OH]):8]1>>[nH:1]1[c:2](=[O&H0:3])[c:4][c:5](-[OH:6])[a:7][a:8]1
+3-imino/ketoquinolinone_to_amino/hydroxy-NH0-CH1	0	[NH0,O:1]=[C:2]1[CH:3][a:4][a:5][NX3:6][C:7]1=[O:8]>>[NH1,OH:1][c:2]1[cH0:3][a:4][a:5][n,nH:6][c:7]1=[O:8]
+3-imino/ketoquinolinone_to_amino/hydroxy-NH0-CH2	0	[NH0,O:1]=[C:2]1[CH2:3][a:4][a:5][NX3:6][C:7]1=[O:8]>>[NH1,OH:1][c:2]1[cH:3][a:4][a:5][n,nH:6][c:7]1=[O:8]
+3-iminoquinolinone_to_amino-NH1-CH1	0	[NH1:1]=[C:2]1[CH:3][a:4][a:5][NX3:6][C:7]1=[O:8]>>[NH2:1][c:2]1[cH0:3][a:4][a:5][n,nH:6][c:7]1=[O:8]
+3-iminoquinolinone_to_amino-NH1-CH2	0	[NH1:1]=[C:2]1[CH2:3][a:4][a:5][NX3:6][C:7]1=[O:8]>>[NH2:1][c:2]1[cH:3][a:4][a:5][n,nH:6][c:7]1=[O:8]
 p-dimethylidene-2OH-quinone_to_diMe-quinone-CH0-CH0	0	[OH:1]-[c:2]1[c:3][c:4](=[C&H0:5])[c:6](-[OH:7])[c:8][c:9]1=[C&H0:10]>>[O&H0:1]=[C:2]1[C:3]=[C:4]([CH:5])[C:6](=[O&H0:7])[C:8]=[C:9]1[CH:10]
 p-dimethylidene-2OH-quinone_to_diMe-quinone-CH0-CH1	0	[OH:1]-[c:2]1[c:3][c:4](=[C&H0:5])[c:6](-[OH:7])[c:8][c:9]1=[CH:10]>>[O&H0:1]=[C:2]1[C:3]=[C:4]([CH:5])[C:6](=[O&H0:7])[C:8]=[C:9]1[CH2:10]
 p-dimethylidene-2OH-quinone_to_diMe-quinone-CH0-CH2	0	[OH:1]-[c:2]1[c:3][c:4](=[C&H0:5])[c:6](-[OH:7])[c:8][c:9]1=[CH2:10]>>[O&H0:1]=[C:2]1[C:3]=[C:4]([CH:5])[C:6](=[O&H0:7])[C:8]=[C:9]1[CH3:10]
@@ -175,6 +179,8 @@ aminoenol_to_amide-AH2	0	[AH2:1]=[C:2](-[OH,SH:3])-[N&+0:4]>>[AH3:1]-[C:2](=[O&H
 aminoenol_to_amide-AH1	0	[AH;!$(A-,:[#6]=*):1]=[C:2](-[OH,SH:3])-[N&+0:4]>>[AH2:1]-[C:2](=[O&H0,S&H0:3])-[N:4]
 aminoenol_to_amide-AH0	0	[A&H0;!$(A-,:[#6]=*):1]=[C:2](-[OH,SH:3])-[N&+0:4]>>[AH:1]-[C:2](=[O&H0,S&H0:3])-[N:4]
 aminoenol_to_amide-aH0	0	[a:1]=[C:2](-[OH,SH:3])-[N&+0:4]>>[AH:1]-[C:2](=[O&H0,S&H0:3])-[N:4]
+azaenol_to_amide-NH0	0	[OH:1]-[C:2]=[NH0&+0:3]>>[O&H0:1]=[C:2]-[NH:3]
+azaenol_to_amide-NH1    0       [OH:1]-[C:2]=[NH&+0:3]>>[O&H0:1]=[C:2]-[NH2:3]
 Me-nitroso_to_oxime	0	[CH3:1]-[NX2:2]=[O:3]>>[CH2:1]=[N:2]-[OH:3]
 prim-nitroso_to_oxime	0	[#6H2&z1:1]-[NX2:2]=[O:3]>>[CH:1]=[N:2]-[OH:3]
 sec-nitroso_to_oxime	0	[#6X4H1&z1:1]-[NX2:2]=[O:3]>>[C&H0:1]=[N:2]-[OH:3]
@@ -240,9 +246,9 @@ beta-iminocarbonyl/dimine_to_aminoacrylate-CH1-NH0	0	[N&H0;!$(N-[O,N])!$(N1=C-C-
 beta-iminocarbonyl/dimine_to_aminoacrylate-CH2-NH0	0	[N&H0;!$(N-[O,N])!$(N1=C-C-A=N-aa1)!$(N=C(-N)-N):1]=[C;!$(C-[OH]):2]-[CH2:3]-[A;$(*=[O,N,SX1]),$(C#N):4]>>[NH:1]-[C:2]=[CH:3][A:4]
 beta-iminocarbonyl/dimine_to_aminoacrylate-CH1-NH1	0	[NH;!$(N-[O,N])!$(N1=C-C-A=N-aa1)!$(N=C(-N)-N):1]=[C;!$(C-[OH]):2]-[NH,CH:3]-[A;$(*=[O,N,SX1]),$(C#N):4]>>[NH2:1]-[C:2]=[CH0,NH0:3]-[A:4]
 beta-iminocarbonyl/dimine_to_aminoacrylate-CH2-NH1	0	[NH;!$(N-[O,N])!$(N1=C-C-A=N-aa1)!$(N=C(-N)-N):1]=[C;!$(C-[OH]):2]-[CH2:3]-[A;$(*=[O,N,SX1]),$(C#N):4]>>[NH2:1]-[C:2]=[CH:3][A:4]
-acylimine_to_amide-CH1 0	[CH&X4:1]-[C&z1;!$([C&r{3-4}]):2]=[N:3]-[C:4]=[O:5]>>[C&H0:1]=[C:2][NH:3]-[C:4]=[O:5]
-acylimine_to_amide-CH2 0	[CH2:1]-[C&z1;!$([C&r{3-4}]):2]=[N:3]-[C:4]=[O:5]>>[CH:1]=[C:2][NH:3]-[C:4]=[O:5]
-acylimine_to_amide-CH3 0	[CH3:1]-[C&z1;!$([C&r{3-4}]):2]=[N:3]-[C:4]=[O:5]>>[CH2:1]=[C:2][NH:3]-[C:4]=[O:5]
+acylimine_to_amide-CH1 0	[CH&X4:1]-[C&z1;!$([C&r{3-4}])!$(C1=NC(=O)A=AC1=*):2]=[N:3]-[C:4]=[O:5]>>[C&H0:1]=[C:2][NH:3]-[C:4]=[O:5]
+acylimine_to_amide-CH2 0	[CH2:1]-[C&z1;!$([C&r{3-4}])!$(C1=NC(=O)A=AC1=*):2]=[N:3]-[C:4]=[O:5]>>[CH:1]=[C:2][NH:3]-[C:4]=[O:5]
+acylimine_to_amide-CH3 0	[CH3:1]-[C&z1;!$([C&r{3-4}])!$(C1=NC(=O)A=AC1=*):2]=[N:3]-[C:4]=[O:5]>>[CH2:1]=[C:2][NH:3]-[C:4]=[O:5]
 3-iminoisoquinoline_to_3-amino-NH2-NH1 0	[c;!$(c~[OX1,OH,SX1,SX2H]):1]1[c;!$(c~[OX1,OH,SX1,SX2H]):2][c;!$(c~[OX1,OH,SX1,SX2H]):3][c:4]2[c:5](-[NH2:11])[n:6][c:7](=[NH:12])[a;!$(a~[OX1,OH,SX1,SX2H]):8][c:9]2[c;!$(c~[OX1,OH,SX1,SX2H]):10]1>>[c:1]1[c:2][c:3][c:4]2[c:5](=[NH:11])[n:6][c:7]([NH2:12])[a:8][c:9]2[c:10]1	based_on_PDB_5G2N
 3-iminoisoquinoline_to_3-amino-NH2-NH1 0	[c;!$(c~[OX1,OH,SX1,SX2H]):1]1[c;!$(c~[OX1,OH,SX1,SX2H]):2][c;!$(c~[OX1,OH,SX1,SX2H]):3][c:4]2[c:5](-[NH:11])[n:6][c:7](=[NH:12])[a;!$(a~[OX1,OH,SX1,SX2H]):8][c:9]2[c;!$(c~[OX1,OH,SX1,SX2H]):10]1>>[c:1]1[c:2][c:3][c:4]2[c:5](=[N&H0:11])[n:6][c:7]([NH2:12])[a:8][c:9]2[c:10]1	based_on_PDB_5G2N
 3-iminoisoquinoline_to_3-amino-NH2-NH0 0	[c;!$(c~[OX1,OH,SX1,SX2H]):1]1[c;!$(c~[OX1,OH,SX1,SX2H]):2][c;!$(c~[OX1,OH,SX1,SX2H]):3][c:4]2[c:5](-[NH2:11])[n:6][c:7](=[N&H0:12])[a;!$(a~[OX1,OH,SX1,SX2H]):8][c:9]2[c;!$(c~[OX1,OH,SX1,SX2H]):10]1>>[c:1]1[c:2][c:3][c:4]2[c:5](=[NH:11])[n:6][c:7]([NH:12])[a:8][c:9]2[c:10]1	based_on_PDB_5G2N
