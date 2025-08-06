@@ -2,6 +2,7 @@
 
 
 import csv
+import logging
 from os import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -15,6 +16,8 @@ from msani.conformers.utils import normalize_angle, within_tolerance
 
 TORLIB_XML = Path(__file__).parent.parent / 'Data' / 'modified_tor_lib_2020.xml'
 SMALLRINGLIB_XML = Path(__file__).parent.parent / 'Data/sr_confs.xml'
+
+logger = logging.getLogger('msani')
 
 class TorsionLibrary:
     """
@@ -48,6 +51,7 @@ class TorsionLibrary:
         for angle, score in zip(angles, weights):
             temp.append((angle, 0, 0, score))
         rule.append((smarts, pattern, TorsionLibrary.get_atoms_template(pattern), temp))
+        logger.info(f"Adding custom rule: {rule[0]}: {rule[3]}")
         found = False
         for idx, existing_rule in enumerate(self.Torlib_specific):
             if existing_rule[0] == smarts:
@@ -109,6 +113,9 @@ class TorsionLibrary:
             print('\tAdding custom rules:')
             for rule in custom_rules.values():
                 print(f'\t\t{rule[0]}: {rule[3]}')
+
+        for rule in custom_rules.values():
+            logger.info(f"Adding custom rule: {rule[0]}: {rule[3]}")
                 
         if custom_rules:
             # Check if the custom rules already exist in the library
