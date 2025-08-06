@@ -29,7 +29,7 @@ TAUTOMER_PARAMS.maxTautomers = 1000
 TE = rdMolStandardize.TautomerEnumerator(TAUTOMER_PARAMS) 
 
 allylic_acrylic = Chem.MolFromSmarts(
-    '[C;$([CX4&!H0;!$(C-[!#6&!H0])]),$(C(=O)[O,N])]-[CX3;!$(C-[!#6&!H0])]=[CX3;!$(C-[!#6&!H0])]'
+    '[C;$([CX4&!H0;!$(C-[!#6&!H0])]),$(C(=O)[O,N,CH0])]-[CX3;!$(C-[!#6&!H0])]=[CX3;!$(C-[!#6&!H0])]'
     )
 
 amide_like = Chem.MolFromSmarts(
@@ -47,6 +47,7 @@ sulfoximine_like = Chem.MolFromSmarts(
 try:
     substructure_terms = rdMolStandardize.GetDefaultTautomerScoreSubstructs()
     del substructure_terms[8] #Methyl rule. We don't want to penalize terminal alkenes.
+    del substructure_terms[0] #benzoquinone rule. We introduce our own rules for benzoquinones.
     substructure_terms.append(
         rdMolStandardize.SubstructTerm("amide", "[NH1,NH2]-C=O", 1)
         )
@@ -59,6 +60,12 @@ try:
     # Fix "Oc1cc2oc(cc(cn[nH]3)c3n4)c4c2cc1" getting aromatic benzoquinone
     substructure_terms.append(
         rdMolStandardize.SubstructTerm("aromatic benzoquinone", "A=c1ccc(:a)cc1", -100)
+        )
+    substructure_terms.append(
+        rdMolStandardize.SubstructTerm("p-benzoquinone", "[#6]1([#6]=,:[#6][#6]([#6]=,:[#6]1)=,:[N,S,O])=,:[N,S,O]", 94)
+        )
+    substructure_terms.append(
+        rdMolStandardize.SubstructTerm("o-benzoquinone", "[#6]1([#6](=,:[N,S,O])[#6]=,:[#6]([#6]=,:[#6]1))=,:[N,S,O]", 94)
         )
 except AttributeError as e:
     from rdkit import rdBase
