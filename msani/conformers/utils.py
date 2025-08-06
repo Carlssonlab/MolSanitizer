@@ -235,13 +235,16 @@ def get_flexible_ring(mol: Mol, srlib):
     """
     ssr = [set(ring) for ring in Chem.GetSymmSSSR(mol)]
     planar_rings = set()
+    sorted_planar_rings = set()
     for rule in srlib.planar:
         matches = mol.GetSubstructMatches(rule[2])
         if len(matches) > 0:
             for match in matches:
-                planar_rings.add((match))
+                sorted_match = tuple(sorted(match))
+                if sorted_match not in sorted_planar_rings:
+                    sorted_planar_rings.add(sorted_match)
+                    planar_rings.add((match))
     # Pre-sort the planar_rings and ssr sets
-    sorted_planar_rings = {tuple(sorted(t)) for t in planar_rings}
     sorted_ssr = {tuple(sorted(t)) for t in ssr}         
     non_planar_rings = []
     set_non_planar_rings= set()
