@@ -269,5 +269,6 @@ a,b-diaroimine_to_enamine-CH1-NH0 0	[CH&z0;$(C-a)!$(C(*=[N,O,S])*=[N,O,S]):1]-[C
 imindiole_to_hydroxamate	0	[OH:1]-[C:2]=[NX2:3]-[OH:4]>>[O&H0:1]=[C:2]-[NH:3]-[OH:4]
 N-acyldiazo-o-phenol_to_ketohydrazide	0	[OH:1][c:2][c:3]-[N:4]=[N;$(N*=[O,S]):5]>>[O&H0:1]=[c:2][c:3]=[N:4][NH:5]
 N-acyldiazo-p-phenol_to_ketohydrazide	0	[OH:1][c:2][c:6][c:7][c:3]-[N:4]=[N;$(N*=[O,S]):5]>>[O&H0:1]=[c:2][c:6][c:7][c:3]=[N:4][NH:5]
-#o-azophenol_to_ketohydrazone	1	x	10.1039/P29930002223
+o-ketohydrazone_to_diazophenol  0       [O:1]=[C:2]1[C:3](=[N&+0:8]-[NH;!$(N*=[O,S]):9])[#6:4]=,:[#6:5][#6:6]=,:[#6:7]1>>[OH:1][c:2]1[c:3]([N:8]=[N&H0:9])[c:4][c:5][c:6][c:7]1
 #p-azophenol_to_ketohydrazone	1	x	10.1039/P29930002223
+
