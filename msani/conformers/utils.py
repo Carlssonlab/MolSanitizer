@@ -678,7 +678,7 @@ def find_rigid_part(mol, request_alignment=None):
     
 
 def log_error(smiles, name):
-    with open('msani_error.log', 'a') as f:
+    with open('msani_error.err', 'a') as f:
         f.write(f"{smiles} \t {name}\n")
 
 def Align_ConvertToDb2(ring_conf, rigid_scaffold, solv_obj, name, smiles, longname):
