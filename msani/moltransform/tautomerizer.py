@@ -32,6 +32,10 @@ allylic_acrylic = Chem.MolFromSmarts(
     '[C;$([CX4&!H0;!$(C-[!#6&!H0])]),$(C(=O)[O,N,CH0])]-[CX3;!$(C-[!#6&!H0])]=[CX3;!$(C-[!#6&!H0])]'
     )
 
+allylic_alcohol = Chem.MolFromSmarts(
+    '[OH]-[C^3]-[CX3;!$(C-[!#6&!H0])]=[CX3;!$(C-[!#6&!H0])]'
+    )
+
 amide_like = Chem.MolFromSmarts(
     '[#6^2;$([#6](=,:[!#6])~[!#6]),$([#6](~[!#6])(~[!#6])=,:*)]'
     )
@@ -98,7 +102,7 @@ def pairwise(iterable):
     return zip(a, b)
 
 def check_configurations(matches, mol):
-    ''' A helper function to check the configurations of the allylic_acrylic bonds in the molecule.'''
+    ''' A helper function to check the configurations of the allylic or acrylic bonds in the molecule.'''
     config = []
     for match in matches:
         for bond_idx in (pairwise(match)):
@@ -205,7 +209,15 @@ class Tautomerizer:
                 if stereo != rdchem.BondStereo.STEREONONE:
                     num_stereo += 1
         return num_stereo
-        
+    
+    @staticmethod
+    def _get_substruct_configurations(mol, pattern, ref_match=None):
+        """Returns substructure match and its configuration if present."""
+        matches = mol.GetSubstructMatches(pattern)
+        if ref_match is not None:
+            return matches, check_configurations(ref_match, mol) if matches else ([], None)
+        return matches, check_configurations(matches, mol) if matches else ([], None)
+    
     def tautomer_canonicalize_rdkit(self, mol: Chem.Mol):
         """Tautomerize the input molecule using the RDKit TautomerEnumerator class.
         This is the first step to make the input result in a canonical tautomer for later fixes."""
@@ -296,16 +308,21 @@ class Tautomerizer:
             
             if len(equal_tautomers) > 1:
                 if self.debug: print(f"\tFound {len(equal_tautomers)} tautomers with the nearly similar score: {[t[2] for t in equal_tautomers]}")
-                matches = mol.GetSubstructMatches(allylic_acrylic)
-                if matches:
-                    reference_configuration = check_configurations(matches, mol)
-                    if self.debug: print(f"\tReference configuration: {reference_configuration}")
-                    for tautomer in (equal_tautomers): 
-                        # Pick the lexicographically min one with the same configuration as reference
-                        tautomer_configuration = check_configurations(matches, tautomer[0])
-                        if tautomer_configuration == reference_configuration:
-                            if self.debug: print(f'\tChanged to {tautomer[2]}')
-                            canonical_tautomer = tautomer[0]
+                ref_acrylic, ref_conf_acrylic = Tautomerizer._get_substruct_configurations(mol, allylic_acrylic)
+                ref_alcohol, ref_conf_alcohol = Tautomerizer._get_substruct_configurations(mol, allylic_alcohol)
+                if ref_acrylic or ref_alcohol:
+                    if self.debug: 
+                        print(f"\tReference allylic_acryllic configurations: {ref_conf_acrylic}")
+                        print(f"\tReference allylic_alcohol configurations: {ref_conf_alcohol}")
+                    for tautomer, _, smiles in (equal_tautomers): 
+                        match_acrylic, config_acrylic = Tautomerizer._get_substruct_configurations(tautomer, allylic_acrylic, ref_acrylic)
+                        match_alcohol, config_alcohol = Tautomerizer._get_substruct_configurations(tautomer, allylic_alcohol, ref_alcohol)
+                        if len(match_acrylic) != len(ref_acrylic)\
+                            or len(match_alcohol) != len(ref_alcohol): continue
+                        # Check for the same bonds as in the reference, whether the bond configurations changed
+                        if config_acrylic == ref_conf_acrylic and config_alcohol == ref_conf_alcohol:
+                            if self.debug: print(f'\tChanged to {smiles}')
+                            canonical_tautomer = tautomer
                             break
                     if canonical_tautomer is None:
                         if self.debug: print(f"\tNone of the tautomers have the same configuration as the input molecule.")
@@ -314,11 +331,12 @@ class Tautomerizer:
                     # No allylic_acrylic bonds found, prioritize the tautomers also without allylic_acrylic bonds
                     canonical_tautomer = None
                     if self.debug: print(f"\tNo allylic_acrylic bonds found, picking the first one that also has no allylic_acrylic bond.")
-                    for tautomer in (equal_tautomers):
-                        matches = tautomer[0].GetSubstructMatches(allylic_acrylic)
-                        if not matches:
-                            canonical_tautomer = tautomer[0]
-                            if self.debug: print(f'\tChanged to {tautomer[2]}')
+                    for tautomer, _, smiles in (equal_tautomers):
+                        match_acrylic, _ = Tautomerizer._get_substruct_configurations(tautomer, allylic_acrylic)
+                        match_alcohol, _ = Tautomerizer._get_substruct_configurations(tautomer, allylic_alcohol)
+                        if not match_acrylic and not match_alcohol:
+                            canonical_tautomer = tautomer
+                            if self.debug: print(f'\tChanged to {smiles}')
                             break
                     # A fallback if no tautomer without allylic_acrylic bonds is found
                     if canonical_tautomer == None: 
