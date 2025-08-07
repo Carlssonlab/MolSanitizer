@@ -194,7 +194,7 @@ CC1C(NC(=O)C(=NOC(C)(C)C(=O)[O-])c2csc(N)n2)C(=O)N1S(=O)(=O)[O-] Aztreonam
 O=c1[nH]c2cc(Cl)ccc2o1 Chlorzoxazone
 CCC1(c2ccc(N)cc2)CCC(=O)NC1=O Aminoglutethimide
 OC(c1cc(C(F)(F)F)nc2c(C(F)(F)F)cccc12)C1CCCC[NH2+]1 Mefloquine
-Nc1ccc(S(=O)(=O)Nc2ncccn2)cc1 Sulfadiazine
+Nc1ccc(S(=O)(=O)[N-]c2ncccn2)cc1 Sulfadiazine
 CC(O)C(O)C1CNc2nc(N)[nH]c(=O)c2N1 Sapropterin
 C[NH+]1CCN(C2=Nc3cc(Cl)ccc3Nc3ccccc32)CC1 Clozapine
 Cc1c(F)c(N2CC[NH2+]C(C)C2)cc2c1c(=O)c(C(=O)[O-])cn2C1CC1 Grepafloxacin
@@ -364,7 +364,7 @@ Nc1nnc(-c2cccc(Cl)c2Cl)c(N)n1 Lamotrigine
 OCCOCC[NH+]1CCN(C(c2ccccc2)c2ccc(Cl)cc2)CC1 Hydroxyzine_1
 OCCOCCN1CC[NH+](C(c2ccccc2)c2ccc(Cl)cc2)CC1 Hydroxyzine_2
 CC(=O)NC1C([NH+]=C(N)N)C=C(C(=O)[O-])OC1C(O)C(O)CO Zanamivir
-COc1ccccc1Oc1c(NS(=O)(=O)c2ccc(C(C)(C)C)cc2)nc(-c2ncccn2)nc1OCCO Bosentan
+COc1ccccc1Oc1c([N-]S(=O)(=O)c2ccc(C(C)(C)C)cc2)nc(-c2ncccn2)nc1OCCO Bosentan
 CN(C)c1cc(NC(=O)C[NH2+]C(C)(C)C)c(O)c2c1CC1CC3C([NH+](C)C)C([O-])=C(C(N)=O)C(=O)C3(O)C([O-])=C1C2=O Tigecycline_1
 CN(C)c1cc(NC(=O)C[NH2+]C(C)(C)C)c(O)c2c1CC1CC3C([NH+](C)C)C([O-])=C(C(N)=O)C(=O)C3(O)C(O)=C1C2=O Tigecycline_2
 CCN1CC(CC[NH+]2CCOCC2)C(c2ccccc2)(c2ccccc2)C1=O Doxapram
@@ -459,7 +459,7 @@ Cc1cc(C)cc(OCC2CNC(=O)O2)c1 Metaxalone
 COc1ccc(CC[NH+](C)CCCC(C#N)(c2ccc(OC)c(OC)c2)C(C)C)cc1OC Verapamil
 COc1cc(C(=O)NCc2ccc(OCC[NH+](C)C)cc2)cc(OC)c1OC Trimethobenzamide
 CC1CC2C3CC(F)C4=CC(=O)C=CC4(C)C3(F)C(O)CC2(C)C1(O)C(=O)CO Flumethasone
-COc1nccnc1NS(=O)(=O)c1ccc(N)cc1 Sulfametopyrazine
+COc1nccnc1[N-]S(=O)(=O)c1ccc(N)cc1 Sulfametopyrazine
 CC1(C)NC(=O)N(c2ccc([N+](=O)[O-])c(C(F)(F)F)c2)C1=O Nilutamide
 C[NH2+]CC(O)c1ccc(O)c(O)c1 Epinephrine
 CNS(=O)(=O)Cc1ccc2[nH]cc(CC[NH+](C)C)c2c1 Sumatriptan
@@ -1002,8 +1002,8 @@ O=C1[O][Bi]([OH])[O]c2ccccc21 Bismuth_subsalicylate
 [NH3+]C1C(O)OC(CO)C(O)C1O Glucosamine_1
 NC1C(O)OC(CO)C(O)C1O Glucosamine_2
 CC(=O)Nc1ccc(OCC(O)C[NH2+]C(C)C)cc1 Practolol
-CCn1ccc(NS(=O)(=O)c2ccc(N)cc2)nc1=O Sulfacytine
-COc1ncnc(NS(=O)(=O)c2ccc(N)cc2)c1OC Sulfadoxine
+CCn1ccc([N-]S(=O)(=O)c2ccc(N)cc2)nc1=O Sulfacytine
+COc1ncnc([N-]S(=O)(=O)c2ccc(N)cc2)c1OC Sulfadoxine
 C[NH+](C)C1C([O-])=C(C(=O)NCN2CCCC2)C(=O)C2(O)C(O)=C3C(=O)c4c(O)cccc4C(C)(O)C3CC12 Rolitetracycline_1
 C[NH+](C)C1C([O-])=C(C(=O)NCN2CCCC2)C(=O)C2(O)C([O-])=C3C(=O)c4c(O)cccc4C(C)(O)C3CC12 Rolitetracycline_2
 CC(C)CN(CC(OP(=O)([O-])[O-])C(Cc1ccccc1)NC(=O)OC1CCOC1)S(=O)(=O)c1ccc(N)cc1 Fosamprenavir
@@ -1038,7 +1038,7 @@ CCC([NH2+]C(C)C)C(O)c1ccc(O)c2[nH]c(=O)ccc12 Procaterol
 C#CC[NH2+]C1CCc2ccccc21 Rasagiline_1
 C#CCNC1CCc2ccccc21 Rasagiline_2
 CC(=O)OCC(=O)C1(O)CCC2C3CCC4=CC(=O)CCC4(C)C3C(=O)CC21C Cortisone_acetate
-COCCOc1cnc(NS(=O)(=O)c2ccccc2)nc1 Glymidine
+COCCOc1cnc([N-]S(=O)(=O)c2ccccc2)nc1 Glymidine
 COC(=O)C1C(O)CCC2C[NH+]3CCc4c([nH]c5ccccc45)C3CC21 Yohimbine
 CC(C)(Oc1ccc(CCNC(=O)c2ccc(Cl)cc2)cc1)C(=O)[O-] Bezafibrate
 COc1cc2c(c(OC)c1OC)-c1ccc(OC)c(=O)cc1C(NC(C)=O)CC2 Colchicine
@@ -1078,8 +1078,8 @@ CC([NH3+])Cc1ccccc1 Dextroamphetamine
 C[NH2+]C(C)Cc1ccccc1 Metamfetamine
 CC1C(c2ccccc2)OCC[NH+]1C Phendimetrazine
 C=CCOc1ccccc1OCC(O)C[NH2+]C(C)C Oxprenolol
-Cc1ccnc(NS(=O)(=O)c2ccc(N)cc2)n1 Sulfamerazine
-Cc1cc(C)nc(NS(=O)(=O)c2ccc(N)cc2)n1 Sulfamethazine
+Cc1ccnc([N-]S(=O)(=O)c2ccc(N)cc2)n1 Sulfamerazine
+Cc1cc(C)nc([N-]S(=O)(=O)c2ccc(N)cc2)n1 Sulfamethazine
 CC(CCC(=O)[O-])C1CCC2C3C(O)CC4CC(O)CCC4(C)C3CCC12C Ursodeoxycholic_acid
 CC1=CC(=O)N2CC(=O)N(C)c3ccc(Cl)cc3C2(c2ccccc2)O1 Ketazolam
 O=C1CN=C(c2ccccc2)c2cc(Cl)ccc2N1CC1CC1 Prazepam
@@ -1223,7 +1223,7 @@ CC(=O)C1CCC2C3CCC4CC(C)(O)CCC4(C)C3CCC12C Ganaxolone
 O=[N+]([O-])c1cn2c(n1)OCC(OCc1ccc(OC(F)(F)F)cc1)C2 Pretomanid
 N#Cc1ccc(Oc2ccc3c(c2)COB3O)cc1 Crisaborole
 O=C(c1ccc(F)c(F)c1Nc1ccc(I)cc1F)N1CC(O)(C2CCCC[NH2+]2)C1 Cobimetinib
-Nc1ccc(S(=O)(=O)Nc2ncccn2)cc1 Silver_sulfadiazine
+Nc1ccc(S(=O)(=O)[N-]c2ncccn2)cc1 Silver_sulfadiazine
 CN1C(=O)CC(C)(c2ccccc2)C1=O Methsuximide
 CCC[NH+](CCc1cccs1)C1CCc2c(O)cccc2C1 Rotigotine
 COc1cc2c(Nc3ccc(Br)cc3F)ncnc2cc1OCC1CC[NH+](C)CC1 Vandetanib
@@ -1247,7 +1247,7 @@ O=C(Cc1ccc(-c2ccc(OCC[NH+]3CCOCC3)cc2)cn1)NCc1ccccc1 Tirbanibulin
 O=C1NCCN1CC[NH+]1CCC(c2cn(-c3ccc(F)cc3)c3ccc(Cl)cc23)CC1 Sertindole
 Nc1ccc(S(=O)(=O)[N-]c2nccs2)cc1 Sulfathiazole
 C[NH+]1CCN2c3ccccc3Cc3ccccc3C2C1 Mianserin
-COc1cc(NS(=O)(=O)c2ccc(N)cc2)nc(OC)n1 Sulfadimethoxine
+COc1cc([N-]S(=O)(=O)c2ccc(N)cc2)nc(OC)n1 Sulfadimethoxine
 CC(CCc1ccccc1)[NH2+]C(C)C(O)c1ccc(O)cc1 Nylidrin
 C[NH+]1CCC(=C2c3ccccc3CCc3sccc32)CC1 Pizotifen
 Cc1c(C(=O)NN2CCCCC2)nn(-c2ccc(Cl)cc2Cl)c1-c1ccc(Cl)cc1 Rimonabant
@@ -1364,7 +1364,7 @@ Cc1nnc(C(=O)NC(C)(C)c2nc(C(=O)NCc3ccc(F)cc3)c(O)c(=O)n2C)o1 Raltegravir_1
 Cc1nnc(C(=O)NC(C)(C)c2nc(C(=O)NCc3ccc(F)cc3)c([O-])c(=O)n2C)o1 Raltegravir_2
 O=C([O-])CCCc1ccccc1 Phenylbutyric_acid
 Clc1ccc(CSC(Cn2ccnc2)c2ccc(Cl)cc2Cl)cc1 Sulconazole
-COc1cnc(NS(=O)(=O)c2ccc(N)cc2)nc1 Sulfameter
+COc1cnc([N-]S(=O)(=O)c2ccc(N)cc2)nc1 Sulfameter
 CCCCCCCC(=O)CCC1C(O)CC(O)C1CC=CCCCC(=O)[O-] Unoprostone
 NC(=O)NC=C1NC(=O)C(CO)NC(=O)C(CO)NC(=O)C(NC(=O)CC([NH3+])CCC[NH3+])CNC(=O)C(C2CC(O)[NH+]=C(N)N2)NC1=O Viomycin
 O=C([O-])CCC(=O)OCC(NC(=O)C(Cl)Cl)C(O)c1ccc([N+](=O)[O-])cc1 Chloramphenicol_succinate

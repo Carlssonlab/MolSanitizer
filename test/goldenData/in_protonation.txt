@@ -46,12 +46,14 @@ S=c1[nH]cc[nH]1	dihetero_azole_thione
 CCC1(CC)C(=O)NC(=S)NC1=O	thiobarbituric_acid
 CCCCNC(=O)NS(=O)(=O)c1ccc(C)cc1	N-acyl,halo_arosulfonamides
 CS(=O)(=O)NCl	N-acyl,halo_sulfonamides
-Nc1ccc(S(=O)(=O)Nc2ncccn2)cc1	N-aro,vinyl_arosulfonamides
+Nc1ccc(S(=O)(=O)Nc2ccccn2)cc1	N-aro,vinyl_arosulfonamides
 c1cc(c(cc1S(=O)(=O)NC)F)[N+](=O)[O-]	N-ali_halo,acyl-like_sulfonamides-NH
 c1cc(c(cc1S(=O)(=O)N)F)[N+](=O)[O-]	halo,acyl-like_arosulfonamides-NH2
 CC(=O)Nc1nnc(s1)S(=O)(=O)NC	N-ali_5-mem-diheteroarosulfonamides-NH
 CC(=O)Nc1nnc(s1)S(=O)(=O)N	5-mem-diheteroarosulfonamides-NH2
 Cc1nc2nc(nn2cc1)S(=O)(=O)Nc3c(cccc3F)F	N-aro_5-mem-diheteroarosulfonamides
+O=S(=O)(Nc1ncccn1)c2ccsc2	N-diazine_5-mem-aro_arosulfonamides
+Nc1ccc(S(=O)(=O)Nc2ncccn2)cc1	N-diazine_6-mem-aro_arosulfonamides
 CN1CCC[C@H]1c1cccnc1	amine
 NCC(F)(F)F	F3-ethylamines
 CN(C)CC(=O)OC	alpha-AA-esters,amides
