@@ -52,7 +52,13 @@ try:
         rdMolStandardize.SubstructTerm("amide", "[NH1,NH2]-C=O", 1)
         )
     substructure_terms.append(
+        rdMolStandardize.SubstructTerm("aro cyclopentadiene", "c1cccc1", -150)
+        )
+    substructure_terms.append(
         rdMolStandardize.SubstructTerm("benzene", "c1ccccc1", -150)
+        )
+    substructure_terms.append(
+        rdMolStandardize.SubstructTerm("aro cycloheptatriene", "c1cccccc1", -150)
         )
     substructure_terms.append(
         rdMolStandardize.SubstructTerm("corr_rdkit_feature1", "a1:a:a2:a:a:a:a:a-2:a:1", 199)
@@ -66,6 +72,9 @@ try:
         )
     substructure_terms.append(
         rdMolStandardize.SubstructTerm("o-benzoquinone", "[#6]1([#6](=,:[N,S,O])[#6]=,:[#6]([#6]=,:[#6]1))=,:[N,S,O]", 94)
+        )
+    substructure_terms.append(
+        rdMolStandardize.SubstructTerm("3-OH fused furane", "o1cc([OH])[c;$(c(:a)(:a):a)][c;$(c(:a)(:a):a)]1", -100)
         )
 except AttributeError as e:
     from rdkit import rdBase

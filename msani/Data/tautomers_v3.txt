@@ -105,6 +105,9 @@ aro-glutarimide-enol_to_glutarimide-CH1	0	[O,SX1:7]=[c:1]1[n:2][c:3](-[OH,SX2H1:
 12:34-exo-2-OH-indole_to_oxindole-AH0	0	[*&H0;!$(*-,:[#6]=*)!$([#8]):11]=[a:12][a:13]=[#6:14]-[c:1]1[c:2](-[OH:3])[n:4][c:5]2[c:6][c:7][c:8][c:9][c:10]12>>[*H:11]-[a:12][a:13]-[#6:14]=[C:1]1[C:2](=[O&H0:3])[N:4][c:5]2[c:6][c:7][c:8][c:9][c:10]12
 1:2-3-exo-2-ketoindolequinone_to_indole_AH2	0	[O:1]=[C:2]1[N:3]=[c:4]([c:5][c:6][c:7][c:8]2)[c:9]2=[C:10]1[a:11][a:12][NH2:13]>>[O:1]=[C:2]1[NH:3][c:4]([c:5][c:6][c:7][c:8]2)[c:9]2[C:10]1=[*:11]~[*:12]=[NH:13]
 1:2-3-exo-2-ketoindolequinone_to_indole_AH1	0	[O:1]=[C:2]1[N:3]=[c:4]([c:5][c:6][c:7][c:8]2)[c:9]2=[C:10]1[a:11][a:12][OH,NH,SX2H:13]>>[O:1]=[C:2]1[NH:3][c:4]([c:5][c:6][c:7][c:8]2)[c:9]2[C:10]1=[*:11]~[*:12]=[O&H0,N&H0,S&H0:13]
+2-OH-indole/benzofuran-quinone_to_2-oxo 0       [c:1]1[o,nX3,sX2:2][c:3]2[c:4]([c:5]1[OH:6])[C:7]=[C:8][C:9](=[O:10])[C:11]=2>>[C:1]1[O,N,S:2][c:3]2[c:4]([C:5]1=[O&H0:6])[c:7][c:8][c:9]([OH:10])[c:11]2
+2-AH-indol-3-one_to_2-keto      0       [O:1]=[C:2]1[C:3]([CX4H1,OH,NH:7])=[N:4][*:5]=,:[*:6]1>>[O:1]=[C:2]1[C:3](=[CH0,O&H0,N&H0:7])[NH:4][*:5]=,:[*:6]1
+2-AH2-indol-3-one_to_2-keto     0       [O:1]=[C:2]1[C:3]([CX4H2,NH2:7])=[N:4][*:5]=,:[*:6]1>>[O:1]=[C:2]1[C:3](=[CH,NH:7])[NH:4][*:5]=,:[*:6]1
 OH-thia/oxazolone_to_thia/oxazolidinedione-CH0	0	[cH0;!$(c~[OX1,OH]):1]1[s,o:2][c:3](=[O,SX1,NX2:4])[n:5][c:6]1[OH:7]>>[CH:1]1[S,O:2][C:3](=[O,S,N:4])[N:5][C:6]1=[O&H0:7]
 OH-thia/oxazolone_to_thia/oxazolidinedione-CH1	0	[cH1:1]1[s,o:2][c:3](=[O,SX1,NX2:4])[n:5][c:6]1[OH:7]>>[CH2:1]1[S,O:2][C:3](=[O,S,N:4])[N:5][C:6]1=[O&H0:7]
 1-OH-isoindole_to_phthalimidine-CH0	0	[OH:1]-[c:2]1[nX3:3][cH0;!$(c~[OX1,OH]):4][c:5]2[a:6][a:7][a:8][a:9][c:10]12>>[O&H0:1]=[C:2]1[N:3][CH:4][c:5]2[a:6][a:7][a:8][a:9][c:10]12
