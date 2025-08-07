@@ -92,6 +92,8 @@ halo,acyl-like_arosulfonamides-NH2	8	ACID	0	[NH2&+0;$(N-[SX4](=O)(=O)-[a;$(aa[$(
 N-ali_5-mem-diheteroarosulfonamides-NH	8	ACID	0	[NH&+0;$(N(-[A^3])-[SX4](=O)(=O)-[a;$(a1[a;!$(c)]aa[a;!$(c)]1),$(a1[a;!$(c)][a;!$(c)]aa1)]):1]>>[NH0&-:1]
 5-mem-diheteroarosulfonamides-NH2	8	ACID	0	[NH2&+0;$(N-[SX4](=O)(=O)-[a;$(a1[a;!$(c)]aa[a;!$(c)]1),$(a1[a;!$(c)][a;!$(c)]aa1)]):1]>>[NH&-:1]
 N-aro_5-mem-diheteroarosulfonamides	4	ACID	0	[NH&+0;$(N(-a)-[SX4](=O)(=O)-[a;$(a1[a;!$(c)]aa[a;!$(c)]1),$(a1[a;!$(c)][a;!$(c)]aa1)]),$(N(-[a;$(a1[a;!$(c)]aa[a;!$(c)]1),$(a1[a;!$(c)][a;!$(c)]aa1)])-[SX4](=O)(=O)-a):1]>>[NH0&-:1]
+N-diazine_5-mem-aro_arosulfonamides     4       ACID    0       [NH&+0;$(N(-[a;$(a1nnaaa1),$(a1nanaa1),$(a1naana1),$(a1naaan1)])[SX4](=O)(=O)[a&r5])!$(N-a:a-[*-]):1]>>[NH0&-:1]
+N-diazine_6-mem-aro_arosulfonamides     6       ACID    0       [NH&+0;$(N(-[a;$(a1nnaaa1),$(a1nanaa1),$(a1naana1),$(a1naaan1)])[SX4](=O)(=O)[a&r6])!$(N-a:a-[*-]):1]>>[NH0&-:1]
 #AMINE/ANILINE-BASICITY
 amine	10	BASE	1	[N^3&+0;!$(N~[+1])!$(N~*~[+1,#7,#8,#9,#16,#17,#35,#53,*^1])!$(N~*=,#*)!$(N~[#6]-[#6](-[#9,#17])-[#9,#17])!$(N~[a,#7,#8,#9,#14,#15,#16,#17,#35,#53])!$(N~*~*~[*&+])!$(N1[CX4][CX4]O[CX4][CX4]1)!$(N1CC1)!$(N-[CX4]-*(=O)[N,OH0&+0])!$(N(~*~*[#9,#17])~*~*[#9,#17])!$(N~*~*~C#N)!$(N-!@[CX4&r6](-@[CX4&r6]-O)-@[CX4&r6]-[OH]):1]>>[N+:1]
 F3-ethylamines	6	BASE	0	[N^3&+0;$(N~[CX4]-C(-[#9])(-[#9])-[#9])!$(N~[+1])!$(N~*~[+1,#7,#8,#9,#16,#17,#35,#53,*^1])!$(N~*=,#*)!$(N~[a,#7,#8,#9,#14,#15,#16,#17,#35,#53])!$(N~*~*~[*&+])!$(N1[CX4][CX4]O[CX4][CX4]1)!$(N1CC1)!$(N-[CX4]-*(=O)[N,OH0&+0])!$(N(~*~*[#17])~*~*[#17])!$(N~*~*~C#N)!$(N-!@[CX4&r6](-@[CX4&r6]-O)-@[CX4&r6]-[OH]):1]>>[N+:1]
