@@ -65,7 +65,10 @@ try:
         rdMolStandardize.SubstructTerm("aro cycloheptatriene", "c1cccccc1", -150)
         )
     substructure_terms.append(
-        rdMolStandardize.SubstructTerm("corr_rdkit_feature1", "a1:a:a2:a:a:a:a:a-2:a:1", 199)
+        rdMolStandardize.SubstructTerm("corr_rdkit_feature-5-6", "a1:a:a2:a:a:a:a:a-2:a:1", 199)
+        )
+    substructure_terms.append(
+        rdMolStandardize.SubstructTerm("corr_rdkit_feature-6-6", "a1:a:a:a2:a:a:a:a:a-2:a:1", 199)
         )
     # Fix "Oc1cc2oc(cc(cn[nH]3)c3n4)c4c2cc1" getting aromatic benzoquinone
     substructure_terms.append(
