@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: [3.9, 3.10, 3.11]
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Micromamba
+      uses: mamba-org/setup-micromamba@v1
+      with:
+        micromamba-version: 'latest'
+        environment-file: environment.yml
+        environment-name: msani
+        condarc: |
+          channels:
+            - conda-forge
+            - rdkit
+        cache-downloads: true
+        cache-environment: true
+
+    - name: Install in editable mode
+      run: pip install -e .
+
+    - name: Run unittests
+      run: python -m unittest discover -s MolSanitizer/test -p "test_*.py"
