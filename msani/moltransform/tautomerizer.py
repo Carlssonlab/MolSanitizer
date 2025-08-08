@@ -32,10 +32,6 @@ allylic_acrylic = Chem.MolFromSmarts(
     '[C;$([CX4&!H0;!$(C-[!#6&!H0])]),$(C(=O)[O,N,CH0])]-[CX3;!$(C-[!#6&!H0])]=[CX3;!$(C-[!#6&!H0])]'
     )
 
-allylic_alcohol = Chem.MolFromSmarts(
-    '[OH]-[C^3]-[CX3;!$(C-[!#6&!H0])]=[CX3;!$(C-[!#6&!H0])]'
-    )
-
 amide_like = Chem.MolFromSmarts(
     '[#6^2;$([#6](=,:[!#6])~[!#6]),$([#6](~[!#6])(~[!#6])=,:*)]'
     )
@@ -46,6 +42,10 @@ carboxylic_acid = Chem.MolFromSmarts(
 
 sulfoximine_like = Chem.MolFromSmarts(
     'S=N'
+    )
+
+aliphatic_alcohol = Chem.MolFromSmarts(
+    '[OH]-[C;$([CH^3](-[C;!$(C=[!C])])-[#6;!$([C&z1]=[!C])]),$([CH2]),$([C!H0^3]-[CX3;!$(C-[!#6&!H0])]=[CX3;!$(C-[!#6&!H0])])]'
     )
 
 try:
@@ -233,6 +233,7 @@ class Tautomerizer:
             
             count_amide_like_input = len(mol.GetSubstructMatches(amide_like))
             count_carboxylic_acid = len(mol.GetSubstructMatches(carboxylic_acid))
+            count_aliphatic_alcohol = len(mol.GetSubstructMatches(aliphatic_alcohol))
             Chem.AssignCIPLabels(mol)
             initial_chiral_centers = len(Chem.FindMolChiralCenters(mol))
             intial_defined_double_bonds = self.count_defined_stereo_doublebonds(mol) 
@@ -241,6 +242,7 @@ class Tautomerizer:
             if self.debug: 
                 print(f"\tInitial amide-like substructures: {count_amide_like_input} ")
                 print(f"\tInitial carboxylic acid substructures: {count_carboxylic_acid}")
+                print(f"\tInitial aliphatic alcohol substructures: {count_aliphatic_alcohol}")
                 print(f"\tInitial defined double bonds: {intial_defined_double_bonds}")
                 print(f"\tInitial chiral centers: {initial_chiral_centers}")
 
@@ -265,12 +267,19 @@ class Tautomerizer:
                     if count_amide_like_tautomer < count_amide_like_input:
                         if self.debug: print(f"\t{Chem.MolToSmiles(tau)} has {count_amide_like_tautomer} amide-like substructures, skipping")
                         continue
-
+                
                 # Check carboxylic acid integrity
                 if count_carboxylic_acid > 0:
                     count_carboxylic_acid_tautomer = len(tau.GetSubstructMatches(carboxylic_acid))
                     if count_carboxylic_acid_tautomer < count_carboxylic_acid:
                         if self.debug: print(f"\t{Chem.MolToSmiles(tau)} has {count_carboxylic_acid_tautomer} carboxylic acid substructures, skipping")
+                        continue
+
+                # Check aliphatic alcohol integrity
+                if count_aliphatic_alcohol > 0:
+                    count_aliphatic_alcohol_tautomer = len(tau.GetSubstructMatches(aliphatic_alcohol))
+                    if count_aliphatic_alcohol_tautomer < count_aliphatic_alcohol:
+                        if self.debug: print(f"\t{Chem.MolToSmiles(tau)} has {count_aliphatic_alcohol_tautomer} aliphatic alcohol substructures, skipping")
                         continue
 
                 # Check sulfoximine-like integrity
@@ -312,18 +321,14 @@ class Tautomerizer:
             if len(equal_tautomers) > 1:
                 if self.debug: print(f"\tFound {len(equal_tautomers)} tautomers with the nearly similar score: {[t[2] for t in equal_tautomers]}")
                 ref_acrylic, ref_conf_acrylic = Tautomerizer._get_substruct_configurations(mol, allylic_acrylic)
-                ref_alcohol, ref_conf_alcohol = Tautomerizer._get_substruct_configurations(mol, allylic_alcohol)
-                if ref_acrylic or ref_alcohol:
+                if ref_acrylic:
                     if self.debug: 
                         print(f"\tReference allylic_acryllic configurations: {ref_conf_acrylic}")
-                        print(f"\tReference allylic_alcohol configurations: {ref_conf_alcohol}")
                     for tautomer, _, smiles in (equal_tautomers): 
                         match_acrylic, config_acrylic = Tautomerizer._get_substruct_configurations(tautomer, allylic_acrylic, ref_acrylic)
-                        match_alcohol, config_alcohol = Tautomerizer._get_substruct_configurations(tautomer, allylic_alcohol, ref_alcohol)
-                        if len(match_acrylic) != len(ref_acrylic)\
-                            or len(match_alcohol) != len(ref_alcohol): continue
+                        if len(match_acrylic) != len(ref_acrylic): continue
                         # Check for the same bonds as in the reference, whether the bond configurations changed
-                        if config_acrylic == ref_conf_acrylic and config_alcohol == ref_conf_alcohol:
+                        if config_acrylic == ref_conf_acrylic:
                             if self.debug: print(f'\tChanged to {smiles}')
                             canonical_tautomer = tautomer
                             break
@@ -336,8 +341,7 @@ class Tautomerizer:
                     if self.debug: print(f"\tNo allylic_acrylic bonds found, picking the first one that also has no allylic_acrylic bond.")
                     for tautomer, _, smiles in (equal_tautomers):
                         match_acrylic, _ = Tautomerizer._get_substruct_configurations(tautomer, allylic_acrylic)
-                        match_alcohol, _ = Tautomerizer._get_substruct_configurations(tautomer, allylic_alcohol)
-                        if not match_acrylic and not match_alcohol:
+                        if not match_acrylic:
                             canonical_tautomer = tautomer
                             if self.debug: print(f'\tChanged to {smiles}')
                             break
