@@ -9,8 +9,10 @@ from msani.conformers import utils
 
 logger = logging.getLogger('msani')
 
-neutralize_boronates = AllChem.ReactionFromSmarts('[BX4&-:1][OH]>>[B&+0:1]')
-neutralize_fake_positive_SH = AllChem.ReactionFromSmarts('[SH+;$(S-[*-]):1]>>[SH0&+:1]')
+exception_groups = [
+    AllChem.ReactionFromSmarts('[BX4&-:1][OH]>>[B&+0:1]'), # Neutralize boronates
+    AllChem.ReactionFromSmarts('[SH+;$(S-[*-]):1]>>[SH0&+:1]') # Neutralize fake positive SH
+    ]
 
 class Neutralizer:
     """
@@ -41,25 +43,17 @@ class Neutralizer:
         """
         try:
             smiles = Chem.MolToSmiles(mol)
-            # First, neutralize boronates if present
-            while mol.HasSubstructMatch(neutralize_boronates.GetReactantTemplate(0)):
-                new_mol = neutralize_boronates.RunReactants((mol,))[0][0]
-                error = Chem.SanitizeMol(new_mol, catchErrors=True)
-                if error == 0:
-                    mol = new_mol
-                else:
-                    logger.info(f"Error sanitizing molecule: {Chem.MolToSmiles(mol)}")
-                    return None
-            # Second, neutralize fake positive SH if present
-            while mol.HasSubstructMatch(neutralize_fake_positive_SH.GetReactantTemplate(0)):
-                new_mol = neutralize_fake_positive_SH.RunReactants((mol,))[0][0]
-                error = Chem.SanitizeMol(new_mol, catchErrors=True)
-                if error == 0:
-                    mol = new_mol
-                else:
-                    logger.info(f"Error sanitizing molecule: {Chem.MolToSmiles(mol)}")
-                    return None
-                
+            for rxn in exception_groups:
+                while mol.HasSubstructMatch(rxn.GetReactantTemplate(0)):
+                    #print(f"Applying reaction {AllChem.ReactionToSmarts(rxn)} to {smiles}")
+                    new_mol = rxn.RunReactants((mol,))[0][0]
+                    error = Chem.SanitizeMol(new_mol, catchErrors=True)
+                    if error == 0:
+                        mol = new_mol
+                    else:
+                        logger.info(f"Error sanitizing molecule: {Chem.MolToSmiles(mol)}")
+                        return None
+        
             # SMARTS pattern to find charged atoms that can be neutralized
             pattern = Chem.MolFromSmarts("[+1!h0!$([*]~[-1,-2,-3,-4]),-1!$([*]~[+1,+2,+3,+4])!$([BX4&-;!$(B-[OH])])]")
 
