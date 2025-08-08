@@ -1,0 +1,13 @@
+Oc1ccc(-c2ccc3cn[nH]c3n2)cc1	aro-benzoquinone1
+Oc1ccc2c(c1)oc1cc3cn[nH]c3nc12	aro-benzoquinone2
+O=C1C(=O)c2[nH]cc3c2C2=C1CNCCCN2C(C(=O)O)C3	redox-benzoquinone_COOH
+CCN(CC)Cc1c(O)ccc2c1OC(=Cc1ccc([N+](=O)[O-])cc1)C2=O	vinyl-shift_aro-3-OH-benzofuran1
+CC=C1Oc2cc(O)ccc2C1=O	vinyl-shift_aro-3-OH-benzofuran2
+C=CC(O)C(C)=O	redox-allylic-alcohol1
+O=C1c2nonc2C=CCC1O	redox-allylic-alcohol2
+O=C1c2nonc2CC=CC1O	redox-allylic-alcohol3
+COc1cc(-c2oc3cc(=[O+]C)cc(O)c-3cc2O)ccc1O	aro-benzoquinone3
+C[SH+]([O-])CC(C)(O)C1OC(=O)C=C2C3(C)CC4OC4C4(C)C(=O)OC(C34)C3OC231	fake-proton-pos-SH
+Oc1nnc(O)c2nc3ccccc3nc12	single-bond-in-fused-aro
+C=Cc1ccc(O)c2[nH]c3cccc(=O)c-3nc12	redox-vinyl
+O=C1C(O)=C(O)C(=O)c2c(O)c(O)c(O)c(O)c21	redox-phenol
