@@ -40,5 +40,5 @@ jobs:
       - name: Run unittests
         shell: bash -l {0}
         run: |
-          python -m unittest MolSanitizer/test/test_msani.py
-          python -m unittest MolSanitizer/test/test_validation_sets.py
+          python -m unittest test/test_msani.py
+          python -m unittesttest/test_validation_sets.py
