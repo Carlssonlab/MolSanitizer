@@ -31,6 +31,9 @@ TE = rdMolStandardize.TautomerEnumerator(TAUTOMER_PARAMS)
 allylic_acrylic = Chem.MolFromSmarts(
     '[C;$([CX4&!H0;!$(C-[!#6&!H0])]),$(C(=O)[O,N,CH0])]-[CX3;!$(C-[!#6&!H0])]=[CX3;!$(C-[!#6&!H0])]'
     )
+vinyl = Chem.MolFromSmarts(
+    '[CX3;!$(C-[!#6&!H0])]=[CX3;!$(C-[!#6&!H0])]'
+    )
 
 amide_like = Chem.MolFromSmarts(
     '[#6^2;$([#6](=,:[!#6])~[!#6]),$([#6](~[!#6])(~[!#6])=,:*)]'
@@ -53,32 +56,23 @@ try:
     del substructure_terms[8] #Methyl rule. We don't want to penalize terminal alkenes.
     del substructure_terms[0] #benzoquinone rule. We introduce our own rules for benzoquinones.
     substructure_terms.append(
-        rdMolStandardize.SubstructTerm("amide", "[NH1,NH2]-C=O", 1)
+        rdMolStandardize.SubstructTerm("aro-5", "a1aaaa1", 100)
         )
     substructure_terms.append(
-        rdMolStandardize.SubstructTerm("aro cyclopentadiene", "c1cccc1", -150)
-        )
+        rdMolStandardize.SubstructTerm("aro-6", "a1aaaaa1", 100)
+        )   
     substructure_terms.append(
-        rdMolStandardize.SubstructTerm("benzene", "c1ccccc1", -150)
-        )
-    substructure_terms.append(
-        rdMolStandardize.SubstructTerm("aro cycloheptatriene", "c1cccccc1", -150)
-        )
-    substructure_terms.append(
-        rdMolStandardize.SubstructTerm("corr_rdkit_feature-5-6", "a1:a:a2:a:a:a:a:a-2:a:1", 199)
-        )
-    substructure_terms.append(
-        rdMolStandardize.SubstructTerm("corr_rdkit_feature-6-6", "a1:a:a:a2:a:a:a:a:a-2:a:1", 199)
+        rdMolStandardize.SubstructTerm("aro-7", "a1aaaaaa1", 100)
         )
     # Fix "Oc1cc2oc(cc(cn[nH]3)c3n4)c4c2cc1" getting aromatic benzoquinone
     substructure_terms.append(
         rdMolStandardize.SubstructTerm("aromatic benzoquinone", "A=c1ccc(:a)cc1", -100)
         )
     substructure_terms.append(
-        rdMolStandardize.SubstructTerm("p-benzoquinone", "[#6]1([#6]=,:[#6][#6]([#6]=,:[#6]1)=,:[N,S,O])=,:[N,S,O]", 94)
+        rdMolStandardize.SubstructTerm("p-benzoquinone", "[#6]1(-[#6]=,:[#6]-[#6](-[#6]=,:[#6]-1)=,:[N,S,O])=,:[N,S,O]", 94)
         )
     substructure_terms.append(
-        rdMolStandardize.SubstructTerm("o-benzoquinone", "[#6]1([#6](=,:[N,S,O])[#6]=,:[#6]([#6]=,:[#6]1))=,:[N,S,O]", 94)
+        rdMolStandardize.SubstructTerm("o-benzoquinone", "[#6]1(-[#6](=,:[N,S,O])-[#6]=,:[#6](-[#6]=,:[#6]-1))=,:[N,S,O]", 94)
         )
     substructure_terms.append(
         rdMolStandardize.SubstructTerm("3-OH fused furane", "o1cc([OH])[c;$(c(:a)(:a):a)][c;$(c(:a)(:a):a)]1", -100)
@@ -95,8 +89,8 @@ def score_func(mol):
     """Customized scoring function for tautomerizer: from
     https://github.com/rdkit/rdkit/blob/master/Code/GraphMol/MolStandardize/Wrap/testMolStandardize.py"""
 
-    return (rdMolStandardize.ScoreRings(mol) + rdMolStandardize.ScoreHeteroHs(mol) +
-            rdMolStandardize.ScoreSubstructs(mol, substructure_terms))
+    return (rdMolStandardize.ScoreHeteroHs(mol) + rdMolStandardize.ScoreSubstructs(mol, substructure_terms))
+            
 
 def pairwise(iterable):
     """Utility function to iterate in a pairwise fashion."""
@@ -218,8 +212,8 @@ class Tautomerizer:
         """Returns substructure match and its configuration if present."""
         matches = mol.GetSubstructMatches(pattern)
         if ref_match is not None:
-            return matches, check_configurations(ref_match, mol) if matches else ([], None)
-        return matches, check_configurations(matches, mol) if matches else ([], None)
+            return (matches, check_configurations(ref_match, mol)) if matches else ([], None)
+        return (matches, check_configurations(matches, mol)) if matches else ([], None)
     
     def tautomer_canonicalize_rdkit(self, mol: Chem.Mol):
         """Tautomerize the input molecule using the RDKit TautomerEnumerator class.
@@ -308,30 +302,52 @@ class Tautomerizer:
             # If the canonical tautomer is the same SCORE as the input,
             # we believe more in the input than the output.
             # Return the input molecule
-            if max_score == score_func(mol):
+            initial_score = score_func(mol)
+            if max_score == initial_score:
                 if self.debug: print(f"Same score, use input molecule")
                 return mol
             
             # Emulate the Canonicalize function
             # Pick the one that has the same "configuration" of the double bonds as the input molecule
             # Lexicographically min first
-            equal_tautomers = [(t[0], t[1], Chem.MolToSmiles(t[0])) for t in tautomers if t[1] >= max_score - 3] 
+            equal_tautomers = [(t[0], t[1], Chem.MolToSmiles(t[0])) for t in tautomers if t[1] >= max_score - 4] 
             
             
             if len(equal_tautomers) > 1:
                 if self.debug: print(f"\tFound {len(equal_tautomers)} tautomers with the nearly similar score: {[t[2] for t in equal_tautomers]}")
                 ref_acrylic, ref_conf_acrylic = Tautomerizer._get_substruct_configurations(mol, allylic_acrylic)
-                if ref_acrylic:
+                ref_vinyl, ref_conf_vinyl = Tautomerizer._get_substruct_configurations(mol, vinyl)
+                if ref_acrylic or ref_vinyl:
                     if self.debug: 
                         print(f"\tReference allylic_acryllic configurations: {ref_conf_acrylic}")
-                    for tautomer, _, smiles in (equal_tautomers): 
+                        print(f"\tReference vinyl configurations: {ref_conf_vinyl}")
+                    potential_pool = []
+                    for tautomer, score, smiles in (equal_tautomers): 
                         match_acrylic, config_acrylic = Tautomerizer._get_substruct_configurations(tautomer, allylic_acrylic, ref_acrylic)
-                        if len(match_acrylic) != len(ref_acrylic): continue
+                        match_vinyl, config_vinyl = Tautomerizer._get_substruct_configurations(tautomer, vinyl, ref_vinyl)
+                        if len(match_acrylic) != len(ref_acrylic)\
+                            or len(match_vinyl) != len(ref_vinyl): continue
                         # Check for the same bonds as in the reference, whether the bond configurations changed
-                        if config_acrylic == ref_conf_acrylic:
-                            if self.debug: print(f'\tChanged to {smiles}')
-                            canonical_tautomer = tautomer
-                            break
+                        if config_acrylic == ref_conf_acrylic and config_vinyl == ref_conf_vinyl:
+                            # if self.debug: print(f'\tChanged to {smiles}')
+                            if self.debug: print(f'\tAdding {smiles} to the potential pool')
+                            potential_pool.append((tautomer, score ,smiles))
+                            # canonical_tautomer = tautomer
+                            # break
+                    if potential_pool:
+                        if any(Chem.MolToSmiles(mol) == smiles for _, _, smiles in potential_pool):
+                            if initial_score == potential_pool[0][1]:
+                                if self.debug: 
+                                    print(f"\tInput has the highest score, take it.")
+                                canonical_tautomer = mol
+                            else:
+                                if self.debug:
+                                    print(f"\tInput is in the potential pool, but less scored, take first one.")
+                                canonical_tautomer = potential_pool[0][0]
+                        else:
+                            if self.debug: 
+                                print(f'\tInput not found, use the first one in the pool.')
+                            canonical_tautomer = potential_pool[0][0]
                     if canonical_tautomer is None:
                         if self.debug: print(f"\tNone of the tautomers have the same configuration as the input molecule.")
                         canonical_tautomer = equal_tautomers[0][0]    
@@ -341,7 +357,8 @@ class Tautomerizer:
                     if self.debug: print(f"\tNo allylic_acrylic bonds found, picking the first one that also has no allylic_acrylic bond.")
                     for tautomer, _, smiles in (equal_tautomers):
                         match_acrylic, _ = Tautomerizer._get_substruct_configurations(tautomer, allylic_acrylic)
-                        if not match_acrylic:
+                        match_vinyl, _ = Tautomerizer._get_substruct_configurations(tautomer, vinyl)
+                        if not match_acrylic and not match_vinyl:
                             canonical_tautomer = tautomer
                             if self.debug: print(f'\tChanged to {smiles}')
                             break
