@@ -10,6 +10,7 @@ from msani.conformers import utils
 logger = logging.getLogger('msani')
 
 neutralize_boronates = AllChem.ReactionFromSmarts('[BX4&-:1][OH]>>[B&+0:1]')
+neutralize_fake_positive_SH = AllChem.ReactionFromSmarts('[SH+;$(S-[*-]):1]>>[SH0&+:1]')
 
 class Neutralizer:
     """
@@ -43,6 +44,15 @@ class Neutralizer:
             # First, neutralize boronates if present
             while mol.HasSubstructMatch(neutralize_boronates.GetReactantTemplate(0)):
                 new_mol = neutralize_boronates.RunReactants((mol,))[0][0]
+                error = Chem.SanitizeMol(new_mol, catchErrors=True)
+                if error == 0:
+                    mol = new_mol
+                else:
+                    logger.info(f"Error sanitizing molecule: {Chem.MolToSmiles(mol)}")
+                    return None
+            # Second, neutralize fake positive SH if present
+            while mol.HasSubstructMatch(neutralize_fake_positive_SH.GetReactantTemplate(0)):
+                new_mol = neutralize_fake_positive_SH.RunReactants((mol,))[0][0]
                 error = Chem.SanitizeMol(new_mol, catchErrors=True)
                 if error == 0:
                     mol = new_mol
