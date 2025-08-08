@@ -31,6 +31,7 @@ from msani.conformers import utils, mol2writer, torsions
 from msani.filtering import filters
 from msani.amsol import run_amsol
 from msani.db2 import solv
+from msani.io.utils import log_error
 
 
 
@@ -630,7 +631,7 @@ class ConformerGenerator:
         # Molecules which don't have rings are not of interest --> only sample limitedly.
         if (self.label_map) and not (AllowNonRing): numConfs = 30
         if request_alignment and not self.atom_maps:
-            utils.log_error(self.smiles, self.name)
+            log_error(self.smiles, self.name)
             return
         # For very flexible molecules, we need to sample more, then filter by energy later
         else:
@@ -862,7 +863,7 @@ class ConformerGenerator:
         self.atom_maps, self.label_map = utils.find_rigid_part(self.ring_confs[0], request_alignment)
 
         if request_alignment and not self.atom_maps:
-            utils.log_error(self.smiles, self.name)
+            log_error(self.smiles, self.name)
             return
         # For very flexible molecules, we need to sample more, then filter by energy later
         else:
@@ -1085,7 +1086,7 @@ class ConformerGenerator:
         os.chdir("../..")
         if error_signal == -1 and conf_id + 1 == self.amsol_mol.GetNumConformers(): # AMSOL failed
             logger.error(f"AMSOL failed for {self.name}, skipping it")
-            utils.log_error(self.smiles, self.name)
+            log_error(self.smiles, self.name)
             try: # Clean up the folders if error occurs. This help to not overfill the disk
                 shutil.rmtree(f"solv/{self.name}", ignore_errors=True)
             except: pass
@@ -1132,7 +1133,7 @@ class ConformerGenerator:
                 shutil.rmtree(f"solv/{self.name}", ignore_errors=True)
                 shutil.rmtree(f"db2/{self.name}", ignore_errors=True)
             except: pass
-            utils.log_error(self.smiles, self.name)
+            log_error(self.smiles, self.name)
             return
 
 
@@ -1309,11 +1310,11 @@ def gen_conf_chunk(df: DataFrame, args, input_file='0'):
                             confgen = ConformerGenerator(smiles, name, num_ring_confs=nr, method='obabel', tolerance=tolerance, VERBOSE=VERBOSE)
                         except Exception as e:
                             logger.error(f"Error in generating initial conformation using OpenBabel for {name}, skipping it {e}")
-                            utils.log_error(smiles, name)
+                            log_error(smiles, name)
                             continue
                         if confgen.amsol_mol is None:
                             logger.error(f"Error in generating initial conformation using OpenBabel for {name}, skipping it")
-                            utils.log_error(smiles, name)
+                            log_error(smiles, name)
                             continue
 
                     # Retrieve result from queue
@@ -1322,7 +1323,7 @@ def gen_conf_chunk(df: DataFrame, args, input_file='0'):
 
                         if error:
                             logger.error(f"Error in generating initial conformation using RDKit for {name}, skipping it: {error}")
-                            utils.log_error(smiles, name)
+                            log_error(smiles, name)
                             continue
                         confgen = ConformerGenerator.from_existing_data(smiles, 
                                                                         name, 
@@ -1335,11 +1336,11 @@ def gen_conf_chunk(df: DataFrame, args, input_file='0'):
                                                                         VERBOSE)
                     else:
                         logger.error(f"Unknown error in generating initial conformation for {name}, skipping it.")
-                        utils.log_error(smiles, name)
+                        log_error(smiles, name)
                         continue
             except Exception as e:
                 logger.error(f"Error in generating initial conformation for {name}, skipping it: {e}")
-                utils.log_error(smiles, name)
+                log_error(smiles, name)
                 continue
 
             if args.timing: embed_time = time.time() # Time for embedding
@@ -1357,7 +1358,7 @@ def gen_conf_chunk(df: DataFrame, args, input_file='0'):
                                         )
                 except Exception as e:
                     logger.error(f"Error in conformational sampling for {name}: {e}")
-                    utils.log_error(smiles, name)
+                    log_error(smiles, name)
                     continue
             if args.timing: sampling_time = time.time() # Time for sampling
             if 'sdf' in args.format: confgen.to_sdf()
@@ -1367,14 +1368,14 @@ def gen_conf_chunk(df: DataFrame, args, input_file='0'):
                     confgen.to_db2(longname = longname, env=env, cleanup=cleanup)
                 except Exception as e:
                     logger.error(f"Error in converting {name} to DB2 format: {e}")
-                    utils.log_error(smiles, name)
+                    log_error(smiles, name)
                     continue
             if 'db2.tgz' in args.format:
                 try: 
                     confgen.to_db2(longname = longname, env=env, cleanup=cleanup, tarfile = output)
                 except Exception as e:
                     logger.error(f"Error in converting {name} to DB2 format: {e}")
-                    utils.log_error(smiles, name)
+                    log_error(smiles, name)
                     continue
                 
             if args.timing and ('db2' in args.format): 

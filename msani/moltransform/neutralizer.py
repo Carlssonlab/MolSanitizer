@@ -5,7 +5,7 @@ from pandas import DataFrame, read_csv
 from rdkit import Chem
 from rdkit.Chem import AllChem
 
-from msani.conformers import utils
+from msani.io.utils import log_error_entries
 
 logger = logging.getLogger('msani')
 
@@ -137,14 +137,6 @@ class Neutralizer:
         neutralized_mol = self.neutralize_mol(mol)
         return Chem.MolToSmiles(neutralized_mol)
 
-def log_error_entries(df: DataFrame,
-                      mol_column: str,
-                      name_column: str,
-                      smiles_column: str) -> DataFrame:
-    for _, row in df[df[mol_column].isnull()].iterrows():
-        utils.log_error(smiles = row[smiles_column], name = row[name_column])
-    df = df[df[mol_column].notnull()]
-    return df
 
 def main():
     parser = argparse.ArgumentParser(description='Neutralize a molecule or a file of SMILES')

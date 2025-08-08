@@ -676,11 +676,6 @@ def find_rigid_part(mol, request_alignment=None):
                 break
     return rigid_part, rule_label
     
-
-def log_error(smiles, name):
-    with open('msani_error.err', 'a') as f:
-        f.write(f"{smiles} \t {name}\n")
-
 def Align_ConvertToDb2(ring_conf, rigid_scaffold, solv_obj, name, smiles, longname):
     """
     Align the all the conformers to the rigid scaffold (ring) and convert it to the DB2 string.

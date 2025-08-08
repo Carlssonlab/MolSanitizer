@@ -13,6 +13,7 @@ from rdkit.Chem import rdMolTransforms
 
 from msani.conformers.torsions import TorsionLibrary
 from msani.conformers.utils import within_tolerance
+from msani.io.utils import log_error_mol2
 
 def get_atoms_template(pattern):
     pattern_atoms = pattern.GetAtoms()
@@ -76,11 +77,6 @@ def write_mol2_file(comments, mol2_block, file_path):
         file.write("\n")
         file.write(mol2_block)
 
-def log_error(current_comments_str, current_mol2_str):
-    with open('strain_error.log', 'a') as f:
-        f.write(current_comments_str)
-        f.write('\n')
-        f.write(current_mol2_str)
 
 def process_one_mol(current_comments_str, current_mol2_str, prefix, input, tol, Torlib, debug):
     """    
@@ -113,7 +109,7 @@ def process_one_mol(current_comments_str, current_mol2_str, prefix, input, tol, 
             write_mol2_file(current_comments_str, current_mol2_str, f'strained_{input}')
     else:
         print(f'Error in converting MOL2 {name} to rdkit mol object, saving to strain_error.log')
-        log_error(current_comments_str, current_mol2_str)
+        log_error_mol2(current_comments_str, current_mol2_str)
 
 def process_mol2_file(input, tol, pre, Torlib, debug = False):
     chunks = []
