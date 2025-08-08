@@ -214,9 +214,8 @@ O=C1C=CNCCN1 530
 Oc1ccc2nc3ccccc3nc2c1 533
 Cc1c(O)c(C)c2nc3ccccc3nc2c1C 534
 Oc1cc2nc3ccccc3nc2cc1O 535
-COC1C(=O)C(c2ccccc2)NN(C)c2nc3ccccc3nc21 536
-CN1NC(c2ccccc2)C(=O)C(C#N)c2nc3ccccc3nc21 537_1
-CN1NC(c2ccccc2)C(O)=C(C#N)c2nc3ccccc3nc21 537_2
+COc1c2[nH]c3ccccc3nc-2n(C)[nH]c(-c2ccccc2)c1O 536
+Cn1[nH]c(-c2ccccc2)c(O)c(C#N)c2[nH]c3ccccc3nc1-2 537
 O=c1cc[nH]cc1 549
 Nc1cc(=O)cc[nH]1 551
 Cc1cc(=O)cc(C)[nH]1 552
@@ -457,7 +456,7 @@ O=[N+]([O-])c1ccc2cn[nH]c2c1 915
 Nc1ncnc2[nH]ncc12 916
 Cc1cc(=O)c2cn[nH]c2[nH]1 917
 Cc1cc(=O)c2cn[nH]c2[nH]1 918
-Cn1cnc2[nH]ncc2c1=N 919
+Cn1cnc2nncc-2c1N 919
 c1ccc2[nH]nnc2c1 923
 c1ncc2nc[nH]c2n1 930
 c1ncc2nn[nH]c2n1 931
@@ -473,7 +472,7 @@ O=c1[nH]c(=S)c2[nH]cnc2[nH]1 943
 Cn1c(=S)c2nc[nH]c2n(C)c1=O 944
 S=c1ncc2[nH]cnc2[nH]1 945
 CSc1nc(=O)[nH]c2nc[nH]c12 946
-Cn1cnc2[nH]cnc2c1=N 948
+Cn1cnc2ncnc-2c1N 948
 On1cnc2ccccc21 950
 O=[N+]([O-])c1c[nH]cn1 951
 Brc1c[nH]cn1 952
