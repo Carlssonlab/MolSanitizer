@@ -178,7 +178,6 @@ class Ionizer:
 
         visited.add(mol_smiles)  # Mark the molecule as visited
         reactive = False
-    
         outcomes = rxn.RunReactants((mol,))
         if outcomes:  # Check if there are any outcomes            
             reactive = True
@@ -222,21 +221,25 @@ class Ionizer:
                     if name in self.enumerating_rules:
                         for outcome in outcomes:
                             product = outcome[0]
-                            try:
-                                error = Chem.SanitizeMol(product, catchErrors=True)
-                                if error == 0: output.update(self.recursive_reaction(product, rxn, set()))
-                            except Exception as e:
-                                logger.info(f"Error sanitizing molecule: {Chem.MolToSmiles(product)}. Exception: {e}")
+                            error = Chem.SanitizeMol(product, catchErrors=True)
+                            if error == 0: 
+                                output.update(self.recursive_reaction(product, rxn, set()))
+                            else:
+                                output = input.copy()  # If sanitization fails, keep the original input
+                                logger.info(f"Error sanitizing molecule: {Chem.MolToSmiles(product)}")
+                                if self.debug: print(f"Error sanitizing molecule: {Chem.MolToSmiles(product)}")
+                        
                     else:
                         product = outcomes[0][0]
-                        try:
-                            error = Chem.SanitizeMol(product, catchErrors=True)
-                            if error == 0: output.update(self.recursive_reaction(product, rxn, set()))
-                        except Exception as e:
-                            logger.info(f"Error sanitizing molecule: {Chem.MolToSmiles(product)}. Exception: {e}")
+                        error = Chem.SanitizeMol(product, catchErrors=True)
+                        if error == 0: 
+                            output.update(self.recursive_reaction(product, rxn, set()))
+                        else:
+                            output = input.copy()  # If sanitization fails, keep the original input
+                            if self.debug: print(f"Error sanitizing molecule: {Chem.MolToSmiles(product)}")
+                            logger.info(f"Error sanitizing molecule: {Chem.MolToSmiles(product)}")
                 else:
                     output = input.copy()
-        # print(output)
         return output
     def check_duplicated_rule_combs(self, mol: Chem.Mol, pH: float) -> tuple:
         """
