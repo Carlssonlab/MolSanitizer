@@ -1,0 +1,9 @@
+# This is the file supplement to tautomers_v*.txt file 
+# where we believe that these substructures should not be broken and should be kept during the tautomer enumerator.
+# Lines start with # or empty lines are skipped.
+# Last update: Aug 11th, 2025
+# Format: name  SMARTS
+amide_like  [#6^2;$([#6](=,:[!#6])~[!#6]),$([#6](~[!#6])(~[!#6])=,:*)]
+carboxylic_acid C(=O)[OH]
+sulfoximine_like    S=N
+aliphatic_alcohol   [OH]-[C;$([CH^3](-[C;!$(C=[!C])])-[#6;!$([C&z1]=[!C])]),$([CH2]),$([C!H0^3]-[CX3;!$(C-[!#6&!H0])]=[CX3;!$(C-[!#6&!H0])])]

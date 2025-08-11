@@ -18,6 +18,7 @@ RDLogger.DisableLog('rdApp.*') # To disable error messages with kekulizing tauto
 logger = logging.getLogger('msani')
 
 TAUTOMER_RULES_PATH = Path(__file__).parent.parent / 'Data' / 'tautomers_v3.txt'
+INTEGRITY_RULES_PATH = Path(__file__).parent.parent / 'Data' / 'tautomers_integrity_SMARTS.txt'
 
 TAUTOMER_PARAMS = rdMolStandardize.CleanupParameters()
 TAUTOMER_PARAMS.tautomerRemoveSp3Stereo = False
@@ -36,21 +37,6 @@ vinyl = Chem.MolFromSmarts(
     )
 ethylene = Chem.MolFromSmarts(
     '[CX4H2;!$(C-[!#6])]-[CH3,CX4H2;!$(C-[!#6])]'
-    )
-amide_like = Chem.MolFromSmarts(
-    '[#6^2;$([#6](=,:[!#6])~[!#6]),$([#6](~[!#6])(~[!#6])=,:*)]'
-    )
-
-carboxylic_acid = Chem.MolFromSmarts(
-    'C(=O)[OH]'
-    )
-
-sulfoximine_like = Chem.MolFromSmarts(
-    'S=N'
-    )
-
-aliphatic_alcohol = Chem.MolFromSmarts(
-    '[OH]-[C;$([CH^3](-[C;!$(C=[!C])])-[#6;!$([C&z1]=[!C])]),$([CH2]),$([C!H0^3]-[CX3;!$(C-[!#6&!H0])]=[CX3;!$(C-[!#6&!H0])])]'
     )
 
 try:
@@ -154,6 +140,7 @@ class Tautomerizer:
 
     def __init__(self,
                  smartsFile = TAUTOMER_RULES_PATH,
+                 integrityFile = INTEGRITY_RULES_PATH,
                  taurdkit=True,
                  neutralize=True,
                  numcores = 1,
@@ -165,6 +152,8 @@ class Tautomerizer:
         self.numcores = numcores
         if smartsFile is None: smartsFile = TAUTOMER_RULES_PATH
         self.reactions = self.load_reactions(smartsFile)
+        if integrityFile is None: integrityFile = INTEGRITY_RULES_PATH
+        self.integrity_substructs = self.load_integrity_rules(integrityFile)
         self.standardizing_reactions = [r for r in self.reactions if not r[1]]
         self.enumerating_reactions = [r for r in self.reactions if r[1]]
         self.debug = debug
@@ -200,6 +189,32 @@ class Tautomerizer:
             logger.info(f"Loaded {len(reactions)} reactions from {file_path}")
         return reactions
     
+    def load_integrity_rules(self, file_path: str):
+        """Load the integrity rules from a file containing SMARTS strings.
+
+        Args:
+            file_path (str): Path to the file containing the reactions in SMARTS strings.
+
+        Returns:
+            list: A list containing the reactions in the form of [rdkit.Chem.rdChemReactions object, name].
+        """
+        integrity_substructs = dict()
+        with open(file_path, 'r') as file:
+            for line in file:
+                # Skip the comments and silent rules
+                if line.startswith('#'): 
+                    continue
+                contentline = line.strip().split()
+                if contentline:
+                    try:
+                        # Name SMARTS 
+                        integrity_substructs[contentline[0]] = Chem.MolFromSmarts(contentline[1])
+                    except: 
+                        logger.error(f"Error loading rule: {line}")
+        if self.debug:
+            logger.info(f"Loaded {len(integrity_substructs)} substructures from {file_path}")
+        return integrity_substructs
+    
     def count_defined_stereo_doublebonds(self, mol):
         num_stereo = 0
         for bond in mol.GetBonds():
@@ -226,19 +241,17 @@ class Tautomerizer:
             canonical_tautomer = None
             tautomers = [] # The tautomers would be list of (mol, score)
             max_score = -9999
+            original_mol_substructs = dict()
+            for name, substruct in self.integrity_substructs.items():
+                original_mol_substructs[name] = len(mol.GetSubstructMatches(substruct))
             
-            count_amide_like_input = len(mol.GetSubstructMatches(amide_like))
-            count_carboxylic_acid = len(mol.GetSubstructMatches(carboxylic_acid))
-            count_aliphatic_alcohol = len(mol.GetSubstructMatches(aliphatic_alcohol))
             Chem.AssignCIPLabels(mol)
             initial_chiral_centers = len(Chem.FindMolChiralCenters(mol))
             intial_defined_double_bonds = self.count_defined_stereo_doublebonds(mol) 
-            initial_sulfoximine_like = len(mol.GetSubstructMatches(sulfoximine_like))
 
             if self.debug: 
-                print(f"\tInitial amide-like substructures: {count_amide_like_input} ")
-                print(f"\tInitial carboxylic acid substructures: {count_carboxylic_acid}")
-                print(f"\tInitial aliphatic alcohol substructures: {count_aliphatic_alcohol}")
+                for name, count in original_mol_substructs.items():
+                    print(f"\tInitial {name} substructures: {count}")
                 print(f"\tInitial defined double bonds: {intial_defined_double_bonds}")
                 print(f"\tInitial chiral centers: {initial_chiral_centers}")
 
@@ -257,34 +270,17 @@ class Tautomerizer:
                     if self.debug: print(f"\t{Chem.MolToSmiles(tau)} has fewer defined double bonds than the input, skipping")
                     continue
                 
-                # Check amide-like integrity
-                if count_amide_like_input > 0:
-                    count_amide_like_tautomer = len(tau.GetSubstructMatches(amide_like))
-                    if count_amide_like_tautomer < count_amide_like_input:
-                        if self.debug: print(f"\t{Chem.MolToSmiles(tau)} has {count_amide_like_tautomer} amide-like substructures, skipping")
-                        continue
-                
-                # Check carboxylic acid integrity
-                if count_carboxylic_acid > 0:
-                    count_carboxylic_acid_tautomer = len(tau.GetSubstructMatches(carboxylic_acid))
-                    if count_carboxylic_acid_tautomer < count_carboxylic_acid:
-                        if self.debug: print(f"\t{Chem.MolToSmiles(tau)} has {count_carboxylic_acid_tautomer} carboxylic acid substructures, skipping")
-                        continue
+                broken = False
+                for name, substruct in self.integrity_substructs.items():
+                    if original_mol_substructs[name] > 0:
+                        count_tau_substruct = len(tau.GetSubstructMatches(substruct))
+                        if count_tau_substruct < original_mol_substructs[name]:
+                            if self.debug: print(f"\t{Chem.MolToSmiles(tau)} has {count_tau_substruct} {name} substructures, skipping")
+                            broken = True
+                            break
+                        
+                if broken: continue #Any of the integrity test failed, skip this tautomer
 
-                # Check aliphatic alcohol integrity
-                if count_aliphatic_alcohol > 0:
-                    count_aliphatic_alcohol_tautomer = len(tau.GetSubstructMatches(aliphatic_alcohol))
-                    if count_aliphatic_alcohol_tautomer < count_aliphatic_alcohol:
-                        if self.debug: print(f"\t{Chem.MolToSmiles(tau)} has {count_aliphatic_alcohol_tautomer} aliphatic alcohol substructures, skipping")
-                        continue
-
-                # Check sulfoximine-like integrity
-                if initial_sulfoximine_like > 0:
-                    count_sulfoximine_like_tautomer = len(tau.GetSubstructMatches(sulfoximine_like))
-                    if count_sulfoximine_like_tautomer < initial_sulfoximine_like:
-                        if self.debug: print(f"\t{Chem.MolToSmiles(tau)} has {count_sulfoximine_like_tautomer} sulfoximine-like substructures, skipping")
-                        continue
-                    
                 # All passed, add to the list
                 score = score_func(tau)
                 tautomers.append((tau, score))
@@ -316,7 +312,10 @@ class Tautomerizer:
             
             
             if len(equal_tautomers) > 1:
-                if self.debug: print(f"\tFound {len(equal_tautomers)} tautomers with the nearly similar score: {[t[2] for t in equal_tautomers]}")
+                if self.debug: 
+                    print(f"\tFound {len(equal_tautomers)} tautomers with the nearly similar score:")
+                    for t in equal_tautomers:
+                        print(f'\t  {t[2]} {t[1]}')
                 ref_acrylic, ref_conf_acrylic = Tautomerizer._get_substruct_configurations(mol, allylic_acrylic)
                 ref_vinyl, ref_conf_vinyl = Tautomerizer._get_substruct_configurations(mol, vinyl)
                 ref_ethylene, ref_conf_ethylene = Tautomerizer._get_substruct_configurations(mol, ethylene)
