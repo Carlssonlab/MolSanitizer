@@ -75,7 +75,7 @@ try:
         rdMolStandardize.SubstructTerm("o-benzoquinone", "[#6]1(-[#6](=,:[N,S,O])-[#6]=,:[#6](-[#6]=,:[#6]-1))=,:[N,S,O]", 94)
         )
     substructure_terms.append(
-        rdMolStandardize.SubstructTerm("3-OH fused furane", "o1cc([OH])[c;$(c(:a)(:a):a)][c;$(c(:a)(:a):a)]1", -100)
+        rdMolStandardize.SubstructTerm("2-or-3-OH fused furane", "[a;$(c1([OH])coc(:,=[#6^2])c1),$(c1([OH])cocc1(:,=[#6^2])),$(c1c([OH])occ1(:,=[#6^2])),$(c1c([OH])oc(:,=[#6^2])c1),$(c1(:,=[#6^2])c([OH])occ1)]1aaaa1", -100)
         )
 except AttributeError as e:
     from rdkit import rdBase

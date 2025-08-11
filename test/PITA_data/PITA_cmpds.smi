@@ -11,3 +11,5 @@ C[SH+]([O-])CC(C)(O)C1OC(=O)C=C2C3(C)CC4OC4C4(C)C(=O)OC(C34)C3OC231	fake-proton-
 Oc1nnc(O)c2nc3ccccc3nc12	single-bond-in-fused-aro
 C=Cc1ccc(O)c2[nH]c3cccc(=O)c-3nc12	redox-vinyl
 O=C1C(O)=C(O)C(=O)c2c(O)c(O)c(O)c(O)c21	redox-phenol
+O=C1C=c2oc(=Cc3ccc(O)cc3O)c(O)c2C(=O)C1   vinyl-shift_aro-3-OH-benzofuran3
+O=C1C=c(c(O)co2)c2=CC1  vinyl-shift_aro-3-OH-benzofuran4
