@@ -34,7 +34,9 @@ allylic_acrylic = Chem.MolFromSmarts(
 vinyl = Chem.MolFromSmarts(
     '[CX3;!$(C-[!#6&!H0])]=[CX3;!$(C-[!#6&!H0])]'
     )
-
+ethylene = Chem.MolFromSmarts(
+    '[CX4H2;!$(C-[!#6])]-[CH3,CX4H2;!$(C-[!#6])]'
+    )
 amide_like = Chem.MolFromSmarts(
     '[#6^2;$([#6](=,:[!#6])~[!#6]),$([#6](~[!#6])(~[!#6])=,:*)]'
     )
@@ -317,21 +319,29 @@ class Tautomerizer:
                 if self.debug: print(f"\tFound {len(equal_tautomers)} tautomers with the nearly similar score: {[t[2] for t in equal_tautomers]}")
                 ref_acrylic, ref_conf_acrylic = Tautomerizer._get_substruct_configurations(mol, allylic_acrylic)
                 ref_vinyl, ref_conf_vinyl = Tautomerizer._get_substruct_configurations(mol, vinyl)
-                if ref_acrylic or ref_vinyl:
+                ref_ethylene, ref_conf_ethylene = Tautomerizer._get_substruct_configurations(mol, ethylene)
+                if ref_acrylic or ref_vinyl or ref_ethylene:
                     if self.debug: 
                         print(f"\tReference allylic_acryllic configurations: {ref_conf_acrylic}")
                         print(f"\tReference vinyl configurations: {ref_conf_vinyl}")
+                        print(f"\tReference ethylene configurations: {ref_conf_ethylene}")
                     potential_pool = []
                     for tautomer, score, smiles in (equal_tautomers): 
                         match_acrylic, config_acrylic = Tautomerizer._get_substruct_configurations(tautomer, allylic_acrylic, ref_acrylic)
                         match_vinyl, config_vinyl = Tautomerizer._get_substruct_configurations(tautomer, vinyl, ref_vinyl)
+                        match_ethylene, config_ethylene = Tautomerizer._get_substruct_configurations(tautomer, ethylene, ref_ethylene)
+
                         if len(match_acrylic) != len(ref_acrylic)\
-                            or len(match_vinyl) != len(ref_vinyl): continue
+                            or len(match_vinyl) != len(ref_vinyl)\
+                                or len(match_ethylene) < len(ref_ethylene): continue
                         # Check for the same bonds as in the reference, whether the bond configurations changed
-                        if config_acrylic == ref_conf_acrylic and config_vinyl == ref_conf_vinyl:
+                        if config_acrylic == ref_conf_acrylic \
+                            and config_vinyl == ref_conf_vinyl \
+                                and config_ethylene == ref_conf_ethylene:
                             # if self.debug: print(f'\tChanged to {smiles}')
                             if self.debug: print(f'\tAdding {smiles} to the potential pool')
                             potential_pool.append((tautomer, score ,smiles))
+                            continue
                             # canonical_tautomer = tautomer
                             # break
                     if potential_pool:
