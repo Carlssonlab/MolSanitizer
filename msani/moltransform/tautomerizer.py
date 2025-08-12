@@ -35,13 +35,11 @@ allylic_acrylic = Chem.MolFromSmarts(
 vinyl = Chem.MolFromSmarts(
     '[CX3;!$(C-[!#6&!H0])]=[CX3;!$(C-[!#6&!H0])]'
     )
-ethylene = Chem.MolFromSmarts(
-    '[CX4H2;!$(C-[!#6])]-[CH3,CX4H2;!$(C-[!#6])]'
-    )
 
 try:
     substructure_terms = rdMolStandardize.GetDefaultTautomerScoreSubstructs()
     del substructure_terms[8] #Methyl rule. We don't want to penalize terminal alkenes.
+    del substructure_terms[2] #C=,:O rule. We introduce our own rules for carbonyls.
     del substructure_terms[0] #benzoquinone rule. We introduce our own rules for benzoquinones.
     substructure_terms.append(
         rdMolStandardize.SubstructTerm("aro-5", "a1aaaa1", 100)
@@ -52,9 +50,15 @@ try:
     substructure_terms.append(
         rdMolStandardize.SubstructTerm("aro-7", "a1aaaaaa1", 100)
         )
+    substructure_terms.append(
+        rdMolStandardize.SubstructTerm("carbonyl", "[#6]=,:[#8,#16]", 2)
+        )
     # Fix "Oc1cc2oc(cc(cn[nH]3)c3n4)c4c2cc1" getting aromatic benzoquinone
     substructure_terms.append(
-        rdMolStandardize.SubstructTerm("aromatic benzoquinone", "A=c1ccc(:a)cc1", -100)
+        rdMolStandardize.SubstructTerm("aromatic p-benzoquinone", "A=c1ccc(:a)cc1", -100)
+        )
+    substructure_terms.append(
+        rdMolStandardize.SubstructTerm("aromatic o-benzoquinone", "c1ccc(:a)c(=A)c1", -100)
         )
     substructure_terms.append(
         rdMolStandardize.SubstructTerm("p-benzoquinone", "[#6]1(-[#6]=,:[#6]-[#6](-[#6]=,:[#6]-1)=,:[N,S,O])=,:[N,S,O]", 94)
@@ -63,7 +67,7 @@ try:
         rdMolStandardize.SubstructTerm("o-benzoquinone", "[#6]1(-[#6](=,:[N,S,O])-[#6]=,:[#6](-[#6]=,:[#6]-1))=,:[N,S,O]", 94)
         )
     substructure_terms.append(
-        rdMolStandardize.SubstructTerm("2-or-3-OH fused furane", "[a;$(c1([OH])coc(:,=[#6^2])c1),$(c1([OH])cocc1(:,=[#6^2])),$(c1c([OH])occ1(:,=[#6^2])),$(c1c([OH])oc(:,=[#6^2])c1),$(c1(:,=[#6^2])c([OH])occ1)]1aaaa1", -100)
+        rdMolStandardize.SubstructTerm("2-or-3-OH furane", "[a;$(c1([OH])[c!$(c~[OX1,OH,SX1,SX2H])][o,s][c!$(c~[OX1,OH,SX1,SX2H])][c!$(c~[OX1,OH,SX1,SX2H])]1),$([c!$(c~[OX1,OH,SX1,SX2H])]1c([OH])[o,s][c!$(c~[OX1,OH,SX1,SX2H])][c!$(c~[OX1,OH,SX1,SX2H])]1)]1aaaa1", -100)
         )
 except AttributeError as e:
     from rdkit import rdBase
@@ -318,25 +322,20 @@ class Tautomerizer:
                         print(f'\t  {t[2]} {t[1]}')
                 ref_acrylic, ref_conf_acrylic = Tautomerizer._get_substruct_configurations(mol, allylic_acrylic)
                 ref_vinyl, ref_conf_vinyl = Tautomerizer._get_substruct_configurations(mol, vinyl)
-                ref_ethylene, ref_conf_ethylene = Tautomerizer._get_substruct_configurations(mol, ethylene)
-                if ref_acrylic or ref_vinyl or ref_ethylene:
+                if ref_acrylic or ref_vinyl:
                     if self.debug: 
                         print(f"\tReference allylic_acryllic configurations: {ref_conf_acrylic}")
                         print(f"\tReference vinyl configurations: {ref_conf_vinyl}")
-                        print(f"\tReference ethylene configurations: {ref_conf_ethylene}")
                     potential_pool = []
                     for tautomer, score, smiles in (equal_tautomers): 
                         match_acrylic, config_acrylic = Tautomerizer._get_substruct_configurations(tautomer, allylic_acrylic, ref_acrylic)
                         match_vinyl, config_vinyl = Tautomerizer._get_substruct_configurations(tautomer, vinyl, ref_vinyl)
-                        match_ethylene, config_ethylene = Tautomerizer._get_substruct_configurations(tautomer, ethylene, ref_ethylene)
 
                         if len(match_acrylic) != len(ref_acrylic)\
-                            or len(match_vinyl) != len(ref_vinyl)\
-                                or len(match_ethylene) < len(ref_ethylene): continue
+                            or len(match_vinyl) != len(ref_vinyl): continue
                         # Check for the same bonds as in the reference, whether the bond configurations changed
                         if config_acrylic == ref_conf_acrylic \
-                            and config_vinyl == ref_conf_vinyl \
-                                and config_ethylene == ref_conf_ethylene:
+                            and config_vinyl == ref_conf_vinyl:
                             # if self.debug: print(f'\tChanged to {smiles}')
                             if self.debug: print(f'\tAdding {smiles} to the potential pool')
                             potential_pool.append((tautomer, score ,smiles))

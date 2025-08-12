@@ -93,7 +93,7 @@ CC(=O)c1c(C)cc(C)cc1C 200
 CC(=S)c1c(C)cc(C)cc1C 201
 O=C(O)C1c2ccccc2-c2ccccc21 203
 COC(=S)C1c2ccccc2-c2ccccc21 204
-O=c1cccccc1S 209
+Oc1cccccc1=S 209
 S=C1Cc2ccccc2S1 215
 Sc1ccsc1 216
 Sc1csc2ccccc12 217
@@ -406,7 +406,7 @@ CCOC(=O)Cc1nc2ccc(C(F)(F)F)cc2[nH]c1=O 852
 c1ccc(OCCc2ccccn2)cc1 853
 N#CC(COc1ccccc1)c1ccccn1 854
 FNc1ccncc1 855
-O=c1cccc2ccc3ccc[nH]c3c12 856
+Oc1cccc2ccc3cccnc3c12 856
 O=C1CCCC2CCC3CCCNC3=C12 857
 O=C1CCCc2ccc3c(c21)NCCC3 858
 Oc1cccc2c1-c1ncccc1CC2 859
