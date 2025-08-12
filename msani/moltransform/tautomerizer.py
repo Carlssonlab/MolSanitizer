@@ -18,7 +18,6 @@ RDLogger.DisableLog('rdApp.*') # To disable error messages with kekulizing tauto
 logger = logging.getLogger('msani')
 
 TAUTOMER_RULES_PATH = Path(__file__).parent.parent / 'Data' / 'tautomers_v3.txt'
-INTEGRITY_RULES_PATH = Path(__file__).parent.parent / 'Data' / 'tautomers_integrity_SMARTS.txt'
 
 TAUTOMER_PARAMS = rdMolStandardize.CleanupParameters()
 TAUTOMER_PARAMS.tautomerRemoveSp3Stereo = False
@@ -35,6 +34,13 @@ allylic_acrylic = Chem.MolFromSmarts(
 vinyl = Chem.MolFromSmarts(
     '[CX3;!$(C-[!#6&!H0])]=[CX3;!$(C-[!#6&!H0])]'
     )
+
+integrity_substructs = {
+    'carboxylic_acid': Chem.MolFromSmarts('C(=O)[OH]'),
+    'sulfoximine_like': Chem.MolFromSmarts('S=N'),
+    'aliphatic_alcohol': Chem.MolFromSmarts('[OH,SH&X2]-[C;$([CH^3](-[C;!$(C=[!C])])-[#6;!$([C&z1]=[!C])]),$([CH2]),$([C!H0^3]-[CX3;!$(C-[!#6&!H0])]=[CX3;!$(C-[!#6&!H0])])]'),
+    'ethylene_like': Chem.MolFromSmarts('[C;$([CX4H2;!$(C-[!#6])!$(C-C=[!#6])!$(C-C=C-C=[!#6])]-[CX4;!$(C-[!#6])]),$([CX4H2;!$(C-[!#6])]-[CX4;!$(C-[!#6])!$(C-C=[!#6])!$(C-C=C-C=[!#6])])]')
+}
 
 try:
     substructure_terms = rdMolStandardize.GetDefaultTautomerScoreSubstructs()
@@ -144,7 +150,6 @@ class Tautomerizer:
 
     def __init__(self,
                  smartsFile = TAUTOMER_RULES_PATH,
-                 integrityFile = INTEGRITY_RULES_PATH,
                  taurdkit=True,
                  neutralize=True,
                  numcores = 1,
@@ -156,8 +161,7 @@ class Tautomerizer:
         self.numcores = numcores
         if smartsFile is None: smartsFile = TAUTOMER_RULES_PATH
         self.reactions = self.load_reactions(smartsFile)
-        if integrityFile is None: integrityFile = INTEGRITY_RULES_PATH
-        self.integrity_substructs = self.load_integrity_rules(integrityFile)
+        self.integrity_substructs = integrity_substructs
         self.standardizing_reactions = [r for r in self.reactions if not r[1]]
         self.enumerating_reactions = [r for r in self.reactions if r[1]]
         self.debug = debug
@@ -192,32 +196,6 @@ class Tautomerizer:
         if self.debug:
             logger.info(f"Loaded {len(reactions)} reactions from {file_path}")
         return reactions
-    
-    def load_integrity_rules(self, file_path: str):
-        """Load the integrity rules from a file containing SMARTS strings.
-
-        Args:
-            file_path (str): Path to the file containing the reactions in SMARTS strings.
-
-        Returns:
-            list: A list containing the reactions in the form of [rdkit.Chem.rdChemReactions object, name].
-        """
-        integrity_substructs = dict()
-        with open(file_path, 'r') as file:
-            for line in file:
-                # Skip the comments and silent rules
-                if line.startswith('#'): 
-                    continue
-                contentline = line.strip().split()
-                if contentline:
-                    try:
-                        # Name SMARTS 
-                        integrity_substructs[contentline[0]] = Chem.MolFromSmarts(contentline[1])
-                    except: 
-                        logger.error(f"Error loading rule: {line}")
-        if self.debug:
-            logger.info(f"Loaded {len(integrity_substructs)} substructures from {file_path}")
-        return integrity_substructs
     
     def count_defined_stereo_doublebonds(self, mol):
         num_stereo = 0
