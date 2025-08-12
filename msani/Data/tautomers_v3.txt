@@ -86,7 +86,9 @@ furan/thiophene/pyrrole-2,5-diol_to_2,5-dione-CH1	0	[#6H1;!$(c~[OX1,OH])!$(c(:a)
 hydantoin-enol_to_hydantoin-CH0	0	[cH0;!$(c~[OX1,OH])!$(c(:a)(:a):a):1]1[c:2](-[OH1,SX2H1:7])[nX3:3][c:4](=[O,SX1:5])[nX3;!$(n(:a)(:a):a):6]1>>[CH1:1]1[C:2](=[O&H0,S&H0:7])[N:3][C:4](=[O,S:5])[N:6]1
 hydantoin-enol_to_hydantoin-CH1	0	[cH1;!$(c~[OX1,OH])!$(c(:a)(:a):a):1]1[c:2](-[OH1,SX2H1:7])[nX3:3][c:4](=[O,SX1:5])[nX3;!$(n(:a)(:a):a):6]1>>[CH2:1]1[C:2](=[O&H0,S&H0:7])[N:3][C:4](=[O,S:5])[N:6]1
 aro-glutarimide-enol_to_glutarimide-CH0	0	[O,SX1:7]=[c:1]1[n:2][c:3](-[OH,SX2H1:8])[cH0;!$(c~[OX1,OH]):4][c;$(c(:a)(:a):a)!$(c~[OX1,OH]):5][c;$(c(:a)(:a):a)!$(c~[OX1,OH]):6]1>>[O,S:7]=[C:1]1[N:2][C:3](=[O&H0,S&H0:8])[CH1:4][c:5][c:6]1
+aro-glutarimide-enol_to_glutarimide-CH0	0	[O,SX1:7]=[c:1]1[n:2][c:3](-[OH,SX2H1:8])[c;$(c(:a)(:a):a)!$(c~[OX1,OH]):4][c;$(c(:a)(:a):a)!$(c~[OX1,OH]):5][cH0;!$(c~[OX1,OH]):6]1>>[O,S:7]=[C:1]1[N:2][C:3](=[O&H0,S&H0:8])[c:4][c:5][CH1:6]1
 aro-glutarimide-enol_to_glutarimide-CH1	0	[O,SX1:7]=[c:1]1[n:2][c:3](-[OH,SX2H1:8])[cH1:4][c;$(c(:a)(:a):a)!$(c~[OX1,OH]):5][c;$(c(:a)(:a):a)!$(c~[OX1,OH]):6]1>>[O,S:7]=[C:1]1[N:2][C:3](=[O&H0,S&H0:8])[CH2:4][c:5][c:6]1
+aro-glutarimide-enol_to_glutarimide-CH1	0	[O,SX1:7]=[c:1]1[n:2][c:3](-[OH,SX2H1:8])[c;$(c(:a)(:a):a)!$(c~[OX1,OH]):4][c;$(c(:a)(:a):a)!$(c~[OX1,OH]):5][cH1:6]1>>[O,S:7]=[C:1]1[N:2][C:3](=[O&H0,S&H0:8])[c:4][c:5][CH2:6]1
 1,2,4-triketo_to_enol-CH1	0	[O:1]=[C:2]-[CH1:3]-[C:4](=[O:5])-[C:6]=[O:7]>>[O:1]=[C:2]-[CH0:3]=[C:4](-[OH1:5])-[C:6]=[O:7]
 1,2,4-triketo_to_enol-CH2	0	[O:1]=[C:2]-[CH2:3]-[C:4](=[O:5])-[C:6]=[O:7]>>[O:1]=[C:2]-[CH1:3]=[C:4](-[OH1:5])-[C:6]=[O:7]
 1-OH-isochromen-3-one_to_3-OH-1-one	0	[O:1]=[c:2]1[c;!$(c~[OX1,OH]):3][c;$(c(:a)(:a):a):4][c;$(c(:a)(:a):a):5][c:6]([OH:7])[o&+0:8]1>>[OH:1][c:2]1[c:3][c:4][c:5][c:6](=[O&H0:7])[o:8]1
