@@ -242,16 +242,19 @@ def Split_Submit_jobs(args: dict, parser):
             pass
         
         n_jobs = 0
+        submitting_max_array_size = 0
         for file in args.input_files:
             if not os.path.exists(file):
                 print(f"File {file} does not exist. Please check the path and try again.")
                 print(f"Exitting MolSanitizer...")
                 return
             line_count = count_lines_bash(file)
-            n_jobs += math.ceil(line_count/args.lines)
+            job_for_this_file = math.ceil(line_count/args.lines)
+            n_jobs += job_for_this_file
+            submitting_max_array_size = max(submitting_max_array_size, job_for_this_file)
         print(f"Total number of jobs to submit: {n_jobs}\n")
-        if n_jobs > max_array_size:
-            print(f"Too many jobs to submit ({n_jobs}). Please increase the number of lines per job or decrease the number of input files")
+        if submitting_max_array_size > max_array_size:
+            print(f"Too many jobs in an array to submit ({submitting_max_array_size}). Please increase the number of lines per job or decrease the number of input files")
             print(f"Exitting MolSanitizer...")
             return
         
