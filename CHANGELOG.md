@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### 🚀 Features
 
+- Supports the parsing of CLI arguments from a yaml file. This could be triggered using the '--config' or '-c' flag. The template could be obtained using the '--create_config' flag. - ([ceff762](https://github.com/phonglam3103/MolSanitizer/commit/ceff7623e96734124b2d88e49de261845ae2add6))
 - The customized torsion definition will first try to replace the existing ones in the Torlib first before putting it in the top of the priority. This aims to ensure that the customized definitions would not overwrite the hierrarchy of the Torlib match. - ([a763293](https://github.com/phonglam3103/MolSanitizer/commit/a76329330b127b66e9ab93040ddd737b11a5d426))
 - Added new small ring entries and modified cycloheptadiene entries - ([a9823be](https://github.com/phonglam3103/MolSanitizer/commit/a9823be385d2751774eaf5fdd79a5b4fa0996e7a))
 - Don't enumerate sulfonamides with non-puckering N and merged the flippable Cs SMARTS. - ([56b518f](https://github.com/phonglam3103/MolSanitizer/commit/56b518f49a78416971e213764461ac6ceb818022))
