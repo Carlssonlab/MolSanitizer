@@ -98,7 +98,7 @@ class Test_ValidationSets(unittest.TestCase):
 
         diff = set1.difference(set2).union(set2.difference(set1))
         if set1 != set2:
-            print(str(len(diff)) + "differences found between the files")
+            print(str(len(diff)) + " differences found between the files")
             # Get rows where column 0 is in diff, extract column 1 values
             diff_set1 = set()
             diff_set2 = set()
@@ -112,7 +112,7 @@ class Test_ValidationSets(unittest.TestCase):
                 diff_set2 = set(df2[df2.loc[:, 'smiles'].isin(diff)].loc[:,  'ids'].apply(lambda x: str(x)[:-2] if '_' in x else str(x)))
             total_diff = diff_set1.union(diff_set2)
             print(f"Difference in files:")
-            inputdf['mismatch'] = inputdf.loc[:,  'ids'].apply(lambda x: any(str(x).startswith(y) for y in total_diff))
+            inputdf['mismatch'] = inputdf.loc[:,  'ids'].apply(lambda x: any(str(x) == y for y in total_diff))
             mismatch_df_input = inputdf[inputdf['mismatch'] == True]
             for _, row in mismatch_df_input.iterrows():
                 print(row['smiles'] + " " + row['ids'])
