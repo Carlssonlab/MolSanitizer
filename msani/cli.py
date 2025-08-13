@@ -200,8 +200,8 @@ def generateCustomTemplate(args, filename):
     data = pkgutil.get_data('msani', f'Data/{filename}')
     if data is None:
         raise FileNotFoundError(f"Could not find Data/{filename} inside the binary.")
-
-    output_filename = f"{args.prefix}.txt" if args.prefix else filename
+    if filename == 'argument_config.yaml': output_filename = 'config.yaml'
+    else: output_filename = f"{args.prefix}.txt" if args.prefix else filename
     with open(output_filename, 'wb') as f:
         f.write(data)
 
@@ -221,7 +221,7 @@ def main():
         print(version_text)
         return
    
-    if args.create_custom or args.create_protlib or args.create_taulib or args.create_torsion: 
+    if args.create_custom or args.create_protlib or args.create_taulib or args.create_torsion or args.create_config: 
         if args.create_custom:
             generateCustomTemplate(args, filename = 'filter_out.txt')
         if args.create_protlib:
@@ -230,6 +230,8 @@ def main():
             generateCustomTemplate(args, filename = 'tautomers_v3.txt')
         if args.create_torsion:
             generateCustomTemplate(args, filename = 'custom_torsion_templates.txt')
+        if args.create_config:
+            generateCustomTemplate(args, filename = 'argument_config.yaml')
         print("MolSanitizer templates have been generated. The program exits normally.")
         
     else:

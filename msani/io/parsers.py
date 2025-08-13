@@ -1,11 +1,13 @@
 import argparse
+import sys
 
 from pathlib import Path
-from yaml import full_load
+from yaml import safe_load
+
 
 
 with open(Path(__file__).parent.parent / 'msani_configurations.yaml') as confFile:
-    configurations = full_load(confFile)
+    configurations = safe_load(confFile)
     slurm_account = configurations['SLURM_ACCOUNT']
     time_limit = configurations['TIME_LIMIT']
     lines_per_job = configurations['LINES_PER_JOB']
@@ -70,6 +72,21 @@ class CustomHelpFormatter(argparse.RawTextHelpFormatter):
         return ', '.join(parts)
 
 def parseArguments(args = None, batch_mode = False):
+    # Support the parsing of a YAML configuration file
+    pre_parser = argparse.ArgumentParser(add_help=False)
+    pre_parser.add_argument('--config', '-c', type=str, help='YAML configuration file')
+    config_args, remaining_argv = pre_parser.parse_known_args(args)
+
+    # Load YAML defaults if provided
+    defaults = {}
+    if config_args.config:
+        try:
+            with open(config_args.config, 'r') as f:
+                defaults = safe_load(f) or {}
+        except Exception as e:
+            print(f"Error reading YAML config: {e}")
+            sys.exit(1)
+
     if batch_mode: info = info_batch
     else: info = info_standalone
     if (set(['--db2', '-db2','--pdbqt','--långben']).intersection(set(args))):
@@ -88,11 +105,12 @@ def parseArguments(args = None, batch_mode = False):
     
     # Group 1: Input and output options
     io_group = parser.add_argument_group("Input and output options")
-    io_group.add_argument('--input_files', '-i',  type=str,  default=None, nargs='+', help='Input files containing chemical structures')
-    io_group.add_argument('--smiles', '-s', default=None, type=str, nargs='+', help='Input SMILES strings')
-    io_group.add_argument('--extended', '-e', action='store_true', help='Extended SMILES reading (tab-separated files supported only).')
-    io_group.add_argument('--prefix', '-pre', default=None, type=str, help='Prefix for the output files. (defalt: input file name).')
-    io_group.add_argument('--synthon', '-stn',  action='store_true', help='Synthon mode (Additional metadata about the capping groups required)')
+    io_group.add_argument('--input_files', '-i',  type=str,  default=defaults.get('input_files', None), nargs='+', help='Input files containing chemical structures')
+    io_group.add_argument('--smiles', '-s', default=defaults.get('smiles', None), type=str, nargs='+', help='Input SMILES strings')
+    io_group.add_argument('--extended', '-e', action='store_true', default=defaults.get('extended', False), help='Extended SMILES reading (tab-separated files supported only).')
+    io_group.add_argument('--prefix', '-pre', default=defaults.get('prefix', None), type=str, help='Prefix for the output files. (defalt: input file name).')
+    io_group.add_argument('--synthon', '-stn',  action='store_true', default=defaults.get('synthon', False), help='Synthon mode (Additional metadata about the capping groups required)')
+    
 
     # Group 2: Filtering options
         
@@ -108,52 +126,54 @@ def parseArguments(args = None, batch_mode = False):
     
     Use --ha, --logp, --hba, --hbd, --mw, --chiral to apply these filters."""
     )
-    filter_group.add_argument('--removesalts', action='store_true', help='Remove salts from the structures.\nSmall fragments within the same molecule are also removed.')
+    filter_group.add_argument('--removesalts', action='store_true', default=defaults.get('removesalts', False), help='Remove salts from the structures.\nSmall fragments within the same molecule are also removed.')
     filter_group.add_argument('--create_custom', action='store_true', help='Generate a template for customized substructure filtering.')
-    filter_group.add_argument('--custom', default=None, type=str, help='Filter out unwanted substructures using a customized list.\nTo generate an example list, use --create_custom.')
-    filter_group.add_argument('--unwanted', choices=['all', 'regular', 'special', 'optional'], default=None, nargs='*', help='Filter out unwanted substructures using the default list\n(Options: all, regular, special, optional).')
-    filter_group.add_argument('--pains', action='store_true', help='Remove PAINS violations from the structures.')
-    filter_group.add_argument('--ha', default=None, type=str, help='Filter by the number of heavy atoms.' if show_advanced_help else argparse.SUPPRESS)
-    filter_group.add_argument('--logp', default=None, type=str, help='Filter by the value of cLogP*100 (UCSF format: cLogP 3.5->350).' if show_advanced_help else argparse.SUPPRESS)
-    filter_group.add_argument('--hba', default=None, type=str, help='Filter by the number of hydrogen bond acceptors.' if show_advanced_help else argparse.SUPPRESS)
-    filter_group.add_argument('--hbd', default=None, type=str, help='Filter by the number of hydrogen bond donors.' if show_advanced_help else argparse.SUPPRESS)
-    filter_group.add_argument('--mw', default=None, type=str, help='Filter by  molecular weight.' if show_advanced_help else argparse.SUPPRESS)
-    filter_group.add_argument('--chiral', default = None, type = str, help='Filter by the number of UNSPECIFIED chiral centers.' if show_advanced_help else argparse.SUPPRESS)
+    filter_group.add_argument('--custom', default=defaults.get('custom', None), type=str, help='Filter out unwanted substructures using a customized list.\nTo generate an example list, use --create_custom.')
+    filter_group.add_argument('--unwanted', choices=['all', 'regular', 'special', 'optional'], default=defaults.get('unwanted', None), nargs='*', help='Filter out unwanted substructures using the default list\n(Options: all, regular, special, optional).')
+    filter_group.add_argument('--pains', default=defaults.get('pains', False), action='store_true', help='Remove PAINS violations from the structures.')
+    filter_group.add_argument('--ha', default=defaults.get('ha', None), type=str, help='Filter by the number of heavy atoms.' if show_advanced_help else argparse.SUPPRESS)
+    filter_group.add_argument('--logp', default=defaults.get('logp', None),  type=str, help='Filter by the value of cLogP*100 (UCSF format: cLogP 3.5->350).' if show_advanced_help else argparse.SUPPRESS)
+    filter_group.add_argument('--hba', default=defaults.get('hba', None),  type=str, help='Filter by the number of hydrogen bond acceptors.' if show_advanced_help else argparse.SUPPRESS)
+    filter_group.add_argument('--hbd', default=defaults.get('hbd', None),  type=str, help='Filter by the number of hydrogen bond donors.' if show_advanced_help else argparse.SUPPRESS)
+    filter_group.add_argument('--mw', default=defaults.get('mw', None), type=str, help='Filter by  molecular weight.' if show_advanced_help else argparse.SUPPRESS)
+    filter_group.add_argument('--chiral', default=defaults.get('chiral', None), type = str, help='Filter by the number of UNSPECIFIED chiral centers.' if show_advanced_help else argparse.SUPPRESS)
 
     # Group 3: SMILES processing options
     smiles_group = parser.add_argument_group("SMILES processing options")
-    smiles_group.add_argument('--tautomers', '-tau', action='store_true', help='Tautomers enumeration')
-    smiles_group.add_argument('--stereoisomers', '-ste', action='store_true', help='Stereoisomers enumeration (only consider unspecified chiral centers)')
-    smiles_group.add_argument('--max_stereoisomers','-ms', type=int, default=max_stereoisomers, help=f'Maximum number of stereoisomers to consider (default: {max_stereoisomers}')
-    smiles_group.add_argument('--protonation', '-prot', action='store_true', help='Apply protonation to the structures')
-    smiles_group.add_argument('--pH', '-p', type=int, default=pH, help='pH for the protonation (default: 7)')
-    smiles_group.add_argument('--pH_range', '-r', type=int, default=pH_range, help='pH range for the protonation (default: 0)')
+    smiles_group.add_argument('--tautomers', '-tau', action='store_true', default=defaults.get('tautomers', False), help='Tautomers enumeration')
+    smiles_group.add_argument('--stereoisomers', '-ste', action='store_true', default=defaults.get('stereoisomers', False),  help='Stereoisomers enumeration (only consider unspecified chiral centers)')
+    smiles_group.add_argument('--max_stereoisomers','-ms', type=int, default=defaults.get('max_stereoisomers', max_stereoisomers), help=f'Maximum number of stereoisomers to consider (default: {max_stereoisomers}')
+    smiles_group.add_argument('--protonation', '-prot', action='store_true', default=defaults.get('protonation', False), help='Apply protonation to the structures')
+    smiles_group.add_argument('--pH', '-p', type=int, default=defaults.get('pH', pH), help='pH for the protonation (default: 7)')
+    smiles_group.add_argument('--pH_range', '-r', type=int, default=defaults.get('pH_range', pH_range), help='pH range for the protonation (default: 0)')
     smiles_group.add_argument('--noneutralize',  action='store_false', dest='neutralize', default = True, help='Do not neutralize the molecule before tautomerization' if show_advanced_help else argparse.SUPPRESS)
     smiles_group.add_argument('--notaurdkit', action='store_false', dest='taurdkit', default = True, help='Do not use RDKit to canonicalize the tautomeric form of the input SMILES' if show_advanced_help else argparse.SUPPRESS)
-    smiles_group.add_argument('--standardize', '-std', action='store_true', dest='standardize', help='Standardize structures for machine learning using RDKit')
+    smiles_group.add_argument('--standardize', '-std', action='store_true', default=defaults.get('standardize', False), help='Standardize structures for machine learning using RDKit')
 
     # Group 4: 3D related options
     gen3d = parser.add_argument_group("Generate 3D conformers options")
-    gen3d.add_argument('--gen3d', '-3d',  action='store_true', help='Generate 3D conformers')
-    gen3d.add_argument('--format', '-f', choices=['db2', 'db2.tgz', 'pdbqt', 'sdf', 'mol2'], default=['db2.tgz'], nargs='*', help='Output file format. Multiple formats simultaneously supported.\n(Default: db2.tgz - Options: sdf, db2, db2.tgz, mol2, pdbqt.)')
-    gen3d.add_argument('--method', '-m', choices=['rdkit', 'obabel', 'corina'], dest='method', default = 'rdkit', help=f'Embedding method (default: {embed_method} - options: rdkit, obabel, corina)')
-    gen3d.add_argument('--numconfs', '-nconfs', type=int, default=2000, help='Maximum number of conformers to generate (default: 2000)')
-    gen3d.add_argument('--randomSeed', '-rs', type=int, default=42, help='Seed for reproducibility (default: 42)' if show_advanced_help else argparse.SUPPRESS)
-    gen3d.add_argument('--timeout', '-to', type=float, default=2, help='Timeout for the initial embedding for each entry before using OpenBabel\nDefault: 2 minutes')
-    gen3d.add_argument('--energywindow', '-w', type=float, default=energy_window, help=f'Energy window for sampling the conformations (default: {energy_window} kcal/mol)')
-    gen3d.add_argument('--rigid', type = str, default = None, help='Only align the DB2 on this rigid scaffold in SMARTS format. All rings if not provided.' if show_advanced_help else argparse.SUPPRESS)
-    gen3d.add_argument('--nringconfs', '-nr', type=int, default=1, help='Maximum number of ring conformers to generate (default: 1)')
-    gen3d.add_argument('--mode', '-mode', choices=['fixed', 'random', 'ignoretorlib'], default='fixed', help='Mode for generating conformers\nDefault: fixed - Options: fixed, random, ignoretorlib')
-    gen3d.add_argument('--tolerance', '-tol', type=float, default=30, help='Minimum angle for differentiating two conformers (default: 30)' if show_advanced_help else argparse.SUPPRESS)
+    gen3d.add_argument('--gen3d', '-3d',  action='store_true', default=defaults.get('gen3d', False), help='Generate 3D conformers')
+    gen3d.add_argument('--format', '-f', choices=['db2', 'db2.tgz', 'pdbqt', 'sdf', 'mol2'], default=defaults.get('format', ['db2.tgz']), nargs='*', help='Output file format. Multiple formats simultaneously supported.\n(Default: db2.tgz - Options: sdf, db2, db2.tgz, mol2, pdbqt.)')
+    gen3d.add_argument('--method', '-m', choices=['rdkit', 'obabel', 'corina'], default=defaults.get('method', 'rdkit'), help=f'Embedding method (default: {embed_method} - options: rdkit, obabel, corina)')
+    gen3d.add_argument('--numconfs', '-nconfs', type=int, default=defaults.get('numconfs', numconfs), help='Maximum number of conformers to generate (default: 2000)')
+    gen3d.add_argument('--randomSeed', '-rs', type=int, default=defaults.get('randomSeed', 42), help='Seed for reproducibility (default: 42)' if show_advanced_help else argparse.SUPPRESS)
+    gen3d.add_argument('--timeout', '-to', type=float, default=defaults.get('timeout', timeout), help='Timeout for the initial embedding for each entry before using OpenBabel\nDefault: 2 minutes')
+    gen3d.add_argument('--energywindow', '-w', type=float, default=defaults.get('energywindow', energy_window), help=f'Energy window for sampling the conformations (default: {energy_window} kcal/mol)')
+    gen3d.add_argument('--rigid', type = str, default=defaults.get('rigid', None), help='Only align the DB2 on this rigid scaffold in SMARTS format. All rings if not provided.' if show_advanced_help else argparse.SUPPRESS)
+    gen3d.add_argument('--nringconfs', '-nr', type=int, default=defaults.get('nringconfs', 1), help='Maximum number of ring conformers to generate (default: 1)')
+    gen3d.add_argument('--mode', '-mode', choices=['fixed', 'random', 'ignoretorlib'], default=defaults.get('mode', 'fixed'), help='Mode for generating conformers\nDefault: fixed - Options: fixed, random, ignoretorlib')
+    gen3d.add_argument('--tolerance', '-tol', type=float, default=defaults.get('tolerance', 30), help='Minimum angle for differentiating two conformers (default: 30)' if show_advanced_help else argparse.SUPPRESS)
     gen3d.add_argument('--nocleanup', action='store_false', dest='cleanup', default = True, help='Do not clean up the temporary files' if show_advanced_help else argparse.SUPPRESS)
-    gen3d.add_argument('--allowNonring', action='store_true', help='Allow the full sampling of non-ring comdpounds (default undersample to 30 confs).')
-    gen3d.add_argument('--eps', type=float, default=1, help='The dielectric constant for electrostatic calculations (default: 1 - vacuum).' if show_advanced_help else argparse.SUPPRESS)
+    gen3d.add_argument('--allowNonring', action='store_true', default=defaults.get('allowNonring', True), help='Allow the full sampling of non-ring comdpounds (default undersample to 30 confs).')
+    gen3d.add_argument('--eps', type=float, default=defaults.get('eps', 1), help='The dielectric constant for electrostatic calculations (default: 1 - vacuum).' if show_advanced_help else argparse.SUPPRESS)
 
     # Group 5: Miscellaneous
     misc_group = parser.add_argument_group("Miscellaneous")
+    misc_group.add_argument('--config', '-c', type=str, help='Path to the YAML configuration file')
+    misc_group.add_argument('--create_config', action='store_true', help='Create a template for the configuration file')
     misc_group.add_argument("--debug", "-d", action="store_true", help="Enable debugging mode" if show_advanced_help else argparse.SUPPRESS)
-    misc_group.add_argument('--lazy', action='store_true', help='Implement all the processing and preparation steps')
-    misc_group.add_argument('--numcores', '-j', type=int, default=4, help='Number of cores to use for parallel processing (default: 4)')
+    misc_group.add_argument('--lazy', action='store_true', default=defaults.get('lazy', False), help='Implement all the processing and preparation steps')
+    misc_group.add_argument('--numcores', '-j', type=int, default=defaults.get('numcores', 4), help='Number of cores to use for parallel processing (default: 4)')
     misc_group.add_argument("--help", "-h", action="help", help="Show this help message and exit")
     misc_group.add_argument('--help_advanced', '-xh', action='help', help='Show advanced help message with additional options')
     misc_group.add_argument('--timing', action='store_true', help=argparse.SUPPRESS)
@@ -162,21 +182,21 @@ def parseArguments(args = None, batch_mode = False):
     misc_group.add_argument('--create_protlib', action='store_true', help='Create a template for customized protonation scheme' if show_advanced_help else argparse.SUPPRESS)
     misc_group.add_argument('--create_taulib', action='store_true', help='Create a template for customized tautomerization scheme' if show_advanced_help else argparse.SUPPRESS)
     misc_group.add_argument('--create_torsion', action='store_true', help='Create a template for customized torsion definition' if show_advanced_help else argparse.SUPPRESS)
-    misc_group.add_argument('--protlib',  type=str, default=None, help='Path to the protonation library file (default: msani/Data/ionizations_v3.txt).' if show_advanced_help else argparse.SUPPRESS)
-    misc_group.add_argument('--taulib', type=str, default=None, help='Path to the tautomer library file (default:  msani/Data/tautomers_v3.txt).' if show_advanced_help else argparse.SUPPRESS)
-    misc_group.add_argument('--torsion', '-tor', type=str, default=None, help='Path to the customized torsion definitions.' if show_advanced_help else argparse.SUPPRESS)
+    misc_group.add_argument('--protlib',  type=str, default=defaults.get('protlib', None), help='Path to the protonation library file (default: msani/Data/ionizations_v3.txt).' if show_advanced_help else argparse.SUPPRESS)
+    misc_group.add_argument('--taulib', type=str, default=defaults.get('taulib', None), help='Path to the tautomer library file (default:  msani/Data/tautomers_v3.txt).' if show_advanced_help else argparse.SUPPRESS)
+    misc_group.add_argument('--torsion', '-tor', type=str, default=defaults.get('torsion', None), help='Path to the customized torsion definitions.' if show_advanced_help else argparse.SUPPRESS)
 
     if batch_mode:
         # Group 6: Batch mode options
         batch_group = parser.add_argument_group("Batch mode options")
-        batch_group.add_argument('--projectName', '-A', default=slurm_account, dest='proj_name', type=str, help=f'Project name for the SLURM script (default: {slurm_account})')
-        batch_group.add_argument('--lines_per_job', '-l', dest='lines', type=int, default=lines_per_job, help=f'Number of lines to process per job (default: {lines_per_job})')
-        batch_group.add_argument('--timelimit', '-tl', type=int, default=time_limit, help=f'Time limit for the SLURM job in hours (default: {time_limit})')
-        batch_group.add_argument('--max_jobs','-mj', type=int, default=max_jobs, help=f'Maximum number of jobs to run simultaneously (default: {max_jobs})')
+        batch_group.add_argument('--projectName', '-A', default=defaults.get('projectName', slurm_account), dest='proj_name', type=str, help=f'Project name for the SLURM script (default: {slurm_account})')
+        batch_group.add_argument('--lines_per_job', '-l', dest='lines', type=int, default=defaults.get('lines_per_job', lines_per_job), help=f'Number of lines to process per job (default: {lines_per_job})')
+        batch_group.add_argument('--timelimit', '-tl', type=int, default=defaults.get('timelimit', time_limit), help=f'Time limit for the SLURM job in hours (default: {time_limit})')
+        batch_group.add_argument('--max_jobs','-mj', type=int, default=defaults.get('max_jobs', max_jobs), help=f'Maximum number of jobs to run simultaneously (default: {max_jobs})')
 
     
     # Parse the arguments
-    args = parser.parse_args(args if args is not None else [])
+    args = parser.parse_args(remaining_argv if remaining_argv is not None else [])
     if args.input_files and args.smiles:
         parser.error('Please provide either input files or SMILES strings, not both.')
 

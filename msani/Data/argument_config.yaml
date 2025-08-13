@@ -1,0 +1,45 @@
+# Lines starting with '#' are comments
+# This is a configuration file for the MolSanitizer.
+# These in the template are only for demonstration purposes.
+# Almost all the arguments can be set here (except smiles, create_custom,...)
+
+# Use this file by:
+# msani --config config.yaml
+# msani_batch --config config.yaml
+
+# Arguments that are explicitly used in the command line will override the values in this file.
+
+# Arguments that can accept multiple values can be provided as:
+# a Python list type (e.g., input_files: [file1.smi, file2.smi])
+# or as a YAML list: input_files: 
+                     #   - file1.smi
+                     #   - file2.smi)
+# If you want to use the default values, you can leave them empty or comment them out.
+
+# Input-output options
+input_files: [file1.smi, file2.smi]
+extended: false
+
+# Filtering options (other options include hba, hbd, mw, chiral)
+removesalts: false
+unwanted: [regular, optional]
+pains: false
+# ha: 17-25
+# logp: 350
+
+# SMILES processing options
+tautomers: true
+protonation: true
+pH: 7
+pH_range: 0
+# prot_lib: None #In case of modified protonation library
+# tau_lib: None  # In case of modified tautomer library
+
+# Conformer generation options
+# gen3d: false
+# format: [db2.tgz]
+# method: rdkit
+# numconfs: 2000
+# energywindow: 25
+# rigid: None
+# torsion: None # In case of modified torsion definitions
