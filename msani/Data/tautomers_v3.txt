@@ -15,8 +15,12 @@ aromatize_3-imino-2H-5aro-CH0	0	[NX3H0,O,S:1]1[*H;!$(*~[OX1,OH,SX2H,SX1]):2][C:3
 aromatize_3-imino-2H2-5aro-CH0	0	[NX3H0,O,S:1]1[*H2:2][C:3](=[N&H0;!$(N-C=[C,N]):7])[*;!$(*~[OX1,OH,SX2H,SX1]):4]=,:[*;!$(*~[OX1,OH,SX2H,SX1]):5]1>>[nH0,o,s:1]1[aH:2][c:3]([NH:7])[a:4][a:5]1	exceptions:10.1039/C0OB00867B,10.1021/acs.orglett.7b03390
 aromatize_3-imino-2H-5aro-CH0	0	[NH:1]1[*H;!$(*~[OX1,OH,SX2H,SX1]):2][C:3](=[N&H0;!$(N-C=[C,N]):7])[*;!$(*~[OX1,OH,SX2H,SX1]):4]=,:[*;!$(*~[OX1,OH,SX2H,SX1]):5]1>>[nH:1]1[a&H0:2][c:3]([NH:7])[a:4][a:5]1	exceptions:10.1039/C0OB00867B,10.1021/acs.orglett.7b03390
 aromatize_3-imino-2H2-5aro-CH0	0	[NH:1]1[*H2:2][C:3](=[N&H0;!$(N-C=[C,N]):7])[*;!$(*~[OX1,OH,SX2H,SX1]):4]=,:[*;!$(*~[OX1,OH,SX2H,SX1]):5]1>>[nH:1]1[aH:2][c:3]([NH:7])[a:4][a:5]1	exceptions:10.1039/C0OB00867B,10.1021/acs.orglett.7b03
-exo-methylidene-quinone_to_Me-quinone-CH1	0	[C:1]=[C:2]1[CH1;!$(C~[OX1,OH]):3][C;$(C=O):4][c;!$(c~[OX1,OH]):5][c;!$(c~[OX1,OH]):6][C;$(C=O):7]1>>[C:1]-[C:2]1=[CH0:3][C:4][c:5][c:6][C:7]1
-exo-methylidene-quinone_to_Me-quinone-CH2	0	[C:1]=[C:2]1[CH2:3][C;$(C=O):4][c;!$(c~[OX1,OH]):5][c;!$(c~[OX1,OH]):6][C;$(C=O):7]1>>[C:1]-[C:2]1=[CH1:3][C:4][c:5][c:6][C:7]1
+exo-methylidene-quinone_to_Me-quinone-CH0-CH1	0	[CH0:1]=[C:2]1[CH1;!$(C~[OX1,OH]):3][C;$(C=O):4][c;!$(c~[OX1,OH]):5][c;!$(c~[OX1,OH]):6][C;$(C=O):7]1>>[CH:1]-[C:2]1=[CH0:3][C:4][c:5][c:6][C:7]1
+exo-methylidene-quinone_to_Me-quinone-CH1-CH1	0	[CH:1]=[C:2]1[CH1;!$(C~[OX1,OH]):3][C;$(C=O):4][c;!$(c~[OX1,OH]):5][c;!$(c~[OX1,OH]):6][C;$(C=O):7]1>>[CH2:1]-[C:2]1=[CH0:3][C:4][c:5][c:6][C:7]1
+exo-methylidene-quinone_to_Me-quinone-CH2-CH1	0	[CH2:1]=[C:2]1[CH1;!$(C~[OX1,OH]):3][C;$(C=O):4][c;!$(c~[OX1,OH]):5][c;!$(c~[OX1,OH]):6][C;$(C=O):7]1>>[CH3:1]-[C:2]1=[CH0:3][C:4][c:5][c:6][C:7]1
+exo-methylidene-quinone_to_Me-quinone-CH0-CH2	0	[CH0:1]=[C:2]1[CH2:3][C;$(C=O):4][c;!$(c~[OX1,OH]):5][c;!$(c~[OX1,OH]):6][C;$(C=O):7]1>>[CH:1]-[C:2]1=[CH1:3][C:4][c:5][c:6][C:7]1
+exo-methylidene-quinone_to_Me-quinone-CH1-CH2	0	[CH:1]=[C:2]1[CH2:3][C;$(C=O):4][c;!$(c~[OX1,OH]):5][c;!$(c~[OX1,OH]):6][C;$(C=O):7]1>>[CH2:1]-[C:2]1=[CH1:3][C:4][c:5][c:6][C:7]1
+exo-methylidene-quinone_to_Me-quinone-CH2-CH2	0	[CH2:1]=[C:2]1[CH2:3][C;$(C=O):4][c;!$(c~[OX1,OH]):5][c;!$(c~[OX1,OH]):6][C;$(C=O):7]1>>[CH3:1]-[C:2]1=[CH1:3][C:4][c:5][c:6][C:7]1
 o-carboquinone_to_hydroquinone-CH0-CH1	0 [a;!$(a~[OX1,OH,SX2H,SX1]):1]1[a;!$(a~[OX1,OH,SX2H,SX1]):2][a:3](=[C:7]-[CH;!$(C=*)!$(C-a):8])[a:4](=[CX3&H0;!$(C-a):9])[a;!$(a~[OX1,OH,SX2H,SX1]):5][a;!$(a~[OX1,OH,SX2H,SX1]):6]1>>[a:1]1[a:2][a:3](-[C:7]=[C&H0:8])[a:4](-[CH:9])[a:5][a:6]1
 o-carboquinone_to_hydroquinone-CH0-CH2	0 [a;!$(a~[OX1,OH,SX2H,SX1]):1]1[a;!$(a~[OX1,OH,SX2H,SX1]):2][a:3](=[C:7]-[CH2;!$(C-a):8])[a:4](=[CX3&H0;!$(C-a):9])[a;!$(a~[OX1,OH,SX2H,SX1]):5][a;!$(a~[OX1,OH,SX2H,SX1]):6]1>>[a:1]1[a:2][a:3](-[C:7]=[CH:8])[a:4](-[CH:9])[a:5][a:6]1
 o-carboquinone_to_hydroquinone-CH0-CH3	0 [a;!$(a~[OX1,OH,SX2H,SX1]):1]1[a;!$(a~[OX1,OH,SX2H,SX1]):2][a:3](=[C:7]-[CH3:8])[a:4](=[CX3&H0;!$(C-a):9])[a;!$(a~[OX1,OH,SX2H,SX1]):5][a;!$(a~[OX1,OH,SX2H,SX1]):6]1>>[a:1]1[a:2][a:3](-[C:7]=[CH2:8])[a:4](-[CH:9])[a:5][a:6]1
@@ -128,7 +132,7 @@ OH-thia/oxazolone_to_thia/oxazolidinedione-CH1	0	[cH1:1]1[s,o:2][c:3](=[O,SX1,NX
 restore_vinylog-salicylate	0	[OH:1][c:2]1[c:3]([C&R1:4](=[O:5])-[CH:6](-@[C:7])-[C&z1&R1:8]=[O:9])[c:10][c:11][c:12][c:13]1>>[OH:1][c:2]1[c:3]([C:4](=[O:5])[C&H0:6]([C:7])=[C:8]-[OH:9])[c:10][c:11][c:12][c:13]1
 restore_vinylog_tetracycline	0	[O:1]=[C:2]1[CH1;$(C-!@C(=O)-N):3][C:4](=[O:5])[CX4:6][CX4:7][CX4;$(C-N):8]1>>[OH:1]-[C:2]1=[C&H0:3][C:4](=[O:5])[C:6][C:7][C:8]1
 resotre_lupulone    0   [O:1]=[C:2]1[CH1;$(C-!@C=O):3][C:4](=[O:5])[CX4H:6][C:7](=[O:9])[CX4&H0:8]1>>[O:1]=[C:2]1[C&H0:3]=[C:4]([OH:5])[CH0:6]=[C:7]([OH:9])[C:8]1  10.1016/j.molstruc.2021.131718,10.1107/S1600536807008860
-anthracene-9-ol_to_anthrone-CH0	0	[OH:1]-[c:2]1[c;$(c(:a)(:c):c):3][c;$(c(:a)(:c):c):4][cH0;!$(c-[OH])!$(c-[NX3&z0]):5][c;$(c(:a)(:c):c):6][c;$(c(:a)(:c):c):7]1>>[O&H0:1]=[C:2]1[c:3][c:4][CH:5][c:6][c:7]1	10.1021/jo401243b
+anthracene-9-ol_to_anthrone-CH0	0	[OH:1]-[c:2]1[c;$(c(:a)(:c):c):3][c;$(c(:a)(:c):c):4][cH0;!$(c-[OH])!$(c-[NX3&z0])!$(c(:a)(:a):a):5][c;$(c(:a)(:c):c):6][c;$(c(:a)(:c):c):7]1>>[O&H0:1]=[C:2]1[c:3][c:4][CH:5][c:6][c:7]1	10.1021/jo401243b
 anthracene-9-ol_to_anthrone-CH1	0	[OH:1]-[c:2]1[c;$(c(:a)(:c):c):3][c;$(c(:a)(:c):c):4][cH1:5][c;$(c(:a)(:c):c):6][c;$(c(:a)(:c):c):7]1>>[O&H0:1]=[C:2]1[c:3][c:4][CH2:5][c:6][c:7]1	10.1021/jo401243b
 4-subst-pyrrazolidin-enol_to_keto-CH0	0	[cH0;!$(c~[OX1,OH]):1]1[c:2](=[O:3])[n:4][n:5][c:6]1-[OH:7]>>[CH:1]1[C:2](=[O:3])[N:4][N:5][C:6]1=[O&H0:7]
 4-subst-pyrrazolidin-enol_to_keto-CH1	0	[cH1:1]1[c:2](=[O:3])[n:4][n:5][c:6]1-[OH:7]>>[CH2:1]1[C:2](=[O:3])[N:4][N:5][C:6]1=[O&H0:7]
@@ -253,6 +257,8 @@ fused-1H-pyrazolo[1,5-b]pyrazole_to_6H	0	[nX2:1]1[n:2]2[c:3]([a;!$(c~[OX1,OH])!$
 8H-pyrrolo[3,2-g]quinoline_to_1H	0	[nX2:1][c:2]2[a;!$(c~[OX1,OH])!$([nH]):3][a;!$(c~[OX1,OH])!$([nH]):4][c:5]1[a;!$(c~[OX1,OH])!$([nH]):6][a;!$(c~[OX1,OH])!$([nH]):7][a;!$(c~[OX1,OH])!$([nH]):8][nH:9][c:10]1[a;!$(c~[OX1,OH])!$([nH]):11]2>>[nH:1][c:2]2[a:3][a:4][c:5]1[a:6][a:7][a:8][n&H0:9][c:10]1[a:11]2
 6H-pyrrolo[2,3-f]quinoline_to_1H	0	[a;!$(c~[OX1,OH])!$([nH]):1]2[a;!$(c~[OX1,OH])!$([nH]):2][c:3]([nX2:4])[c:5]1[a;!$(c~[OX1,OH])!$([nH]):6][a;!$(c~[OX1,OH])!$([nH]):7][a;!$(c~[OX1,OH])!$([nH]):8][nH:9][c:10]1[a;!$(c~[OX1,OH])!$([nH]):11]2>>[a:1]2[a:2][c:3]([nH:4])[c:5]1[a:6][a:7][a:8][n&H0:9][c:10]1[a:11]2
 6H-pyrrolo[2,3-g]isoquinoline_to_1H	0	[a;!$(c~[OX1,OH])!$([nH]):1]2[c:2]([nX2:3])[a;!$(c~[OX1,OH])!$([nH]):4][c:5]1[a;!$(c~[OX1,OH])!$([nH]):6][a;!$(c~[OX1,OH])!$([nH]):7][nH:8][a;!$(c~[OX1,OH])!$([nH]):9][c:10]1[a;!$(c~[OX1,OH])!$([nH]):11]2>>[a:1]2[c:2]([nH:3])[a:4][c:5]1[a:6][a:7][n&H0:8][a:9][c:10]1[a:11]2
+1,4-dihydro-pyrrolo[2,3-b]pyrazin-6-one-CH0 0   [O:1]=[c:2]1[cH0;!$(c~[OH,OX1]):3][c:4](:[nH:7])[c:5](:[nH:8])[nX2:6]1>>[O:1]=[C:2]1[CH:3][c:4](:[n&H0:8])[c:5](:[n&H0:7])[NH:6]1
+1,4-dihydro-pyrrolo[2,3-b]pyrazin-6-one-CH1 0   [O:1]=[c:2]1[cH1:3][c:4](:[nH:7])[c:5](:[nH:8])[nX2:6]1>>[O:1]=[C:2]1[CH2:3][c:4](:[n&H0:7])[c:5](:[n&H0:8])[NH:6]1
 #IMINE-EMAMINE_AMIDINE
 carbodiimide_to_cyanamide	0	[NX2&H0:1]=[C:2]=[NH:3]>>[NH:1][C:2]#[N&H0:3]
 vinyl-hydroxylamine/hydrazine_to_oxime/hydrazone-CH0	0	[C&H0:1]=[C:2]-[NH&+0:3]-[O,N:4]>>[CH:1][C:2]=[N&H0:3][O,N:4]

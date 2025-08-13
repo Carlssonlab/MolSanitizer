@@ -36,6 +36,7 @@ vinyl = Chem.MolFromSmarts(
     )
 
 integrity_substructs = {
+    'amide_like': Chem.MolFromSmarts('[#6^2;$([#6](=,:[!#6])~[!#6]),$([#6](~[!#6])(~[!#6])=,:*)]'),
     'carboxylic_acid': Chem.MolFromSmarts('C(=O)[OH]'),
     'sulfoximine_like': Chem.MolFromSmarts('S=N'),
     'aliphatic_alcohol': Chem.MolFromSmarts('[OH,SH&X2]-[C;$([CH^3](-[C;!$(C=[!C])])-[#6;!$([C&z1]=[!C])]),$([CH2]),$([C!H0^3]-[CX3;!$(C-[!#6&!H0])]=[CX3;!$(C-[!#6&!H0])])]'),
@@ -57,14 +58,14 @@ try:
         rdMolStandardize.SubstructTerm("aro-7", "a1aaaaaa1", 100)
         )
     substructure_terms.append(
-        rdMolStandardize.SubstructTerm("carbonyl", "[#6]=,:[#8,#16]", 2)
-        )
-    # Fix "Oc1cc2oc(cc(cn[nH]3)c3n4)c4c2cc1" getting aromatic benzoquinone
-    substructure_terms.append(
-        rdMolStandardize.SubstructTerm("aromatic p-benzoquinone", "A=c1ccc(:a)cc1", -100)
+        rdMolStandardize.SubstructTerm("thiophene", "[#6]:[#16]", 2)
         )
     substructure_terms.append(
-        rdMolStandardize.SubstructTerm("aromatic o-benzoquinone", "c1ccc(:a)c(=A)c1", -100)
+        rdMolStandardize.SubstructTerm("carbonyl", "[#6]=[#8,#16]", 2)
+        )
+    # Fix aromatic benzoquinone
+    substructure_terms.append(
+        rdMolStandardize.SubstructTerm("aromatic benzoquinone", "[c;$(c1(=A)c(:a)cccc1),$(c1(=A)ccc(:a)cc1)]1[c;!$(c12c(=A)c3c(cccc3)cc1ccc(:a)c2)!$(c12c(=A)c3c(cccc3)cc1cc(:a)cc2)!$(c12c(=A)c3c(cc(:a)cc3)cc1cccc2)!$(c12c(=A)c3c(ccc(:a)c3)cc1cccc2)!$(c12cc3c(cc(:a)cc3)cc1cccc2=A)!$(c12cc3c(ccc(:a)c3)cc1cccc2=A)!$(c1c(=A)c2c(cc3c(ccc(:a)c3)c2)cc1)!$(c1c(=A)c2c(cc3c(cc(:a)cc3)c2)cc1)]cccc1", -100)
         )
     substructure_terms.append(
         rdMolStandardize.SubstructTerm("p-benzoquinone", "[#6]1(-[#6]=,:[#6]-[#6](-[#6]=,:[#6]-1)=,:[N,S,O])=,:[N,S,O]", 94)
@@ -73,7 +74,7 @@ try:
         rdMolStandardize.SubstructTerm("o-benzoquinone", "[#6]1(-[#6](=,:[N,S,O])-[#6]=,:[#6](-[#6]=,:[#6]-1))=,:[N,S,O]", 94)
         )
     substructure_terms.append(
-        rdMolStandardize.SubstructTerm("2-or-3-OH furane", "[a;$(c1([OH])[c!$(c~[OX1,OH,SX1,SX2H])][o,s][c!$(c~[OX1,OH,SX1,SX2H])][c!$(c~[OX1,OH,SX1,SX2H])]1),$([c!$(c~[OX1,OH,SX1,SX2H])]1c([OH])[o,s][c!$(c~[OX1,OH,SX1,SX2H])][c!$(c~[OX1,OH,SX1,SX2H])]1)]1aaaa1", -100)
+        rdMolStandardize.SubstructTerm("2-or-3-OH furane", "[a;$(c1([OH])[c!$(c~[OX1,OH,SX1,SX2H])][o,s][c!$(c~[OX1,OH,SX1,SX2H])][c!$(c~[OX1,OH,SX1,SX2H])]1),$([c!$(c~[OX1,OH,SX1,SX2H])]1c([OH])[o,s][c!$(c~[OX1,OH,SX1,SX2H])][c!$(c~[OX1,OH,SX1,SX2H])]1)]1aaaa1", -99)
         )
 except AttributeError as e:
     from rdkit import rdBase

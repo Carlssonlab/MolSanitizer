@@ -14,3 +14,6 @@ O=C1C(O)=C(O)C(=O)c2c(O)c(O)c(O)c(O)c21	redox-phenol
 O=C1C=c2oc(=Cc3ccc(O)cc3O)c(O)c2C(=O)C1   vinyl-shift_aro-3-OH-benzofuran3
 O=C1C=c(c(O)co2)c2=CC1  vinyl-shift_aro-3-OH-benzofuran4
 COc1cc2c(cc1O)CCc1cc(O)cc(OC)c1-2   counting_ethylenes
+CSc1c(C(C)C)c(=O)c2cc(O)c3c(=O)c4c(O)cccc4c(=O)c3c2c1=O     aro_carbonyl-C_benzoquinone
+CCOC(=O)C1Oc2c(c(=O)oc3ccccc23)C1c1cccc(O)c1    transferring_aromaticity_phenyl-furane
+COC(C(c1cc(O)c(O)c(O)c1)=C2OC(C(c3cc(OC)c(O)cc3)=C2O)=O)=O  redox-benzoquinone-furane
