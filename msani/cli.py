@@ -164,9 +164,18 @@ def process_files(args, start_time: int):
 
 def process_smiles(args):
     rejected_file = "msani_rejected.txt"
-    chunk = DataFrame({'smiles': args.smiles, 'ids': range(len(args.smiles))})
-    chunk = chunk.assign(ids=chunk['ids'].astype(str))
-    chunk = chunk.assign(mol=chunk['smiles'].apply(Chem.MolFromSmiles))
+    smiles_list, mols, names = [], [], []
+    for idx, smiles in enumerate(args.smiles):
+        mol = Chem.MolFromSmiles(smiles)
+        if mol is None:
+            logger.error(f"Invalid SMILES: {smiles}")
+            return
+        if mol.HasProp('_Name'): name = str(mol.GetProp('_Name')) 
+        else: name = str(idx + 1)  # Use index as name if no _Name property
+        smiles_list.append(smiles)
+        mols.append(mol)
+        names.append(name)
+    chunk = DataFrame({'smiles': smiles_list, 'ids': names, 'mol': mols})
     
     chunk = apply_processes(chunk, args, rejected_file)
 
@@ -177,7 +186,7 @@ def process_smiles(args):
     
     print('Processed SMILES:')
     for _, row in chunk.iterrows():
-        print(row['smiles'])
+        print(f"{row['smiles']} {row['ids']}")
 
 def clean_data(args):
     start_time = time.time()
