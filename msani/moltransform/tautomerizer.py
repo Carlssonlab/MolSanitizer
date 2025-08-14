@@ -40,6 +40,7 @@ integrity_substructs = {
     'carboxylic_acid': Chem.MolFromSmarts('C(=O)[OH]'),
     'sulfoximine_like': Chem.MolFromSmarts('S=N'),
     'aliphatic_alcohol': Chem.MolFromSmarts('[OH,SH&X2]-[C;$([CH^3](-[C;!$(C=[!C])])-[#6;!$([C&z1]=[!C])]),$([CH2]),$([C!H0^3]-[CX3;!$(C-[!#6&!H0])]=[CX3;!$(C-[!#6&!H0])])]'),
+    'phenol': Chem.MolFromSmarts('[OH]-c1ccccc1'),
     'ethylene_like': Chem.MolFromSmarts('[C;$([CX4H2;!$(C-[!#6])!$(C-C=[!#6])!$(C-C=C-C=[!#6])]-[CX4;!$(C-[!#6])]),$([CX4H2;!$(C-[!#6])]-[CX4;!$(C-[!#6])!$(C-C=[!#6])!$(C-C=C-C=[!#6])])]')
 }
 
@@ -226,15 +227,15 @@ class Tautomerizer:
             max_score = -9999
             original_mol_substructs = dict()
             for name, substruct in self.integrity_substructs.items():
-                original_mol_substructs[name] = len(mol.GetSubstructMatches(substruct))
+                original_mol_substructs[name] = set(mol.GetSubstructMatches(substruct))
             
             Chem.AssignCIPLabels(mol)
             initial_chiral_centers = len(Chem.FindMolChiralCenters(mol))
             intial_defined_double_bonds = self.count_defined_stereo_doublebonds(mol) 
 
             if self.debug: 
-                for name, count in original_mol_substructs.items():
-                    print(f"\tInitial {name} substructures: {count}")
+                for name, substruct in original_mol_substructs.items():
+                    print(f"\tInitial {name} substructures: {len(substruct)}")
                 print(f"\tInitial defined double bonds: {intial_defined_double_bonds}")
                 print(f"\tInitial chiral centers: {initial_chiral_centers}")
 
@@ -255,10 +256,10 @@ class Tautomerizer:
                 
                 broken = False
                 for name, substruct in self.integrity_substructs.items():
-                    if original_mol_substructs[name] > 0:
-                        count_tau_substruct = len(tau.GetSubstructMatches(substruct))
-                        if count_tau_substruct < original_mol_substructs[name]:
-                            if self.debug: print(f"\t{Chem.MolToSmiles(tau)} has {count_tau_substruct} {name} substructures, skipping")
+                    if len(original_mol_substructs[name]) > 0:
+                        tau_substruct = set(tau.GetSubstructMatches(substruct))
+                        if tau_substruct < original_mol_substructs[name]:
+                            if self.debug: print(f"\t{Chem.MolToSmiles(tau)} has lost {len(original_mol_substructs[name]-tau_substruct)} {name} substructures, skipping")
                             broken = True
                             break
                         
