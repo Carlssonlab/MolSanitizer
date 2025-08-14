@@ -258,7 +258,7 @@ class Tautomerizer:
                 for name, substruct in self.integrity_substructs.items():
                     if len(original_mol_substructs[name]) > 0:
                         tau_substruct = set(tau.GetSubstructMatches(substruct))
-                        if tau_substruct < original_mol_substructs[name]:
+                        if not(original_mol_substructs[name].issubset(tau_substruct)):
                             if self.debug: print(f"\t{Chem.MolToSmiles(tau)} has lost {len(original_mol_substructs[name]-tau_substruct)} {name} substructures, skipping")
                             broken = True
                             break
