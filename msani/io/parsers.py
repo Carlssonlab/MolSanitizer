@@ -105,7 +105,8 @@ def parseArguments(args = None, batch_mode = False):
     
     # Group 1: Input and output options
     io_group = parser.add_argument_group("Input and output options")
-    io_group.add_argument('--input_files', '-i',  type=str,  default=defaults.get('input_files', None), nargs='+', help='Input files containing chemical structures')
+    io_group.add_argument('--input_files', '-i',  type=str, default=defaults.get('input_files', None), nargs='+', help='Input files containing chemical structures')
+    io_group.add_argument('--input_list', '-il', type=str, default=defaults.get('input_list', None), help='Path to a text file containing one or more input file paths (one per line).')
     io_group.add_argument('--smiles', '-s', default=defaults.get('smiles', None), type=str, nargs='+', help='Input SMILES strings')
     io_group.add_argument('--extended', '-e', action='store_true', default=defaults.get('extended', False), help='Extended SMILES reading (tab-separated files supported only).')
     io_group.add_argument('--prefix', '-pre', default=defaults.get('prefix', None), type=str, help='Prefix for the output files. (defalt: input file name).')
@@ -200,6 +201,16 @@ def parseArguments(args = None, batch_mode = False):
     if args.input_files and args.smiles:
         parser.error('Please provide either input files or SMILES strings, not both.')
 
+    if args.input_list is not None:
+        if not Path(args.input_list).is_file():
+            parser.error(f'The input file: {inFile} does not exist.')
+        with open(Path(args.input_list).resolve(), 'r') as f:
+            temp_list = [Path(line.strip()).resolve() for line in f if line.strip()]
+        if not temp_list:
+            parser.error(f'The input list file: {args.input_list} is empty or contains no valid paths.')
+        if args.input_files: args.input_files += temp_list
+        else: args.input_files = temp_list
+            
     if args.input_files is not None:
         for inFile in args.input_files:
             if not Path(inFile).is_file():
