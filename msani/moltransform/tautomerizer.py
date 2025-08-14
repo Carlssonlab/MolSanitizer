@@ -75,7 +75,7 @@ try:
         rdMolStandardize.SubstructTerm("o-benzoquinone", "[#6]1(-[#6](=,:[N,S,O])-[#6]=,:[#6](-[#6]=,:[#6]-1))=,:[N,S,O]", 94)
         )
     substructure_terms.append(
-        rdMolStandardize.SubstructTerm("2-or-3-OH furane", "[a;$(c1([OH])[c!$(c~[OX1,OH,SX1,SX2H])][o,s][c!$(c~[OX1,OH,SX1,SX2H])][c!$(c~[OX1,OH,SX1,SX2H])]1),$([c!$(c~[OX1,OH,SX1,SX2H])]1c([OH])[o,s][c!$(c~[OX1,OH,SX1,SX2H])][c!$(c~[OX1,OH,SX1,SX2H])]1)]1aaaa1", -99)
+        rdMolStandardize.SubstructTerm("2-or-3-OH furane and di-OH-pyrrols", "[a;$(c1([OH])[c!$(c~[OX1,OH,SX1,SX2H])][o,s][c!$(c~[OX1,OH,SX1,SX2H])][c!$(c~[OX1,OH,SX1,SX2H])]1),$([c!$(c~[OX1,OH,SX1,SX2H])]1c([OH])[o,s][c!$(c~[OX1,OH,SX1,SX2H])][c!$(c~[OX1,OH,SX1,SX2H])]1),$(c1([OH])[nX3]c([OH])[c!$(c~[OX1,OH,SX1,SX2H])][c!$(c~[OX1,OH,SX1,SX2H])]1),$(c1([OH])[nX3][c!$(c~[OX1,OH,SX1,SX2H])]c([OH])[c!$(c~[OX1,OH,SX1,SX2H])]1)]1aaaa1", -99)
         )
 except AttributeError as e:
     from rdkit import rdBase
