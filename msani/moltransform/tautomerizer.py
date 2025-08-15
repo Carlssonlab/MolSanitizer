@@ -39,7 +39,7 @@ integrity_substructs = {
     'amide_like': Chem.MolFromSmarts('[#6^2;$([#6](=,:[!#6])~[!#6]),$([#6](~[!#6])(~[!#6])=,:*)]'),
     'carboxylic_acid': Chem.MolFromSmarts('C(=O)[OH]'),
     'sulfoximine_like': Chem.MolFromSmarts('S=N'),
-    'aliphatic_alcohol': Chem.MolFromSmarts('[OH,SH&X2]-[C;$([CH^3](-[C;!$(C=[!C])])-[#6;!$([C&z1]=[!C])]),$([CH2]),$([C!H0^3]-[CX3;!$(C-[!#6&!H0])]=[CX3;!$(C-[!#6&!H0])])]'),
+    'aliphatic_alcohol': Chem.MolFromSmarts('[OH,SH&X2]-[C;$([CH^3](-[C;!$(C=[!C])])-[#6;!$([C&z1]=[!C])]),$([CH^3]([OH])(-[OX2])-[C&z1]=[!C]),$([CH2]),$([C!H0^3]-[CX3;!$(C-[!#6&!H0])]=[CX3;!$(C-[!#6&!H0])])]'),
     'phenol': Chem.MolFromSmarts('[OH]-c1ccccc1'),
     'ethylene_like': Chem.MolFromSmarts('[C;$([CX4H2;!$(C-[!#6])!$(C-C=[!#6])!$(C-C=C-C=[!#6])]-[CX4;!$(C-[!#6])]),$([CX4H2;!$(C-[!#6])]-[CX4;!$(C-[!#6])!$(C-C=[!#6])!$(C-C=C-C=[!#6])])]'),
     'methyl' : Chem.MolFromSmarts('[CH3]')
