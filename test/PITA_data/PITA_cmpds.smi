@@ -27,3 +27,4 @@ CC=C1C(=O)NC(=O)C1C migrating_vinyl
 CC(C)=C1NC(=O)C(C(=N)CCCC(C)O)=C1O  migrating_vinyl2
 CCC1NC(=O)C(=C(C)C)NC1=O    migrating_vinyl3    UNRESOLVED-MYSTERY
 CC=CC=C(CC)O    keto-enol-fail  UNRESOLVED-MYSTERY
+C1(CC(=O)C(O)OC1CO)O    redox-OH-keto   UNRESOLVED-MYSTERY
