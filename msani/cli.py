@@ -12,6 +12,7 @@ import os
 import time
 import sys
 import logging
+import shlex
 
 from pandas import DataFrame, read_csv  # only what you use
 from rdkit import Chem, rdBase
@@ -218,8 +219,7 @@ def generateCustomTemplate(args, filename):
         print(f"Generated template file: {output_filename}")
 
 def main():
-    job_id = os.getenv('SLURM_JOB_ID')
-    if job_id is None: print(logo)
+    if os.getenv('SLURM_JOB_ID') is None: print(logo)
     if len(sys.argv) == 1:
         print(version_text)
         print("No arguments provided. Use -h or --help for usage instructions.")
@@ -250,7 +250,7 @@ def main():
             else: log_file = pathlib.Path(f"{input_path.stem}.log")
         else: log_file = 'msani.log'
         loggers.setup_logger(log_file)
-        original_command = ' '.join(sys.argv)
+        original_command = ' '.join(shlex.quote(arg) for arg in sys.argv)
         logger.info(f"#######  STARTING MOLSANITIZER {__version__}  #######")
         logger.info(f"{original_command}")    
         loggers.arguments(args)
