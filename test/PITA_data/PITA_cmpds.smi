@@ -17,8 +17,8 @@ COc1cc2c(cc1O)CCc1cc(O)cc(OC)c1-2   counting_ethylenes
 CSc1c(C(C)C)c(=O)c2cc(O)c3c(=O)c4c(O)cccc4c(=O)c3c2c1=O     aro_carbonyl-C_benzoquinone
 CCOC(=O)C1Oc2c(c(=O)oc3ccccc23)C1c1cccc(O)c1    transferring_aromaticity_phenyl-furane
 COC(C(c1cc(O)c(O)c(O)c1)=C2OC(C(c3cc(OC)c(O)cc3)=C2O)=O)=O  redox-benzoquinone-furane
-COc1c(O)c2c3c(c1O)C(=O)C1C(=C3C(C)=CC2=O)OC(C)C1(C)C    transferring_aromaticity_phenol-phenol    UNRESOLVED-MYSTERY
-CC(C)=CC(=O)OCC1(C)CCCC2(C)C3=C(O)C(=O)C(C(C)C)=CC3=CC(=O)C12   redox-quinone   UNRESOLVED-MYSTERY
+COc1c(O)c2c3c(c1O)C(=O)C1C(=C3C(C)=CC2=O)OC(C)C1(C)C    transferring_aromaticity_phenol-phenol
+CC(C)=CC(=O)OCC1(C)CCCC2(C)C3=C(O)C(=O)C(C(C)C)=CC3=CC(=O)C12   redox-quinone
 O=C1c2cc(O)c(O)cc2OCC1O transferring_aromaticity_phenol-phenol2
 O=C(C=Cc1cc(O)cc(O)c1)C1CC(O)=COC1=O    redox-acrylic-dihydroaromatic
 CC=CC1=C(C)C(=O)C(O)O1  moving-vinyl    UNRESOLVED-MYSTERY
