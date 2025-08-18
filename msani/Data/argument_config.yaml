@@ -17,8 +17,8 @@
 # If you want to use the default values, you can leave them empty or comment them out.
 
 # Input-output options
-input_files: [file1.smi, file2.smi]
-extended: false
+# input_files: [file1.smi, file2.smi]
+# extended: false
 
 # Filtering options (other options include hba, hbd, mw, chiral)
 removesalts: false
