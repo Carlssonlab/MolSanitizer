@@ -15,7 +15,7 @@ import time
 import math
 import subprocess
 
-from yaml import full_load
+from yaml import safe_load
 from pathlib import Path
 from rdkit import rdBase
 
@@ -106,7 +106,7 @@ remove_lock_files = '''
 rm -f "${log_prefix}.lock"
 '''
 with open(os.path.join(os.path.dirname(__file__), 'msani_configurations.yaml')) as confFile:
-    configurations = full_load(confFile)
+    configurations = safe_load(confFile)
     slurm_account = configurations['SLURM_ACCOUNT']
     time_limit = configurations['TIME_LIMIT']
     lines_per_job = configurations['LINES_PER_JOB']
@@ -135,7 +135,17 @@ def parse_flags_single_job(args: dict, parser):
         str: The flags for a single job
     """
     flags = []
-    omitted_args = ["input_files", "smiles", "proj_name", "timelimit", "lines", "max_jobs", "help"]
+    omitted_args = ["input_files", "input_list", "config", "smiles", "proj_name", "timelimit", "lines", "max_jobs", "help"]
+    # Load the config file to see if the defaults are really the defaults by intention or already set
+    # by the config file
+    config_defaults = {}
+    if args.config:
+        try:
+            with open(args.config, 'r') as f:
+                config_defaults = safe_load(f) or {}
+        except Exception as e:
+            print(f"Error reading YAML config: {e}")
+            sys.exit(1)
 
     for action in parser._actions:
         arg = action.dest  # Argument name
@@ -144,8 +154,8 @@ def parse_flags_single_job(args: dict, parser):
         current_value = getattr(args, arg)  # Current value in the Namespace
         default_value = action.default      # Default value from the parser
         
-        # Skip if the value is the same as the default or if the argument isn't specified
-        if current_value == default_value:
+        # Only skip the value is the same as the default or if the argument isn't specified
+        if arg not in config_defaults and current_value == default_value:
             continue
 
         if isinstance(current_value, bool):
@@ -219,7 +229,10 @@ def Split_Submit_jobs(args: dict, parser):
     if args.lines >= 250_000: slurm_header = slurm_header.replace('MEMORY', '12G')
     elif args.lines >= 100_000: slurm_header = slurm_header.replace('MEMORY', '6G')
     else: slurm_header = slurm_header.replace('MEMORY', '4G')
+
+    # Turn the arguments into a string of flags
     flags = parse_flags_single_job(args, parser)
+
     global slurm_script
     slurm_script = slurm_script + flags + remove_lock_files
 

@@ -75,7 +75,7 @@ def parseArguments(args = None, batch_mode = False):
     # Support the parsing of a YAML configuration file
     pre_parser = argparse.ArgumentParser(add_help=False)
     pre_parser.add_argument('--config', '-c', type=str, help='YAML configuration file')
-    config_args, remaining_argv = pre_parser.parse_known_args(args)
+    config_args, _ = pre_parser.parse_known_args(args)
 
     # Load YAML defaults if provided
     defaults = {}
@@ -197,7 +197,7 @@ def parseArguments(args = None, batch_mode = False):
 
     
     # Parse the arguments
-    args = parser.parse_args(remaining_argv if remaining_argv is not None else [])
+    args = parser.parse_args(args)
     if args.input_files and args.smiles:
         parser.error('Please provide either input files or SMILES strings, not both.')
 
@@ -210,6 +210,7 @@ def parseArguments(args = None, batch_mode = False):
             parser.error(f'The input list file: {args.input_list} is empty or contains no valid paths.')
         if args.input_files: args.input_files += temp_list
         else: args.input_files = temp_list
+        args.input_list = None
             
     if args.input_files is not None:
         for inFile in args.input_files:
