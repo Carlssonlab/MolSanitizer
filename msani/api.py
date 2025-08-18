@@ -166,6 +166,9 @@ class Msani:
         Returns:
         DataFrame: Expanded DataFrame with each stereoisomer as a separate row.
         """
+        if df.empty:
+            logger.warning("Empty DataFrame provided, skipping stereoisomer generation.")
+            return df
         # Partial function to fix max_isomers as an argument
         process_func = partial(Msani._process_molecule_stereoisomer, max_isomers=max_isomers)
         results = []

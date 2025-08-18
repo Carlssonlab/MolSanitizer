@@ -1226,6 +1226,9 @@ def gen_conf_chunk(df: DataFrame, args, input_file='0'):
 
         input_file (str): Name of the input file (default is '0').
     """
+    if df.empty:
+        logger.warning("Empty DataFrame provided, skipping conformation generation.")
+        return
     if 'mol' not in df.columns:
         df.loc[:,'mol'] = df['smiles'].apply(Chem.MolFromSmiles)
     df = filters.Filters.remove_exotic_chem_to_db2(df)
