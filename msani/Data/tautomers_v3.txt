@@ -262,7 +262,8 @@ fused-1H-pyrazolo[1,5-b]pyrazole_to_6H	0	[nX2:1]1[n:2]2[c:3]([a;!$(c~[OX1,OH])!$
 1,4-dihydro-pyrrolo[2,3-b]pyrazin-6-one-CH1 0   [O:1]=[c:2]1[cH1:3][c:4](:[nH:7])[c:5](:[nH:8])[nX2:6]1>>[O:1]=[C:2]1[CH2:3][c:4](:[n&H0:7])[c:5](:[n&H0:8])[NH:6]1
 2,6-dihydro-pyrrolo[3,4-c]pyridazin-7-one-CH0   0   [O:1]=[c:2]1[nX3:3][aH0;!$(c~[OX1,OH]):4][c:5]2[a;!$(c~[OX1,OH]):6][a;!$(c~[OX1,OH]):7][nH:8][a;!$(c~[OX1,OH]):9][c:10]12>>[O:1]=[C:2]1[N:3][AH1:4][c:5]2[a:6][a:7][n&H0:8][a:9][c:10]12
 2,6-dihydro-pyrrolo[3,4-c]pyridazin-7-one-CH1   0   [O:1]=[c:2]1[nX3:3][cH:4][c:5]2[a;!$(c~[OX1,OH]):6][a;!$(c~[OX1,OH]):7][nH:8][a;!$(c~[OX1,OH]):9][c:10]12>>[O:1]=[C:2]1[N:3][CH2:4][c:5]2[a:6][a:7][n&H0:8][a:9][c:10]12
-2,7-dihydro-pyrazolo[3,4-b]pyridin_to_1,2-dihydro   0   [O:1]=[c:2]1[nX3:3][nX2:4][c:5]([nH&r6:7])[c;$(c(a)(a)a):6]1>>[O:1]=[c:2]1[n:3][nH:4][c:5]([n&H0:7])[c:6]1
+2,7-dihydro-pyrazolo[3,4-b]pyridin_to_1,2-dihydro   0   [c:1]1[aX3:2][nX2:3][c:4]([nH&r6:5])[c;$(c(a)(a)a):6]1>>[c:1]1[a:2][nH:3][c:4]([n&H0:5])[c:6]1
+5H-pyrrolo[3,2-c]pyridine_to_1H 0   [a;!$(c~[OX1,OH]):2]1[a;!$(c~[OX1,OH]):3][nX2:4][a:5]2[a;!$(c~[OX1,OH]):6][a;!$(c~[OX1,OH]):7][nH:8][a;!$(c~[OX1,OH]):9][a:10]12>>[a:2]1[a:3][nH1:4][a:5]2[a:6][a:7][n&H0:8][a:9][a:10]12
 #IMINE-EMAMINE_AMIDINE
 carbodiimide_to_cyanamide	0	[NX2&H0:1]=[C:2]=[NH:3]>>[NH:1][C:2]#[N&H0:3]
 vinyl-hydroxylamine/hydrazine_to_oxime/hydrazone-CH0	0	[C&H0:1]=[C:2]-[NH&+0:3]-[O,N:4]>>[CH:1][C:2]=[N&H0:3][O,N:4]
