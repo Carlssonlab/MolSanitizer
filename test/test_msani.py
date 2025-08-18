@@ -512,7 +512,8 @@ class Test_MolSanitizer(unittest.TestCase):
             "taulib": None,
             "create_protlib": False,
             "create_taulib": False,
-            "torsion": None
+            "torsion": None,
+            "config": None
          } 
         for mode in modes: 
             if (mode not in ['unwanted','custom']): args[mode] = True
