@@ -65,11 +65,6 @@ def arguments(args):
     if args.pains:
         logger.info(f"PAINS filter: {args.pains}")
 
-    if args.unwanted: 
-        logger.info(f"Unwanted filter: {args.unwanted}")
-        smartsFile = Path(__file__).parent.parent / 'Data' / 'filter_out.txt'
-        temp_df = loadSMARTSdata(smartsFile.resolve(), args.unwanted)
-        logger.info(f'Parsed {len(temp_df)} substructures from: {smartsFile}')
     
     if args.ha: logger.info(f"HA filter: {args.ha}")
     if args.logp: logger.info(f"LogP filter: {args.logp}")
@@ -77,11 +72,6 @@ def arguments(args):
     if args.hbd: logger.info(f"HBD filter: {args.hbd}")
     if args.mw: logger.info(f"MW filter: {args.mw}")
     if args.chiral: logger.info(f"Chiral filter: {args.chiral}")
-    
-    if args.custom is not None: 
-        logger.info(f"Customized filter: {args.custom}")
-        temp_df = loadSMARTSdata(args.custom)
-        logger.info(f'Parsed {len(temp_df)} substructures from: {args.custom}')
 
     if args.gen3d:
         logger.info(f"Generate 3D conformers: {args.gen3d}")

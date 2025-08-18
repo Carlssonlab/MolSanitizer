@@ -554,6 +554,7 @@ class Filters():
         """
         # Load smarts to clean  from file
         unwanted_df = loadSMARTSdata(smartsFile)
+        logger.info(f'Parsed {len(unwanted_df)} custom substructures from: {smartsFile}')
 
         # Apply reactions to each SMILES in the DataFrame
         df_clean = df.copy()
