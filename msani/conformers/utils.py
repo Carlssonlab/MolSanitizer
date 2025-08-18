@@ -51,7 +51,7 @@ rigid_rules['mol'] = rigid_rules['SMARTS'].apply(lambda x: Chem.MolFromSmarts(x)
 rotatable_pattern=r'*~[!$(*#*)&!D1]-!@[!$(*#*)&!D1]~*'
 
 with open(Path(__file__).parent.parent / 'msani_configurations.yaml') as confFile:
-    msani_configurations = yaml.full_load(confFile)
+    msani_configurations = yaml.safe_load(confFile)
 CORINA_EXE = msani_configurations['CORINA']
 
 # These below are for the new more deterministic method
