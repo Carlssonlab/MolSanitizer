@@ -34,6 +34,7 @@ vinyl = Chem.MolFromSmarts(
 
 integrity_substructs = {
     'amide_like': Chem.MolFromSmarts('[#6^2;$([#6](=,:[!#6])~[!#6]),$([#6](~[!#6])(~[!#6])=,:*)]'),
+    'ketone_like': Chem.MolFromSmarts('[#6^2;$([#6](~[#1,#6])(=,:[#6])-[OH]),$([#6](~[#1,#6])(~[#6])=O)]'),
     'carboxylic_acid': Chem.MolFromSmarts('C(=O)[OH]'),
     'sulfoximine_like': Chem.MolFromSmarts('S=N'),
     'aliphatic_alcohol': Chem.MolFromSmarts('[OH,SH&X2]-[C;$([CH^3](-[C;!$(C=[!C])])-[#6;!$([C&z1]=[!C])]),$([CH^3]([OH])(-[OX2])-[C&z1]=[!C]),$([CH2]),$([C!H0^3]-[CX3;!$(C-[!#6&!H0])]=[CX3;!$(C-[!#6&!H0])])]'),
@@ -98,7 +99,7 @@ def pairwise(iterable):
     return zip(a, b)
 
 def check_configurations(matches, mol):
-    ''' A helper function to check the configurations of the allylic or acrylic bonds in the molecule.'''
+    ''' A helper function to check the configurations of the vinyl bonds in the molecule.'''
     config = []
     for match in matches:
         for bond_idx in (pairwise(match)):
@@ -336,18 +337,18 @@ class Tautomerizer:
                         if self.debug: print(f"\tNone of the tautomers have the same configuration as the input molecule.")
                         canonical_tautomer = equal_tautomers[0][0]    
                 else: 
-                    # No allylic_acrylic bonds found, prioritize the tautomers also without allylic_acrylic bonds
+                    # No vinyl bonds found, prioritize the tautomers also without vinyl bonds
                     canonical_tautomer = None
-                    if self.debug: print(f"\tNo allylic_acrylic bonds found, picking the first one that also has no allylic_acrylic bond.")
+                    if self.debug: print(f"\tNo vinyl bonds found, picking the first one that also has no vinyl bond.")
                     for tautomer, _, smiles in (equal_tautomers):
                         match_vinyl, _ = Tautomerizer._get_substruct_configurations(tautomer, vinyl)
                         if not match_vinyl:
                             canonical_tautomer = tautomer
                             if self.debug: print(f'\tChanged to {smiles}')
                             break
-                    # A fallback if no tautomer without allylic_acrylic bonds is found
+                    # A fallback if no tautomer without vinyl bonds is found
                     if canonical_tautomer == None: 
-                        if self.debug: print(f"\tNo tautomer without allylic_acrylic bonds found, picking the first one.")
+                        if self.debug: print(f"\tNo tautomer without vinyl bonds found, picking the first one.")
                         canonical_tautomer = equal_tautomers[0][0]
             else:
                 # No equal tautomers found, just pick the first one

@@ -22,9 +22,9 @@ CC(C)=CC(=O)OCC1(C)CCCC2(C)C3=C(O)C(=O)C(C(C)C)=CC3=CC(=O)C12   redox-quinone
 O=C1c2cc(O)c(O)cc2OCC1O transferring_aromaticity_phenol-phenol2
 O=C(C=Cc1cc(O)cc(O)c1)C1CC(O)=COC1=O    redox-acrylic-dihydroaromatic
 CC=CC1=C(C)C(=O)C(O)O1  moving-vinyl
-CNc1ccccc1C(=O)C1CCC2c3ccccc3NC2C1=O    redox-ketone-dehydroindole UNRESOLVED-MYSTERY
+CNc1ccccc1C(=O)C1CCC2c3ccccc3NC2C1=O    redox-ketone-dehydroindole
 CC=C1C(=O)NC(=O)C1C migrating_vinyl
 CC(C)=C1NC(=O)C(C(=N)CCCC(C)O)=C1O  migrating_vinyl2
 CCC1NC(=O)C(=C(C)C)NC1=O    migrating_vinyl3    UNRESOLVED-MYSTERY
-CC=CC=C(CC)O    keto-enol-fail  UNRESOLVED-MYSTERY
+CC=CC=C(CC)O    keto-enol-fail
 C1(CC(=O)C(O)OC1CO)O    redox-OH-keto
