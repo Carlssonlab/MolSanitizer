@@ -28,9 +28,6 @@ TAUTOMER_PARAMS.maxTautomers = 1000
 
 TE = rdMolStandardize.TautomerEnumerator(TAUTOMER_PARAMS) 
 
-allylic_acrylic = Chem.MolFromSmarts(
-    '[C;$([CX4&!H0;!$(C-[!#6&!H0])]),$(C(=O)[O,N,CH0])]-[CX3;!$(C-[!#6&!H0])]=[CX3;!$(C-[!#6&!H0])]'
-    )
 vinyl = Chem.MolFromSmarts(
     '[CX3;!$(C-[!#6&!H0])]=[CX3;!$(C-[!#6&!H0])]'
     )
@@ -302,24 +299,19 @@ class Tautomerizer:
                     print(f"\tFound {len(equal_tautomers)} tautomers with the nearly similar score:")
                     for t in equal_tautomers:
                         print(f'\t  {t[2]} {t[1]}')
-                ref_acrylic, ref_conf_acrylic = Tautomerizer._get_substruct_configurations(mol, allylic_acrylic)
                 ref_vinyl, ref_conf_vinyl = Tautomerizer._get_substruct_configurations(mol, vinyl)
-                if ref_acrylic or ref_vinyl:
+                if ref_vinyl:
                     if self.debug: 
-                        print(f"\tReference allylic_acryllic configurations: {ref_conf_acrylic}")
                         print(f"\tReference vinyl configurations: {ref_conf_vinyl}")
                     potential_pool = []
                     for tautomer, score, smiles in (equal_tautomers): 
-                        match_acrylic, config_acrylic = Tautomerizer._get_substruct_configurations(tautomer, allylic_acrylic, ref_acrylic)
                         match_vinyl, config_vinyl = Tautomerizer._get_substruct_configurations(tautomer, vinyl, ref_vinyl)
                         # print('\t'+smiles)
                         # print(f"\tAcrylic: {match_acrylic} {ref_acrylic}")
                         # print(f"\tVinyl: {match_vinyl} {ref_vinyl}")
-                        if len(match_acrylic) != len(ref_acrylic)\
-                            or len(match_vinyl) != len(ref_vinyl): continue
+                        if len(match_vinyl) != len(ref_vinyl): continue
                         # Check for the same bonds as in the reference, whether the bond configurations changed
-                        if config_acrylic == ref_conf_acrylic \
-                            and config_vinyl == ref_conf_vinyl:
+                        if config_vinyl == ref_conf_vinyl:
                             # if self.debug: print(f'\tChanged to {smiles}')
                             if self.debug: print(f'\tAdding {smiles} to the potential pool')
                             potential_pool.append((tautomer, score ,smiles))
@@ -348,9 +340,8 @@ class Tautomerizer:
                     canonical_tautomer = None
                     if self.debug: print(f"\tNo allylic_acrylic bonds found, picking the first one that also has no allylic_acrylic bond.")
                     for tautomer, _, smiles in (equal_tautomers):
-                        match_acrylic, _ = Tautomerizer._get_substruct_configurations(tautomer, allylic_acrylic)
                         match_vinyl, _ = Tautomerizer._get_substruct_configurations(tautomer, vinyl)
-                        if not match_acrylic and not match_vinyl:
+                        if not match_vinyl:
                             canonical_tautomer = tautomer
                             if self.debug: print(f'\tChanged to {smiles}')
                             break
