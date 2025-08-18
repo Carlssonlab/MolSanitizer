@@ -20,7 +20,7 @@ class Test_ValidationSets(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         """Set up class-level paths before running tests."""
-        cls.path = Path(__file__).parent / "goldenData"
+        cls.path = Path(__file__).parent / "validationSets"
         try:
             os.chdir(cls.path)  # Ensure test runs in the correct directory
         except FileNotFoundError:
