@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "MolSanitizer"
-version = "0.3.0"
+version = "0.4.0"
 description = "An Efficient In-silico Refinement pipeline for Virtual Screening (protonation, tautomers,...)"
 readme = "README.md"
 authors = [

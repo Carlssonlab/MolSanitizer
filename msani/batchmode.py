@@ -5,7 +5,7 @@ MolSanitizer in the batch mode.
 __author__ = "Thua-Phong Lam, Israel Cabeza de Vaca Lopez, Szymon Pach"
 __place__ = "Jens Carlsson lab, Uppsala University, Sweden"
 __license__ = "GPLv2"
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 
 
