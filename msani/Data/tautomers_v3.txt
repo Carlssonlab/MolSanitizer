@@ -2,7 +2,7 @@
 # Lines start with # or empty lines are skipped.
 # The rules are constructed as: name    enumerate	smarts      reference
 # Only the first 3 columns are read.
-# Last update: July 25th, 2025
+# Last update: August 18th, 2025
 #HYPERVALENT-S
 H-lambda4-sulphane_to_lambda2-CH0	0	[SX3H:1]=[C&H0:2]>>[S&H0:1][CH:2]
 H-lambda4-sulphane_to_lambda2-CH1	0	[SX3H:1]=[CH:2]>>[S&H0:1][CH2:2]
@@ -69,6 +69,9 @@ aromatize_3H-azoles-CH2	0	[A;!$(A~[OX1,OH]):1]1-[NX2:2]=[A;!$(A~[OX1,OH]):3]-[CH
 aromatize_2H-pyrroles-CH1	0	[A;!$(A~[OX1,OH]):1]1-[C;!$(C~[OX1,OH]):2]=[NX2:3]-[CH1;!$(C~[OX1,OH]):4]-[A;!$(A~[OX1,OH]):5]=1>>[a:1]1[c:2][nH:3][cH0:4][a:5]1
 aromatize_2H-pyrroles-CH2	0	[A;!$(A~[OX1,OH]):1]1-[C;!$(C~[OX1,OH]):2]=[NX2:3]-[CH2:4]-[A;!$(A~[OX1,OH]):5]=1>>[a:1]1[c:2][nH:3][cH:4][a:5]1
 #KETO-ENOL
+#all_aliphatic-enols-to-keto-CH0 0   [#1,#6:1]-[C:2](-[OH:3])=[CX3&H0&z0:4]>>[#1,#6:1]-[C:2](=[O&H0:3])[CH:4]   caution_this_rule_provides_in_some_cases_incorr_output_that_is_corrected_by_rules_below
+#all_aliphatic-enols-to-keto-CH1 0   [#1,#6:1]-[C:2](-[OH:3])=[CX3H&z0:4]>>[#1,#6:1]-[C:2](=[O&H0:3])[CH2:4]   caution_this_rule_provides_in_some_cases_incorr_output_that_is_corrected_by_rules_below
+#all_aliphatic-enols-to-keto-CH2 0   [#1,#6:1]-[C:2](-[OH:3])=[CX3H2&z0:4]>>[#1,#6:1]-[C:2](=[O&H0:3])[CH3:4]   caution_this_rule_provides_in_some_cases_incorr_output_that_is_corrected_by_rules_below
 5-memb-ring-1,2-di(thio)keto_to_enol-CH1	0	[O:1]=[C:2]1[C:3](=[O,SX1:7])[CH:4][A;!$(A=O):5][A;!$(A=O):6]1>>[O:1]=[C:2]1[C:3]([OH,SH:7])=[CH0:4][A;!$(A=O):5][A;!$(A=O):6]1
 5-memb-ring-1,2-di(thio)keto_to_enol-CH2	0	[O:1]=[C:2]1[C:3](=[O,SX1:7])[CH2:4][A;!$(A=O):5][A;!$(A=O):6]1>>[O:1]=[C:2]1[C:3]([OH,SH:7])=[CH1:4][A;!$(A=O):5][A;!$(A=O):6]1
 6-memb-ring-1,2-di(thio)keto_to_enol-CH1	0	[O:1]=[C:2]1[C:3](=[O,SX1:8])[CH:4][A;!$(A=O):5][A;!$(A=O):6][A;!$(A=O):7]1>>[O:1]=[C:2]1[C:3]([OH,SH:8])=[CH0:4][A;!$(A=O):5][A;!$(A=O):6][A;!$(A=O):7]1
