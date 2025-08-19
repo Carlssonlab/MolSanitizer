@@ -45,13 +45,30 @@ jobs:
           cache-downloads: true
           cache-environment: true
 
-      - name: Install in editable mode
-        # Use bash on Linux/macOS, powershell on Windows
-        shell: ${{ runner.os == 'Windows' && 'powershell' || 'bash -l {0}' }}
+      # Linux/macOS install
+      - name: Install in editable mode (Unix)
+        if: runner.os != 'Windows'
+        shell: bash -l {0}
         run: pip install -e .
 
-      - name: Run unittests
-        shell: ${{ runner.os == 'Windows' && 'powershell' || 'bash -l {0}' }}
+      # Windows install
+      - name: Install in editable mode (Windows)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: pip install -e .
+
+      # Linux/macOS tests
+      - name: Run unittests (Unix)
+        if: runner.os != 'Windows'
+        shell: bash -l {0}
+        run: |
+          python -m unittest test/test_msani.py
+          python -m unittest test/test_validation_sets.py
+
+      # Windows tests
+      - name: Run unittests (Windows)
+        if: runner.os == 'Windows'
+        shell: powershell
         run: |
           python -m unittest test/test_msani.py
           python -m unittest test/test_validation_sets.py
