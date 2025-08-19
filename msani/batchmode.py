@@ -313,8 +313,13 @@ def main():
     args, parser = parsers.parseArguments(sys.argv[1:], batch_mode=True)
     rdkit_version = rdBase.rdkitVersion
     if args.version:
+        print(logo)
         print(f"MolSanitizer version: {__version__}")
         print(f"RDKit version: {rdkit_version}")
+        return
+    if (args.input_files is None or len(args.input_files) == 0):
+        print("No input files provided. Please provide input files using the -i or --input_files option.")
+        print("Exiting MolSanitizer...")
         return
     Split_Submit_jobs(args, parser)
 
