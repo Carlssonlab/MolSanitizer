@@ -28,6 +28,8 @@ oxa/thiadiazol-5-one	6	ACID	0       [O:1]=[c:2]1[nX2:3][c:4][nH:5][o,sX2:6]1>>[O
 oxa/thiadiazol-5-ol	6	ACID	0       [OH:1][c:2]1[nX2:3][c:4][nX2:5][o,sX2:6]1>>[OH0&-:1][c:2]1[n:3][c:4][nX2:5][o,s:6]1	10.1021/acs.jmedchem.5b01963
 isoxazol-3-ol	5	ACID	0       [OH:1][c:2]1[nX2:3][o:4][c:5][c;!$(c~[*-])!$(c~*~[*-]):6]1>>[OH0&-:1][c:2]1[n:3][o:4][c:5][c:6]1	10.1021/acs.jmedchem.5b01963
 isoxazol-3-one	5	ACID	0       [O:1]=[c:2]1[nH:3][o:4][c:5][c;!$(c~[*-])!$(c~*~[*-]):6]1>>[O-:1][c:2]1[nH0:3][o:4][c:5][c:6]1	10.1021/acs.jmedchem.5b01963
+1,3,4-oxadiazol-2-one	8	ACID	0	[O:1]=[c:2]1[nH:3][n:4][c;!$(c~[*-]):5][o:6]1>>[O-:1][c:2]1[nH0:3][n:4][c:5][o:6]1
+1,3,4-oxadiazol-2-ol	8	ACID	0	[OH:1][c:2]1[nX2:3][n:4][c;!$(c~[*-]):5][o:6]1>>[OH0&-:1][c:2]1[n:3][n:4][c:5][o:6]1
 3-OH-quinolinone	8	ACID	0	[OH1&+0;$(O-c1[a;!$(a-C=[!#6])][a;$(a(:a)(:a):a)][a;$(a(:a)(:a):a)][nX3]c1=O)!$(O-ca~[*-])!$(O-ca~[*+0]~[*-]):1]>>[OH0&-:1]	10.1016/j.ejmech.2011.04.023
 3-OH-pyrrol-2-one	5	ACID	0	[OH1&+0;$(O-C1=C(~[*;$(C#N),$(A=O),$(a)])C[NX3]C1=O)!$(O-C=A~*~[*-]):1]>>[OH0&-:1]	10.1139/v70-425,10.1021/jm00359a015,10.1007/BF02218875
 #OH-ACIDITY-HETEROATOM
