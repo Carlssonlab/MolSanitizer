@@ -55,7 +55,9 @@ jobs:
       - name: Install in editable mode (Windows)
         if: runner.os == 'Windows'
         shell: powershell
-        run: pip install -e .
+        run: |
+          micromamba activate msani
+          pip install -e .
 
       # Linux/macOS tests
       - name: Run unittests (Unix)
@@ -70,5 +72,6 @@ jobs:
         if: runner.os == 'Windows'
         shell: powershell
         run: |
+          micromamba activate msani
           python -m unittest test/test_msani.py
           python -m unittest test/test_validation_sets.py
