@@ -30,6 +30,9 @@ jobs:
         sed -i "s/^version = \".*\"/version = \"$VERSION\"/" pyproject.toml
         sed -i "s/^__version__ = \".*\"/__version__ = \"$VERSION\"/" msani/cli.py
         sed -i "s/^__version__ = \".*\"/__version__ = \"$VERSION\"/" msani/batchmode.py
+        sed -i "s/^release = .*/release = \"$VERSION\"/" docs/source/conf.py
+        sed -i "s/^version = .*/version = \"$VERSION\"/" docs/source/conf.py
+
 
     - name: Generate Changelog
       uses: orhun/git-cliff-action@v4
@@ -64,6 +67,11 @@ jobs:
 
         if ! git diff --quiet CHANGELOG.md; then
           git add CHANGELOG.md
+          CHANGED_FILES=1
+        fi
+        
+        if ! git diff --quiet docs/source/conf.py; then
+          git add docs/source/conf.py
           CHANGED_FILES=1
         fi
 
