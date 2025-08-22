@@ -1,0 +1,46 @@
+name: Sync CHANGELOG and Convert to RST
+
+on:
+  push:
+    branches:
+      - '**'
+  schedule:
+    - cron: '0 0 * * *'  # daily at midnight UTC
+
+jobs:
+  sync-changelog:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Install Pandoc for Conversion
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y pandoc
+
+    - name: Convert and Commit CHANGELOG
+      run: |
+        # Paths
+        CHANGELOG_MD="CHANGELOG.md"
+        CHANGELOG_RST="docs/source/changes.rst"
+
+        # Convert only if CHANGELOG exists
+        if [ -f "$CHANGELOG_MD" ]; then
+          pandoc "$CHANGELOG_MD" -o "$CHANGELOG_RST"
+        else
+          echo "No CHANGELOG.md found. Skipping."
+          exit 0
+        fi
+
+        # Commit if there are changes
+        if ! git diff --quiet "$CHANGELOG_RST"; then
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          git add "$CHANGELOG_RST"
+          git commit -m "Update changes.rst from CHANGELOG.md"
+          git push
+        else
+          echo "No changes detected in $CHANGELOG_RST. Skipping commit."
+        fi
