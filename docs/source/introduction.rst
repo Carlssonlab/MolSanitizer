@@ -22,16 +22,28 @@ Tautomers are interconvertible structural isomers of a molecule that differ in t
 
 Because tautomerization is a complex and not yet fully solved problem, MolSanitizer restricts its focus to determining tautomeric states in aqueous solution at physiological pH. This assumption reduces the number of plausible tautomers and enhances practical relevance. To accomplish this, MolSanitizer adopts a two-layer approach to identify the most chemically reasonable tautomer for a given molecule:
 
+.. image:: https://media.springernature.com/lw685/springer-static/image/art%3A10.1007%2Fs10822-009-9303-2/MediaObjects/10822_2009_9303_Fig1_HTML.gif
+   :width: 400px
+   :align: center
+
+.. raw:: html
+
+   <div style="text-align:center;">Examples of prototropic tautomerism (Source: <a href="https://link.springer.com/article/10.1007/s10822-009-9303-2">Yvonne Connolly Martin (2009)</a>)</div>
+
+|
+
+MolSanitizer's approach
+------------------------
+
+In the following sections, we will discuss the two layers of tautomer canonicalization in MolSanitizer:
+
+
 .. image:: _static/Tautomerization_protocol.png
    :width: 700px
    :align: center
 
-|
-
-| In the following sections, we will discuss the two layers of tautomer canonicalization in MolSanitizer:
-
 Layer 1: Tautomer canonicalization using RDKit
-------------------------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The process begins with an evaluation of the input molecule to identify defined stereocenters and functional groups that are considered non-migratable. This is done using SMARTS matching, which allows the program to recognize specific substructures and their properties. The functional groups that are considered non-migratable include:
 
@@ -71,7 +83,7 @@ Here, n denotes the number of aromatic rings; m is the number of substructures (
 Tautomers with scores within the range [max_score - 4, max_score] are further filtered based on the placement of isolated double bonds. Because multiple high-scoring tautomers may differ in the position of isolated double bonds, priority is given to those that preserve the same positions as the input molecule. If none of the candidates retain the original double-bond configuration, the highest-scoring tautomer is selected as the canonical form. In cases of tie or no tautomer that can comply with all the requirements, the lexicographically smallest tautomer is chosen.
 
 Layer 2: Rule-based tautomerism
--------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Output from the first layer is then processed by a set of SMARTS reactions to ensure that the tautomer is in the most stable form. The SMARTS reactions are designed to correct the tautomer to its most stable form based on the literature. The reactions are applied iteratively until no further changes can be made, ensuring that the final tautomer is chemically stable and biologically relevant. In case of multiple possibilities of tautomerization (eg. imidazole), the output will be expanded to include all possible tautomers. The SMARTS rules are readily accessible at `msani/Data/tautomers_v3.txt <https://github.com/phonglam3103/MolSanitizer/blob/main/msani/Data/tautomers_v3.txt>`_.
 
@@ -82,6 +94,8 @@ Introduction
 ----------------
 
 Protonation states play a central role in chemistry and biochemistry because they directly affect the structure, stability, solubility, and reactivity of molecules. In drug discovery, the protonation state of a ligand can determine how it interacts with its target protein and influences properties such as permeability and binding affinity. Similarly, in enzymatic processes and catalysis, the distribution of protonation states governs the mechanism and efficiency of reactions.
+
+Most molecules contain functional groups that can readily gain or lose protons under certain conditions. Each equilibrium between the protonated and deprotonated forms of such groups is characterized by an equilibrium constant, denoted as the acid dissociation constant, Kₐ, typically expressed in logarithmic form as pKₐ. By definition, the pKa is the negative logarithm of the equilibrium constant for the dissociation of a proton from a given site. 
 
 .. math::
 
@@ -94,7 +108,7 @@ Protonation states play a central role in chemistry and biochemistry because the
    \end{align}
 
 
-The quantitative descriptor of a molecule's proton affinity is the acid dissociation constant (Ka), usually expressed in the logarithm form pKa. By definition, the pKa is the negative logarithm of the equilibrium constant for the dissociation of a proton from a given site. The relationship between pKa and the environmental pH determines the dominant protonation state, given by the Henderson-Hasselbalch equation:
+The relationship between pKa and the environmental pH determines the dominant protonation state, given by the Henderson-Hasselbalch equation:
 
 .. math::
 
@@ -124,7 +138,7 @@ Approaches for prediction of pKa
 
 Several approaches have been developed to estimate pKa values. For example, Epik and ACD/Labs utilize the Hammett-Taft equation to correlate between the pKa and linear free energy relationships (LFER) of substituents. Other methods, such as ones based on the molecular structure (eg. ChemAxon Marvin), use correlation between the molecular properties (partial charge) and the pKa values. Quantum mechanical calculations (eg. Jaguar) can also be employed to predict pKa values, but they are computationally expensive and often impractical for large datasets.
 
-Recently, machine learning models have been developed to predict pKa values with high accuracy (Qupcake, Uni-pKa). These models are trained on large datasets of experimentally measured pKa values and can generalize well to unseen molecules. They can also incorporate additional features such as molecular descriptors, functional groups, and chemical environments to improve prediction accuracy.
+Recently, machine learning models have been developed to predict pKa values with high accuracy (Qupcake, Uni-pKa, Epik 7). These models are trained on large datasets of experimentally measured pKa values and can generalize well to unseen molecules. They can also incorporate additional features such as molecular descriptors, functional groups, and chemical environments to improve prediction accuracy.
 
 MolSanitizer's approach
 ------------------------
