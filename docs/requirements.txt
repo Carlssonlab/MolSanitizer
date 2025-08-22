@@ -1,4 +1,6 @@
 sphinx
 sphinx-rtd-theme
+sphinx-autobuild
 sphinx-copybutton
 sphinx-autodoc-typehints
+sphinx_togglebutton
