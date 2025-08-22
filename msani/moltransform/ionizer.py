@@ -50,7 +50,7 @@ class Ionizer:
         debug: bool, default False.
             Print debug message
 
-        Example use:
+        Examples
         ----------
         
         >>> from msani.moltransform.ionizer import Ionizer\n
@@ -111,7 +111,7 @@ class Ionizer:
         '''
         Load the protonation rules from a file containing SMARTS strings.
         Expected format from the text file: 
-            FUNCTIONAL_GROUP	pKa	    TYPE	Enumerate   REACTION                REF
+            FUNCTIONAL_GROUP	pKa	    TYPE	Enumerate   REACTION    REF
             amine	            10	    BASE	1           [reagent]>>[product]
         '''
         with open(file_path, 'r') as f:
