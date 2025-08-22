@@ -1,0 +1,9 @@
+nuitka msani/cli.py \
+  --standalone --onefile \
+  --follow-imports \
+  --include-package=msani \
+  --include-package-data=msani 
+  --output-dir=../build_nuitka \
+  --show-memory --show-progress \
+  --nofollow-import-to=*.tests,*.test,test*,*matplotlib*
+nuitka msani/moltransform/ionizer.py   --standalone --onefile   --follow-imports    --include-package=msani --include-package-data=msani  --output-dir=../build_ionizer --show-memory --show-progress --nofollow-import-to=*.tests,*.test,test*,matplotlib*,*scipy*
