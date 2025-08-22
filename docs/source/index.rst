@@ -36,3 +36,9 @@ Contents
    python
    evaluation
    contributors
+
+.. toctree::
+   :maxdepth: 1
+   :caption: API Reference
+
+   api
