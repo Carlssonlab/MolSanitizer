@@ -6,6 +6,11 @@ section {
     text-align: justify;
 }
 
+p {
+    margin-top: 0.2em;   /* reduce space above */
+    margin-bottom: 0.6em;  /* reduce space below */
+}
+
 h1, h2{
     font-size: 150%;
     font-weight: bold;
@@ -20,6 +25,11 @@ h3 {
 h4 {
     font-size: 100%;
     color: #415364;
+}
+
+h2, h3, h4 {
+    margin-top: 1em;      /* space above */
+    margin-bottom: 0.3em; /* space below */
 }
 
 .wy-nav-content {
