@@ -17,6 +17,7 @@ The program requires a white-space or tab-delimited file containing two columns 
 Extended SMILES is supported (by the `-e` or `--extended` flag, but the database needs to be tab-separated.
 
 .. code-block:: console
+
     CC[C@H]1[C@H](C(=O)N[C@H](C)CCCC(=O)NOCC(F)(F)F)CCN1C |&1:2,3|	Cmp0001
     CCC(CC(=O)N(CC)CCC(=O)N1CCO[C@H]2COC[C@H]21)C(F)F |&1:17,21|	Cmp0002
     CC(C)CC(CNC(=O)C1CSC1)C(=O)N[C@H]1C[C@@H](O)[C@H](F)C1 |&1:16,18,20|	Cmp0003
@@ -77,7 +78,7 @@ Below is the default configuration file:
 
 
 Reproducible setup by the configuration file
-***************************************
+*********************************************
 
 The program can be run with the configuration file by using the ``--config`` flag. The path to the configuration file should be provided. Refer to the :doc:`config` section for more details on the configuration file.
 
@@ -175,7 +176,7 @@ Available filters and preparation steps
 ***************************************
 
 1. Remove salts
-============
+================
 
 To use the remove salts function, simply use the ``--removesalts`` flag. The program uses a predefined salt list in `msani/Data/salt_stripping.txt <https://github.com/phonglam3103/msani/blob/main/msani/Data/salt_stripping.txt>`_ to remove the salts, which contain both organic and inorganic salts commonly used in medicinal chemistry. Since the 0.2.3 version, Salt Remover will also remove the smaller fragments in the same molecule entry and only retain the largest one.
 
@@ -196,7 +197,7 @@ The tautomers could be generated using the ``--tautomers`` flag. msani uses a tw
     $ msani -i example.smi --tautomers
 
 3. Descriptor-based filtering
-============================
+==============================
 
 The following descriptors are supported for filtering: heavy atoms (HA), logP, hydrogen bond acceptors (HBA), hydrogen bond donors (HBD), molecular weight (MW), and number chiral centers. The descriptors can be filtered using the following flags:
 ``--ha``, ``--logp``, ``--hba``, ``--hbd``, ``--mw``, and ``--chiral``. The filtering can be done using the following formats:
@@ -215,7 +216,7 @@ For example, to filter the logP values less than or equal to 3.5, use the follow
 
 
 4. PAINS filtering
-===============
+==================
 
 Molecules that contain PAINS substructures can be efficiently eliminated using the ``--pains`` flag. The violated structures will be stored in the **_rejected** file.
 
@@ -234,7 +235,7 @@ Example of the **_rejected** output is as below:
     CCCCN(Cc1ccc(OS(=O)(=O)F)cc1)Cc1ccccc1O           Z4607533150   "PAINS violation: Mannich_a(296)"
 
 5. Unwanted substructures filtering
-============================
+====================================
 
 Molecules that contain unwanted substructures can be efficiently eliminated using the ``--unwanted`` flag. msani uses an expert-curated list that contains undesirable substructures, accompanied by the reasons and references for filtering. The list can be obtained from `msani/Data/filter_out.csv <https://github.com/phonglam3103/msani/blob/main/msani/Data/filter_out.csv>`_.
 
@@ -268,6 +269,7 @@ msani supports the assignment of protonation states at various pH values using t
 The program employs SMARTS-based reactions to iteratively assign protonation states to atoms, considering the pKa of functional groups and the queried pH. Detailed SMARTS reaction definitions are available in the following resource: `msani/Data/ionizations.txt <https://github.com/phonglam3103/msani/blob/main/msani/Data/ionizations_v2.txt>`_.
 
 .. code-block:: console
+
     $ msani -i example.smi --protonation # Default pH 7 +- 0
     $ msani -i example.smi --protonation --pH 7 --range 2 # Enumerate protonation states at pH 7 +- 2
     $ msani -i example.smi --protonation -p 7 -r 2 # Short version
