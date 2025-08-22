@@ -43,8 +43,43 @@ Torlib = torsions.TorsionLibrary()
 class ConformerGenerator:
     '''
     Class to generate conformers from SMILES strings.
-    
-    Examples:
+
+    Parameters
+    ----------
+    smiles : str
+        The SMILES string of the molecule.
+    name : str, optional
+        The name of the molecule, by default 'test'.
+    forcefield : str, optional
+        The force field to use for energy calculation, by default 'MMFF94s'.
+    method : str, optional
+        The method to use for embedding the molecule, by default 'rdkit'.
+    pre_embed : bool, optional
+        Whether the conformer has been pre-embed, just read-in again, by default False.
+    randomSeed : int, optional
+        The random seed for reproducibility, by default 42.
+    num_ring_confs : int, optional
+        The number of ring conformers to generate, by default 1.
+    numcores : int, optional
+        The number of CPU cores to use, by default 1.
+    request_alignment : str, optional
+        The ring alignment in SMILES or SMARTS to support constrained docking, by default None.
+    ignoreTorlib : bool, optional
+        Whether to ignore the torsion library, by default False.
+    threshold : float, optional
+        The threshold in Angstrom for non-bonded atom distance, by default 1.6.
+    mode : str, optional
+        The mode for conformer sampling, by default 'fixed'.
+    tolerance : float, optional
+        The tolerance for dihedral angle sampling, by default 30.
+    torlib : TorsionLibrary, optional
+        The torsion library to use, by default Torlib.
+    VERBOSE : bool, optional    
+        Whether to print verbose output, by default False.
+
+    Examples
+    ----------
+
     >>> from msani.conformers.conformers import ConformerGenerator
     >>> smiles = 'CC(=O)C1=CC=CC=C1C(=O)O'
     >>> name = 'test'
@@ -108,7 +143,7 @@ class ConformerGenerator:
 
         # Initialize molecule
         self._initialize_molecule()
-        self.substructure_perception()
+        self._substructure_perception()
         
         # Calculate net charge
         self.netcharge = sum(atom.GetFormalCharge() for atom in self.mol.GetAtoms())
@@ -120,11 +155,11 @@ class ConformerGenerator:
         self._setup_forcefield(forcefield)
         if pre_embed == False:
             if self.method == 'corina':
-                self.embed_smiles_corina()
+                self._embed_smiles_corina()
             elif self.method == 'obabel':
-                self.embed_smiles_babel()
+                self._embed_smiles_babel()
             elif self.method == 'rdkit':
-                self.embed_smiles_rdkit()
+                self._embed_smiles_rdkit()
             else:
                 raise ValueError(f"Invalid embedding method: {self.method}. Supported methods are: rdkit, obabel, corina.")
     
@@ -183,7 +218,7 @@ class ConformerGenerator:
         # Store forcefield type for later use
         self.forcefield = forcefield
 
-    def substructure_perception(self):
+    def _substructure_perception(self):
         """Identify important substructures in the molecule"""
         # Get ring information
         self.planar_rings, self.non_planar_rings = utils.get_flexible_ring(
@@ -256,7 +291,7 @@ class ConformerGenerator:
     # 1. RDKit
     # 2. Open Babel
     # 3. Corina    
-    def embed_smiles_rdkit(self):
+    def _embed_smiles_rdkit(self):
         """
         Embeds a SMILES string into molecular conformers using RDKit,
         applying various quality checks and corrections inherited from the MMFF94s force field.
@@ -426,7 +461,7 @@ class ConformerGenerator:
         mol2_obj = mol2writer.Mol2Writer(Chem.Mol(self.amsol_mol, confId = 0))
         self.mol2_str = mol2_obj.write_mol2()
 
-    def embed_smiles_babel(self):
+    def _embed_smiles_babel(self):
         '''
         Embed the SMILES string using Open Babel. CLI version is used as it is found more flexible 
         than the RDKit version.'''
@@ -494,12 +529,12 @@ class ConformerGenerator:
         mol2_obj = mol2writer.Mol2Writer(mol_rdkit)
         self.mol2_str = mol2_obj.write_mol2()
 
-    def embed_smiles_corina(self):
+    def _embed_smiles_corina(self):
         '''
         Embed the SMILES string using CORINA and return the mol, net_charge,
         rigid_scaffolds, and flexible_scaffolds
         '''
-        self.mol2_str, self.ring_confs = utils.embed_smiles_corina(self.smiles, self.name, self.num_ring_confs, self.VERBOSE)
+        self.mol2_str, self.ring_confs = utils._embed_smiles_corina(self.smiles, self.name, self.num_ring_confs, self.VERBOSE)
         self.mol_H = Chem.Mol(self.ring_confs[0])
         self.mp = rdForceFieldHelpers.MMFFGetMoleculeProperties(self.ring_confs[0], mmffVariant="MMFF94s")
         self.amsol_mol = Chem.Mol(self.ring_confs[0]) # An RDKit Mol Object with upto 10 confs for AMSOL
@@ -588,6 +623,10 @@ class ConformerGenerator:
                       request_alignment=None):
         """
         Perceive the allowed dihedral angles and call stochastic sampling to generate conformers.
+
+        Notes:
+            For assymetric sulfonamides, there would be two versions of rigid scaffolds handled by msani.
+
         Args:
             numConfs (int): Number of conformers to generate.
             energywindow (float): Energy window for conformer generation.
@@ -596,8 +635,6 @@ class ConformerGenerator:
             AllowNonRing (bool): Whether to allow the full sampling of non-ring compounds.
             request_alignment (list): List of atom indices for alignment.
         
-        Notes:
-            For assymetric sulfonamides, there would be two versions of rigid scaffolds handled by msani.
         """
         self.conf_sampled = True
         self.mp.SetMMFFEleTerm(True) #Turn on back otherwise it would produce unfeasible conformers
@@ -708,6 +745,7 @@ class ConformerGenerator:
                                product=list()):
         """
         Perform stochastic sampling of conformers based on a given angle map and score map.
+
         Args:
             mol (Chem.Mol): The molecule to sample conformers for.
             angle_map (dict): A dictionary mapping bond indices to tuples of (bond, dihedral atoms, possible angles).
@@ -718,6 +756,7 @@ class ConformerGenerator:
             window (float): The energy window for accepting conformers.
             max_attempts (int): The maximum number of attempts to generate conformers.
             product (list): A list to store the generated conformers and their energies.
+
         Returns:
             product (list): A list of tuples containing the generated conformers and their energies.
         """

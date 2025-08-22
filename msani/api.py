@@ -19,17 +19,17 @@ class Msani:
     A class to store the filter options and conduct chemical modifications for MolSanitizer. 
     Initialize the class with the desired filter options and apply the filters to the input DataFrame.
     
-    Example use:
+    Examples
+    ---------
 
-        processor = Msani(
+    >>> processor = Msani(
                     removesalts=True,
                     ha='>10',
                     logp='<5',
                     tautomers=True, 
                     protonation = True, 
                     debug=True)
-
-        processed_df = processor.run(df)
+    >>> processed_df = processor.run(df)
 
     """
     tautomer_params = None  # Define as a class variable
@@ -97,11 +97,11 @@ class Msani:
         Generate stereoisomers for a given molecule.
         
         Args:
-        mol (rdkit.Chem.Mol): RDKit molecule object.
-        max_isomers (int): Maximum number of stereoisomers to generate.
+            mol (rdkit.Chem.Mol): RDKit molecule object.
+            max_isomers (int): Maximum number of stereoisomers to generate.
         
         Returns:
-        list: List of stereoisomer molecules.
+            list: List of stereoisomer molecules.
         """
         opts = StereoEnumerationOptions(tryEmbedding=True, unique=True, maxIsomers=max_isomers)
         isomers = list(EnumerateStereoisomers(mol, options=opts))
@@ -112,11 +112,11 @@ class Msani:
         """
         A wrapper to generate stereoisomers for a given molecule using multiprocessing.
         Args:
-        row_data (Series): A row from the input DataFrame containing ['smiles', 'ids', 'mol'] and optionally 'highlights'.
-        max_isomers (int): Maximum number of stereoisomers to generate.
+            row_data (Series): A row from the input DataFrame containing ['smiles', 'ids', 'mol'] and optionally 'highlights'.
+            max_isomers (int): Maximum number of stereoisomers to generate.
 
         Returns:
-        results (list): List of expanded stereoisomers dictionaries with 'smiles', 'ids', 'mol', and optionally 'highlights'.
+            results (list): List of expanded stereoisomers dictionaries with 'smiles', 'ids', 'mol', and optionally 'highlights'.
         """
         mol = Chem.MolFromSmiles(row_data['smiles'])
         # If max_isomers is set to 1, return the original molecule and let the RDKit/CORINA guess it.
@@ -158,13 +158,13 @@ class Msani:
         Generate stereoisomers for molecules in the 'smiles' column and expand the DataFrame using multiprocessing.
         
         Args:
-        df (DataFrame): DataFrame with 'smiles' and 'ids' columns.
-        max_isomers (int): Maximum number of stereoisomers to generate for each molecule.
-        numcores (int): Number of processes to use. Default is 4.
-        debug (bool): Enable debug messages.
+            df (DataFrame): DataFrame with 'smiles' and 'ids' columns.
+            max_isomers (int): Maximum number of stereoisomers to generate for each molecule.
+            numcores (int): Number of processes to use. Default is 4.
+            debug (bool): Enable debug messages.
         
         Returns:
-        DataFrame: Expanded DataFrame with each stereoisomer as a separate row.
+            DataFrame: Expanded DataFrame with each stereoisomer as a separate row.
         """
         if df.empty:
             logger.warning("Empty DataFrame provided, skipping stereoisomer generation.")

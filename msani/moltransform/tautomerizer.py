@@ -135,19 +135,23 @@ class Tautomerizer:
     debug: bool, default False.
         Print debug message
 
-    Example use:
+    Examples
     ----------
     
-    >>> from msani.moltransform.tautomerizer import Tautomerizer\n
-    >>> tautomerizer = Tautomerizer(numcores= 4, neutralize= False)\n
+    >>> from msani.moltransform.tautomerizer import Tautomerizer
+    >>> tautomerizer = Tautomerizer(numcores= 4, neutralize= False)
+    
     Tautomerize a molecule from a SMILES
-    >>> tautomers = tautomerizer.tautomerize(smiles='c1ccccc1O')\n
+
+    >>> tautomers = tautomerizer.tautomerize(smiles='c1ccccc1O')
 
     Tautomerize a molecule from an RDKit Mol object
-    >>> mol = Chem.MolFromSmiles('c1ccccc1O')\n
-    >>> tautomers = tautomerizer.tautomerize(mol = mol)\n
+
+    >>> mol = Chem.MolFromSmiles('c1ccccc1O')
+    >>> tautomers = tautomerizer.tautomerize(mol = mol)
 
     Tautomerize a DataFrame of molecules with SMILES strings:
+
     >>> tautomers_df = tautomerize_df(df, smiles_column = 'smiles', name_column = 'ids')"""
 
     def __init__(self,
@@ -363,6 +367,7 @@ class Tautomerizer:
     def standardize(self, mol:Chem.Mol):
         """
         Standardize the input molecule using the standardizing reactions.
+
         Args:
             mol (rdkit.Chem.rdchem.Mol): The reactant molecule.
 
@@ -393,6 +398,7 @@ class Tautomerizer:
     def enumerate(self, mol: Chem.Mol):
         """
         Enumerate different combination of different tautomer substructures of a molecule.
+
         Args:
             mol (rdkit.Chem.rdchem.Mol): The reactant molecule.
         Returns:
@@ -431,6 +437,7 @@ class Tautomerizer:
             smiles (str): SMILES string of the molecule.
             mol (rdkit.Chem.rdchem.Mol): RDKit molecule object.
             name (str): Name of the molecule. - mainly for debugging purposes.
+
         Returns:
             Returns a list SMILES strings of the tautomers.
         """

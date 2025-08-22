@@ -17,7 +17,6 @@ class Filters():
     Parameters
     ---------
         
-
         removesalts: bool, default False.
             Remove salts from the input molecules. Only the largest fragment will be retained if the salt is not in the database.
         
@@ -54,10 +53,10 @@ class Filters():
         debug: bool, default False.
             Print debug message
 
-    Example use:
+    Examples
     ----------
         
-    >>> from msani.filtering.filters import Filters\n
+    >>> from msani.filtering.filters import Filters
     >>> filters = Filters(removesalts=True,
                             ha='>=5',
                             logp='<=3.5',
@@ -69,11 +68,10 @@ class Filters():
                             unwanted=['regular'],
                             pains=True,
                             rejectedFile='rejected.txt',
-                            debug=True)\n
-
-    >>> filtered_df = filters.filter_df(df)\n
+                            debug=True)
+    >>> filtered_df = filters.filter_df(df)
     
-    the Filters class also has multiple static methods that can be used independently:\n
+    the Filters class also has multiple static methods that can be used independently:
 
     >>> df = Filters.filter_by_ha(df, self.ha, rejectedFile, debug)
     >>> df = Filters.filter_by_logp(df, self.logp, rejectedFile, debug)
@@ -273,7 +271,9 @@ class Filters():
     
     def filter_by_hba(df, filter_query, rejectedFile, debug = False) -> DataFrame:
         """Filter out molecules with required number of H-bond acceptors using the RDKit CalcNumHBA().
+
         NOTE: It is by intention that the function uses CalcNumHBA() instead of CalcNumLipinskiHBA() was used as we believe that it better represents the chemistry.
+
         Args:
             df (DataFrame): Input DataFrame with 'mol' column containing RDKit molecule objects.
             debug (bool, optional): Debug mode. Defaults to False.
@@ -295,7 +295,9 @@ class Filters():
     
     def filter_by_hbd(df, filter_query, rejectedFile, debug = False) -> DataFrame:
         """Filter out molecules with required number of H-bond donors using the RDKit CalcNumLipinskiHBD().
+
         NOTE: It is by intention that the function uses CalcNumLipinskiHBD() instead of CalcNumHBD() was used as we believe that it better represents the chemistry.
+
         Args:
             df (DataFrame): Input DataFrame with 'mol' column containing RDKit molecule objects.
             debug (bool, optional): Debug mode. Defaults to False.
@@ -317,6 +319,7 @@ class Filters():
 
     def filter_by_mw(df, filter_query, rejectedFile, debug = False) -> DataFrame:
         """Filter out molecules with required molecular weight using the RDKit GetMolWt().
+        
         Args:
             df (DataFrame): Input DataFrame with 'mol' column containing RDKit molecule objects.
             debug (bool, optional): Debug mode. Defaults to False.
@@ -353,6 +356,7 @@ class Filters():
     @staticmethod
     def filter_by_chiralcenters(df, filter_query, rejectedFile, debug = False) -> DataFrame:
         """Filter out molecules with required number of unspecified chiral centers.
+
         Args:
             df (DataFrame): Input DataFrame with 'mol' column containing RDKit molecule objects.
             debug (bool, optional): Debug mode. Defaults to False.
