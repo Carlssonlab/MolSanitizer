@@ -3,6 +3,17 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+[unreleased - most recent changes come first]
+---------------------------------------------
+
+⚡ Performance
+~~~~~~~~~~~~~~
+
+-  Only desalt for entries where there are more than 1 fragment (smiles
+   containing ‘.’). This has proven to gain upto 3X performance on
+   million-sized databases. -
+   (`e142a0e <https://github.com/phonglam3103/MolSanitizer/commit/e142a0e7ae87387c738d2dd666ac0fcec719d22e>`__)
+
 [0.4.0] - 2025-08-18
 --------------------
 
@@ -190,6 +201,8 @@ All notable changes to this project will be documented in this file.
    intuitive. -
    (`6de0647 <https://github.com/phonglam3103/MolSanitizer/commit/6de0647233345c60791cda6ea07349a44d32921a>`__)
 
+.. _performance-1:
+
 ⚡ Performance
 ~~~~~~~~~~~~~~
 
@@ -297,7 +310,7 @@ All notable changes to this project will be documented in this file.
    method. -
    (`9497d19 <https://github.com/phonglam3103/MolSanitizer/commit/9497d19224f416690974b99022d05d7caa31fbe7>`__)
 
-.. _performance-1:
+.. _performance-2:
 
 ⚡ Performance
 ~~~~~~~~~~~~~~
@@ -354,7 +367,7 @@ All notable changes to this project will be documented in this file.
    stereocenters. -
    (`907e799 <https://github.com/phonglam3103/MolSanitizer/commit/907e7994bb15de84401d6b06fae3f1b970d11d47>`__)
 
-.. _performance-2:
+.. _performance-3:
 
 ⚡ Performance
 ~~~~~~~~~~~~~~
@@ -456,7 +469,7 @@ All notable changes to this project will be documented in this file.
 -  Redirect MolSanitizer README to the read-the-docs page. -
    (`6e6bc43 <https://github.com/phonglam3103/MolSanitizer/commit/6e6bc434bc69180c67b24950fb476b21898907ea>`__)
 
-.. _performance-3:
+.. _performance-4:
 
 ⚡ Performance
 ~~~~~~~~~~~~~~
@@ -802,7 +815,7 @@ All notable changes to this project will be documented in this file.
 -  :bug: Fix a typo in torsion scan that crash msani -
    (`4275824 <https://github.com/phonglam3103/MolSanitizer/commit/4275824384d8567703a5234da77e015561a69e17>`__)
 
-.. _performance-4:
+.. _performance-5:
 
 ⚡ Performance
 ~~~~~~~~~~~~~~
@@ -828,7 +841,7 @@ All notable changes to this project will be documented in this file.
    screen to notify the user -
    (`36846e1 <https://github.com/phonglam3103/MolSanitizer/commit/36846e13334c7c290a6620aa16a0ec75f27602c0>`__)
 
-.. _performance-5:
+.. _performance-6:
 
 ⚡ Performance
 ~~~~~~~~~~~~~~
