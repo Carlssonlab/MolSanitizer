@@ -6,6 +6,13 @@ class Mol2Writer:
     ''' 
     A class to convert the RDKit Mol Object to Mol2 format. 
     Only the first conformer of the Mol object is written out.
+
+    Args:
+        mol (rdkit.Chem.Mol): RDKit Mol object with 3D coordinates.
+        mol2_template (str): A string containing the MOL2 template from CORINA. If provided, atom types and bonds will be taken from this template.
+        atom_attributes (bool): If True, include atom attributes (eg. formal charge) in the output.
+        If the Mol object does not have 3D coordinates, an attempt will be made to generate them.
+
     '''
     def __init__(self,
                  mol = None,

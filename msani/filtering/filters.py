@@ -55,7 +55,9 @@ class Filters():
 
     Examples
     ----------
-        
+
+    There are two ways to use the Filters class. The first is to create an instance of the class with the desired parameters and then call the filter_df method on a DataFrame:    
+    
     >>> from msani.filtering.filters import Filters
     >>> filters = Filters(removesalts=True,
                             ha='>=5',
@@ -71,16 +73,18 @@ class Filters():
                             debug=True)
     >>> filtered_df = filters.filter_df(df)
     
-    the Filters class also has multiple static methods that can be used independently:
+    the second way is to use the static methods of the class directly on a DataFrame:
 
-    >>> df = Filters.filter_by_ha(df, self.ha, rejectedFile, debug)
-    >>> df = Filters.filter_by_logp(df, self.logp, rejectedFile, debug)
-    >>> df = Filters.filter_by_hba(df, self.hba, rejectedFile, debug)
-    >>> df = Filters.filter_by_hbd(df, self.hbd, rejectedFile, debug)
-    >>> df = Filters.filter_by_mw(df, self.mw, rejectedFile, debug)
-    >>> df = Filters.filter_by_chiralcenters(df, self.chiral, rejectedFile, debug)
-    >>> df = Filters.customFilter(df, rejectedFile, self.custom, debug)
-    >>> df = Filters.unwantedFilter(df, rejectedFile, self.unwanted, debug)
+    >>> from msani.filtering.filters import Filters
+    >>> rejectedFile = 'rejected.txt'
+    >>> df = Filters.filter_by_ha(df, '>=5', rejectedFile, debug)
+    >>> df = Filters.filter_by_logp(df, '<=3.5', rejectedFile, debug)
+    >>> df = Filters.filter_by_hba(df, '1-3', rejectedFile, debug)
+    >>> df = Filters.filter_by_hbd(df, '1-2', rejectedFile, debug)
+    >>> df = Filters.filter_by_mw(df, '200-500', rejectedFile, debug)
+    >>> df = Filters.filter_by_chiralcenters(df, '0-2', rejectedFile, debug)
+    >>> df = Filters.customFilter(df, rejectedFile, 'custom_smarts.txt', debug)
+    >>> df = Filters.unwantedFilter(df, rejectedFile, 'all', debug)
     >>> df = Filters.painsFilter(df, rejectedFile, debug)
     
     """
@@ -319,7 +323,7 @@ class Filters():
 
     def filter_by_mw(df, filter_query, rejectedFile, debug = False) -> DataFrame:
         """Filter out molecules with required molecular weight using the RDKit GetMolWt().
-        
+
         Args:
             df (DataFrame): Input DataFrame with 'mol' column containing RDKit molecule objects.
             debug (bool, optional): Debug mode. Defaults to False.

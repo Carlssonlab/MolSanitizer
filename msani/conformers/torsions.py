@@ -43,6 +43,10 @@ class TorsionLibrary:
             smarts (str): The SMARTS pattern for the torsion rule.
             angles (list): A list of prefered angles.
             weights (list): A list of weights for the angles.
+
+        Example:
+            >>> torlib = TorsionLibrary()
+            >>> torlib.add_custom_rule("[*:1]~[CX4:2]!@[OX2:3]~[*:4]", [0, 120, -120], [1, 1, 1])
         """
         pattern = Chem.MolFromSmarts(smarts)
         if pattern is None:

@@ -983,6 +983,7 @@ class ConformerGenerator:
     def to_sdf(self, filename = None):
         """
         Write the conformers to an SDF file.
+        
         Args:
             filename (str): The name of the output SDF file. If None, defaults to self.name.sdf.
         """
