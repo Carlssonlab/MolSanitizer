@@ -199,9 +199,10 @@ class Filters():
 
         remover = SaltRemover.SaltRemover(defnFilename=smartsFile)
         filtered_df = df.copy()
-        # Remove salts in the list
-        filtered_df['mol'] = df['mol'].apply(lambda x: Filters.stripSMILESsalt(x, remover))
-        filtered_df['smiles'] = filtered_df['mol'].apply(lambda x: Chem.MolToSmiles(x))
+        # Only process the entries with '.' in the SMILES (multiple )
+        for idx in df[df['smiles'].str.contains(r"\.", na=False)].index:
+            filtered_df.at[idx, 'mol'] = Filters.stripSMILESsalt(df.at[idx, 'mol'], remover, debug)
+            filtered_df.at[idx, 'smiles'] = Chem.MolToSmiles(filtered_df.at[idx, 'mol'])
         filtered_df=filtered_df[filtered_df['smiles']!=''] #Remove purely salt molecules
         if debug: 
             logger.info(f"Removed pure {len(df) - len(filtered_df)} salts from the input molecules.")
