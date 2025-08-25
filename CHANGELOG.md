@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [unreleased - most recent changes come first]
+
+### ⚡ Performance
+
+- Only desalt for entries where there are more than 1 fragment (smiles containing '.'). This has proven to gain upto 3X performance on million-sized databases. - ([e142a0e](https://github.com/phonglam3103/MolSanitizer/commit/e142a0e7ae87387c738d2dd666ac0fcec719d22e))
+
 ## [0.4.0] - 2025-08-18
 
 ### 🚀 Features
