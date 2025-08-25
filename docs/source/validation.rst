@@ -34,47 +34,38 @@ For both the monoprotic and drug-like datasets, MolSanitizer reaches the accurac
 Conformer Generator Validation
 ==============================
 
-Validation of the conformational generation part of MolSanitizer has been conducted based on the two datasets. For bioactive pose reproduction, the Platinum Diverse Dataset [2]_ , and for enrichment capability of the active compounds, the DUDE-Z dataset [3]_ were used. 
+Validation of the conformational generation part of MolSanitizer has been conducted based on the two datasets. For bioactive pose reproduction, the Platinum Diverse Dataset [7]_ , and for enrichment capability of the active compounds, the DUDE-Z dataset [8]_ were used. 
 
 Bioactive pose reproduction
 ---------------------------
-Platinum Diverse Dataset contains 2859 high-quality ligand bioactive conformations from the Protein Data Bank (PDB). For the current stage of validation, the best aligned conformation from both MolSanitizer and the current DB2 pipeline employed in the ZINC-22 database was used. As another reference, we used the RDKit's srETKDGv3 conformer generator, coupled with the MMFF94s minimization.
-
-The number of conformers were set to 2000 for RDkit, MolSanitizer and the DB2 pipeline. The RMSD values were calculated based on the heavy atoms of the generated and the reference conformer using the RDKit's GetBestRMS function. 
+Platinum Diverse Dataset contains 2859 high-quality ligand bioactive conformations from the Protein Data Bank (PDB). For the current stage of validation, the best aligned conformation from multiple conformer generators (MolSanitizer, RDKit, Conforge, Conformator) and the current DB2 pipeline employed in the ZINC-22 database was used. The number of conformers were capped at 600 conformers to reflect the current setting in the ZINC-22 database. The RMSD values were calculated based on the heavy atoms of the generated and the reference conformer using the RDKit's GetBestRMS function. 
 
 
 .. image:: _static/Platinum.png
   :width: 800px
+  :align: center
 
-All the three methods reproduce comparable results with the RMSD values less than 0.5 Å. However, when it comes to higher regions of RMSD values such as 1.0 Å, MolSanitizer starts to outperform the current DB2 pipeline. Although RDKit seems to be very efficient in reproducing the bioactive conformation, the number of conformations generally more than the other methods, and the time of processing were mainly the constraints of RDKit being used as a conformation generator for DOCK3.8. Addtionally, it should be noted that the distance-geometry based method of RDKit could also sample different ring conformations, which could on the one hand helps to cover a more diverse conformational space, but on the other hand, could not be easily be converted to DB2 format for DOCK3.8 as the mol2db2.py software requires the aliphatic ring conformations to be fixed.
+Among all the methods tested, RDKit's built-in conformer generator achieved the highest overall coverage, successfully retrieving a bioactive conformer within 2 Å RMSD for 99.7% of the molecules in the benchmark dataset. This strong performance is primarily due to its use of distance-geometry-based embedding, which allows flexible sampling of ring conformations and generates diverse conformers iteratively. However, this method also exhibited notable drawbacks: only 45.3% of the conformers achieved sub-0.5 Å RMSD accuracy, and the total runtime to process the dataset was approximately 34 hours, making it unsuitable for high-throughput or large-scale virtual screening campaigns.
+Both Conforge and MolSanitizer achieved comparable accuracy and emerged as the second-best performers (success rate 99.1% and 98.7%, respectively). In the case of MolSanitizer, tuning the dielectric constant (ε) in MMFF94s increased the retrieval rate. A higher ε value reduced intramolecular electrostatic attractions, preventing the system from getting trapped in local minima due to salt bridges, thereby improving conformer diversity and retrieval of bioactive conformations. 
 
-.. figure:: _static/time.png
-   :width: 500px
-   :align: center
+In contrast, the reference method used by ZINC-22 showed the lowest retrieval rate. While based on OMEGA, its performance is limited due to the undersampling of conformers for the rotation of polar hydrogens. Unlike this approach, MolSanitizer explicitly rotates polar hydrogens simultaneously with other rotatable bonds during stochastic sampling, providing greater structural diversity and a higher likelihood of recovering the bioactive state.
+Notably, MolSanitizer often generated more conformers per molecule (subplot C). This is a result of its decision not to use RMSD-based clustering for deduplication. During development, we found that heavy-atom-only clustering failed to capture important dihedral variations for molecular docking (e.g., hydroxyl orientations), while hydrogen-inclusive clustering was computationally expensive. Instead, MolSanitizer reduces redundancy through a SMARTS-based pruning strategy and graph traversal algorithms for symmetry perception, effectively minimizing unnecessary conformers while maintaining accuracy.
 
-
-.. figure:: _static/timecontribution.png
-   :width: 500px
-   :align: center
-
-Upon inspecting the time contribution to the two conformer generators, it is clear that initial embedding is the bottleneck for MolSanitizer. On the other hand, the strain energy calcuation is the most time-consuming step for current DB2 pipeline. Improvement in the initial embedding step, such as adding the CORINA as an optional conformational embedding, of MolSanitizer is expected to reduce the time of processing.
 
 Enrichment capability
 ---------------------
 
-DUDE-Z is a comprehensive and challenging test set designed for evaluating molecular docking methods. It includes 2,312 ligands and 69,994 property-matched decoys, covering 43 diverse targets. For this benchmark, all methods were tested with a fixed number of 2,000 conformers. The evaluation metric used is the adjusted Log-AUC, which assesses early enrichment performance as recommended by Stein et al [2]_. 
+DUDE-Z is a comprehensive and challenging test set designed for evaluating molecular docking methods. It includes 2,312 ligands and 69,994 property-matched decoys, covering 43 diverse targets. For this benchmark, all methods were tested with a fixed number of 2,000 conformers. The evaluation metric used is the adjusted Log-AUC, which assesses early enrichment performance as recommended by Stein et al [8]_. 
 
 .. figure:: _static/logauc-alltargets.png
    :width: 800px
    :align: center
 
-MolSanitizer demonstrates superior performance compared to the current DB2 pipeline in 27 out of the 43 targets. The average adjusted Log-AUC achieved by MolSanitizer is 18.66, significantly higher than the DB2 pipeline's average of 15.06. In cases where MolSanitizer underperforms, the enrichment scores are already either very high (>30) or very low (<10), and the differences are insignificant.
+In terms of logAUC, MolSanitizer consistently outperforms the reference method in 32 out of 43 targets. In those few cases where MolSanitizer performs worse, the logAUC values of the reference method are also low, except for the Fatty Acid Binding Protein Adipocyte (FABP4). Both the choice of initial embedder and the dielectric constant have a significant influence on enrichment performance. Overall, the RDKit embedder tends to yield better enrichment, albeit with a longer processing time. Nonetheless, for several targets such as Tyrosine-Protein Kinase ABL (ABL1), Coagulation Factor X (FA10), Factor VII (FA7), and Trypsin I (TRY1), CORINA-based conformers result in slightly better performance, although the improvements are not significant.
 
-The left panel below illustrates the distribution of adjusted Log-AUC values observed for both MolSanitizer and the DB2 pipeline. The right panel displays bootstrapped results from 500 runs for each target, offering further insight into the robustness of these methods.
+The use of a higher dielectric constant (ε = 20) during torsional sampling generally enhances enrichment, but not consistently across all targets or embedders. Notably, improvements of 1-3 logAUC units were observed for FABP4, Peptide Deformylase (DEF), Tryptase β1 (TRYB1), and Urokinase (UROK) when increasing ε from 1 to 20. Conversely, a performance drop was noted in targets such as AmpC β-Lactamase (AMPC), GAR Transformylase (PUR2), and Thrombin (THRB). Since increasing the dielectric constant typically results in the generation of more conformers, and therefore more molecules to dock, the computational cost for large-scale screening increases substantially. As such, MolSanitizer sets the dielectric constant to 1 by default, while still allowing users to adjust it via both the command-line interface and the Python API, depending on the desired purposes.
 
-.. figure:: _static/logauc-mean_bootstrap.png
-   :width: 800px
-   :align: center
+
 
 References
 ------------
