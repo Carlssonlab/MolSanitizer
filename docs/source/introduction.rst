@@ -14,13 +14,14 @@ In this page, you can find the overview of the algorithm and the main features o
 Introduction
 ----------------
 
-Tautomers are interconvertible structural isomers of a molecule that differ in the placement of protons and electrons. They are highly relevant in drug discovery, as distinct tautomeric forms can display different physicochemical properties and biological activities. Among the various tautomerization mechanisms, prototropic tautomerization is the most common and important, where the migration of a proton leads to the formation of alternative isomers:a
+Tautomers are structural isomers of a molecule that can readily interconvert by a rapid shift of a proton and a corresponding change in electron positions. This dynamic equilibrium is highly significant in drug discovery, as different tautomeric forms of a compound can have distinct physicochemical properties and, consequently, different biological activities. For example, one tautomer may bind effectively to a protein target, while another may not.
+
 
 .. math::
 
    H-X-Y=Z ↔ X=Y-Z-H
 
-Because tautomerization is a complex and not yet fully solved problem, MolSanitizer restricts its focus to determining tautomeric states in aqueous solution at physiological pH. This assumption reduces the number of plausible tautomers and enhances practical relevance. To accomplish this, MolSanitizer adopts a two-layer approach to identify the most chemically reasonable tautomer for a given molecule:
+The most common and relevant form of this phenomenon is prototropic tautomerization, where a proton migrates from one atom to another, resulting in the formation of an alternative isomer. This process is represented by the following general equilibrium:
 
 .. image:: https://media.springernature.com/lw685/springer-static/image/art%3A10.1007%2Fs10822-009-9303-2/MediaObjects/10822_2009_9303_Fig1_HTML.gif
    :width: 400px
@@ -32,10 +33,12 @@ Because tautomerization is a complex and not yet fully solved problem, MolSaniti
 
 |
 
+This interconversion means that a drug can exist in multiple forms within the body, each with a unique profile of activity, solubility, and metabolism. Understanding and predicting tautomerism is therefore essential for designing effective and safe medications.
+
 MolSanitizer's approach
 ------------------------
 
-In the following sections, we will discuss the two layers of tautomer canonicalization in MolSanitizer:
+Because tautomerization is a complex and not yet fully solved problem, MolSanitizer restricts its focus to determining tautomeric states in aqueous solution at physiological pH. This assumption reduces the number of plausible tautomers and enhances practical relevance. To accomplish this, MolSanitizer adopts a two-layer approach to identify the most chemically reasonable tautomer for a given molecule. In the following sections, we will discuss the two layers of tautomer canonicalization in MolSanitizer:
 
 
 .. image:: _static/Tautomerization_protocol.png
@@ -183,10 +186,8 @@ The following substructures are considered for (de)protonation:
       :width: 600px
       :align: center
 
-3. Salt Removal
-================
 
-4. Stereoisomerism
+3. Stereoisomerism
 ===================
 
 Introduction
@@ -217,37 +218,338 @@ MolSanitizer employs RDKit's EnumerateStereoisomers function to generate all pos
 
 Because molecular geometry imposes constraints, not all theoretically possible stereoisomers can be realized in three-dimensional space. To address this, MolSanitizer attempts to embed each enumerated stereoisomer using RDKit's ETKDG algorithm. Any stereoisomer that fails to embed is discarded, while successfully embedded structures are retained for subsequent processing.
 
-5. Filtering
+4. Filtering
 ================
+
+In cheminformatics and drug discovery, certain substructures are routinely filtered out during library preparation because they are associated with undesirable properties. These include toxicophores, which are chemical motifs linked to toxicity, and structural alerts for covalent binders, which can form irreversible bonds with proteins and cause off-target effects. Additionally, some substructures are well known to produce unfavorable ADMET (Absorption, Distribution, Metabolism, Excretion, and Toxicity) profiles, such as poor solubility, metabolic instability, or bioavailability issues. By removing compounds that contain these problematic motifs early in the workflow, researchers can reduce the likelihood of advancing chemically unsuitable candidates and focus resources on molecules with higher potential for drug-like behavior.
 
 PAINS 
 ---------------
 
-Pan-assay interference compounds (PAINS) [3]_ are well-known sources of assay interference and can lead to false positives in drug discovery. 
+A particularly important class of problematic substructures are PAINS motifs (Pan-Assay INterference compounds) [3]_ . These are chemical scaffolds that tend to show frequent, nonspecific activity across a wide variety of biological assays. Rather than reflecting genuine target engagement, their activity usually arises from assay interference mechanisms such as redox cycling, covalent modification, aggregation, or nonspecific binding. As a result, PAINS motifs often generate false positives, misleading medicinal chemists and consuming resources on compounds with little true therapeutic potential. Screening libraries against PAINS filters helps minimize wasted effort and ensures that observed biological activity is more likely to represent genuine target interactions.
 
 MolSanitizer provides a dedicated option to remove PAINS molecules via  the ``--pains`` flag. In addition to removal, the first matched PAINS substructure for each rejected molecule is recorded in a separate output file for reference.
 
 Undesirable and custom substructure filters
 -------------------------------------------
 
-Beyond PAINS, MolSanitizer enables filtering of other undesirable substructures using SMARTS pattern matching.
-
-- **Undesirable (--unwanted):**  
-  A built-in library of 73 common undesirable substructures is provided 
-  (`msani/Data/filter_out.txt <https://github.com/phonglam3103/MolSanitizer/blob/main/msani/Data/filter_out.txt>`_). These are categorized into three levels of severity:
+Beyond PAINS, MolSanitizer enables filtering of other undesirable substructures using SMARTS pattern matching. A built-in library of 73 common undesirable substructures is provided (`msani/Data/filter_out.txt <https://github.com/phonglam3103/MolSanitizer/blob/main/msani/Data/filter_out.txt>`_). These are categorized into three levels of severity:
 
   - *Regular*: Generally unwanted and safe to remove automatically.  
   - *Optional*: May require case-by-case consideration.  
   - *Special*: Removal may depend on prior knowledge of the target or project context.  
 
-- **Custom (--custom):**  
-  Users can also define their own SMARTS patterns to remove additional substructures beyond the built-in library. The filtering process is based on the following principles:
+A full list of the substructures, their categories, and literature references is provided below. Users can customize the filtering process by modifying the SMARTS patterns or adjusting which categories to filter out.
 
+.. toggle:: Show list of structural alerts
+
+   .. list-table::
+      :header-rows: 1
+      :widths: 25 20 20 35
+
+      * - Substructure
+        - Reason
+        - Mode
+        - Reference
+      * - Michael_acceptors
+        - Reactive
+        - Regular
+        - 10.1021/cr010182v
+      * - tetrafluoroethylene
+        - Greasy
+        - Regular
+        - 10.1002/cmdc.200700139
+      * - perhalogenated_rings_3_holgenids_and_more
+        - Greasy
+        - Optional
+        - 10.1002/cmdc.200700139
+      * - thioamides_thiocyanates
+        - Complexing_metals
+        - Regular
+        - 10.1021/acschembio.8b01022
+      * - flavons
+        - Reactive
+        - Optional
+        - 10.1021/acs.jmedchem.5b01009
+      * - thiols
+        - Reactive
+        - Regular
+        - 10.1021/acs.jmedchem.8b01153
+      * - disulfides
+        - Reactive
+        - Regular
+        - 10.1021/acs.jmedchem.8b01153
+      * - diazo_compounds
+        - Reactive
+        - Regular
+        - 10.1021/jm901137j
+      * - aldehydes
+        - Reactive
+        - Regular
+        - 10.1021/acs.jmedchem.8b01153
+      * - hydrazones_oximes
+        - Instable
+        - Optional
+        - 10.1002/cmdc.200700139
+      * - imines
+        - Instable
+        - Optional
+        - 10.1002/cmdc.200700139
+      * - hydrazides_hydroxamates
+        - Cancerogenic
+        - Regular
+        - 10.1002/cmdc.200700139
+      * - hydrazines
+        - Cancerogenic
+        - Regular
+        - 10.1002/cmdc.200700139
+      * - temozolomide
+        - Cancerogenic
+        - Regular
+        - 10.1016/s0305-7372(97)90019-0
+      * - quinones_imino_thio_derivatives
+        - Reactive
+        - Regular
+        - 10.1021/jm901137j
+      * - thioesters
+        - Reactive
+        - Regular
+        - 10.1002/cmdc.200700139
+      * - boronic_acids_esters
+        - Reactive
+        - Regular
+        - 10.1016/j.str.2005.11.019
+      * - 3_membered_heterocycles
+        - Reactive
+        - Regular
+        - 10.1021/cr010182v
+      * - beta_lactams_lactones
+        - Reactive
+        - Regular
+        - 10.1021/cr010182v
+      * - di_triheterocyclic_4_membered_rings
+        - Exotic_chemistry
+        - Regular
+        - none
+      * - peroxides
+        - Reactive
+        - Regular
+        - 10.1002/cmdc.200700139
+      * - 2-hydroxythiophens
+        - Reactive
+        - Regular
+        - 10.1016/B978-0-12-387837-3.00054-7
+      * - isothiazolones
+        - Reactive
+        - Regular
+        - 10.1111/j.1476-5381.2009.00276.x
+      * - toxoflavin
+        - Reactive
+        - Regular
+        - 10.1021/jm901137j
+      * - catechols
+        - Reactive
+        - Regular
+        - 10.1021/jm901137j
+      * - N-methylideneamidium
+        - Instable
+        - Regular
+        - none
+      * - bicyclo[0.1.1]butane
+        - Reactive
+        - Regular
+        - 10.1021/jacs.0c07490
+      * - methyliden-substitutions_N-azaimines
+        - Exotic_chemistry
+        - Regular
+        - none
+      * - di_oligo_1,2_ones_imines_keto_iminoamides_esters
+        - Reactive
+        - Regular
+        - 10.1021/cr010182v
+      * - anhydrides
+        - Reactive
+        - Regular
+        - 10.1002/cmdc.200700139
+      * - most_popular_organometallic_compounds
+        - Reactive
+        - Regular
+        - 10.1002/cmdc.200700139
+      * - silicon_heavy_non-metals_except_halogens
+        - Exotic_chemistry
+        - Regular
+        - 10.1002/cmdc.200700139
+      * - sulfenamides
+        - Reactive
+        - Regular
+        - 10.1021/jm00158a001
+      * - (thio-)acyl_sulfonyl_phosphoryl_(pseudo-)halides
+        - Reactive
+        - Regular
+        - 10.1021/cr010182v
+      * - ynamides
+        - Reactive
+        - Regular
+        - 10.1021/acs.jmedchem.2c00272
+      * - cyanoamides
+        - Reactive
+        - Regular
+        - 10.1021/acs.jmedchem.8b01308
+      * - Woodward_reagent_K
+        - Reactive
+        - Regular
+        - 10.1002/anie.201602666
+      * - N-acyl-N-alkyl_sulfonamide
+        - Reactive
+        - Regular
+        - 10.1038/s41557-021-00765-4
+      * - diazonium
+        - Reactive
+        - Regular
+        - none
+      * - hypervalent_iodine
+        - Reactive
+        - Regular
+        - 10.1038/s41586-018-0608-y
+      * - nitrosoamines
+        - Cancerogenic
+        - Regular
+        - 10.1002/cmdc.200700139
+      * - active_esters
+        - Reactive
+        - Regular
+        - 10.1021/cr010182v
+      * - leaving-group-methylones
+        - Reactive
+        - Optional
+        - 10.1021/cr010182v
+      * - heterocyclic_ureas
+        - Reactive
+        - Special
+        - 10.1021/jm2004283
+      * - 4-(electron-withdrawing-group)-isoxazoles
+        - Reactive
+        - Special
+        - 10.1038/s41589-020-0501-5
+      * - any_boron
+        - Exotic_chemistry
+        - Regular
+        - none
+      * - phopsphines_phosphicycles
+        - Reactive
+        - Regular
+        - 10.1002/cmdc.200700139
+      * - charged_carbon
+        - Reactive
+        - Regular
+        - 10.1002/cmdc.200700139
+      * - positive_oxygen_sulfur
+        - Reactive
+        - Regular
+        - 10.1002/cmdc.200700139
+      * - cyclic_cumulated_double_bonds
+        - Reactive
+        - Regular
+        - none
+      * - permanent_ammonium
+        - Detergents
+        - Regular
+        - 10.1002/cmdc.200700139
+      * - P_S-ylides
+        - Reactive
+        - Regular
+        - 10.1002/cmdc.200700139
+      * - carbenes_nitrenes
+        - Reactive
+        - Regular
+        - none
+      * - cyclic_triple_bonds_3-8-membered
+        - Reactive
+        - Regular
+        - 10.1007/BFb0018059
+      * - cyclic_double_bonds_3-4-membered
+        - Reactive
+        - Regular
+        - 10.1007/BFb0018059
+      * - alkyl_halides
+        - Reactive
+        - Regular
+        - 10.1021/acs.jmedchem.8b01153
+      * - N-halo_compounds
+        - Reactive
+        - Regular
+        - 10.1016/j.jes.2017.05.025
+      * - nitroso-cmpds
+        - Cancerogenic
+        - Regular
+        - 10.1021/acs.jmedchem.8b00147
+      * - aminals_hemiaminals_hydrates
+        - Instable
+        - Optional
+        - 10.1002/cmdc.200700139
+      * - acyclic-small-ring_hemiacetals
+        - Instable
+        - Optional
+        - 10.1002/cmdc.200700139
+      * - dithioacetals
+        - Instable
+        - Optional
+        - 10.1002/cmdc.200700139
+      * - butylene_chains
+        - Entropic_penalty
+        - Regular
+        - 10.1002/cmdc.200700139
+      * - polycyclic_aromatic_compounds
+        - Cancerogenic,Greasy
+        - Optional
+        - 10.1002/cmdc.200700139
+      * - allenes
+        - Exotic_chemistry
+        - Regular
+        - none
+      * - 2-aminothiazoles
+        - Frequent_hitters
+        - Special
+        - 10.1021/jm501402x
+      * - deuterium
+        - Exotic_chemistry
+        - Regular
+        - none
+      * - heavy_isotopes
+        - Exotic_chemistry
+        - Regular
+        - none
+      * - isocyanates
+        - Reactive
+        - Regular
+        - 10.1021/acs.jmedchem.8b01153
+      * - alpha-amino-acid-nitriles
+        - Reactive
+        - Regular
+        - 10.1126/science.abl4784
+      * - alkyl_halides_generic
+        - Exotic_chemistry
+        - Optional
+        - none
+      * - aliphatic_nitro
+        - Cancerogenic,Reactive
+        - Regular
+        - 10.1021/acs.jmedchem.8b01153
+      * - alkynes_generic
+        - Exotic_chemistry
+        - Optional
+        - 10.1002/cmdc.200700139
+      * - aliphatic_nitriles
+        - Exotic_chemistry
+        - Optional
+        - none
+
+Users can also provide their own custom SMARTS patterns via the ``--custom_filter`` option to tailor the filtering process to specific project needs.
 
 For more detailed usage and examples, refer to the :doc:`usage` section.
 
 
-6. Conformational Sampling
+5. Conformational Sampling
 ==========================
 
 MolSanitizer utilizes a stochastic conformational sampling approach to generate diverse and representative conformers for molecular structures. Unlike the current DB2 pipeline, which samples all possible conformations with discrete increments, MolSanitizer focuses on sampling only the favorable regions defined by the Torsional Library.
@@ -258,11 +560,15 @@ Torsional Library (or TorLib) [4]_, [5]_, [6]_ is a collection of expert-derived
    :width: 600px
    :align: center
 
-----
+Initial embedding 
+-----------------
 
-The first step involves generating an initial conformer using the srETKDGv3 (small-ring ETKDGv3) algorithm of RDKit [7]_. However, this algorithm can sometimes produce unfavorable ring conformations such as "boat" or "twist" forms. To address this, MolSanitizer generates up to 100 conformers and filters out the undesirable ones using a curated library of preferred ring conformations. Currently, MolSanitizer supports rings up to eight members in size. At the end of the initial embedding process, only the lowest-energy conformer with favorable ring conformations is used for subsequent conformational sampling. In cases where RDKit fails or exceeds a time limit (default: 2 minutes), the embedding method of OpenBabel is used as a backup [8]_.
+The first step involves generating an initial conformer using the srETKDGv3 (small-ring ETKDGv3) algorithm of RDKit [7]_. However, this algorithm can sometimes produce unfavorable ring conformations such as "boat" or "twist" forms. To address this, MolSanitizer generates up to 50 conformers and filters out the undesirable ones using a curated library of preferred ring conformations. Currently, MolSanitizer supports rings up to eight members in size. In case of alternative configuration, for example in the methylcyclohexane where axial or equatorial configuration is possible, the equatorial configuration will be prioritized.  At the end of the initial embedding process, only the lowest-energy conformer with favorable ring conformations is used for subsequent conformational sampling. In cases where RDKit fails or exceeds a time limit (default: 2 minutes), the embedding method of OpenBabel is used as a backup [8]_.
 
-As recommended by the RDKit developers, the initial conformer is minimized using a force field—in this case, the MMFF94s force field [9]_. However, the minimized conformer may still exhibit systematic errors inherent to such force fields, such as non-planarity of aromatic nitrogens. MolSanitizer addresses these issues by using SMARTS patterns to detect and correct these substructures, ensuring accurate molecular geometries. This initial conformer also serves as the input for desolvation penalty calculations using AMSOL.
+As recommended by the RDKit developers, the initial conformer is minimized using a force field—in this case, the MMFF94s force field [9]_. However, the minimized conformer may still exhibit systematic errors inherent to such force fields, such as non-planarity of azoles. MolSanitizer addresses these issues by using SMARTS patterns to detect and correct these substructures, ensuring accurate molecular geometries. This initial conformer also serves as the input for desolvation penalty calculations using AMSOL.
+
+Conformational sampling
+-----------------------
 
 The second step is the conformational sampling based on TorLib. TorLib provides 513 rules, ranging from the most specific to the most general, allowing it to match any rotatable bond. During conformational sampling, hydroxyl groups (-OH) are allowed to rotate, eliminating the need for -reseth or -rotateh steps in the Mol2DB2 process. Dihedrals that involved in symmetric substituents such as (-CH3, -CF3, -C6H5,...) are rescaled to avoid the oversampling of similar conformations. The pseudocode explaining the conformational sampling algorithm is shown below:
 
@@ -280,7 +586,7 @@ The second step is the conformational sampling based on TorLib. TorLib provides 
             Select a random angle θ within peak p considering tolerance
             Rotate dihedral t to angle θ
 
-            if has_clashes(conf):
+            if has_clashes(conf) or exists_similar_conf(conf, product):
                 attempts += 1
                 continue
 
