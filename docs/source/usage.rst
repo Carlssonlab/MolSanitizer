@@ -2,7 +2,7 @@ Usage
 =================================
 
 Preparing the input file
-************************
+-----------------------------------
 
 The program requires a white-space or tab-delimited file containing two columns (SMILES, moleculeID) without headers. 
 
@@ -23,7 +23,7 @@ Extended SMILES is supported (by the `-e` or `--extended` flag, but the database
     CC(C)CC(CNC(=O)C1CSC1)C(=O)N[C@H]1C[C@@H](O)[C@H](F)C1 |&1:16,18,20|	Cmp0003
 
 Overview
-************************
+-----------------------------------
 
 The pipeline contains six preparation and/or filtering steps, which can be used simultaneously to prepare the database:
 
@@ -48,7 +48,7 @@ The program by default will conduct the preparation and filtering in the order b
 
 
 Default settings
-**********************
+-----------------------------------
 
 Many of the default values of msani described below, both in the SINGLE MODE and BATCH MODE can be modified in `msani/msani_configurations.yaml <https://github.com/phonglam3103/msani/blob/main/msani_configurations.yaml>`_ file. It is for the convenience of the  user so that he/she does not have to specify the values (such as numConfs, --max_stereoisomers, etc) every time the program is run. If the user specify the values in the command line, the values in the configuration file will be overwritten.
 
@@ -78,12 +78,12 @@ Below is the default configuration file:
 
 
 Reproducible setup by the configuration file
-*********************************************
+-----------------------------------------------
 
 The program can be run with the configuration file by using the ``--config`` flag. The path to the configuration file should be provided. Refer to the :doc:`config` section for more details on the configuration file.
 
 Help message
-************
+-----------------------------------
 
 **Use the** ``--help (-h)`` **flag for more information.**
 
@@ -173,10 +173,11 @@ Help message
     --version, -v         Show the current version of MolSanitizer
 
 Available filters and preparation steps
-***************************************
+-------------------------------------------
 
 1. Remove salts
-================
+~~~~~~~~~~~~~~~
+
 
 To use the remove salts function, simply use the ``--removesalts`` flag. The program uses a predefined salt list in `msani/Data/salt_stripping.txt <https://github.com/phonglam3103/msani/blob/main/msani/Data/salt_stripping.txt>`_ to remove the salts, which contain both organic and inorganic salts commonly used in medicinal chemistry. Since the 0.2.3 version, Salt Remover will also remove the smaller fragments in the same molecule entry and only retain the largest one.
 
@@ -187,7 +188,8 @@ To use the remove salts function, simply use the ``--removesalts`` flag. The pro
     $ msani -i example.smi --removesalts
 
 2. Tautomers enumeration
-============================
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 
 
 The tautomers could be generated using the ``--tautomers`` flag. msani uses a two-step approach for the enumeration of tautomers. First, the canonical tautomer from the scoring function of ``rdMolStandardize.TautomerEnumerator`` is used. Then, the exceptions are corrected using the expert-curated SMARTS rules. The SMARTS rules are readily accessible at `msani/Data/tautomers.txt <https://github.com/phonglam3103/msani/blob/main/msani/Data/tautomers.txt>`_.
@@ -197,7 +199,7 @@ The tautomers could be generated using the ``--tautomers`` flag. msani uses a tw
     $ msani -i example.smi --tautomers
 
 3. Descriptor-based filtering
-==============================
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The following descriptors are supported for filtering: heavy atoms (HA), logP, hydrogen bond acceptors (HBA), hydrogen bond donors (HBD), molecular weight (MW), and number chiral centers. The descriptors can be filtered using the following flags:
 ``--ha``, ``--logp``, ``--hba``, ``--hbd``, ``--mw``, and ``--chiral``. The filtering can be done using the following formats:
@@ -216,7 +218,7 @@ For example, to filter the logP values less than or equal to 3.5, use the follow
 
 
 4. PAINS filtering
-==================
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Molecules that contain PAINS substructures can be efficiently eliminated using the ``--pains`` flag. The violated structures will be stored in the **_rejected** file.
 
@@ -235,7 +237,7 @@ Example of the **_rejected** output is as below:
     CCCCN(Cc1ccc(OS(=O)(=O)F)cc1)Cc1ccccc1O           Z4607533150   "PAINS violation: Mannich_a(296)"
 
 5. Unwanted substructures filtering
-====================================
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Molecules that contain unwanted substructures can be efficiently eliminated using the ``--unwanted`` flag. msani uses an expert-curated list that contains undesirable substructures, accompanied by the reasons and references for filtering. The list can be obtained from `msani/Data/filter_out.csv <https://github.com/phonglam3103/msani/blob/main/msani/Data/filter_out.csv>`_.
 
@@ -262,7 +264,7 @@ The first two columns (SMARTS and LABEL) are required for the program to parse, 
     $ msani -i example.smi --unwanted all --custom templates.tsv
 
 6. Protonation
-============================
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 msani supports the assignment of protonation states at various pH values using the ``--protonation`` flag. By default, the pH is set to 7 (configurable via ``-p`` or ``--pH``), and the pH range is set to 0 (specified using ``-r`` or ``--range``). This configuration protonates molecules at a specific pH of 7. However, it is also possible to enumerate potential protonation states across a pH range. For instance, setting ``--range 2`` explores pH values within 7 ± 2. The program evaluates each pH value in the specified range and assigns the possible protonation states of the molecule at those pH levels. Only unique products are output to a file. Functional groups with multiple protonation possibilities (e.g., piperazine, amidine) are expanded, with an underscore (`_`) appended to their names to indicate variations.
 
@@ -286,7 +288,7 @@ The program employs SMARTS-based reactions to iteratively assign protonation sta
 
 
 7. Stereoisomers enumeration
-============================
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
 Stereoisomers enumeration will be considered for unspecified chiral centers using the ``--stereoisomers`` flag. For an entry that contains multiple stereoisomers, its ID will be expanded (e.g., mol8 -> mol8.1, mol8.2).
@@ -311,10 +313,11 @@ It is possible to define the maximum number of stereoisomers generated for each 
     $ msani -i example.smi --stereoisomers --max_stereoisomers 32
 
 8. Conformer generator
-============================
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Basic usage
----------------------------------------
+^^^^^^^^^^^^^^
+
 
 The following supported flags:
 
@@ -336,9 +339,9 @@ The following supported flags:
 
 The conformer generator platform can be triggered using the ``--gen3d`` or ``-3d`` flag. Three initial embeeder are supported (``-m`` or ``--method`` flag):
 
-* RDKit srETKDG-v3 (default ``-m rdkit``): `Ref <https://pubs.acs.org/doi/10.1021/acs.jcim.0c00025>`_ 
-* CORINA (``-m corina``): `Ref <https://doi.org/10.1016/0898-5529(90)90156-3>`_
-* Open Babel (``-m obabel``): `Ref <https://jcheminf.biomedcentral.com/articles/10.1186/s13321-019-0372-5>`_ 
+* RDKit srETKDG-v3 (default ``-m rdkit``): `Ref <https://pubs.acs.org/doi/10.1021/acs.jcim.0c00025>`__ 
+* CORINA (``-m corina``): `Ref <https://doi.org/10.1016/0898-5529(90)90156-3>`__
+* Open Babel (``-m obabel``): `Ref <https://jcheminf.biomedcentral.com/articles/10.1186/s13321-019-0372-5>`__ 
 
 Multiple aliphatic ring conformations are supported for RDKit and CORINA with the ``-nr`` flag.
 
@@ -363,7 +366,7 @@ For DB2 generation, the program employs AMSOL 7.1 for assigning the desolvation 
     $ msani -i example.smi --tautomers --protonation --stereoisomers -3d -f sdf pdbqt #Generate SDF and PDBQT files
 
 Customization of the torsion definition
----------------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 It is possible to add and/or modify the torsion definitions in the TorsionLibrary without modifying the Torlib file by the ``--torsion`` flag. The flag accepts a file which defines multiple SMARTS patterns definining rotatable bonds with the expected dihedral angles. To create a template for the torsion definition file, use the ``--create_torsion`` flag. The template will be saved in the **custom_torsion_templates.txt** file:
 
@@ -391,7 +394,7 @@ To apply the torsion definition file, use the ``--torsion`` flag with the path t
     $ msani -i example.smi --torsion custom_torsion_templates.txt -3d -f db2
 
 Advanced options
-*********************
+-----------------------------------
 
 The advanced options can be accessed using the ``--help_advanced`` or ``-xh`` flag. The advanced options are not recommended for general users, but they can be useful for advanced users who want to customize the program's behavior. The following advanced options are available:
 
@@ -415,7 +418,7 @@ The advanced options can be accessed using the ``--help_advanced`` or ``-xh`` fl
 
 
 Running in batch mode
-*********************
+-----------------------------------
 
 
 msani now supports the batch mode ``msani_batch``, which allows handling bigger SMILES databases on the SLURM-based cluster. Nearly all the flags supported by the standalone msani are supported by the batch mode. In principle, ``msani_batch`` will split the input file into chunks of smaller input files, which is defined by the ``-l`` or ``--lines_per_job`` flag (default: 200). The split files will then be submitted to the SLURM cluster using an array of jobs. By default, a maximum of 500 jobs will be submitted simultaneously to avoid interfering with other users within the same project, but you can change this limit with the ``--max_jobs`` flag.
