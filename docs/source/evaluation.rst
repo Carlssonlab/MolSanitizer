@@ -17,7 +17,7 @@ We are now currently offer working with MolSanitizer via two main sources:
 We look forward to collaborating with you!
 
 Working with the compiled version
------------------------------
+----------------------------------
 
 The compiled version contains of the full functionality of MolSanitizer, including the ability to prepare molecules, generate conformers, and create multiple file formats. We are mainly working forward to improve the predictivity of the protonation and tautomerization modules, therefore the rule libraries used could be generated and customized by the users. 
 

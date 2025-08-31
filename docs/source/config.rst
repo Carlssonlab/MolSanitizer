@@ -1,4 +1,5 @@
 .. _config:
+
 Config file
 ============
 
@@ -52,7 +53,7 @@ The file will be created in the current working directory with the name ``config
     # torsion: None # In case of modified torsion definitions
 
 Multiple-value arguments
-~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 The following arguments accept multiple values and can be specified as a list in the config file:
 
