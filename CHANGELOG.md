@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [unreleased - most recent changes come first]
 
+### 🐛 Bug Fixes
+
+- Fix a typo in confgen that makes embedding using CORINA is broken - ([69e0ef9](https://github.com/phonglam3103/MolSanitizer/commit/69e0ef9b9813ee788996a1b4f858fd7fb36013f8))
+
 ### ⚡ Performance
 
 - Only desalt for entries where there are more than 1 fragment (smiles containing '.'). This has proven to gain upto 3X performance on million-sized databases. - ([e142a0e](https://github.com/phonglam3103/MolSanitizer/commit/e142a0e7ae87387c738d2dd666ac0fcec719d22e))
