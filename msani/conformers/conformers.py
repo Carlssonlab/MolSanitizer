@@ -534,7 +534,7 @@ class ConformerGenerator:
         Embed the SMILES string using CORINA and return the mol, net_charge,
         rigid_scaffolds, and flexible_scaffolds
         '''
-        self.mol2_str, self.ring_confs = utils._embed_smiles_corina(self.smiles, self.name, self.num_ring_confs, self.VERBOSE)
+        self.mol2_str, self.ring_confs = utils.embed_smiles_corina(self.smiles, self.name, self.num_ring_confs, self.VERBOSE)
         self.mol_H = Chem.Mol(self.ring_confs[0])
         self.mp = rdForceFieldHelpers.MMFFGetMoleculeProperties(self.ring_confs[0], mmffVariant="MMFF94s")
         self.amsol_mol = Chem.Mol(self.ring_confs[0]) # An RDKit Mol Object with upto 10 confs for AMSOL
