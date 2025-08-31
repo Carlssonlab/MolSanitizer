@@ -33,7 +33,6 @@ jobs:
         sed -i "s/^release = .*/release = \"$VERSION\"/" docs/source/conf.py
         sed -i "s/^version = .*/version = \"$VERSION\"/" docs/source/conf.py
 
-
     - name: Generate Changelog
       uses: orhun/git-cliff-action@v4
       with:
@@ -69,7 +68,7 @@ jobs:
           git add CHANGELOG.md
           CHANGED_FILES=1
         fi
-        
+
         if ! git diff --quiet docs/source/conf.py; then
           git add docs/source/conf.py
           CHANGED_FILES=1
@@ -77,12 +76,14 @@ jobs:
 
         if [ $CHANGED_FILES -eq 1 ]; then
           git commit -m "Update version to $VERSION and changelog"
+          git remote set-url origin https://x-access-token:${PERSONAL_ACCESS_TOKEN}@github.com/${{ github.repository }}.git
           git push origin HEAD:main
         else
           echo "No changes detected, skipping commit."
         fi
       env:
         VERSION: ${{ env.VERSION }}
+        PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
 
     - name: Delete and recreate the tag
       run: |
@@ -92,3 +93,4 @@ jobs:
         git push origin --tags
       env:
         VERSION: ${{ env.VERSION }}
+        PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
