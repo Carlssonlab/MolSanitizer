@@ -34,7 +34,7 @@ Conformers Module
 .. autoclass:: msani.conformers.conformers::ConformerGenerator
    :members:
 
-.. autofunction:: msani.conformers.conformers::gen_conf_chunks
+.. autofunction:: msani.conformers.conformers::gen_conf_chunk
 
 .. autoclass:: msani.conformers.mol2writer::Mol2Writer
    :members:
