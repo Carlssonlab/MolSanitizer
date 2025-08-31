@@ -8,7 +8,7 @@ Dependencies
 
 MolSanitizer is built upon the following packages:
 
-- RDKit 2024.09.6+ (`Reference <https://www.rdkit.org/docs/Install.html>`_)
+- RDKit 2024.09.3+ (`Reference <https://www.rdkit.org/docs/Install.html>`_)
 
 - OpenBabel 3.1.1 (`Reference <https://openbabel.org/docs/dev/Installation/install.html>`_)
 
