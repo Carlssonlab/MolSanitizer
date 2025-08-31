@@ -256,6 +256,7 @@ def Split_Submit_jobs(args: dict, parser):
         
         n_jobs = 0
         submitting_max_array_size = 0
+        print("Counting the number of jobs to submit...")
         for file in args.input_files:
             if not os.path.exists(file):
                 print(f"File {file} does not exist. Please check the path and try again.")
@@ -263,6 +264,7 @@ def Split_Submit_jobs(args: dict, parser):
                 return
             line_count = count_lines_bash(file)
             job_for_this_file = math.ceil(line_count/args.lines)
+            print(f"\tFile {file} will be split into {job_for_this_file} jobs.")
             n_jobs += job_for_this_file
             submitting_max_array_size = max(submitting_max_array_size, job_for_this_file)
         print(f"Total number of jobs to submit: {n_jobs}\n")
