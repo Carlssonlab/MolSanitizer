@@ -1245,26 +1245,30 @@ def write_to_tarball(ball, data, name):
 def gen_conf_chunk(df: DataFrame, args, input_file='0'):
     """
     Generate conformers for a given DataFrame of SMILES strings and save them in different formats.
+    
     Args:
         df (DataFrame): DataFrame containing SMILES strings and other relevant information.
-        args (Namespace): 
-            Parsed arguments containing various configuration options, including:
-            - randomSeed (int): Seed for random number generation.
-            - numconfs (int): Number of conformations to generate.
-            - debug (bool): Verbose output for debugging.
-            - cleanup (bool): Whether to remove intermediate files after processing.
-            - energywindow (float): Energy window for conformer sampling.
-            - timeout (int): Timeout (in minutes) for RDKit-based conformation generation.
-            - ignoretorlib (bool): Whether to ignore torsion library constraints.
-            - rigid (str): SMILES/SMARTS for conformers to be aligned to.
-            - nringconfs (int): Number of ring conformers to generate.
-            - numcores (int): Number of CPU cores to use for parallel processing.
-            - method (str): Method for initial conformation generation ('rdkit', 'obabel', 'corina').
-            - timing (bool): If enabled, logs timing information for each step.
-            - smiles (bool): If True, skips restarting logic.
-            - format (list): List of output formats to generate (e.g., 'pdbqt', 'sdf', 'mol2', 'db2').
+        args (Namespace): Parsed arguments containing various configuration options.
 
+            Keys may include:
+                randomSeed (int): Seed for random number generation.\n
+                numconfs (int): Number of conformations to generate.\n
+                debug (bool): Verbose output for debugging.\n
+                cleanup (bool): Whether to remove intermediate files after processing.\n
+                energywindow (float): Energy window for conformer sampling.\n
+                timeout (int): Timeout (in minutes) for RDKit-based conformation generation.\n
+                ignoretorlib (bool): Whether to ignore torsion library constraints.\n
+                rigid (str): SMILES/SMARTS for conformers to be aligned to.\n
+                nringconfs (int): Number of ring conformers to generate.\n
+                numcores (int): Number of CPU cores to use for parallel processing.\n
+                method (str): Method for initial conformation generation ('rdkit', 'obabel', 'corina').\n
+                timing (bool): If enabled, logs timing information for each step.\n
+                smiles (bool): If True, skips restarting logic.\n
+                format (list): Output formats to generate (e.g., 'pdbqt', 'sdf', 'mol2', 'db2').\n
         input_file (str): Name of the input file (default is '0').
+    
+    Returns:
+        None
     """
     if df.empty:
         logger.warning("Empty DataFrame provided, skipping conformation generation.")

@@ -53,14 +53,16 @@ class Ionizer:
         Examples
         ----------
         
-        >>> from msani.moltransform.ionizer import Ionizer\n
-        >>> ionizer = Ionizer(pH = 7, pH_range = 2)\n
+        >>> from msani.moltransform.ionizer import Ionizer
+        >>> ionizer = Ionizer(pH = 7, pH_range = 2)
 
-        ionize a single molecule from SMILES string:\n
-        >>> results = ionizer.ionize(smiles = 'CCc1ccc(CCOc2ccc(CC3SC(=O)NC3=O)cc2)nc1')\n
+        ionize a single molecule from SMILES string:
 
-        ionize a DataFrame of molecules with SMILES strings:\n
-        >>> df = ionizer.ionize_df(mol_df)\n
+        >>> results = ionizer.ionize(smiles = 'CCc1ccc(CCOc2ccc(CC3SC(=O)NC3=O)cc2)nc1')
+
+        ionize a DataFrame of molecules with SMILES strings:
+
+        >>> df = ionizer.ionize_df(mol_df)
         """
     def __init__(self,
                  smartsFile = PROTONATION_RULES_PATH,
@@ -111,8 +113,12 @@ class Ionizer:
         '''
         Load the protonation rules from a file containing SMARTS strings.
         Expected format from the text file: 
-            FUNCTIONAL_GROUP	pKa	    TYPE	Enumerate   REACTION    REF
-            amine	            10	    BASE	1           [reagent]>>[product]
+
+        =================  =====  ====  ==========  ====================  ===
+        FUNCTIONAL_GROUP   pKa    TYPE  Enumerate   REACTION              REF
+        =================  =====  ====  ==========  ====================  ===
+        amine              10     BASE  1           [reagent]>>[product]
+        =================  =====  ====  ==========  ====================  ===
         '''
         with open(file_path, 'r') as f:
             uncommented = [line for line in f if not (line.startswith('#')) and line.strip()]
@@ -335,6 +341,7 @@ class Ionizer:
                      mol_column: str = 'mol') -> DataFrame:
         """
         Protonate the input molecules using multiprocessing with chunked DataFrame processing.
+        
         Parameters:
             df (DataFrame): The input DataFrame containing SMILES strings.
             smiles_column (str): The column name containing SMILES strings (default: smiles).
