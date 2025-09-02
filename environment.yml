@@ -6,7 +6,7 @@ channels:
   - rdkit
 
 dependencies:
-  - python>=3.10,<3.12
+  - python>=3.10,<3.13
   - numpy
   - pandas
   - pip
@@ -14,3 +14,5 @@ dependencies:
   - openbabel
   - scipy
   - pyaml
+  - pip:
+    - meeko @ git+https://github.com/forlilab/meeko.git@develop
