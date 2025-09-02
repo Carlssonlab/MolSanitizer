@@ -19,11 +19,14 @@ if system == 'Windows':
     AMSOLEXE = Path(__file__).parent / "amsol7.1.exe"
 elif system == 'Linux':
     AMSOLEXE = Path(__file__).parent / "amsol7.1"
-else:
-    AMSOLEXE = None
-if not AMSOLEXE.exists() or AMSOLEXE is None:
-    raise FileNotFoundError(f"AMSOL executable not found at {AMSOLEXE}. Check the amsol directory for instruction to install amsol")
+elif system == 'Darwin':  # MacOS
+    raise ImportError("AMSOL is not supported on MacOS due to lack of compatible executable.")
 
+if AMSOLEXE is None or not AMSOLEXE.exists():
+    raise FileNotFoundError(
+        f"AMSOL executable not found at {AMSOLEXE}. "
+        "Check the amsol directory for instructions to install AMSOL."
+    )
 
 def convert_to_ZmatMOPAC(input_file, output_file, VERBOSE=False):
     obConversion = OBConversion()
