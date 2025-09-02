@@ -12,7 +12,7 @@
 # NUMCONFS: Number of conformers to be generated for each compound (default: 2000)
 
 EMBED_METHOD: 'rdkit' # choose from 'rdkit', 'obabel', 'corina'
-CORINA: '/proj/carlssonlab/corina/corina-4.2/corina'
+CORINA: '/home/phonglam/corina/corina-4.2/corina'
 ENERGY_WINDOW: 25
 NUMCONFS: 2000
 MAX_STEREOISOMERS: 8
