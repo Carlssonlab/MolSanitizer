@@ -27,6 +27,7 @@ dependencies = [
     "pandas",
     "numpy",
     "rdkit>=2024.09.3,<=2025.03.1",
+    "meeko @ git+https://github.com/forlilab/meeko.git@develop",
     "scipy",
     "pyaml"
 ]
