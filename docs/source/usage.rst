@@ -14,7 +14,7 @@ The program requires a white-space or tab-delimited file containing two columns 
    c1c(coc1Br)C(=O)NC2CCSC2  CP000001645677
    c1c(c([nH]n1)C(=O)NCC2(CC2)N)Br  CP000001647414
 
-Extended SMILES is supported (by the `-e` or `--extended` flag, but the database needs to be tab-separated.
+Extended SMILES is supported (by the ``-e`` or ``--extended`` flag, but the database needs to be tab-separated.
 
 .. code-block:: console
 
@@ -50,7 +50,7 @@ The program by default will conduct the preparation and filtering in the order b
 Default settings
 -----------------------------------
 
-Many of the default values of msani described below, both in the SINGLE MODE and BATCH MODE can be modified in `msani/msani_configurations.yaml <https://github.com/phonglam3103/msani/blob/main/msani_configurations.yaml>`_ file. It is for the convenience of the  user so that he/she does not have to specify the values (such as numConfs, --max_stereoisomers, etc) every time the program is run. If the user specify the values in the command line, the values in the configuration file will be overwritten.
+Many of the default values of msani described below, both in the SINGLE MODE and BATCH MODE can be modified in `msani/msani_configurations.yaml <https://github.com/phonglam3103/msani/blob/main/msani_configurations.yaml>`__ file. It is for the convenience of the  user so that he/she does not have to specify the values (such as numConfs, --max_stereoisomers, etc) every time the program is run. If the user specify the values in the command line, the values in the configuration file will be overwritten.
 
 The users are asked to provide CORINA path if the he/she wants to use it for the generation of 3D coordinates. The path should be provided in the `CORINA` field.
 
