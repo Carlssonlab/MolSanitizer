@@ -14,5 +14,3 @@ dependencies:
   - openbabel
   - scipy
   - pyaml
-  - pip:
-    - meeko @ git+https://github.com/forlilab/meeko.git@develop
