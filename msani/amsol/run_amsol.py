@@ -19,7 +19,9 @@ if system == 'Windows':
     AMSOLEXE = Path(__file__).parent / "amsol7.1.exe"
 elif system == 'Linux':
     AMSOLEXE = Path(__file__).parent / "amsol7.1"
-if not AMSOLEXE.exists():
+else:
+    AMSOLEXE = None
+if not AMSOLEXE.exists() or AMSOLEXE is None:
     raise FileNotFoundError(f"AMSOL executable not found at {AMSOLEXE}. Check the amsol directory for instruction to install amsol")
 
 
