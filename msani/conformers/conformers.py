@@ -29,7 +29,6 @@ from rdkit.Chem import rdDistGeom, rdForceFieldHelpers, rdMolAlign, rdMolTransfo
 from msani.io.parsers import CustomHelpFormatter
 from msani.conformers import utils, mol2writer, torsions
 from msani.filtering import filters
-from msani.amsol import run_amsol
 from msani.db2 import solv
 from msani.io.utils import log_error
 
@@ -1090,7 +1089,11 @@ class ConformerGenerator:
             cleanup (bool): Whether to clean up the temporary files.
             tarfile (tarball object): The tarball object to write the DB2 data to.
         """
-        
+        try:
+            from msani.amsol import run_amsol
+        except ImportError:
+            print("""Check for AMSOL executable file is placed in the correct folder (msani/amsol).""")
+            exit(1)
         if self.VERBOSE: print("Solvating...")
         if self.request_alignment is None and request_alignment is not None:
             self.request_alignment = request_alignment

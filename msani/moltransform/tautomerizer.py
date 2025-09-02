@@ -107,7 +107,7 @@ def check_configurations(matches, mol):
             config.append(bond.GetBondType())
     return config
 
-logo = """ _____           _                            _              
+logo =r""" _____           _                            _              
 |_   _|         | |                          (_)             
   | | __ _ _   _| |_ ___  _ __ ___   ___ _ __ _ _______ _ __ 
   | |/ _` | | | | __/ _ \| '_ ` _ \ / _ \ '__| |_  / _ \ '__|

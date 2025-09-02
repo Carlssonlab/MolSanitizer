@@ -26,7 +26,7 @@ version_text = f"""Python version: {sys.version.split('|')[0]}
 MolSanitizer version: {__version__}
 RDKit version: {rdBase.rdkitVersion}"""
 
-logo=""" __  __         _  _____                _  _    _                 
+logo=r""" __  __         _  _____                _  _    _                 
 |  \/  |       | |/  ___|              (_)| |  (_)                
 | .  . |  ___  | |\ `--.   __ _  _ __   _ | |_  _  ____ ___  _ __ 
 | |\/| | / _ \ | | `--. \ / _` || '_ \ | || __|| ||_  // _ \| '__|

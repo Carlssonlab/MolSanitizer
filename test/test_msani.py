@@ -296,6 +296,8 @@ class Test_MolSanitizer(unittest.TestCase):
                                   f'{self.path}/out_enamine_rejected.txt')
         os.chdir(self.path)
 
+    @unittest.skipIf(OS in ["Darwin"],
+        "Skipping test on MacOS due to no compatible AMSOL software.")
     def test_db2_generation(self):
         tmp_obj = tempfile.TemporaryDirectory()
         temp_dir = tmp_obj.name
@@ -319,7 +321,9 @@ class Test_MolSanitizer(unittest.TestCase):
         os.chdir(self.path)
         shutil.rmtree(f"{temp_dir}")
         tmp_obj.cleanup()
-
+    
+    @unittest.skipIf(OS in ["Darwin"],
+        "Skipping test on MacOS due to no compatible AMSOL software.")
     def test_db2_sulfonamide(self):
         tmp_obj = tempfile.TemporaryDirectory()
         temp_dir = tmp_obj.name
@@ -349,7 +353,7 @@ class Test_MolSanitizer(unittest.TestCase):
     def test_pdbqt_generation(self):
         #with tempfile.TemporaryDirectory() as temp_dir:
             try:
-                import meeko
+                from meeko.preparation import MoleculePreparation
             except ImportError:
                 print("""The Meeko program is not installed.
                       PDBQT options are not tested""")

@@ -15,11 +15,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install Pandoc for Conversion
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y pandoc
-
       - name: Generate Changelog
         uses: orhun/git-cliff-action@v4
         with:
@@ -39,14 +34,19 @@ jobs:
           git config user.email 'github-actions[bot]@users.noreply.github.com'
 
           # Check if there are any changes in CHANGELOG.md
-          if git diff --quiet CHANGELOG.md; then
-            echo "No changes detected in CHANGELOG.md. Skipping commit."
+          if git diff --quiet "$CHANGELOG_MD"; then
+            echo "No changes detected in $CHANGELOG_MD. Skipping commit."
           else
-            git add CHANGELOG.md
+            echo "Changes detected in $CHANGELOG_MD. Installing pandoc..."
+            sudo apt-get update
+            sudo apt-get install -y pandoc
+
+            git add "$CHANGELOG_MD"
             pandoc "$CHANGELOG_MD" -o "$CHANGELOG_RST"
             git add "$CHANGELOG_RST"
             git commit -m "Update changelog for tag ${{ github.ref_name }}"
-            # Push the changes to the default branch (e.g., 'main')
+
+            # Push the changes to the default branch
             git remote set-url origin https://x-access-token:${PERSONAL_ACCESS_TOKEN}@github.com/${{ github.repository }}.git
             git push origin HEAD:main
           fi

@@ -17,7 +17,7 @@ RDLogger.DisableLog('rdApp.*') # To disable error messages with kekulizing tauto
 logger = logging.getLogger('msani')
 PROTONATION_RULES_PATH = Path(__file__).parent.parent / 'Data' / 'ionizations_v3.txt'
 
-logo=""" _____            _              
+logo=r""" _____            _              
 |_   _|          (_)             
   | |  ___  _ __  _ _______ _ __ 
   | | / _ \| '_ \| |_  / _ \ '__|
