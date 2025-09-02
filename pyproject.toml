@@ -16,7 +16,9 @@ license = {text = "GPL 2.0"}
 classifiers = [
     "Development Status :: 3 - Alpha",
     "License :: OSI Approved :: GPL 2.0",
-    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.10",
+    'Programming Language :: Python :: 3.11',
+    'Programming Language :: Python :: 3.12',
     "Operating System :: POSIX :: Linux",
     "Topic :: Scientific/Engineering :: Chemistry",
     "Topic :: Scientific/Engineering :: Drug Discovery",

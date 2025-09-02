@@ -1,5 +1,5 @@
 # MolSanitizer - A package to prepare SMILES databases
-[![python](https://img.shields.io/badge/python-v3.10--3.11-blue)]()
+[![python](https://img.shields.io/badge/python-v3.10--3.12-blue)]()
 [![anaconda](https://img.shields.io/badge/Anaconda.org-2.1.0-green.svg?style=flat-square)](https://docs.anaconda.com/anaconda/install/index.html)
 [![Documentation](https://img.shields.io/badge/docs-0.2.2-orange)](https://msani.readthedocs.io/)
 ![GitHub forks](https://img.shields.io/github/forks/:user/:repo)
