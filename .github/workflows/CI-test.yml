@@ -16,7 +16,7 @@ on:
       - '**.md'
       - '.github/**'
   workflow_dispatch:      
-  
+
 jobs:
   test:
     strategy:
@@ -64,11 +64,31 @@ jobs:
         shell: bash -l {0}
         run: pip install -e .
 
+      - name: Verify Meeko installation (Unix)
+        if: runner.os != 'Windows'
+        shell: bash -l {0}
+        run: |
+          echo "=== Pip list ==="
+          pip list | grep meeko || true
+          echo "=== Import check ==="
+          python -c "import meeko, sys; print('Meeko version:', getattr(meeko, '__version__', 'unknown')); print('Loaded from:', meeko.__file__)"
+          python -c "from meeko.preparation import MoleculePreparation; print('MoleculePreparation available')"
+
       # Windows install
       - name: Install in editable mode (Windows)
         if: runner.os == 'Windows'
         shell: powershell
         run: micromamba run -n msani pip install -e .
+
+      - name: Verify Meeko installation (Windows)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          echo "=== Pip list ==="
+          micromamba run -n msani pip list | findstr meeko
+          echo "=== Import check ==="
+          micromamba run -n msani python -c "import meeko, sys; print('Meeko version:', getattr(meeko, '__version__', 'unknown')); print('Loaded from:', meeko.__file__)"
+          micromamba run -n msani python -c "from meeko.preparation import MoleculePreparation; print('MoleculePreparation available')"
 
 
       # Linux/macOS tests
