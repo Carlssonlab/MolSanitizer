@@ -18,7 +18,7 @@ We will set up the environment using [Anaconda](https://docs.anaconda.com/anacon
     
 Example of how to set up a working conda environment to run the code:
     
-    conda env create -f msani/environment.yml # Trick: use mamba (if you have) for much faster installation
+    conda env create -f MolSanitizer/environment.yml # Trick: use mamba (if you have) for much faster installation
     conda activate msani
     pip install -e msani
 
