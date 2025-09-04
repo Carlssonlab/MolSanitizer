@@ -76,13 +76,11 @@ jobs:
         if: runner.os != 'Windows'
         shell: bash -l {0}
         run: |
-          python -m unittest test/test_msani.py
-          python -m unittest test/test_validation_sets.py
+          python -m unittest discover -s test
 
       # Windows tests
       - name: Run unittests (Windows)
         if: runner.os == 'Windows'
         shell: powershell
         run: |
-          micromamba run -n msani python -m unittest test/test_msani.py
-          micromamba run -n msani python -m unittest test/test_validation_sets.py
+          micromamba run -n msani python -m unittest discover -s test
