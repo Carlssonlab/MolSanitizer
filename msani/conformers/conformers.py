@@ -7,7 +7,7 @@
     Should try to sample all possible conformations based on dihedral angles sampling based on: https://github.com/dkoes/rdkit-scripts/blob/master/rdallconf.py
 """
 # Author: Thua-Phong Lam, Jens Carlsson lab, Uppsala University
-# Date: 2025-07-14
+# Date: 2025-09-04
 
 import logging
 import os
@@ -32,7 +32,30 @@ from msani.filtering import filters
 from msani.db2 import solv
 from msani.io.utils import log_error
 
+# Check if Open Babel is installed
+try:
+    from openbabel.openbabel import OBMol, OBConversion
+    OBABEL_AVAILABLE = True
+except:
+    OBABEL_AVAILABLE = False
+    pass
 
+# Check if AMSOL is correctly installed
+try:
+    from msani.amsol import run_amsol
+    if run_amsol.AMSOLEXE: AMSOL_AVAILABLE = True
+    else: AMSOL_AVAILABLE = False
+except ImportError:
+    AMSOL_AVAILABLE = False
+    pass
+
+# Check if Meeko is installed
+try:
+    from meeko.preparation import MoleculePreparation
+    from meeko.writer import PDBQTWriterLegacy
+    MEEKO_AVAILABLE = True
+except ImportError:
+    MEEKO_AVAILABLE = False
 
 logger = logging.getLogger('msani')
 
@@ -464,6 +487,8 @@ class ConformerGenerator:
         '''
         Embed the SMILES string using Open Babel. CLI version is used as it is found more flexible 
         than the RDKit version.'''
+        if not OBABEL_AVAILABLE:
+            raise ImportError("Open Babel is not installed or not found. Please install Open Babel to use this feature.")
                                         # -h: add hs; gen3d
         cmd = ["obabel", f"-:{self.smiles}", "-h", "--gen3d", "-osdf"]
 
@@ -1030,13 +1055,8 @@ class ConformerGenerator:
         Args:
             filename (str): The name of the output PDBQT file. If None, defaults to self.name.pdbqt.
         """
-        try:
-            from meeko.preparation import MoleculePreparation
-            from meeko.writer import PDBQTWriterLegacy
-        except ImportError:
-            print("""Please install the meeko package using "pip install meeko" to use this script.""")
-            exit(1)
-        pass
+        if not MEEKO_AVAILABLE:
+            raise ImportError('Please install the meeko package using "pip install meeko" to use this script.\nIn case you are using Python >= 3.12, install it from the Github repository.')
 
         if filename is None:
             filename = self.name
@@ -1089,11 +1109,8 @@ class ConformerGenerator:
             cleanup (bool): Whether to clean up the temporary files.
             tarfile (tarball object): The tarball object to write the DB2 data to.
         """
-        try:
-            from msani.amsol import run_amsol
-        except ImportError:
-            print("""Check for AMSOL executable file is placed in the correct folder (msani/amsol).""")
-            exit(1)
+        if not AMSOL_AVAILABLE:
+            raise ImportError("Please install the AMSOL to msani/amsol to use this function.")
         if self.VERBOSE: print("Solvating...")
         if self.request_alignment is None and request_alignment is not None:
             self.request_alignment = request_alignment
