@@ -1,5 +1,7 @@
 O=C([O-])c1cccnc1 carboxylic_acid
-CCCCOc1ccc(CC(=O)NO)cc1 hydroxamic_acid
+CCCCOc1ccc(CC(=O)NO)cc1 hydroxamic_acid-ali
+CCC(C)c1cnc(CC(C)C)c(=O)n1[O-]	hydroxamic_acid-aro
+O=C1c2ccccc2C(=O)N1[O-]	N-hydroxyimide
 O=[N+]([O-])c1cccc([N+](=O)[O-])c1[O-] o,o-EWG-phenols
 Cc1ccc(C(=O)c2cc(O)c([O-])c([N+](=O)[O-])c2)cc1 o,p-EWG-phenols
 O=[N+]([O-])c1cccc([O-])c1[N+](=O)[O-] o,p/m-di-EWG-phenols

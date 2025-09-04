@@ -7,7 +7,9 @@
 # FUNCTIONAL_GROUP	pKa	TYPE	Enumerate	REACTION	REF
 #OH-ACIDITY-CARBONYL
 carboxylic_acid	4	ACID	0	[OH1&+0;$(O-C=O)!$(O~C~[-1]):1]>>[OH0&-:1]
-hydroxamic_acid	9	ACID	0	[OH1&+0;$(O-[#7][#6]=O)!$(O~[#7]~[-1]):1]>>[OH0&-:1]
+hydroxamic_acid-ali	9	ACID	0	[OH1&+0;$([O;$(O-N(-[A,#1])-C=O),$(O-N-C(-[A,#1])=O)])!$(O-N-[-1])!$(O-N-C(=O)-[-1]):1]>>[OH0&-:1]
+hydroxamic_acid-aro	6	ACID	0	[OH1&+0;$(O-[#7](a)-,:[#6](=O)a)!$(O-[#7]~[-1])!$(O-[#7]~[#6](=O)~[-1])!$(O-[#7]~[#6](=O)a-[-1])!$(O-[#7]a-[-1])!$(O-[#7]a-[*+0]-[-1]):1]>>[OH0&-:1]
+N-hydroxyimide	6	ACID	0	[OH1&+0;$(O-N(C=O)C=O)!$(O-N-[-1])!$(O-N-C(=O)-[-1]):1]>>[OH0&-:1]
 #OH-ACIDITY-PHENOL
 o,o-EWG-phenols	3	ACID	1	[OH1&+0;$(O-[$(a([a;$(a-[*H0&+]),$(a-C#N),$(a(:a)(:a)-,:*=[O,N])])[a;$(a-[*H0&+]),$(a-C#N),$(a(:a)(:a)-,:*=[O,N])])])!$(O~*~*~[-1])!$(O-a:a-[A&+0](=O)[OH])!$(O-a:a-[*&+0]~[*-])!$(O-a:a-[A&+0](=O)-N-O)!$(O-a:a-,:[#6](=O)-,:a:a-[O-])!$(O-a:a-C(=O)-C=C-O):1]>>[OH0&-:1]
 o,p-EWG-phenols	4	ACID	1	[OH1&+0;$(O-[$(a1[a;$(a-[*H0&+]),$(a-C#N),$(a(:a)(:a)-,:*=[O,N])]a[a;$(a-[*H0&+]),$(a-C#N),$(a(:a)(:a)-,:*=[O,N])]a[a;!$(a-[*H0&+])!$(a-C#N)!$(a(:a)(:a)-,:*=[O,N])]1)])!$(O~*~*~[-1])!$(O-a:a-[A&+0](=O)[OH])!$(O-a:a-[*&+0]~[*-])!$(O-a:a-[A&+0](=O)-N-O)!$(O-a:a-,:[#6](=O)-,:a:a-[O-])!$(O-a:a-C(=O)-C=C-O)!$(Oa1aa([*-])aaa1)!$(Oa1aaa(-[*&+0]~[*-])aa1):1]>>[OH0&-:1]

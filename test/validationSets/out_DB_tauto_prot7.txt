@@ -929,7 +929,7 @@ O=c1[nH]c2ccccc2n1CCC[NH+]1CCC(n2c(=O)[nH]c3cc(Cl)ccc32)CC1 Domperidone
 CC1(O)CCC2C3CCC4=CC(=O)CCC4(C)C3(F)C(O)CC21C Fluoxymesterone
 CCC[NH+]1CC(CSC)CC2c3cccc4[nH]cc(c34)CC21 Pergolide
 CCOC(=O)CCCCCCCCC(C)c1ccccc1I Iophendylate
-Cc1cc(C2CCCCC2)n(O)c(=O)c1 Ciclopirox
+Cc1cc(C2CCCCC2)n([O-])c(=O)c1 Ciclopirox
 CCCC1CC(C(=O)NC(C(C)Cl)C2OC(SC)C(O)C(O)C2O)[NH+](C)C1 Clindamycin
 CC[NH2+]C(C)Cc1cccc(C(F)(F)F)c1 Dexfenfluramine
 C[NH+]1CCC23c4c5ccc(O)c4OC2C(=O)CCC3(O)C1C5 Oxymorphone
