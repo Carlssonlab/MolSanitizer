@@ -23,7 +23,7 @@ machine = platform.machine().lower()
 
 if system == 'Windows':
     AMSOLEXE = Path(__file__).parent / "amsol7.1.exe"
-    ZMOPACEXE = Path(__file__).parent / "zmopac_converter" / "zmopac_converter_windows.exe"
+    ZMOPACEXE = Path(__file__).parent / "zmopac_converter" / "zmopac_converter_windows_x64.exe"
 
 elif system == 'Linux':
     AMSOLEXE = Path(__file__).parent / "amsol7.1"
@@ -35,7 +35,7 @@ elif system == 'Darwin':  # MacOS
     else:
         ZMOPACEXE = Path(__file__).parent / "zmopac_converter" / "zmopac_converter_macos_x64"
 
-if AMSOLEXE is None or not AMSOLEXE.exists():
+if AMSOLEXE and not AMSOLEXE.exists():
     raise FileNotFoundError(
         f"AMSOL executable not found at {AMSOLEXE}. "
         "Check the amsol directory for instructions to install AMSOL."
