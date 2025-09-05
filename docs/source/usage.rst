@@ -69,7 +69,7 @@ Below is the default configuration file:
     PH_RANGE: 0 # 0 means choose specific pH=7 (default), 2 means will sample pH 5 and 9
 
     #================BATCH MODE=================
-    SLURM_ACCOUNT: 'naiss2024-3-45'
+    SLURM_ACCOUNT: 'PROJECT_NAME' # The account that will be charged by the SLURM cluster for running tasks
     LINES_PER_JOB: 200
     TIME_LIMIT: 96
     MAX_ARRAY_SIZE: 2000
@@ -427,7 +427,7 @@ The additional flags supported by ``msani_batch`` so far:
 
 .. code-block:: console
 
-    --projectName, -A           The account that will be charged by the SLURM cluster for running tasks (default: naiss2024-3-45)
+    --projectName, -A           The account that will be charged by the SLURM cluster for running tasks (default: PROJECT_NAME)
     --lines_per_job, -l         Number of lines to process per job (default: 200)
     --timelimit, -tl            Time limit in hours for each SLURM job (default: 96)
     --max_jobs, -mj             Maximum number of jobs to run simultaneously (default: 500)
