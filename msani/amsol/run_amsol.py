@@ -1,14 +1,11 @@
 import os
 import subprocess
 import platform
+
 from pathlib import Path
-try:
-    from openbabel.openbabel import OBMol, OBConversion
-    OBABEL_AVAILABLE = True
-except:
-    OBABEL_AVAILABLE = False
-from msani.amsol import mol2amsol
 import gzip
+
+from msani.amsol import mol2amsol
 
 # Refactored by Thua-Phong Lam, Jens Carlsson lab, Uppsala University (July, 2024)
 # Based on ligand/amsol/calc_solvation.py3.csh (structure and workflow)
@@ -28,6 +25,7 @@ if system == 'Windows':
 elif system == 'Linux':
     AMSOLEXE = Path(__file__).parent / "amsol7.1"
     ZMOPACEXE = Path(__file__).parent / "zmopac_converter" / "zmopac_converter_linux_x64"
+
 elif system == 'Darwin':  # MacOS
     AMSOLEXE = None
     if "arm" in machine or "aarch64" in machine:
@@ -44,13 +42,6 @@ if AMSOLEXE and not AMSOLEXE.exists():
 def convert_to_ZmatMOPAC(input_file, output_file, VERBOSE=False):
     result = subprocess.run([ZMOPACEXE, input_file, output_file], 
                                 capture_output=True, text=True, check=True)
-    # if not OBABEL_AVAILABLE:
-    #     raise ImportError("OpenBabel is required for this function. Please install OpenBabel.")
-    # obConversion = OBConversion()
-    # obConversion.SetInAndOutFormats("mol2", "mopin")
-    # mol = OBMol()
-    # obConversion.ReadFile(mol, input_file)
-    # obConversion.WriteFile(mol, output_file)
 
 
 def read_ZmatMOPAC(Zmat_file, VERBOSE=False):
