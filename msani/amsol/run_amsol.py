@@ -1,10 +1,11 @@
 import os
 import subprocess
 import platform
+
 from pathlib import Path
-from openbabel.openbabel import OBMol, OBConversion
-from msani.amsol import mol2amsol
 import gzip
+
+from msani.amsol import mol2amsol
 
 # Refactored by Thua-Phong Lam, Jens Carlsson lab, Uppsala University (July, 2024)
 # Based on ligand/amsol/calc_solvation.py3.csh (structure and workflow)
@@ -15,26 +16,38 @@ import gzip
 """
 
 system = platform.system()
+machine = platform.machine().lower()
+
 if system == 'Windows':
     AMSOLEXE = Path(__file__).parent / "amsol7.1.exe"
+    ZMOPACEXE = Path(__file__).parent / "zmopac_converter" / "zmopac_converter_windows_x64.exe"
+
 elif system == 'Linux':
     AMSOLEXE = Path(__file__).parent / "amsol7.1"
-elif system == 'Darwin':  # MacOS
-    raise ImportError("AMSOL is not supported on MacOS due to lack of compatible executable.")
+    ZMOPACEXE = Path(__file__).parent / "zmopac_converter" / "zmopac_converter_linux_x64"
 
-if AMSOLEXE is None or not AMSOLEXE.exists():
-    raise FileNotFoundError(
-        f"AMSOL executable not found at {AMSOLEXE}. "
-        "Check the amsol directory for instructions to install AMSOL."
-    )
+elif system == 'Darwin':  # MacOS
+    AMSOLEXE = None
+    if "arm" in machine or "aarch64" in machine:
+        ZMOPACEXE = Path(__file__).parent / "zmopac_converter" / "zmopac_converter_macos_arm64"
+    else:
+        ZMOPACEXE = Path(__file__).parent / "zmopac_converter" / "zmopac_converter_macos_x64"
+
+if AMSOLEXE is not None:
+    if not AMSOLEXE.exists():
+        raise FileNotFoundError(
+            f"AMSOL executable not found at {AMSOLEXE}. "
+            "Check the amsol directory for instructions to install AMSOL."
+        )
 
 def convert_to_ZmatMOPAC(input_file, output_file, VERBOSE=False):
-    obConversion = OBConversion()
-    obConversion.SetInAndOutFormats("mol2", "mopin")
-    mol = OBMol()
-    obConversion.ReadFile(mol, input_file)
-    obConversion.WriteFile(mol, output_file)
-
+    result = subprocess.run([ZMOPACEXE, input_file, output_file], 
+                                capture_output=True, text=True, check=True)
+    if VERBOSE:
+        if result.stdout:
+            print("ZMOPAC Converter stdout:\n", result.stdout)
+        if result.stderr:
+            print("ZMOPAC Converter stderr:\n", result.stderr)
 
 def read_ZmatMOPAC(Zmat_file, VERBOSE=False):
     if VERBOSE:
