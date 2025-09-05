@@ -33,16 +33,21 @@ elif system == 'Darwin':  # MacOS
     else:
         ZMOPACEXE = Path(__file__).parent / "zmopac_converter" / "zmopac_converter_macos_x64"
 
-if AMSOLEXE and not AMSOLEXE.exists():
-    raise FileNotFoundError(
-        f"AMSOL executable not found at {AMSOLEXE}. "
-        "Check the amsol directory for instructions to install AMSOL."
-    )
+if AMSOLEXE is not None:
+    if not AMSOLEXE.exists():
+        raise FileNotFoundError(
+            f"AMSOL executable not found at {AMSOLEXE}. "
+            "Check the amsol directory for instructions to install AMSOL."
+        )
 
 def convert_to_ZmatMOPAC(input_file, output_file, VERBOSE=False):
     result = subprocess.run([ZMOPACEXE, input_file, output_file], 
                                 capture_output=True, text=True, check=True)
-
+    if VERBOSE:
+        if result.stdout:
+            print("ZMOPAC Converter stdout:\n", result.stdout)
+        if result.stderr:
+            print("ZMOPAC Converter stderr:\n", result.stderr)
 
 def read_ZmatMOPAC(Zmat_file, VERBOSE=False):
     if VERBOSE:
