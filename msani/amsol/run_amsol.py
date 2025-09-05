@@ -27,10 +27,11 @@ elif system == 'Linux':
     ZMOPACEXE = Path(__file__).parent / "zmopac_converter" / "zmopac_converter_linux_x64"
 
 elif system == 'Darwin':  # MacOS
-    AMSOLEXE = None
     if "arm" in machine or "aarch64" in machine:
+        AMSOLEXE = Path(__file__).parent / "amsol7.1_macos_arm64"
         ZMOPACEXE = Path(__file__).parent / "zmopac_converter" / "zmopac_converter_macos_arm64"
     else:
+        AMSOLEXE = Path(__file__).parent / "amsol7.1_macos_x64"
         ZMOPACEXE = Path(__file__).parent / "zmopac_converter" / "zmopac_converter_macos_x64"
 
 if AMSOLEXE is not None:
