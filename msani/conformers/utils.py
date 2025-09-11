@@ -982,3 +982,98 @@ def within_tolerance(angle, center, tolerance):
     diff = (angle - center + 180) % 360 - 180
     return abs(diff) <= tolerance
 
+def remove_nonpolar_hydrogens(mol: Chem.Mol) -> Chem.Mol:
+    """
+    Remove non-polar hydrogens from the molecule.
+    Non-polar hydrogens are those attached to carbon atoms.
+
+    Args:
+        mol (Chem.Mol): RDKit molecule object.
+
+    Returns:
+        Chem.Mol: New molecule with non-polar hydrogens removed.
+    """
+    editable = Chem.RWMol(mol)
+    to_remove = []
+    for atom in editable.GetAtoms():
+        if atom.GetAtomicNum() == 1:
+            neighbors = atom.GetNeighbors()
+            if len(neighbors) == 1 and neighbors[0].GetAtomicNum() == 6:
+                to_remove.append(atom.GetIdx())
+    for idx in sorted(to_remove, reverse=True):
+        editable.RemoveAtom(idx)
+    return editable.GetMol()
+
+
+def cluster_conformer_by_bestrmsd(current_conformer, previous_conformers, cutoff, mol=None):
+    """
+    Cluster conformers based on BestRMS to determine if a new conformer is similar to existing ones.
+    
+    This function compares a current conformer against a list of previous conformers using
+    RDKit's GetBestRMS function, which calculates the root-mean-square deviation after
+    optimal alignment. Non-polar hydrogens are removed before RMSD calculation to focus
+    on the heavy atom framework and polar hydrogens that are important for interactions.
+    
+    Args:
+        current_conformer (Chem.Conformer): The new conformer to compare.
+        previous_conformers (list): List of tuples (conformer, energy) representing 
+                                   previously accepted conformers.
+        cutoff (float): RMSD cutoff value in Angstroms. If RMSD <= cutoff, conformers 
+                       are considered similar.
+        mol (Chem.Mol, optional): RDKit molecule object. If provided, will be used
+                                 for RMSD calculation. If None, a temporary molecule
+                                 will be created from the conformers.
+    
+    Returns:
+        bool: True if the current conformer is similar to any previous conformer 
+              (RMSD <= cutoff), False otherwise.
+    
+    Example:
+        >>> current_conf = mol.GetConformer(0)
+        >>> prev_confs = [(mol.GetConformer(1), 10.5), (mol.GetConformer(2), 12.3)]
+        >>> is_similar = cluster_conformer_by_bestrmsd(current_conf, prev_confs, 0.5, mol)
+    """
+    if cutoff == 0:
+        return False
+    if not previous_conformers:
+        return False
+    
+    # We need the original molecule to work with
+    if mol is None:
+        raise ValueError("mol parameter is required for RMSD calculation")
+    
+    # Create a molecule with all conformers for comparison
+    temp_mol = Chem.Mol(mol)
+    temp_mol.RemoveAllConformers()
+    
+    # Add current conformer
+    current_conf_id = temp_mol.AddConformer(current_conformer, assignId=True)
+    
+    # Add all previous conformers
+    prev_conf_ids = []
+    for prev_conformer, _ in previous_conformers:
+        prev_conf_id = temp_mol.AddConformer(prev_conformer, assignId=True)
+        prev_conf_ids.append(prev_conf_id)
+    
+    # Remove non-polar hydrogens for RMSD calculation
+    mol_no_h = remove_nonpolar_hydrogens(temp_mol)
+    
+    # Compare current conformer against each previous conformer
+    for prev_conf_id in prev_conf_ids:
+        try:
+            # Calculate BestRMS between the conformers
+            rmsd = rdMolAlign.GetBestRMS(mol_no_h, mol_no_h, 
+                                       prbId=current_conf_id, refId=prev_conf_id, maxMatches=1000)
+            # If RMSD is within cutoff, conformers are considered similar
+            if rmsd <= cutoff:
+                return True
+                
+        except Exception as e:
+            # In case of any errors in RMSD calculation, log warning and continue
+            logger.warning(f"Error calculating RMSD: {e}")
+            continue
+    
+    # If no similar conformer found, return False
+    return False
+
+

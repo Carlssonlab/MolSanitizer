@@ -124,9 +124,11 @@ class ConformerGenerator:
                  request_alignment = None,
                  ignoreTorlib = False,
                  threshold = 1.6,
+                 rmsd = 0.3,
                  mode = 'fixed',
                  tolerance = 30,
                  torlib = Torlib,
+
                  VERBOSE = False):
         """
         Initialize the ConformerGenerator object.
@@ -158,6 +160,7 @@ class ConformerGenerator:
         self.ignoreTorlib = ignoreTorlib
         self.conf_sampled = False
         self.threshold = threshold
+        self.rmsd = rmsd
         self.mode = mode
         self.tolerance = tolerance
         self.torlib = torlib
@@ -195,6 +198,7 @@ class ConformerGenerator:
                            request_alignment = None,
                            mode:str = 'vs',
                            tolerance = 30,
+                           rmsd = 0.3,
                            VERBOSE=False):
         """Alternative constructor that initializes from existing data"""
 
@@ -214,6 +218,7 @@ class ConformerGenerator:
         instance.VERBOSE = VERBOSE
         instance.mode = mode
         instance.tolerance = tolerance
+        instance.rmsd = rmsd    
         return instance
     
     def _initialize_molecule(self):
@@ -813,7 +818,8 @@ class ConformerGenerator:
                     # Set the dihedral angle for the corresponding bond
                     rdMolTransforms.SetDihedralDeg(mol.GetConformer(0), *dihedral_atoms, angle)
                 # If atoms are too close or if we already visited this conformation
-                if utils.check_too_close_nonbonded_atoms_vec(mol.GetConformer(0), candidate_pairs, threshold=self.threshold):
+                if utils.check_too_close_nonbonded_atoms_vec(mol.GetConformer(0), candidate_pairs, threshold=self.threshold) or\
+                    utils.cluster_conformer_by_bestrmsd(mol.GetConformer(0), product, cutoff=self.rmsd, mol=mol):
                     continue
 
                 ff = rdForceFieldHelpers.MMFFGetMoleculeForceField(mol, self.mp, confId=0)
@@ -875,7 +881,8 @@ class ConformerGenerator:
                     stagnation_counter += 1
                     continue
                 
-                if utils.check_too_close_nonbonded_atoms_vec(mol.GetConformer(0), candidate_pairs, threshold=self.threshold):
+                if utils.check_too_close_nonbonded_atoms_vec(mol.GetConformer(0), candidate_pairs, threshold=self.threshold) or \
+                    utils.cluster_conformer_by_bestrmsd(mol.GetConformer(0), product, cutoff=self.rmsd, mol=mol):
                     attempts += 1
                     stagnation_counter += 1
                     visited.add(state_tuple)
@@ -1361,9 +1368,9 @@ def gen_conf_chunk(df: DataFrame, args, input_file='0'):
             if args.timing: start = time.time() 
             try:
                 if args.method == 'corina':
-                    confgen = ConformerGenerator(smiles, name, method='corina', mode = mode, tolerance=tolerance, VERBOSE=VERBOSE)
+                    confgen = ConformerGenerator(smiles, name, method='corina', mode = mode, tolerance=tolerance, rmsd=args.rmsd, VERBOSE=VERBOSE)
                 elif args.method == 'obabel':
-                    confgen = ConformerGenerator(smiles, name, method='obabel', mode = mode, tolerance=tolerance, VERBOSE=VERBOSE)
+                    confgen = ConformerGenerator(smiles, name, method='obabel', mode = mode, tolerance=tolerance, rmsd=args.rmsd, VERBOSE=VERBOSE)
                 else:
                     queue = multiprocessing.Queue()
                     process = multiprocessing.Process(target=initial_embedding, args=(queue, smiles, name, randomSeed, nr, numcores, VERBOSE))
@@ -1375,7 +1382,7 @@ def gen_conf_chunk(df: DataFrame, args, input_file='0'):
                         process.terminate()
                         process.join()
                         try:
-                            confgen = ConformerGenerator(smiles, name, num_ring_confs=nr, method='obabel', tolerance=tolerance, VERBOSE=VERBOSE)
+                            confgen = ConformerGenerator(smiles, name, num_ring_confs=nr, method='obabel', tolerance=tolerance, rmsd=args.rmsd, VERBOSE=VERBOSE)
                         except Exception as e:
                             logger.error(f"Error in generating initial conformation using OpenBabel for {name}, skipping it {e}")
                             log_error(smiles, name)
@@ -1393,15 +1400,16 @@ def gen_conf_chunk(df: DataFrame, args, input_file='0'):
                             logger.error(f"Error in generating initial conformation using RDKit for {name}, skipping it: {error}")
                             log_error(smiles, name)
                             continue
-                        confgen = ConformerGenerator.from_existing_data(smiles, 
-                                                                        name, 
-                                                                        bin_amsol_mol, 
-                                                                        bin_conf_rings, 
-                                                                        mol2_str, 
-                                                                        request_alignment, 
-                                                                        mode,
-                                                                        tolerance,
-                                                                        VERBOSE)
+                        confgen = ConformerGenerator.from_existing_data(smiles=smiles, 
+                                                                        name=name, 
+                                                                        amsol_mol=bin_amsol_mol, 
+                                                                        ring_confs=bin_conf_rings, 
+                                                                        mol2_str=mol2_str, 
+                                                                        request_alignment=request_alignment, 
+                                                                        mode=mode,
+                                                                        tolerance=tolerance,
+                                                                        rmsd=args.rmsd,
+                                                                        VERBOSE=VERBOSE)
                     else:
                         logger.error(f"Unknown error in generating initial conformation for {name}, skipping it.")
                         log_error(smiles, name)
@@ -1499,6 +1507,8 @@ def main():
     parser.add_argument('--randomSeed', '-rs',type=int, default=42, help=argparse.SUPPRESS)
     parser.add_argument('--test', action='store_true', help=argparse.SUPPRESS)
     parser.add_argument('--synthon', action='store_true', help=argparse.SUPPRESS)
+    parser.add_argument('--torsion', '-t', type=str, default=None, help='File containing custom torsion rules.')
+    parser.add_argument('--rmsd', '-rmsd', type=float, default=0.5, help=argparse.SUPPRESS)
 
     args = parser.parse_args()
 
