@@ -11,7 +11,7 @@ from pandas import DataFrame, concat, read_csv  # only what you use
 from rdkit import Chem
 from rdkit.Chem import rdMolTransforms, rdMolAlign
 from rdkit.Chem.rdchem import Mol, Conformer
-from scipy.spatial.distance import pdist, squareform
+# from scipy.spatial.distance import pdist, squareform
 from pathlib import Path
 
 # from msani.filtering import strain_filter
@@ -468,43 +468,32 @@ def precompute_bonded_and_same_parent_pairs(mol):
 
     return bonded_pairs, same_parent_pairs
 
-
-def check_too_close_nonbonded_atoms(conformer, mol, bonded_pairs, same_parent_pairs, threshold=1.6):
+def precompute_nonbonded_pairs(mol, bonded_pairs, same_parent_pairs):
     """
-    Check if any non-bonded and non-same-parent atoms in a given conformer are too close to each other.
-
-    Parameters:
-    conformer (rdkit.Chem.rdchem.Conformer): The RDKit conformer object.
-    mol (rdkit.Chem.Mol): The RDKit molecule object.
-    bonded_pairs (set): Precomputed set of bonded atom pairs.
-    same_parent_pairs (set): Precomputed set of atoms that share the same parent atom.
-    threshold (float): The distance threshold below which atoms are considered too close.
-
-    Returns:
-    bool: True if any non-bonded atoms are too close, False otherwise.
+    Precompute all atom pairs that need to be checked for steric clashes.
+    This avoids recomputing bonded/same-parent exclusions for every conformer.
     """
-    positions = conformer.GetPositions()
     num_atoms = mol.GetNumAtoms()
-
-    # Compute pairwise distances between all atoms
-    pairwise_distances = pdist(positions)
-
-    # Convert pairwise distances into a square matrix form
-    distance_matrix = squareform(pairwise_distances)
-
-    # Iterate over all atom pairs and check distances
+    candidate_pairs = []
     for i in range(num_atoms):
         for j in range(i + 1, num_atoms):
-            # Skip if the atoms are bonded or share a common parent
             if (i, j) in bonded_pairs or (i, j) in same_parent_pairs:
                 continue
+            candidate_pairs.append((i, j))
+    return np.array(candidate_pairs, dtype=np.int32)
 
-            # Check if the distance is below the threshold
-            if distance_matrix[i, j] < threshold:
-                #print(i, j, distance_matrix[i, j])
-                return True
 
-    return False
+def check_too_close_nonbonded_atoms_vec(conformer, candidate_pairs, threshold=1.6):
+    """
+    Vectorized steric clash check:
+    - Uses precomputed candidate pairs
+    - Computes all distances in a single NumPy batch
+    - Returns early if any clash is detected
+    """
+    coords = np.asarray(conformer.GetPositions(), dtype=np.float64)
+    diffs = coords[candidate_pairs[:, 0]] - coords[candidate_pairs[:, 1]]
+    d2 = np.einsum("ij,ij->i", diffs, diffs)  # squared distances
+    return np.any(d2 < threshold * threshold)
 
 
 

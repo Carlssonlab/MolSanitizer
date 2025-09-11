@@ -487,9 +487,7 @@ class ConformerGenerator:
         '''
         Embed the SMILES string using Open Babel. CLI version is used as it is found more flexible 
         than the RDKit version.'''
-        if not OBABEL_AVAILABLE:
-            raise ImportError("Open Babel is not installed or not found. Please install Open Babel to use this feature.")
-                                        # -h: add hs; gen3d
+                                            # -h: add hs; gen3d
         cmd = ["obabel", f"-:{self.smiles}", "-h", "--gen3d", "-osdf"]
 
         # Execute the command and capture stdout
@@ -581,6 +579,7 @@ class ConformerGenerator:
         last_product_size = 0
 
         bonded_pairs, same_parent_pairs = utils.precompute_bonded_and_same_parent_pairs(mol)
+        candidate_pairs = utils.precompute_nonbonded_pairs(mol, bonded_pairs, same_parent_pairs)
         n_transform = len(match_torlib)  # Number of rotatable bonds
         visitting = [0 for _ in range(n_transform)]
         
@@ -613,7 +612,7 @@ class ConformerGenerator:
                 rdMolTransforms.SetDihedralDeg(mol.GetConformer(0), *bond[1], value=random_angle)
             #print(visitting)
             if utils.is_similar_conformer(array(visitting), visited, tol = self.tolerance) or \
-                utils.check_too_close_nonbonded_atoms(mol.GetConformer(0), mol, bonded_pairs, same_parent_pairs, threshold = self.threshold):
+                utils.check_too_close_nonbonded_atoms_vec(mol.GetConformer(0), candidate_pairs, threshold=self.threshold):
                 attempts += 1
                 stagnation_counter += 1
                 if attempts > max_attempts:
@@ -786,6 +785,8 @@ class ConformerGenerator:
         """
         random.seed(self.randomSeed)
         bonded_pairs, same_parent_pairs = utils.precompute_bonded_and_same_parent_pairs(mol)
+        candidate_pairs = utils.precompute_nonbonded_pairs(mol, bonded_pairs, same_parent_pairs)
+
         attempts = 0
         min_energy = 1e6
   
@@ -812,7 +813,7 @@ class ConformerGenerator:
                     # Set the dihedral angle for the corresponding bond
                     rdMolTransforms.SetDihedralDeg(mol.GetConformer(0), *dihedral_atoms, angle)
                 # If atoms are too close or if we already visited this conformation
-                if utils.check_too_close_nonbonded_atoms(mol.GetConformer(0), mol, bonded_pairs, same_parent_pairs, threshold = self.threshold):
+                if utils.check_too_close_nonbonded_atoms_vec(mol.GetConformer(0), candidate_pairs, threshold=self.threshold):
                     continue
 
                 ff = rdForceFieldHelpers.MMFFGetMoleculeForceField(mol, self.mp, confId=0)
@@ -874,7 +875,7 @@ class ConformerGenerator:
                     stagnation_counter += 1
                     continue
                 
-                if utils.check_too_close_nonbonded_atoms(mol.GetConformer(0), mol, bonded_pairs, same_parent_pairs, threshold = self.threshold):
+                if utils.check_too_close_nonbonded_atoms_vec(mol.GetConformer(0), candidate_pairs, threshold=self.threshold):
                     attempts += 1
                     stagnation_counter += 1
                     visited.add(state_tuple)
