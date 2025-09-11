@@ -1056,8 +1056,8 @@ def cluster_conformer_by_bestrmsd(current_conformer, previous_conformers, cutoff
         prev_conf_ids.append(prev_conf_id)
     
     # Remove non-polar hydrogens for RMSD calculation
-    mol_no_h = remove_nonpolar_hydrogens(temp_mol)
-    
+    # mol_no_h = remove_nonpolar_hydrogens(temp_mol)
+    mol_no_h = Chem.RemoveAllHs(temp_mol)
     # Compare current conformer against each previous conformer
     for prev_conf_id in prev_conf_ids:
         try:

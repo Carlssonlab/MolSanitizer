@@ -124,7 +124,7 @@ class ConformerGenerator:
                  request_alignment = None,
                  ignoreTorlib = False,
                  threshold = 1.6,
-                 rmsd = 0.3,
+                 rmsd = 0.5,
                  mode = 'fixed',
                  tolerance = 30,
                  torlib = Torlib,
@@ -198,7 +198,7 @@ class ConformerGenerator:
                            request_alignment = None,
                            mode:str = 'vs',
                            tolerance = 30,
-                           rmsd = 0.3,
+                           rmsd = 0.5,
                            VERBOSE=False):
         """Alternative constructor that initializes from existing data"""
 
