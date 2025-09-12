@@ -818,14 +818,14 @@ class ConformerGenerator:
                     # Set the dihedral angle for the corresponding bond
                     rdMolTransforms.SetDihedralDeg(mol.GetConformer(0), *dihedral_atoms, angle)
                 # If atoms are too close or if we already visited this conformation
-                if utils.check_too_close_nonbonded_atoms_vec(mol.GetConformer(0), candidate_pairs, threshold=self.threshold) or\
-                    utils.cluster_conformer_by_bestrmsd(mol.GetConformer(0), product, cutoff=self.rmsd, mol=mol):
+                if utils.check_too_close_nonbonded_atoms_vec(mol.GetConformer(0), candidate_pairs, threshold=self.threshold):
                     continue
 
                 ff = rdForceFieldHelpers.MMFFGetMoleculeForceField(mol, self.mp, confId=0)
                 energy = ff.CalcEnergy()
                 if energy < min_energy: min_energy = energy
-                if energy <= min_energy + window: product.append((Chem.Conformer(mol.GetConformer(0)), energy))
+                if energy <= min_energy + window and not(utils.is_similar_rmsd(mol.GetConformer(0), product, cutoff=self.rmsd, mol=mol)): 
+                    product.append((Chem.Conformer(mol.GetConformer(0)), energy))
         else:
             # Reweight the importance of the bonds
             # If the number of conformations is too large, we can randomly sample
@@ -881,8 +881,7 @@ class ConformerGenerator:
                     stagnation_counter += 1
                     continue
                 
-                if utils.check_too_close_nonbonded_atoms_vec(mol.GetConformer(0), candidate_pairs, threshold=self.threshold) or \
-                    utils.cluster_conformer_by_bestrmsd(mol.GetConformer(0), product, cutoff=self.rmsd, mol=mol):
+                if utils.check_too_close_nonbonded_atoms_vec(mol.GetConformer(0), candidate_pairs, threshold=self.threshold):
                     attempts += 1
                     stagnation_counter += 1
                     visited.add(state_tuple)
@@ -892,7 +891,7 @@ class ConformerGenerator:
                 ff = rdForceFieldHelpers.MMFFGetMoleculeForceField(mol, self.mp, confId=0)
                 energy = ff.CalcEnergy()
                 if energy < min_energy: min_energy = energy
-                if energy <= min_energy + window: 
+                if energy <= min_energy + window and not(utils.is_similar_rmsd(mol.GetConformer(0), product, cutoff=self.rmsd, mol=mol)):
                     product.append((Chem.Conformer(mol.GetConformer(0)), energy))
                 
                 # Check for early stopping conditions
