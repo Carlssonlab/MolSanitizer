@@ -700,7 +700,7 @@ class ConformerGenerator:
             return
         # For very flexible molecules, we need to sample more, then filter by energy later
         else:
-            numConfs = min(numConfs*1.5, numConfs + 1000, possible_numConfs)
+            numConfs = min(numConfs*1.5, numConfs + 200, possible_numConfs)
             
 
         if self.VERBOSE:
@@ -770,6 +770,7 @@ class ConformerGenerator:
                                importance_order,
                                window = 25,
                                max_attempts=50_000,
+                               hetero_H_bonds = [],
                                product=list()):
         """
         Perform stochastic sampling of conformers based on a given angle map and score map.
@@ -783,6 +784,7 @@ class ConformerGenerator:
             importance_order (list): A list of weights for the importance of each bond.
             window (float): The energy window for accepting conformers.
             max_attempts (int): The maximum number of attempts to generate conformers.
+            hetero_H_bonds (list): A list of tuples representing heteroatom-hydrogen bonds to consider.
             product (list): A list to store the generated conformers and their energies.
 
         Returns:
@@ -794,7 +796,14 @@ class ConformerGenerator:
 
         attempts = 0
         min_energy = 1e6
-  
+        visited_core = set()
+        visited_full = set()
+
+        num_hetero_H_bonds = len(hetero_H_bonds)
+
+        if num_hetero_H_bonds > 0:
+            if self.VERBOSE: print(f"\tConsidering {num_hetero_H_bonds} heteroatom-H bonds for rotations")
+            
         if possible_numConfs <= max_attempts: # Try 
             # Generate all combinations, then randomly taken from them, only valid for small combinatorial space
             # If the number of conformations is manageable, we can enumerate all combinations
@@ -808,7 +817,8 @@ class ConformerGenerator:
 
             while len(product) < numConfs and len(unvisited) > 0:
                 choice = unvisited.pop()  # Randomly select a combination of dihedral angles
-
+                core_choice = choice[:-num_hetero_H_bonds] if num_hetero_H_bonds > 0 else choice
+                #print(core_choice)
                 # Set the dihedrals based on the chosen combination
                 for idx, val in enumerate(angle_map.values()): #Iterate through the rotatable bonds
                     dihedral_atoms = val[1]  # Get the atom indices for the dihedral
@@ -817,15 +827,27 @@ class ConformerGenerator:
                     # bond_idx corresponds to the index of the bond in the list of rotatable bonds
                     # Set the dihedral angle for the corresponding bond
                     rdMolTransforms.SetDihedralDeg(mol.GetConformer(0), *dihedral_atoms, angle)
-                # If atoms are too close or if we already visited this conformation
+
+                # If atoms are too close
                 if utils.check_too_close_nonbonded_atoms_vec(mol.GetConformer(0), candidate_pairs, threshold=self.threshold):
                     continue
 
                 ff = rdForceFieldHelpers.MMFFGetMoleculeForceField(mol, self.mp, confId=0)
                 energy = ff.CalcEnergy()
                 if energy < min_energy: min_energy = energy
-                if energy <= min_energy + window and not(utils.is_similar_rmsd(mol.GetConformer(0), product, cutoff=self.rmsd, mol=mol)): 
-                    product.append((Chem.Conformer(mol.GetConformer(0)), energy))
+                if energy <= min_energy + window:
+                    # Allow identical core with different hetero-H bond orientations
+                    if num_hetero_H_bonds > 0 and core_choice in visited_core:
+                        product.append((Chem.Conformer(mol.GetConformer(0)), energy))
+                        visited_full.add(choice)
+                        visited_core.add(core_choice)
+
+                    # Different core, check RMSD to generated cores
+                    elif not(utils.is_similar_rmsd(mol.GetConformer(0), product, cutoff=self.rmsd, mol=mol, numcores=self.numcores)):
+                        #print(len(product), visited_full)
+                        product.append((Chem.Conformer(mol.GetConformer(0)), energy))
+                        visited_full.add(choice)
+                        visited_core.add(core_choice)
         else:
             # Reweight the importance of the bonds
             # If the number of conformations is too large, we can randomly sample
@@ -836,9 +858,8 @@ class ConformerGenerator:
             
             # Initialize tracking variables for angles
             k = len(angle_map)
-            visited = set()
-            visitting = [0] * len(angle_map)
 
+            visitting = [0] * len(angle_map)
             # Adaptive sampling parameters
             max_stagnation = min(max_attempts // 10, 1000)  # Stop if no progress
             stagnation_counter = 0
@@ -875,31 +896,37 @@ class ConformerGenerator:
                     rdMolTransforms.SetDihedralDeg(mol.GetConformer(0), *dihedral_atoms, angle)
                 
                 state_tuple = tuple(visitting)    
-                
-                if state_tuple in visited:
+                core_tuple = tuple(visitting[:-num_hetero_H_bonds]) if num_hetero_H_bonds > 0 else state_tuple
+                if state_tuple in visited_full:
                     attempts += 1
                     stagnation_counter += 1
                     continue
                 
+                visited_full.add(state_tuple)                
                 if utils.check_too_close_nonbonded_atoms_vec(mol.GetConformer(0), candidate_pairs, threshold=self.threshold):
                     attempts += 1
                     stagnation_counter += 1
-                    visited.add(state_tuple)
                     continue
 
-                visited.add(state_tuple)
                 ff = rdForceFieldHelpers.MMFFGetMoleculeForceField(mol, self.mp, confId=0)
                 energy = ff.CalcEnergy()
                 if energy < min_energy: min_energy = energy
-                if energy <= min_energy + window and not(utils.is_similar_rmsd(mol.GetConformer(0), product, cutoff=self.rmsd, mol=mol)):
-                    product.append((Chem.Conformer(mol.GetConformer(0)), energy))
-                
+                if energy <= min_energy + window:
+                    # Allow identical core with different hetero-H bond orientations
+                    if num_hetero_H_bonds > 0 and core_tuple in visited_core:
+                        product.append((Chem.Conformer(mol.GetConformer(0)), energy))
+                        visited_core.add(core_tuple)
+                    # Different core, check RMSD to generated cores
+                    elif not(utils.is_similar_rmsd(mol.GetConformer(0), product, cutoff=self.rmsd, mol=mol, numcores=self.numcores)):
+                        product.append((Chem.Conformer(mol.GetConformer(0)), energy))
+                        visited_core.add(core_tuple)
+
                 # Check for early stopping conditions
                 if len(product) == last_product_size:
                     stagnation_counter += 1
                 else:
                     stagnation_counter = 0
-                    last_product_size = len(product)
+                    last_product_size += 1
                     
                 
         return product
@@ -913,13 +940,13 @@ class ConformerGenerator:
         """
         Perceive the allowed dihedral angles and call stochastic sampling to generate conformers.
         """
-        possible_numConfs, angle_map, score_map, rot_bonds = utils.count_confs_by_rotbonds_v2(mol = self.ring_confs[0],
+        possible_numConfs, angle_map, score_map, self.rot_bonds, self.hetero_H_bonds = utils.count_confs_by_rotbonds_v2(mol = self.ring_confs[0],
                                                                                    rot_bonds = self.rot_bonds,
                                                                                    amide_bonds = self.amide_linkages,
                                                                                    ignoretorlib = ignoreTorlib,
                                                                                    torlib = self.torlib,
                                                                                    VERBOSE=self.VERBOSE)
-        importance_order = utils.get_importance_order(self.ring_confs[0], rot_bonds)
+        importance_order = utils.get_importance_order(self.ring_confs[0], self.rot_bonds)
         requested_num_confs = numConfs
 
         if self.VERBOSE:
@@ -955,7 +982,7 @@ class ConformerGenerator:
               
             # Only remap the match_torlib when sulfo_matches is found
             if self.sulfo_matches: 
-                possible_numConfs, angle_map, score_map, _ = utils.count_confs_by_rotbonds_v2(mol = mol,
+                possible_numConfs, angle_map, score_map, _, _ = utils.count_confs_by_rotbonds_v2(mol = mol,
                                                                                             rot_bonds = self.rot_bonds,
                                                                                             ignoretorlib = ignoreTorlib,
                                                                                             amide_bonds = self.amide_linkages,
@@ -970,7 +997,8 @@ class ConformerGenerator:
                                                   possible_numConfs = possible_numConfs,
                                                   importance_order =  importance_order, 
                                                   window = energywindow, 
-                                                  max_attempts = 50_000, 
+                                                  max_attempts = 50_000,
+                                                  hetero_H_bonds = self.hetero_H_bonds, 
                                                   product = list())
             
             if len(product) == 0:
@@ -981,7 +1009,7 @@ class ConformerGenerator:
                                                              ignoretorlib = ignoreTorlib,
                                                              torlib = self.torlib,
                                                              VERBOSE = self.VERBOSE)
-                numConfs = min(numConfs*1.5, numConfs + 1000, possible_numConfs)
+                numConfs = min(numConfs*1.5, numConfs + 200, possible_numConfs)
                 product = self.stochastic_sampling( mol = processing_mol,
                                                     tolerance_level = 2, 
                                                     match_torlib = match_torlib,

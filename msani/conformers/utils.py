@@ -42,7 +42,10 @@ hydantoin = Chem.MolFromSmarts('[C;$(C~[OX1,SX1]):1]1~[N:2]~[C;$(C~[OX1,SX1]):3]
 substituted_N_barbi_hydan_like = Chem.MolFromSmarts('*~[C^2,N^2:1][C^2,N^2:2][C^2,N^2:3]')
 amide_substructure = Chem.MolFromSmarts('[$(C=O):1]!@[NX3&+0:2]') #primary, secondary amide for constrained planarity only
 aliphatic_hydroxyl_thiol = Chem.MolFromSmarts('C-[OX2H,SX2H]') #aliphatic hydroxyls and thiols
-phenol_thiolphenol = Chem.MolFromSmarts('c-[OX2H,SX2H]') #phenol and thiophenol
+phenol_thiolphenol = Chem.MolFromSmarts('a-[OX2H,SX2H]') #phenol and thiophenol
+hydroxamic_acid = Chem.MolFromSmarts('[NX3;$(N(-C=O))]-[OX2H1]') #hydroxamic acid and its tautomeric aci form
+hydroxyl_amine = Chem.MolFromSmarts('[NX3;!$(N~*=[O,S])!$(N=,#*):1]!@[OX2H1:2]') #hydroxylamine and its tautomeric aci form
+
 const_rule = [(-120, 30, 30, 1), (-60, 30, 30, 1), (0, 30, 30, 1), (60, 30, 30, 1), (120, 30, 30, 1), (180, 30, 30, 1)]
 
 
@@ -795,6 +798,100 @@ def filter_symmetric_angles(angles, scores, symmetry_angle=180, tolerance=10):
 
     return kept_angles, kept_scores
 
+def _zero_out_fluctuations(rule):
+    """Helper function to zero out fluctuations in a rule."""
+    adjusted_peaks = []
+    for peak in rule[2]:
+        if isinstance(peak, tuple) and len(peak) >= 3:
+            adjusted_peaks.append((peak[0], 0, 0) + peak[3:])
+        else:
+            adjusted_peaks.append(peak)
+    rule[2] = adjusted_peaks
+
+def _process_hetero_hydrogen_bonds(mol, bond_to_rule):
+    """Process hydroxyl and thiol bonds with special angle rules."""
+    hetero_H_bonds = []
+    
+    # Define bond patterns and their corresponding angle rules
+    bond_patterns = [
+        (aliphatic_hydroxyl_thiol, [(0, 0, 0, 1), (120, 0, 0, 1), (-120, 0, 0, 1)]),
+        (phenol_thiolphenol, [(0, 0, 0, 1), (180, 0, 0, 1)]),
+        (hydroxamic_acid, [(0, 0, 0, 1), (180, 0, 0, 1)]),
+        (hydroxyl_amine, [(-120, 0, 0, 1), (120, 0, 0, 1)])
+    ]
+    
+    for pattern, angles in bond_patterns:
+        for match in mol.GetSubstructMatches(pattern):
+            bond_key = tuple(sorted(match))
+            if bond_key in bond_to_rule:
+                bond_to_rule[bond_key][2] = list(angles)
+                hetero_H_bonds.append(bond_key)
+    
+    return hetero_H_bonds
+
+def _reorder_bonds(rot_bonds, hetero_H_bonds):
+    """Reorder bonds to put hetero-H bonds at the end."""
+    return ([b for b in rot_bonds if b not in hetero_H_bonds] + 
+            [b for b in rot_bonds if b in hetero_H_bonds])
+
+def _extract_angles_from_peaks(peak_list):
+    """Extract angles and scores from peak list."""
+    angle_list = []
+    score_list = []
+    
+    for peak in peak_list:
+        if len(peak) < 4:
+            # Fallback case (e.g., symmetric angle filtering already applied)
+            angle_list = [p[0] for p in peak_list]
+            score_list = [p[1] for p in peak_list]
+            break
+        
+        angle_vals = discretinize_dihedrals(peak[0], peak[2])
+        angle_list.extend(angle_vals)
+        score_list.extend([peak[3]] * len(angle_vals))
+    
+    return angle_list, score_list
+
+
+def _deduplicate_angles(angle_list, score_list):
+    """Remove angles that are too similar (within ±30 degrees)."""
+    deduplicated_angles = []
+    deduplicated_scores = []
+    
+    for angle, score in zip(angle_list, score_list):
+        # Only add if not too similar to any existing angle
+        is_similar = any(
+            abs(angular_diff(angle, existing)) < 30 
+            for existing in deduplicated_angles
+        )
+        if not is_similar:
+            deduplicated_angles.append(angle)
+            deduplicated_scores.append(score)
+    
+    return deduplicated_angles, deduplicated_scores
+
+def _generate_angle_mappings(bond_to_rule_reordered):
+    """Generate final angle and score mappings."""
+    angle_map = {}
+    score_map = {}
+    total_confs = 1
+    
+    for bond_idx, rule in enumerate(bond_to_rule_reordered.values()):
+        name, atom_indices, peak_list = rule
+        
+        # Extract angles and scores from peaks
+        angle_list, score_list = _extract_angles_from_peaks(peak_list)
+        
+        # Remove duplicate angles
+        deduplicated_angles, deduplicated_scores = _deduplicate_angles(angle_list, score_list)
+        
+        # Update mappings
+        angle_map[bond_idx] = [name, atom_indices, deduplicated_angles]
+        score_map[bond_idx] = deduplicated_scores
+        total_confs *= len(deduplicated_angles)
+    
+    return angle_map, score_map, total_confs
+
 def count_confs_by_rotbonds_v2(mol,
                                rot_bonds,
                                ignoretorlib = False,
@@ -839,8 +936,7 @@ def count_confs_by_rotbonds_v2(mol,
     bond_to_rule = {}
     for bond in rot_bonds:
         if bond in rule_by_bond:
-            rule = rule_by_bond[bond]
-            rule_copy = list(rule)
+            rule_copy = list(rule_by_bond[bond])
             
             # Only apply ignoretorlib if not amide bonds
             if ignoretorlib and len(set(bond) & amide_atoms) <= 1:
@@ -852,16 +948,8 @@ def count_confs_by_rotbonds_v2(mol,
     if (amide_bonds):
         for amide_match in amide_bonds:
             bond_key = tuple(sorted(amide_match[0:2]))
-            if bond_key not in bond_to_rule:
-                continue
-            rule = bond_to_rule[bond_key]
-            adjusted_peaks = []
-            for peak in rule[2]:
-                if isinstance(peak, tuple) and len(peak) >= 3:
-                    adjusted_peaks.append((peak[0], 0, 0) + peak[3:])
-                else:
-                    adjusted_peaks.append(peak)
-            rule[2] = adjusted_peaks
+            if bond_key in bond_to_rule:
+                _zero_out_fluctuations(bond_to_rule[bond_key])
 
     # Zero out fluctuations for primary amidines, guanidines:
     uniq_matches_prim_amidines_guanidines = set()
@@ -870,114 +958,88 @@ def count_confs_by_rotbonds_v2(mol,
             uniq_matches_prim_amidines_guanidines.add(tuple(sorted(match[1:3])))
 
     for bond_key in list(uniq_matches_prim_amidines_guanidines):
-        if bond_key not in bond_to_rule: continue
-        rule = bond_to_rule[bond_key]
-        adjusted_peaks = []
-        for peak in rule[2]:
-            if isinstance(peak, tuple) and len(peak) >= 3:
-                adjusted_peaks.append((peak[0], 0, 0) + peak[3:])
-            else:
-                adjusted_peaks.append(peak)
-        rule[2] = adjusted_peaks
+        if bond_key in bond_to_rule: 
+            _zero_out_fluctuations(bond_to_rule[bond_key])
 
-    # Step 3: Speciall treatment for hydroxyls/thiols
+    # Step 3: Special treatment for hydroxyls/thiols
+    hetero_H_bonds = _process_hetero_hydrogen_bonds(mol, bond_to_rule)
+
+
+    # Step 4: Apply symmetry filtering
+    _apply_symmetry_filtering(mol, bond_to_rule, rot_bonds, VERBOSE)
     
-    for match in mol.GetSubstructMatches(aliphatic_hydroxyl_thiol):
-        bond_key = tuple(sorted(match[0:2]))
-        if bond_key not in bond_to_rule:
-            continue
-        rule = bond_to_rule[bond_key]
-        rule[2] = list(((0, 0, 0,1), (120, 0, 0, 1), (-120, 0, 0, 1)))
+    # Step 5: Reorder bonds and create final mappings
+    rot_bonds_reordered = _reorder_bonds(rot_bonds, hetero_H_bonds)
+    bond_to_rule_reordered = {b: bond_to_rule[b] for b in rot_bonds_reordered}
+    
+    # Step 6: Generate angle and score mappings
+    angle_map, score_map, total_confs = _generate_angle_mappings(bond_to_rule_reordered)
+    
+    return total_confs, angle_map, score_map, rot_bonds_reordered, hetero_H_bonds
 
-    for match in mol.GetSubstructMatches(phenol_thiolphenol):
-        bond_key = tuple(sorted(match[0:2]))
-        if bond_key not in bond_to_rule:
-            continue
-        rule = bond_to_rule[bond_key]
-        rule[2] = list(((0, 0, 0, 1), (180, 0, 0, 1)))
-
-    # Step 4: Apply symmetry filtering to avoid redundant angles
+def _apply_symmetry_filtering(mol, bond_to_rule, rot_bonds, VERBOSE):
+    """Apply symmetry filtering to avoid redundant angles."""
     for _, sym_row in symmetric_patterns_df.iterrows():
         matches = mol.GetSubstructMatches(sym_row['mol'])
         if not matches:
             continue
+            
         if VERBOSE:
             print(f"\tFound symmetric pattern: {sym_row['name']}")
+            
         period = 360 / sym_row['num_scaled']
-        check_symmetric_using_dfs = True if sym_row['name'].startswith('general') else False
+        check_symmetric_using_dfs = sym_row['name'].startswith('general')
+        
         for match in matches:
             if check_symmetric_using_dfs:
-                # Use a dfs to traverse in the Molecule graph, then compare the fragment smiles
                 idx2, idx3, idx4, idx5 = match[0], match[1], match[2], match[-1]
-                if not(identical_substituents(mol, idx2, idx3, idx4, idx5)): continue
+                if not identical_substituents(mol, idx2, idx3, idx4, idx5):
+                    continue
             
             bond_key = tuple(sorted(match[:2]))
             if bond_key not in bond_to_rule:
                 continue
-            if period == 1: 
+
+            # Handle complete rotation removal (period == 1)
+            if period == 1:
                 bond_to_rule.pop(bond_key)
                 rot_bonds.remove(bond_key)
                 continue
 
+            # Handle special case for tri_large_halogeno_methyl
             if sym_row['name'] == 'tri_large_halogeno_methyl':
-                # Special case for tri_large_halogeno_methyl, where we want to permute + 30o.
-                rule = bond_to_rule[bond_key]
-                peaks = rule[2]
-                angles = [normalize_angle(peaks[0][0] + x) for x in [0, -30, 30]]
-                scores = [peaks[0][3], round(peaks[0][3]/2, 2), round(peaks[0][3]/2, 2)]
-                rule[2] = list(zip(angles, scores))
-            if VERBOSE:
-                print(f'\tRemove duplicated rotation for {bond_key}')
-            rule = bond_to_rule[bond_key]
-            angles, scores = [], []
-            if len(rule[2][0]) < 4:
-                # Already reduced for this angle, skip further reduced
+                _handle_tri_halogeno_methyl(bond_to_rule[bond_key])
                 continue
-            for peak in rule[2]:
-                angle_list = discretinize_dihedrals(peak[0], peak[2])
-                angles.extend(angle_list)
-                scores.extend([peak[3]] * len(angle_list))
-            filtered_angles, filtered_scores = filter_symmetric_angles(angles, scores, period, 10)
-            rule[2] = list(zip(filtered_angles, filtered_scores))
+            
+            # Apply symmetry filtering
+            _filter_symmetric_rule(bond_to_rule[bond_key], period, VERBOSE, bond_key)
+
+def _handle_tri_halogeno_methyl(rule):
+    """Handle special case for tri_large_halogeno_methyl pattern."""
+    peaks = rule[2]
+    angles = [normalize_angle(peaks[0][0] + x) for x in [0, -30, 30]]
+    scores = [peaks[0][3], round(peaks[0][3]/2, 2), round(peaks[0][3]/2, 2)]
+    rule[2] = list(zip(angles, scores))
 
 
-    # Step 5: Discretize angles and estimate total possible conformations
-    angle_map = {}
-    score_map = {}
-    total_confs = 1
-    for bond_idx, rule in enumerate(bond_to_rule.values()):
-        name, atom_indices, peak_list = rule
-        angle_list = []
-        score_list = []
-        total_angles = 0
-        for peak in peak_list:
-            if len(peak) < 4:
-                # fallback case (e.g., symmetric angle filtering already applied)
-                angle_list = [peak[0] for peak in peak_list]
-                score_list = [peak[1] for peak in peak_list]
-                total_angles = len(angle_list)
-                break
-            angle_vals = discretinize_dihedrals(peak[0], peak[2])
-            angle_list.extend(angle_vals)
-            score_list.extend([peak[3]] * len(angle_vals))
+def _filter_symmetric_rule(rule, period, VERBOSE, bond_key):
+    """Apply symmetric filtering to a torsion rule."""
+    if VERBOSE:
+        print(f'\tRemove duplicated rotation for {bond_key}')
         
+    # Skip if already processed
+    if len(rule[2][0]) < 4:
+        return
+    
+    angles, scores = [], []
+    for peak in rule[2]:
+        angle_list = discretinize_dihedrals(peak[0], peak[2])
+        angles.extend(angle_list)
+        scores.extend([peak[3]] * len(angle_list))
+    
+    filtered_angles, filtered_scores = filter_symmetric_angles(angles, scores, period, 10)
+    rule[2] = list(zip(filtered_angles, filtered_scores))
 
-        # Filter out too similar angles (within <±30 degrees)
-        deduplicated_angles = []
-        deduplicated_scores = []
-        for angle, score in zip(angle_list, score_list):
-            # Only add if not too similar to any existing angle
-            if not any(abs(angular_diff(angle, existing)) < 30 for existing in deduplicated_angles):
-                deduplicated_angles.append(angle)
-                deduplicated_scores.append(score)
-
-        total_angles = len(deduplicated_angles)
-        angle_map[bond_idx] = [name, atom_indices, deduplicated_angles]
-        score_map[bond_idx] = deduplicated_scores
-        total_confs *= total_angles
-
-    # PUSH ALL THE HYDROXYL/TIOL BONDS TO THE END AND REPORT THE NUMBER OF THESE BONDS FOR FURTHER PROCESSING
-    return total_confs, angle_map, score_map, rot_bonds
 
 def within_tolerance(angle, center, tolerance):
     """
@@ -1022,7 +1084,7 @@ def remove_nonpolar_hydrogens(mol: Chem.Mol) -> Chem.Mol:
     return editable.GetMol()
 
 
-def is_similar_rmsd(current_conformer, previous_conformers, cutoff, mol=None):
+def is_similar_rmsd(current_conformer, previous_conformers, cutoff, mol=None, numcores=1):
     """
     Cluster conformers based on BestRMS to determine if a new conformer is similar to existing ones.
     
@@ -1040,6 +1102,7 @@ def is_similar_rmsd(current_conformer, previous_conformers, cutoff, mol=None):
         mol (Chem.Mol, optional): RDKit molecule object. If provided, will be used
                                  for RMSD calculation. If None, a temporary molecule
                                  will be created from the conformers.
+        numcores (int): number of cores for multiprocessing.
     
     Returns:
         bool: True if the current conformer is similar to any previous conformer 
@@ -1081,7 +1144,7 @@ def is_similar_rmsd(current_conformer, previous_conformers, cutoff, mol=None):
             # Calculate BestRMS between the conformers
             rmsd = rdMolAlign.GetBestRMS(mol_no_h, mol_no_h, 
                                          prbId=current_conf_id, refId=prev_conf_id,
-                                         maxMatches=1000)
+                                         maxMatches=1000, numThreads=numcores)
             # If RMSD is within cutoff, conformers are considered similar
             if rmsd <= cutoff:
                 return True
