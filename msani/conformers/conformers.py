@@ -648,6 +648,7 @@ class ConformerGenerator:
                       eps = 1, 
                       ignoreTorlib = False, 
                       AllowNonRing = False, 
+                      timeout_conf = 2,
                       request_alignment=None):
         """
         Perceive the allowed dihedral angles and call stochastic sampling to generate conformers.
@@ -677,6 +678,7 @@ class ConformerGenerator:
             self.conf_samplingv2(numConfs = numConfs,
                                  energywindow = energywindow,
                                  AllowNonRing = AllowNonRing,
+                                 timeout_conf = timeout_conf,
                                  request_alignment = request_alignment)
             return
         possible_numConfs, match_torlib = utils.count_confs_by_rotbonds(
@@ -771,6 +773,7 @@ class ConformerGenerator:
                                window = 25,
                                max_attempts=50_000,
                                hetero_H_bonds = [],
+                               timeout_conf = 2,
                                product=list()):
         """
         Perform stochastic sampling of conformers based on a given angle map and score map.
@@ -785,6 +788,7 @@ class ConformerGenerator:
             window (float): The energy window for accepting conformers.
             max_attempts (int): The maximum number of attempts to generate conformers.
             hetero_H_bonds (list): A list of tuples representing heteroatom-hydrogen bonds to consider.
+            timeout_conf (int): The timeout in seconds for generating conformers.
             product (list): A list to store the generated conformers and their energies.
 
         Returns:
@@ -798,6 +802,10 @@ class ConformerGenerator:
         min_energy = 1e6
         visited_core = set()
         visited_full = set()
+
+        timeout_conf *= 60
+        if timeout_conf > 0:
+            start_time = time.time()
 
         num_hetero_H_bonds = len(hetero_H_bonds)
 
@@ -816,6 +824,10 @@ class ConformerGenerator:
             random.shuffle(unvisited)
 
             while len(product) < numConfs and len(unvisited) > 0:
+                if timeout_conf > 0 and attempts % 100 == 0 and utils.check_timeout(start_time, timeout_conf):
+                    if self.VERBOSE:
+                        print(f"Timeout criteria met (attempted {attempts}). Generated {len(product)} conformers.")
+                    break
                 choice = unvisited.pop()  # Randomly select a combination of dihedral angles
                 core_choice = choice[:-num_hetero_H_bonds] if num_hetero_H_bonds > 0 else choice
                 #print(core_choice)
@@ -861,7 +873,7 @@ class ConformerGenerator:
 
             visitting = [0] * len(angle_map)
             # Adaptive sampling parameters
-            max_stagnation = min(max_attempts // 10, 1000)  # Stop if no progress
+            max_stagnation = min(max_attempts // 10, 2000)  # Stop if no progress
             stagnation_counter = 0
             last_product_size = 0
 
@@ -871,6 +883,12 @@ class ConformerGenerator:
                 rdMolTransforms.SetDihedralDeg(mol.GetConformer(0), *rule[1], rule[2][0])
 
             while len(product) < numConfs and attempts < max_attempts:
+
+                if timeout_conf > 0 and attempts % 100 == 0 and utils.check_timeout(start_time, timeout_conf):
+                    if self.VERBOSE:
+                        print(f"Timeout criteria met (attempted {attempts}). Generated {len(product)} conformers.")
+                    break
+
                 if stagnation_counter >= max_stagnation:
                     if self.VERBOSE:
                         print(f"Early stopping criteria met (attempted {attempts}). Generated {len(product)} conformers.")
@@ -936,6 +954,7 @@ class ConformerGenerator:
                         energywindow = 25,
                         ignoreTorlib = False, 
                         AllowNonRing=False,
+                        timeout_conf = 2,
                         request_alignment=None):
         """
         Perceive the allowed dihedral angles and call stochastic sampling to generate conformers.
@@ -983,11 +1002,11 @@ class ConformerGenerator:
             # Only remap the match_torlib when sulfo_matches is found
             if self.sulfo_matches: 
                 possible_numConfs, angle_map, score_map, _, _ = utils.count_confs_by_rotbonds_v2(mol = mol,
-                                                                                            rot_bonds = self.rot_bonds,
-                                                                                            ignoretorlib = ignoreTorlib,
-                                                                                            amide_bonds = self.amide_linkages,
-                                                                                            torlib = self.torlib,
-                                                                                            VERBOSE = self.VERBOSE)
+                                                                                                rot_bonds = self.rot_bonds,
+                                                                                                ignoretorlib = ignoreTorlib,
+                                                                                                amide_bonds = self.amide_linkages,
+                                                                                                torlib = self.torlib,
+                                                                                                VERBOSE = self.VERBOSE)
             if self.VERBOSE: print('\tRunning stochastic torsional sampling')
             
             product = self.stochastic_sampling_v2(mol = processing_mol,
@@ -999,6 +1018,7 @@ class ConformerGenerator:
                                                   window = energywindow, 
                                                   max_attempts = 50_000,
                                                   hetero_H_bonds = self.hetero_H_bonds, 
+                                                  timeout_conf = timeout_conf,
                                                   product = list())
             
             if len(product) == 0:
@@ -1524,6 +1544,7 @@ def main():
     parser.add_argument('--nringconfs', '-nr', type=int, default=1, help='Number of ring conformers to generate (default: 1).')
     parser.add_argument('--debug', '-d', action='store_true', help='Enable verbose output for debugging.')
     parser.add_argument('--timeout', '-to',type=int, default=2, help='Timeout in minutes for RDKit-based conformation generation.')
+    parser.add_argument('--timeout_conf', '-toc', type=int, default=2, help='Timeout in minutes for conformational sampling (default: 2 minutes).')
     parser.add_argument('--energywindow', '-w',type=float, default=25.0, help='Energy window for conformer generation.')
     parser.add_argument('--numcores', '-j', type=int, default=4, help='Number of CPU cores to use (default: 4).')
     parser.add_argument('--method', '-m',type=str, choices=['rdkit', 'obabel', 'corina'], default='rdkit', help='Method for initial conformation generation.')

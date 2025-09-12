@@ -3,6 +3,7 @@ import os
 import shutil
 import random
 import logging
+import time
 
 import numpy as np
 import yaml
@@ -1158,3 +1159,7 @@ def is_similar_rmsd(current_conformer, previous_conformers, cutoff, mol=None, nu
     return False
 
 
+def check_timeout(start_time, max_duration):
+    """Check if the elapsed time has exceeded the maximum duration."""
+    elapsed_time = time.time() - start_time
+    return elapsed_time > max_duration
