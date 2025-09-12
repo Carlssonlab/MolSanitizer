@@ -41,7 +41,8 @@ barbiturate = Chem.MolFromSmarts('[C;$(C~[OX1,SX1]):1]1~[N:2]~[C;$(C~[OX1,SX1]):
 hydantoin = Chem.MolFromSmarts('[C;$(C~[OX1,SX1]):1]1~[N:2]~[C;$(C~[OX1,SX1]):3]~[*^2:4]~[A:5]~1') # To 0 iteratively four consecutive atoms
 substituted_N_barbi_hydan_like = Chem.MolFromSmarts('*~[C^2,N^2:1][C^2,N^2:2][C^2,N^2:3]')
 amide_substructure = Chem.MolFromSmarts('[$(C=O):1]!@[NX3&+0:2]') #primary, secondary amide for constrained planarity only
-
+aliphatic_hydroxyl_thiol = Chem.MolFromSmarts('C-[OX2H,SX2H]') #aliphatic hydroxyls and thiols
+phenol_thiolphenol = Chem.MolFromSmarts('c-[OX2H,SX2H]') #phenol and thiophenol
 const_rule = [(-120, 30, 30, 1), (-60, 30, 30, 1), (0, 30, 30, 1), (60, 30, 30, 1), (120, 30, 30, 1), (180, 30, 30, 1)]
 
 
@@ -879,7 +880,23 @@ def count_confs_by_rotbonds_v2(mol,
                 adjusted_peaks.append(peak)
         rule[2] = adjusted_peaks
 
-    # Step 3: Apply symmetry filtering to avoid redundant angles
+    # Step 3: Speciall treatment for hydroxyls/thiols
+    
+    for match in mol.GetSubstructMatches(aliphatic_hydroxyl_thiol):
+        bond_key = tuple(sorted(match[0:2]))
+        if bond_key not in bond_to_rule:
+            continue
+        rule = bond_to_rule[bond_key]
+        rule[2] = list(((0, 0, 0,1), (120, 0, 0, 1), (-120, 0, 0, 1)))
+
+    for match in mol.GetSubstructMatches(phenol_thiolphenol):
+        bond_key = tuple(sorted(match[0:2]))
+        if bond_key not in bond_to_rule:
+            continue
+        rule = bond_to_rule[bond_key]
+        rule[2] = list(((0, 0, 0, 1), (180, 0, 0, 1)))
+
+    # Step 4: Apply symmetry filtering to avoid redundant angles
     for _, sym_row in symmetric_patterns_df.iterrows():
         matches = mol.GetSubstructMatches(sym_row['mol'])
         if not matches:
@@ -924,7 +941,7 @@ def count_confs_by_rotbonds_v2(mol,
             rule[2] = list(zip(filtered_angles, filtered_scores))
 
 
-    # Step 4: Discretize angles and estimate total possible conformations
+    # Step 5: Discretize angles and estimate total possible conformations
     angle_map = {}
     score_map = {}
     total_confs = 1
@@ -959,7 +976,7 @@ def count_confs_by_rotbonds_v2(mol,
         score_map[bond_idx] = deduplicated_scores
         total_confs *= total_angles
 
-
+    # PUSH ALL THE HYDROXYL/TIOL BONDS TO THE END AND REPORT THE NUMBER OF THESE BONDS FOR FURTHER PROCESSING
     return total_confs, angle_map, score_map, rot_bonds
 
 def within_tolerance(angle, center, tolerance):
@@ -1005,7 +1022,7 @@ def remove_nonpolar_hydrogens(mol: Chem.Mol) -> Chem.Mol:
     return editable.GetMol()
 
 
-def cluster_conformer_by_bestrmsd(current_conformer, previous_conformers, cutoff, mol=None):
+def is_similar_rmsd(current_conformer, previous_conformers, cutoff, mol=None):
     """
     Cluster conformers based on BestRMS to determine if a new conformer is similar to existing ones.
     
@@ -1063,7 +1080,8 @@ def cluster_conformer_by_bestrmsd(current_conformer, previous_conformers, cutoff
         try:
             # Calculate BestRMS between the conformers
             rmsd = rdMolAlign.GetBestRMS(mol_no_h, mol_no_h, 
-                                       prbId=current_conf_id, refId=prev_conf_id, maxMatches=1000)
+                                         prbId=current_conf_id, refId=prev_conf_id,
+                                         maxMatches=1000)
             # If RMSD is within cutoff, conformers are considered similar
             if rmsd <= cutoff:
                 return True

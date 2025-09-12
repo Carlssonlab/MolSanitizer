@@ -194,7 +194,7 @@ class TorsionLibrary:
                     self.Torlib_general.append(
                         (smarts,
                         (pattern),
-                        TorsionLibrary.get_atoms_template(pattern),           # Special treatment for aliphatic hydroxyls and phosphates
+                        TorsionLibrary.get_atoms_template(pattern),           # Special treatment for aliphatic hydroxyls/thiols and phosphates
                         [(((float(angle.get("value")))), float(0), float(0), round(float(angle.get("score"))+0.05, 2)) for angle in Rule.iter(tag='angle')])
                         )
                 else:
