@@ -885,6 +885,7 @@ class ConformerGenerator:
             while len(product) < numConfs and attempts < max_attempts:
 
                 if timeout_conf > 0 and attempts % 100 == 0 and utils.check_timeout(start_time, timeout_conf):
+                    logger.warning(f"Timeout during conformational sampling for {self.name} after {attempts} attempts.")
                     if self.VERBOSE:
                         print(f"Timeout criteria met (attempted {attempts}). Generated {len(product)} conformers.")
                     break
