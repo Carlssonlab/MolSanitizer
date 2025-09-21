@@ -509,27 +509,34 @@ def count_confs_by_rotbonds(mol,
                             torlib=None,
                             VERBOSE=False):
     """
-    Count the number of conformations based on rotatable bonds and reorder bonds with terminal
-    atoms at the beginning.
+    Count the number of conformations based on rotatable bonds and torsion rules.
+
+    This function analyzes the molecule's rotatable bonds, applies torsion rules (optionally ignoring the torsion library),
+    handles special cases for amides and symmetric patterns, and returns the total number of conformations along with
+    the processed torsion rules and heteroatom hydrogen bonds.
 
     Args:
-    mol (rdkit.Chem.Mol): The RDKit molecule object.
-    rot_bonds (list): List of rotatable bonds, each represented as a tuple of atom indices.
-    amide_bonds (list): List of tuples representing amide linkages.
-    ignoretorlib (bool): If True, ignore the torsion library and use a constant rule for amide atoms.
-    torlib (TorsionLibrary): Torsion library object to match dihedral angles.
-    VERBOSE (bool): If True, print detailed information about the rotatable bonds and matched rules.
+        mol (rdkit.Chem.Mol): The RDKit molecule object.
+        rot_bonds (list): List of rotatable bonds, each represented as a tuple of atom indices.
+        amide_bonds (list): List of tuples representing amide linkages.
+        ignoretorlib (bool): If True, ignore the torsion library for non-amide bonds and use a constant rule.
+        torlib: Torsion library object to match dihedral angles.
+        VERBOSE (bool): If True, print detailed information about symmetry and filtering.
 
     Returns:
-    bond_to_rule (dict): A dictionary mapping each rotatable bond to its corresponding rule.
+        total_confs (int): Estimated total number of conformations.
+        match_torlib_clean (list): List of processed torsion rules for each bond.
+        hetero_H_bonds (list): List of rotatable bonds involving heteroatom hydrogens.
     """
 
     matched_rules = torlib.get_match_dihedral(mol, mode = 'random')
+    
     amide_atoms = set()
     if (amide_bonds):
         for b, c in amide_bonds:
             amide_atoms.add(b)
             amide_atoms.add(c)
+
     # Pre-compute a dictionary of rules by bond
     rule_by_bond = {}
     for rule in matched_rules:
@@ -542,10 +549,15 @@ def count_confs_by_rotbonds(mol,
         if bond in rule_by_bond:
             rule = rule_by_bond[bond]
             rule_copy = list(rule)
+
             # Only apply ignoretorlib if not amide bonds
             if ignoretorlib and len(set(bond) & amide_atoms) <= 1:
                 rule_copy[2] = const_rule
+
             bond_to_rule[bond] = rule_copy
+
+    hetero_H_bonds = _process_hetero_hydrogen_bonds(mol, bond_to_rule)
+
     for _, sym_row in symmetric_patterns_df.iterrows():
         matches = mol.GetSubstructMatches(sym_row['mol'])
         if not matches:
@@ -578,10 +590,14 @@ def count_confs_by_rotbonds(mol,
                     temp.append(peak)
             rule[2] = temp
     
+     # Step 5: Reorder bonds and create final mappings
+    rot_bonds_reordered = _reorder_bonds(rot_bonds, hetero_H_bonds)
+    bond_to_rule_reordered = {b: bond_to_rule[b] for b in rot_bonds_reordered}
+
     total_confs = 1
     
     match_torlib_clean = []
-    for rule in bond_to_rule.values():
+    for rule in bond_to_rule_reordered.values():
         match_torlib_clean.append(rule)
         total_angles = 0
         for peak in rule[2]:
@@ -592,7 +608,7 @@ def count_confs_by_rotbonds(mol,
         for rule in match_torlib_clean:
             print(f"\t{rule}")
 
-    return int(total_confs), match_torlib_clean
+    return int(total_confs), match_torlib_clean, hetero_H_bonds
 
 def get_random_angle(mean, tolerance, method='gauss', rounding = False):
     """
@@ -900,22 +916,26 @@ def count_confs_by_rotbonds_v2(mol,
                                torlib = None,
                                VERBOSE=False):
     """
-    Estimates the number of conformations by analyzing rotatable bonds and torsion rules.
-    Adjusts torsions for amide bonds and symmetric patterns.
+    Count the number of conformations based on rotatable bonds and torsion rules (deterministic version).
+
+    This function analyzes the molecule's rotatable bonds, applies torsion rules (optionally ignoring the torsion library),
+    handles special cases for amides, symmetric patterns, and heteroatom hydrogens, and returns the total number of
+    conformations along with detailed angle and score mappings for each bond.
 
     Args:
-        mol (rdkit.Chem.Mol): The input molecule.
-        rot_bonds (list): List of rotatable bonds.
-        ignoretorlib (bool): If True, ignore the torsion library and use all possible angles differ by 30 degrees.
-        amide_bonds (list): List of amide bonds to zero out fluctuations.
-        torlib (torsions.Torsional Library object)
-        VERBOSE (bool): If True, print detailed steps.
+        mol (rdkit.Chem.Mol): The RDKit molecule object.
+        rot_bonds (list): List of rotatable bonds (tuples of atom indices).
+        ignoretorlib (bool): If True, ignore the torsion library for non-amide bonds and use a constant rule.
+        amide_bonds (list): List of tuples representing amide bonds (optional).
+        torlib: Torsion library object for matching dihedral rules.
+        VERBOSE (bool): If True, print detailed information about symmetry and filtering.
 
     Returns:
-        tuple: (total_confs, angle_map, score_map)
-            - total_confs (int): Estimated number of conformations.
-            - angle_map (dict): Mapping of bond indices to possible angles.
-            - score_map (dict): Mapping of bond indices to scores for each angle.
+        total_confs (int): Estimated total number of conformations.
+        angle_map (dict): Mapping of bond indices to [name, atom_indices, list of angles].
+        score_map (dict): Mapping of bond indices to list of scores for each angle.
+        rot_bonds_reordered (list): Rotatable bonds reordered (hetero-H bonds at the end).
+        hetero_H_bonds (list): List of rotatable bonds involving heteroatom hydrogens.
     """
     # Step 1: Match torsion rules and rotatable bonds
     rot_bonds = rot_bonds.copy()

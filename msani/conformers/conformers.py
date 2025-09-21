@@ -681,7 +681,7 @@ class ConformerGenerator:
                                  timeout_conf = timeout_conf,
                                  request_alignment = request_alignment)
             return
-        possible_numConfs, match_torlib = utils.count_confs_by_rotbonds(
+        possible_numConfs, match_torlib, self.hetero_H_bonds = utils.count_confs_by_rotbonds(
                                                     mol = self.ring_confs[0],
                                                     rot_bonds = self.rot_bonds,
                                                     amide_bonds = self.amide_linkages,
@@ -722,7 +722,7 @@ class ConformerGenerator:
               
             # Only remap the match_torlib when sulfo_matches is found
             if self.sulfo_matches: 
-                _, match_torlib = utils.count_confs_by_rotbonds(
+                _, match_torlib, _ = utils.count_confs_by_rotbonds(
                                                             mol = mol,
                                                             rot_bonds = self.rot_bonds,
                                                             amide_bonds = self.amide_linkages,
@@ -1024,7 +1024,7 @@ class ConformerGenerator:
             
             if len(product) == 0:
                 print(f'Failed to find any confs for {self.name} (generated {len(product)} confs), using the random dihedral angles approach as a fallback')
-                possible_numConfs, match_torlib = utils.count_confs_by_rotbonds(mol = self.ring_confs[0],
+                possible_numConfs, match_torlib, self.hetero_H_bonds = utils.count_confs_by_rotbonds(mol = self.ring_confs[0],
                                                              rot_bonds = self.rot_bonds,
                                                              amide_bonds = self.amide_linkages,
                                                              ignoretorlib = ignoreTorlib,
