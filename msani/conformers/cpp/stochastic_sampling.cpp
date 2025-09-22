@@ -682,6 +682,7 @@ ProductList stochasticSamplingContinuous(RDKit::ROMol& mol,
                                          int numConfs,
                                          double window,
                                          int max_attempts,
+                                         int timeout_conf,
                                          double rmsd,
                                          double clash_threshold,
                                          const HeteroBonds& hetero_H_bonds,
@@ -761,6 +762,8 @@ ProductList stochasticSamplingContinuous(RDKit::ROMol& mol,
     int f = 1;
     int core_allocation = numConfs;
     int num_hydroxyl_combinations = 1;
+    auto start_time = std::chrono::steady_clock::now();
+    int timeout_check_counter = 0;
     
 
     // Initialize visiting state with first angles from each bond
@@ -769,7 +772,7 @@ ProductList stochasticSamplingContinuous(RDKit::ROMol& mol,
         if (!bond_info.peaks.empty()) {
             double angle = rand_gen.getRandomAngle(
                 bond_info.peaks[0].center,
-                bond_info.peaks[0].tolerance[tolerance_level],
+                bond_info.peaks[0].tolerance[tolerance_level-1],
                 random_method
             );
             visiting[idx] = angle;
@@ -819,6 +822,16 @@ ProductList stochasticSamplingContinuous(RDKit::ROMol& mol,
     // Only check isSimilarConformer to the "core" (i.e., angles except hetero_H_bonds)
     std::vector<std::vector<double>> visited_core_angles;
     while (current_valid_conformer_count < core_allocation && attempts < max_attempts) {
+        // Timeout check (every 10 iterations)
+        if (timeout_conf > 0 && timeout_check_counter % 10 == 0 && 
+            SamplingUtils::checkTimeout(start_time, timeout_conf)) {
+            if (verbose) {
+                fprintf(stderr, "Timeout criteria met (attempted %d). Generated %zu conformers (estimated valid within window: %d).\n",
+                        attempts, products.size(), current_valid_conformer_count);
+            }
+            break;
+        }
+        timeout_check_counter++;
         // Rotate n_transform bonds randomly
         for (int i = 0; i < n_transform; ++i) {
             int bond_idx = rand_gen.randint(0, n_transform - 1);
@@ -832,7 +845,7 @@ ProductList stochasticSamplingContinuous(RDKit::ROMol& mol,
             if (peak_idx < 0 || peak_idx >= (int)bond_info.peaks.size()) peak_idx = 0;
             double angle = rand_gen.getRandomAngle(
                 bond_info.peaks[peak_idx].center,
-                bond_info.peaks[peak_idx].tolerance[tolerance_level],
+                bond_info.peaks[peak_idx].tolerance[tolerance_level-1],
                 random_method
             );
             visiting[bond_idx] = angle;

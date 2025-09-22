@@ -262,6 +262,7 @@ py::object stochasticSamplingContinuousWrapper(py::object mol_obj,
                                                int numConfs,
                                                double window,
                                                int max_attempts,
+                                               int timeout_conf,
                                                double rmsd,
                                                double clash_threshold,
                                                const py::list& py_hetero_H_bonds,
@@ -288,20 +289,21 @@ py::object stochasticSamplingContinuousWrapper(py::object mol_obj,
             hetero_H_bonds.emplace_back(atom1, atom2);
         }
         // Call the continuous sampling function
-        ProductList products = stochasticSamplingContinuous(*mol,
-                                                           torsion_library,
-                                                           tolerance_level,
-                                                           numConfs,
-                                                           window,
-                                                           max_attempts,
-                                                           rmsd,
-                                                           clash_threshold,
-                                                           hetero_H_bonds,
-                                                           verbose,
-                                                           mmff_variant,
-                                                           eps,
-                                                           random_method,
-                                                           randomSeed);
+    ProductList products = stochasticSamplingContinuous(*mol,
+                               torsion_library,
+                               tolerance_level,
+                               numConfs,
+                               window,
+                               max_attempts,
+                               timeout_conf,
+                               rmsd,
+                               clash_threshold,
+                               hetero_H_bonds,
+                               verbose,
+                               mmff_variant,
+                               eps,
+                               random_method,
+                               randomSeed);
         
         // Convert results back to Python molecule
         return createMoleculeWithConformersDirectly(mol_obj, products);
@@ -344,6 +346,7 @@ PYBIND11_MODULE(stochastic_sampling_combined, m) {
         py::arg("numConfs"),
         py::arg("window"),
         py::arg("max_attempts"),
+        py::arg("timeout_conf"),
         py::arg("rmsd"),
         py::arg("clash_threshold"),
         py::arg("hetero_H_bonds"),
@@ -354,6 +357,6 @@ PYBIND11_MODULE(stochastic_sampling_combined, m) {
         py::arg("randomSeed") = 42);
     
     // Version information
-    m.attr("__version__") = "1.0.0";
-    m.attr("__author__") = "Combined from discrete and continuous sampling implementations";
+    m.attr("__version__") = "0.4.0";
+    m.attr("__author__") = "Phong Lam, Uppsala University (2025)";
 }
