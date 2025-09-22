@@ -873,13 +873,15 @@ class ConformerGenerator:
                                                              torlib = self.torlib,
                                                              VERBOSE = self.VERBOSE)
                 result = self.stochastic_sampling( mol = processing_mol,
-                                                    tolerance_level = 2, 
-                                                    match_torlib = match_torlib,
-                                                    numConfs = numConfs,
-                                                    window = energywindow,
-                                                    max_attempts = 50000,
-                                                    product = list(),
-                                                    visited = None)
+                                                tolerance_level = 2,
+                                                match_torlib = match_torlib,
+                                                numConfs = numConfs,
+                                                window = energywindow,
+                                                max_attempts = 50000,
+                                                eps = eps,
+                                                timeout_conf = timeout_conf,
+                                                random_method= 'uniform'
+                                                )
                 
                 if result.GetNumConformers() == 1: 
                     print(f'Failed for stochastic sampling for {self.name}, use the original conformation')
