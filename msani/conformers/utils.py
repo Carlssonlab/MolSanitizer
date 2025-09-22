@@ -528,9 +528,7 @@ def count_confs_by_rotbonds(mol,
         match_torlib_clean (list): List of processed torsion rules for each bond.
         hetero_H_bonds (list): List of rotatable bonds involving heteroatom hydrogens.
     """
-
     matched_rules = torlib.get_match_dihedral(mol, mode = 'random')
-    
     amide_atoms = set()
     if (amide_bonds):
         for b, c in amide_bonds:
@@ -555,7 +553,6 @@ def count_confs_by_rotbonds(mol,
                 rule_copy[2] = const_rule
 
             bond_to_rule[bond] = rule_copy
-
     hetero_H_bonds = _process_hetero_hydrogen_bonds(mol, bond_to_rule)
 
     for _, sym_row in symmetric_patterns_df.iterrows():
@@ -590,7 +587,7 @@ def count_confs_by_rotbonds(mol,
                     temp.append(peak)
             rule[2] = temp
     
-     # Step 5: Reorder bonds and create final mappings
+    # Reorder bonds and create final mappings
     rot_bonds_reordered = _reorder_bonds(rot_bonds, hetero_H_bonds)
     bond_to_rule_reordered = {b: bond_to_rule[b] for b in rot_bonds_reordered}
 

@@ -1,4 +1,4 @@
-name: msani
+name: msani_dev
 
 
 channels:
@@ -11,7 +11,14 @@ dependencies:
   - pandas
   - pip
   - rdkit>=2024.09.3,<=2025.03.1
+  - librdkit-dev
+  - libboost-devel
   - openbabel
   - scipy
   - pyaml
   - gemmi
+  - cmake<=3.29
+  - pybind11
+  - eigen
+  - gxx_linux-64
+  - compilers
