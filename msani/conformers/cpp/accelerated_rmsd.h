@@ -31,15 +31,17 @@ private:
     std::vector<std::vector<std::pair<int, int>>> symmetric_mappings_;
     bool initialized_;
     bool use_symmetry_;
+    bool symmetrize_conjugated_terminal_groups_;
     
     /**
      * Generate all symmetric mappings for the same molecule
-     * Uses RDKit's SubstructMatch to find equivalent atoms
+     * Uses RDKit's SubstructMatch to find equivalent atoms, with optional 
+     * symmetrization of conjugated terminal groups (like COO-, NO2-)
      */
     void generateSymmetricMappings(const RDKit::ROMol& mol);
     
 public:
-    SameMoleculeRMSDCalculator(bool use_symmetry = true);
+    SameMoleculeRMSDCalculator(bool use_symmetry = true, bool symmetrize_conjugated_terminal_groups = true);
     
     /**
      * Initialize the calculator with a reference molecule

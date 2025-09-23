@@ -9,6 +9,7 @@
 #include <GraphMol/QueryOps.h>
 #include <GraphMol/QueryBond.h>
 #include <stdexcept>
+#include <iostream>
 
 namespace StochasticSampling {
 namespace AcceleratedRMSD {
@@ -33,48 +34,43 @@ void symmetrizeTerminalAtoms(RDKit::RWMol &mol) {
         if (matches.empty()) {
             return; // No conjugated terminal groups found
         }
+
+        // Create a query bond that matches both single and double bonds
+        RDKit::QueryBond qb;
+        qb.setBondType(RDKit::Bond::SINGLE);
+        // Add both single and double bond possibilities
+        qb.setQuery(RDKit::makeBondOrderEqualsQuery(RDKit::Bond::SINGLE));
+        qb.expandQuery(RDKit::makeBondOrderEqualsQuery(RDKit::Bond::DOUBLE), Queries::COMPOSITE_OR);
         
-        // For each match, we need to identify the parent heavy atom and terminal atoms
-        for (const auto& match : matches) {
-            if (match.size() >= 2) { // Should have at least terminal and parent atom
-                int terminal_idx = match[0].second;  // Terminal O/N atom
-                int parent_idx = match[1].second;    // Parent atom
-                
-                // Find all terminal O/N atoms connected to this parent
-                std::vector<int> terminal_atoms;
-                for (const auto& bond : mol.atomBonds(mol.getAtomWithIdx(parent_idx))) {
-                    int neighbor_idx = bond->getOtherAtomIdx(parent_idx);
-                    const RDKit::Atom* neighbor = mol.getAtomWithIdx(neighbor_idx);
-                    
-                    // Check if it's a terminal O or N (degree 1)
-                    if ((neighbor->getAtomicNum() == 8 || neighbor->getAtomicNum() == 7) && 
-                        neighbor->getDegree() == 1) {
-                        terminal_atoms.push_back(neighbor_idx);
-                    }
-                }
-                
-                // If we have multiple terminal atoms, mark them as equivalent
-                if (terminal_atoms.size() > 1) {
-                    // Set the same atom map number for equivalent atoms
-                    int map_num = terminal_atoms[0] + 1000; // Arbitrary offset to avoid conflicts
-                    for (int atom_idx : terminal_atoms) {
-                        mol.getAtomWithIdx(atom_idx)->setAtomMapNum(map_num);
-                    }
-                }
+        for (const auto &match : matches) {
+            // Neutralize formal charge on terminal atom
+            mol.getAtomWithIdx(match[0].second)->setFormalCharge(0);
+            
+            // Replace the bond with a single-or-double query bond
+            auto bond = mol.getBondBetweenAtoms(match[0].second, match[1].second);
+            if (bond) {
+                mol.replaceBond(bond->getIdx(), &qb);
             }
         }
+        
     } catch (const std::exception& e) {
         // If symmetrization fails, continue without it
-        return;
+        // This maintains robustness while providing the feature when possible
     }
 }
 
 void SameMoleculeRMSDCalculator::generateSymmetricMappings(const RDKit::ROMol& mol) {
     symmetric_mappings_.clear();
     
-    // Create a copy of the molecule for symmetrization
-    RDKit::RWMol mol_copy(mol);
-    symmetrizeTerminalAtoms(mol_copy);
+    // Create a copy of the molecule for potential symmetrization
+    std::unique_ptr<RDKit::RWMol> mol_for_match;
+    const RDKit::ROMol* mol_to_use = &mol;
+    
+    if (symmetrize_conjugated_terminal_groups_) {
+        mol_for_match.reset(new RDKit::RWMol(mol));
+        symmetrizeTerminalAtoms(*mol_for_match);
+        mol_to_use = mol_for_match.get();
+    }
     
     // Get all substructure matches of the molecule against itself
     std::vector<RDKit::MatchVectType> all_matches;
@@ -85,7 +81,7 @@ void SameMoleculeRMSDCalculator::generateSymmetricMappings(const RDKit::ROMol& m
     int maxMatches = 1000; // Limit to prevent excessive computation
     
     try {
-        RDKit::SubstructMatch(mol_copy, mol_copy, all_matches, uniquify, recursionPossible,
+        RDKit::SubstructMatch(mol, *mol_to_use, all_matches, uniquify, recursionPossible,
                              useChirality, useQueryQueryMatches, maxMatches);
     } catch (const std::exception& e) {
         // If SubstructMatch fails, fall back to identity mapping
@@ -135,10 +131,16 @@ void SameMoleculeRMSDCalculator::generateSymmetricMappings(const RDKit::ROMol& m
         }
         symmetric_mappings_.push_back(identity_mapping);
     }
+    
+    // Debug output
+    // fprintf(stderr, "DEBUG: Generated %zu symmetric mappings for molecule\n", symmetric_mappings_.size());
+    // for (size_t i = 0; i < symmetric_mappings_.size(); ++i) {
+    //     fprintf(stderr, "  Mapping %zu: %zu atom pairs\n", i, symmetric_mappings_[i].size());
+    // }
 }
 
-SameMoleculeRMSDCalculator::SameMoleculeRMSDCalculator(bool use_symmetry) 
-    : initialized_(false), use_symmetry_(use_symmetry) {}
+SameMoleculeRMSDCalculator::SameMoleculeRMSDCalculator(bool use_symmetry, bool symmetrize_conjugated_terminal_groups) 
+    : initialized_(false), use_symmetry_(use_symmetry), symmetrize_conjugated_terminal_groups_(symmetrize_conjugated_terminal_groups) {}
 
 void SameMoleculeRMSDCalculator::initialize(const RDKit::ROMol& mol) {
     heavy_atom_indices_.clear();
