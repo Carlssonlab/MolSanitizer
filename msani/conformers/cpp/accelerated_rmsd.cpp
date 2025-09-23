@@ -137,7 +137,7 @@ void SameMoleculeRMSDCalculator::generateSymmetricMappings(const RDKit::ROMol& m
     // for (size_t i = 0; i < symmetric_mappings_.size(); ++i) {
     //     fprintf(stderr, "  Mapping %zu: %zu atom pairs\n", i, symmetric_mappings_[i].size());
     // }
-}
+} 
 
 SameMoleculeRMSDCalculator::SameMoleculeRMSDCalculator(bool use_symmetry, bool symmetrize_conjugated_terminal_groups) 
     : initialized_(false), use_symmetry_(use_symmetry), symmetrize_conjugated_terminal_groups_(symmetrize_conjugated_terminal_groups) {}
@@ -177,7 +177,7 @@ double SameMoleculeRMSDCalculator::calculateAlignedRMSD(const RDKit::Conformer& 
     }
     
     double best_rmsd = std::numeric_limits<double>::max();
-    RDGeom::Transform3D best_transform;
+    // RDGeom::Transform3D best_transform;
     
     // Try each symmetric mapping and find the one with lowest RMSD
     for (const auto& mapping : symmetric_mappings_) {
@@ -205,23 +205,23 @@ double SameMoleculeRMSDCalculator::calculateAlignedRMSD(const RDKit::Conformer& 
         
         if (rmsd < best_rmsd) {
             best_rmsd = rmsd;
-            // Copy transform data manually since assignment operator is deleted
-            for (unsigned int i = 0; i < 4; ++i) {
-                for (unsigned int j = 0; j < 4; ++j) {
-                    best_transform.setVal(i, j, trans.getVal(i, j));
-                }
-            }
+            // // Copy transform data manually since assignment operator is deleted
+            // for (unsigned int i = 0; i < 4; ++i) {
+            //     for (unsigned int j = 0; j < 4; ++j) {
+            //         best_transform.setVal(i, j, trans.getVal(i, j));
+            //     }
+            // }
         }
     }
     
-    if (transform) {
-        // Copy best transform data manually since assignment operator is deleted
-        for (unsigned int i = 0; i < 4; ++i) {
-            for (unsigned int j = 0; j < 4; ++j) {
-                transform->setVal(i, j, best_transform.getVal(i, j));
-            }
-        }
-    }
+    // if (transform) {
+    //     // Copy best transform data manually since assignment operator is deleted
+    //     for (unsigned int i = 0; i < 4; ++i) {
+    //         for (unsigned int j = 0; j < 4; ++j) {
+    //             transform->setVal(i, j, best_transform.getVal(i, j));
+    //         }
+    //     }
+    // }
     
     return best_rmsd;
 }
