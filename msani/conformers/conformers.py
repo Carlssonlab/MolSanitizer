@@ -863,8 +863,7 @@ class ConformerGenerator:
                                                   hetero_H_bonds = self.hetero_H_bonds, 
                                                   timeout_conf = timeout_conf,
                                                   eps = eps)
-            
-            if result.GetNumConformers() == 1:
+            if result.HasProp('Failed_sampling') and result.GetProp('Failed_sampling') == '1':
                 print(f'Failed to find any confs for {self.name}, using the random dihedral angles approach as a fallback')
                 possible_numConfs, match_torlib, self.hetero_H_bonds = utils.count_confs_by_rotbonds(mol = self.ring_confs[0],
                                                              rot_bonds = self.rot_bonds,
@@ -883,7 +882,7 @@ class ConformerGenerator:
                                                 random_method= 'uniform'
                                                 )
                 
-                if result.GetNumConformers() == 1: 
+                if result.HasProp('Failed_sampling') and result.GetProp('Failed_sampling') == '1':
                     print(f'Failed for stochastic sampling for {self.name}, use the original conformation')
                     continue
             

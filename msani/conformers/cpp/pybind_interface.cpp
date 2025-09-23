@@ -50,13 +50,14 @@ py::object createMoleculeWithConformersDirectly(py::object mol_obj, const std::v
     }
     
     if (products.empty()) {
-        py::print("⚠️  No conformers generated from stochastic sampling");
+        // py::print("No conformers generated from stochastic sampling");
+        mol_obj.attr("SetBoolProp")("Failed_sampling", true);
         return mol_obj;  // Return original molecule if no conformers generated
     }
     
     // Check if conformer atom count matches molecule atom count
     if (!products.empty() && products[0].conformer.getNumAtoms() != mol->getNumAtoms()) {
-        py::print("❌ Atom count mismatch! Molecule: " + std::to_string(mol->getNumAtoms()) + 
+        py::print("Atom count mismatch! Molecule: " + std::to_string(mol->getNumAtoms()) + 
                   ", Conformer: " + std::to_string(products[0].conformer.getNumAtoms()));
         py::print("   This suggests the stochastic sampling process modified the molecular structure.");
         py::print("   Returning original molecule to preserve structure.");
@@ -65,7 +66,7 @@ py::object createMoleculeWithConformersDirectly(py::object mol_obj, const std::v
     
     // Clear existing conformers from the molecule
     mol_obj.attr("RemoveAllConformers")();
-    
+    mol_obj.attr("SetBoolProp")("Failed_sampling", false);
     // Add conformers directly to the Python molecule object
     py::object rdkit_chem = py::module::import("rdkit.Chem");
     py::object rdgeom = py::module::import("rdkit.Geometry");
@@ -325,13 +326,13 @@ PYBIND11_MODULE(stochastic_sampling_combined, m) {
         py::arg("score_map"),
         py::arg("possible_numConfs"),
         py::arg("importance_order"),
-        py::arg("window"),
-        py::arg("max_attempts"),
+        py::arg("window") = 25.0,
+        py::arg("max_attempts") = 50000,
         py::arg("hetero_H_bonds"),
         py::arg("timeout_conf"),
-        py::arg("rmsd"),
-        py::arg("numConfs"),
-        py::arg("clash_threshold"),
+        py::arg("rmsd") = 0.5,
+        py::arg("numConfs") = 600,
+        py::arg("clash_threshold") = 1.6,
         py::arg("verbose") = false,
         py::arg("mmff_variant") = "MMFF94s",
         py::arg("eps") = 1.0,
@@ -344,11 +345,11 @@ PYBIND11_MODULE(stochastic_sampling_combined, m) {
         py::arg("match_torlib"),
         py::arg("tolerance_level"),
         py::arg("numConfs"),
-        py::arg("window"),
-        py::arg("max_attempts"),
+        py::arg("window") = 25.0,
+        py::arg("max_attempts") = 50000,
         py::arg("timeout_conf"),
-        py::arg("rmsd"),
-        py::arg("clash_threshold"),
+        py::arg("rmsd") = 0.5,
+        py::arg("clash_threshold") = 1.6,
         py::arg("hetero_H_bonds"),
         py::arg("verbose") = false,
         py::arg("mmff_variant") = "MMFF94s",
