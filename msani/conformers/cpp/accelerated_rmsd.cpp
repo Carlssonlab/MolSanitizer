@@ -171,7 +171,8 @@ void SameMoleculeRMSDCalculator::initialize(const RDKit::ROMol& mol) {
 
 double SameMoleculeRMSDCalculator::calculateAlignedRMSD(const RDKit::Conformer& probe_conf, 
                                                        const RDKit::Conformer& ref_conf,
-                                                       RDGeom::Transform3D* transform) const {
+                                                       RDGeom::Transform3D* transform,
+                                                       double rmsd_threshold) const {
     if (!initialized_) {
         throw std::runtime_error("Calculator not initialized");
     }
@@ -205,23 +206,13 @@ double SameMoleculeRMSDCalculator::calculateAlignedRMSD(const RDKit::Conformer& 
         
         if (rmsd < best_rmsd) {
             best_rmsd = rmsd;
-            // // Copy transform data manually since assignment operator is deleted
-            // for (unsigned int i = 0; i < 4; ++i) {
-            //     for (unsigned int j = 0; j < 4; ++j) {
-            //         best_transform.setVal(i, j, trans.getVal(i, j));
-            //     }
-            // }
+        }
+
+        // Early exit if threshold is set and met
+        if (rmsd_threshold >= 0.0 && rmsd <= rmsd_threshold) {
+            return rmsd;
         }
     }
-    
-    // if (transform) {
-    //     // Copy best transform data manually since assignment operator is deleted
-    //     for (unsigned int i = 0; i < 4; ++i) {
-    //         for (unsigned int j = 0; j < 4; ++j) {
-    //             transform->setVal(i, j, best_transform.getVal(i, j));
-    //         }
-    //     }
-    // }
     
     return best_rmsd;
 }
@@ -289,8 +280,7 @@ bool SameMoleculeRMSDCalculator::isSimilarToAny(const RDKit::ROMol& mol,
     
     for (int ref_id : ref_conf_ids) {
         const RDKit::Conformer& ref_conf = mol.getConformer(ref_id);
-        double rmsd = calculateAlignedRMSD(probe_conf, ref_conf);
-        
+        double rmsd = calculateAlignedRMSD(probe_conf, ref_conf, nullptr, rmsd_threshold);
         if (rmsd <= rmsd_threshold) {
             return true;
         }

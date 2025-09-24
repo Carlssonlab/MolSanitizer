@@ -53,9 +53,11 @@ public:
      * Calculate RMSD with optimal alignment considering symmetry
      * Tries all symmetric mappings and returns the best (lowest) RMSD
      */
-    double calculateAlignedRMSD(const RDKit::Conformer& probe_conf, 
-                               const RDKit::Conformer& ref_conf,
-                               RDGeom::Transform3D* transform = nullptr) const;
+    double calculateAlignedRMSD(const RDKit::Conformer& probe_conf,
+                                   const RDKit::Conformer& ref_conf,
+                                   RDGeom::Transform3D* transform = nullptr,
+                                   double rmsd_threshold = -1.0) const;
+ 
     
     /**
      * Fast batch RMSD calculation for multiple conformers against a reference
