@@ -8,8 +8,10 @@
 #include <GraphMol/SmilesParse/SmilesParse.h>
 #include <GraphMol/QueryOps.h>
 #include <GraphMol/QueryBond.h>
+#include <GraphMol/Substruct/SubstructMatch.h>
 #include <stdexcept>
 #include <iostream>
+#include <algorithm>
 
 namespace StochasticSampling {
 namespace AcceleratedRMSD {
@@ -22,7 +24,8 @@ void symmetrizeTerminalAtoms(RDKit::RWMol &mol) {
     // SMARTS pattern to identify terminal O,N atoms in conjugated systems
     // Matches patterns like C(=O)[O-] and C([O-])=O allowing flexible matching
     const std::string qsmarts = 
-        "[O,N;D1;$([O,N;D1]-[*]=[O,N;D1]),$([O,N;D1]=[*]-[O,N;D1])]~[*]";
+        "[O,N;D1;$([O,N;D1]-[*]=[O,N;D1]),$([O,N;D1]=[*]-[O,N;D1])]~[*;!$(P([*X{2-}])([*X{2-}])(=O)[O-])]";
+        //"[O,N;D1;$([O,N;D1]-[*]=[O,N;D1]),$([O,N;D1]=[*]-[O,N;D1])]~[*]"; Removed the non-terminal P(=O)[O-] group to avoid over-symmetrization
     
     try {
         std::unique_ptr<RDKit::ROMol> qry(RDKit::SmartsToMol(qsmarts));
@@ -62,6 +65,25 @@ void symmetrizeTerminalAtoms(RDKit::RWMol &mol) {
 void SameMoleculeRMSDCalculator::generateSymmetricMappings(const RDKit::ROMol& mol) {
     symmetric_mappings_.clear();
     
+    // Compute SO2 pairs
+    std::vector<std::pair<int, int>> so2_pairs;
+    for (const auto& atom : mol.atoms()) {
+        if (atom->getAtomicNum() == 16) {  // Sulfur
+            std::vector<int> oxygens;
+            for (const auto& bond : mol.atomBonds(atom)) {
+                const auto& neighbor = bond->getOtherAtom(atom);
+                if (neighbor->getAtomicNum() == 8 && bond->getBondType() == RDKit::Bond::DOUBLE) {
+                    oxygens.push_back(neighbor->getIdx());
+                }
+            }
+            if (oxygens.size() == 2) {
+                int o1 = std::min(oxygens[0], oxygens[1]);
+                int o2 = std::max(oxygens[0], oxygens[1]);
+                so2_pairs.emplace_back(o1, o2);
+            }
+        }
+    }
+    
     // Create a copy of the molecule for potential symmetrization
     std::unique_ptr<RDKit::RWMol> mol_for_match;
     const RDKit::ROMol* mol_to_use = &mol;
@@ -74,15 +96,28 @@ void SameMoleculeRMSDCalculator::generateSymmetricMappings(const RDKit::ROMol& m
     
     // Get all substructure matches of the molecule against itself
     std::vector<RDKit::MatchVectType> all_matches;
-    bool uniquify = false;
-    bool recursionPossible = true;
-    bool useChirality = false;
-    bool useQueryQueryMatches = false;
-    int maxMatches = 1000; // Limit to prevent excessive computation
+    
+    RDKit::SubstructMatchParameters params;
+    params.uniquify = false;
+    params.recursionPossible = true;
+    params.useChirality = false;
+    params.useQueryQueryMatches = false;
+    params.maxMatches = 1000; // Limit to prevent excessive computation
+    
+    // Set extraFinalCheck to filter out invalid SO2 mappings
+    params.extraFinalCheck = [&so2_pairs](const RDKit::ROMol &mol, const std::vector<unsigned int> &match) -> bool {
+        for (const auto& pair : so2_pairs) {
+            int o1 = pair.first;
+            int o2 = pair.second;
+            if (match[o1] == static_cast<unsigned int>(o2) && match[o2] == static_cast<unsigned int>(o1)) {
+                return false;  // Invalid mapping
+            }
+        }
+        return true;
+    };
     
     try {
-        RDKit::SubstructMatch(mol, *mol_to_use, all_matches, uniquify, recursionPossible,
-                             useChirality, useQueryQueryMatches, maxMatches);
+        all_matches = RDKit::SubstructMatch(mol, *mol_to_use, params);
     } catch (const std::exception& e) {
         // If SubstructMatch fails, fall back to identity mapping
         all_matches.clear();
@@ -133,7 +168,7 @@ void SameMoleculeRMSDCalculator::generateSymmetricMappings(const RDKit::ROMol& m
     }
     
     // Debug output
-    // fprintf(stderr, "DEBUG: Generated %zu symmetric mappings for molecule\n", symmetric_mappings_.size());
+    fprintf(stderr, "DEBUG: Generated %zu symmetric mappings for molecule\n", symmetric_mappings_.size());
     // for (size_t i = 0; i < symmetric_mappings_.size(); ++i) {
     //     fprintf(stderr, "  Mapping %zu: %zu atom pairs\n", i, symmetric_mappings_[i].size());
     // }
@@ -200,7 +235,7 @@ double SameMoleculeRMSDCalculator::calculateAlignedRMSD(const RDKit::Conformer& 
         // Perform alignment for this mapping
         RDGeom::Transform3D trans;
         double ssr = RDNumeric::Alignments::AlignPoints(
-            ref_points, probe_points, trans, nullptr, false, 50);
+            ref_points, probe_points, trans, nullptr, false, 30);
         
         double rmsd = std::sqrt(ssr / heavy_atom_indices_.size());
         
@@ -212,57 +247,6 @@ double SameMoleculeRMSDCalculator::calculateAlignedRMSD(const RDKit::Conformer& 
         if (rmsd_threshold >= 0.0 && rmsd <= rmsd_threshold) {
             return rmsd;
         }
-    }
-    
-    return best_rmsd;
-}
-
-std::vector<double> SameMoleculeRMSDCalculator::calculateBatchRMSD(const RDKit::ROMol& mol,
-                                                                   int ref_conf_id,
-                                                                   const std::vector<int>& probe_conf_ids) const {
-    if (!initialized_) {
-        throw std::runtime_error("Calculator not initialized");
-    }
-    
-    std::vector<double> rmsd_values;
-    rmsd_values.reserve(probe_conf_ids.size());
-    
-    const RDKit::Conformer& ref_conf = mol.getConformer(ref_conf_id);
-    
-    for (int probe_id : probe_conf_ids) {
-        const RDKit::Conformer& probe_conf = mol.getConformer(probe_id);
-        double rmsd = calculateAlignedRMSD(probe_conf, ref_conf);
-        rmsd_values.push_back(rmsd);
-    }
-    
-    return rmsd_values;
-}
-
-double SameMoleculeRMSDCalculator::getBestRMSDSameMolecule(const RDKit::ROMol& mol,
-                                                          int probe_conf_id,
-                                                          const std::vector<int>& ref_conf_ids,
-                                                          int* best_ref_id) const {
-    if (!initialized_) {
-        throw std::runtime_error("Calculator not initialized");
-    }
-    
-    double best_rmsd = std::numeric_limits<double>::max();
-    int best_id = -1;
-    
-    const RDKit::Conformer& probe_conf = mol.getConformer(probe_conf_id);
-    
-    for (int ref_id : ref_conf_ids) {
-        const RDKit::Conformer& ref_conf = mol.getConformer(ref_id);
-        double rmsd = calculateAlignedRMSD(probe_conf, ref_conf);
-        
-        if (rmsd < best_rmsd) {
-            best_rmsd = rmsd;
-            best_id = ref_id;
-        }
-    }
-    
-    if (best_ref_id) {
-        *best_ref_id = best_id;
     }
     
     return best_rmsd;
@@ -288,6 +272,7 @@ bool SameMoleculeRMSDCalculator::isSimilarToAny(const RDKit::ROMol& mol,
     
     return false;
 }
+
 
 size_t SameMoleculeRMSDCalculator::getNumHeavyAtoms() const {
     return heavy_atom_indices_.size();
@@ -328,7 +313,7 @@ double calculateFastAlignedRMSD(const RDKit::ROMol& mol,
     // Perform alignment
     RDGeom::Transform3D trans;
     double ssr = RDNumeric::Alignments::AlignPoints(
-        ref_points, probe_points, trans, nullptr, false, 50);
+        ref_points, probe_points, trans, nullptr, false, 25);
     
     return std::sqrt(ssr / probe_points.size());
 }

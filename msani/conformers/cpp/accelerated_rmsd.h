@@ -57,25 +57,7 @@ public:
                                    const RDKit::Conformer& ref_conf,
                                    RDGeom::Transform3D* transform = nullptr,
                                    double rmsd_threshold = -1.0) const;
- 
-    
-    /**
-     * Fast batch RMSD calculation for multiple conformers against a reference
-     * Optimized for the conformer filtering use case
-     */
-    std::vector<double> calculateBatchRMSD(const RDKit::ROMol& mol,
-                                          int ref_conf_id,
-                                          const std::vector<int>& probe_conf_ids) const;
-    
-    /**
-     * Find the best (minimum) RMSD among multiple conformers
-     * Equivalent to getBestRMS but optimized for same molecule
-     */
-    double getBestRMSDSameMolecule(const RDKit::ROMol& mol,
-                                  int probe_conf_id,
-                                  const std::vector<int>& ref_conf_ids,
-                                  int* best_ref_id = nullptr) const;
-    
+     
     /**
      * Check if a conformer is similar to any in a set (below threshold)
      * Optimized version of the conformer filtering logic
