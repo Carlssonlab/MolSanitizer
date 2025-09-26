@@ -94,15 +94,6 @@ public:
 };
 
 /**
- * Convenience function for aligned RMSD calculation without class instantiation
- * Suitable for one-off calculations
- */
-double calculateFastAlignedRMSD(const RDKit::ROMol& mol,
-                               int conf_id1,
-                               int conf_id2,
-                               bool heavy_atoms_only = true);
-
-/**
  * Optimized conformer similarity checker
  * Replacement for the ConformerCache::isSimilarFast function
  */

@@ -168,7 +168,7 @@ void SameMoleculeRMSDCalculator::generateSymmetricMappings(const RDKit::ROMol& m
     }
     
     // Debug output
-    fprintf(stderr, "DEBUG: Generated %zu symmetric mappings for molecule\n", symmetric_mappings_.size());
+    // fprintf(stderr, "DEBUG: Generated %zu symmetric mappings for molecule\n", symmetric_mappings_.size());
     // for (size_t i = 0; i < symmetric_mappings_.size(); ++i) {
     //     fprintf(stderr, "  Mapping %zu: %zu atom pairs\n", i, symmetric_mappings_[i].size());
     // }
@@ -295,34 +295,6 @@ size_t SameMoleculeRMSDCalculator::getNumSymmetricMappings() const {
 
 bool SameMoleculeRMSDCalculator::isSymmetryEnabled() const {
     return use_symmetry_;
-}
-
-double calculateFastAlignedRMSD(const RDKit::ROMol& mol,
-                               int conf_id1,
-                               int conf_id2,
-                               bool heavy_atoms_only) {
-    const RDKit::Conformer& conf1 = mol.getConformer(conf_id1);
-    const RDKit::Conformer& conf2 = mol.getConformer(conf_id2);
-    
-    // Prepare point arrays for alignment
-    RDGeom::Point3DConstPtrVect ref_points, probe_points;
-    
-    for (unsigned int i = 0; i < mol.getNumAtoms(); ++i) {
-        // Skip hydrogens if heavy_atoms_only is true
-        if (heavy_atoms_only && mol.getAtomWithIdx(i)->getAtomicNum() == 1) {
-            continue;
-        }
-        
-        probe_points.push_back(&conf1.getAtomPos(i));
-        ref_points.push_back(&conf2.getAtomPos(i));
-    }
-    
-    // Perform alignment
-    RDGeom::Transform3D trans;
-    double ssr = RDNumeric::Alignments::AlignPoints(
-        ref_points, probe_points, trans, nullptr, false, 25);
-    
-    return std::sqrt(ssr / probe_points.size());
 }
 
 OptimizedConformerCache::OptimizedConformerCache() 
