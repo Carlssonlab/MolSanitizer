@@ -168,7 +168,7 @@ def parseArguments(args = None, batch_mode = False):
     gen3d.add_argument('--allowNonring', action='store_true', default=defaults.get('allowNonring', True), help='Allow the full sampling of non-ring comdpounds (default undersample to 30 confs).')
     gen3d.add_argument('--eps', type=float, default=defaults.get('eps', 1), help='The dielectric constant for electrostatic calculations (default: 1 - vacuum).' if show_advanced_help else argparse.SUPPRESS)
     gen3d.add_argument('--rmsd', '-rmsd', type=float, default=defaults.get('rmsd', 0.5), help='Minimum RMSD between two conformers (default: 0.5 Å).' if show_advanced_help else argparse.SUPPRESS)
-    gen3d.add_argument('--timeout_conf', '-toc', type=float, default=defaults.get('timeout_conf', 2), help='Timeout for conformational sampling stage (default: 2 minutes).' if show_advanced_help else argparse.SUPPRESS)
+    gen3d.add_argument('--timeout_conf', '-toc', type=float, default=defaults.get('timeout_conf', 1), help='Timeout for conformational sampling stage (default: 1 minute).' if show_advanced_help else argparse.SUPPRESS)
 
     # Group 5: Miscellaneous
     misc_group = parser.add_argument_group("Miscellaneous")

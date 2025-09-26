@@ -584,7 +584,7 @@ class ConformerGenerator:
                             max_attempts = 50000,
                             eps = 1,
                             random_method = 'uniform',
-                            timeout_conf = 2):
+                            timeout_conf = 1):
         """
         
         """
@@ -624,7 +624,7 @@ class ConformerGenerator:
                       eps = 1, 
                       ignoreTorlib = False, 
                       AllowNonRing = False, 
-                      timeout_conf = 2,
+                      timeout_conf = 1,
                       request_alignment=None):
         """
         Perceive the allowed dihedral angles and call stochastic sampling to generate conformers.
@@ -744,7 +744,7 @@ class ConformerGenerator:
                                window = 25,
                                max_attempts=50_000,
                                hetero_H_bonds = [],
-                               timeout_conf = 2,
+                               timeout_conf = 1,
                                eps = 1):
         """
         Call the C++ extension for stochastic sampling.
@@ -799,7 +799,7 @@ class ConformerGenerator:
                         energywindow = 25,
                         ignoreTorlib = False, 
                         AllowNonRing=False,
-                        timeout_conf = 2,
+                        timeout_conf = 1,
                         request_alignment=None,
                         eps = 1):
         """
