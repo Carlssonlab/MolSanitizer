@@ -1,8 +1,91 @@
 cmake_minimum_required(VERSION 3.16)
 project(stochastic_sampling_combined)
 
-# Set C++ standard
-set(CMAKE_CXX_STANDARD 17)
+# Find RDKit first to determine version for C++ standard
+set(RDKit_ROOT_DIR "$ENV{RDBASE}")
+if(NOT RDKit_ROOT_DIR)
+    set(RDKit_ROOT_DIR "$ENV{CONDA_PREFIX}")
+endif()
+
+# Try to find RDKit version to determine C++ standard
+find_path(RDKIT_INCLUDE_DIR GraphMol/ROMol.h
+    PATHS ${RDKit_ROOT_DIR}/include/rdkit
+          ${RDKit_ROOT_DIR}/include
+          /usr/include/rdkit
+          /usr/local/include/rdkit
+    NO_DEFAULT_PATH)
+
+if(RDKIT_INCLUDE_DIR)
+    # Try to detect RDKit version to set appropriate C++ standard
+    find_file(RDKIT_VERSION_HEADER
+        NAMES Version.h version.h
+        PATHS ${RDKIT_INCLUDE_DIR}/GraphMol
+              ${RDKIT_INCLUDE_DIR}/RDKit
+              ${RDKIT_INCLUDE_DIR}
+        NO_DEFAULT_PATH)
+    
+    if(RDKIT_VERSION_HEADER)
+        # Read the version header to determine RDKit version
+        file(READ ${RDKIT_VERSION_HEADER} RDKIT_VERSION_CONTENT LIMIT 2048)
+        
+        # Try to extract version information
+        if(RDKIT_VERSION_CONTENT MATCHES "RDKIT_VERSION[ \t]+\"([0-9]+)\\.([0-9]+)\\.([0-9]+)\"")
+            set(RDKIT_VERSION_MAJOR ${CMAKE_MATCH_1})
+            set(RDKIT_VERSION_MINOR ${CMAKE_MATCH_2})
+            set(RDKIT_VERSION_PATCH ${CMAKE_MATCH_3})
+            set(RDKIT_VERSION "${RDKIT_VERSION_MAJOR}.${RDKIT_VERSION_MINOR}.${RDKIT_VERSION_PATCH}")
+            message(STATUS "Detected RDKit version: ${RDKIT_VERSION}")
+            
+            # Set C++ standard based on RDKit version
+            # RDKit <= 2025.3.1: C++17, > 2025.3.1: C++20
+            if(RDKIT_VERSION VERSION_LESS_EQUAL "2025.3.1")
+                set(CMAKE_CXX_STANDARD 17)
+                message(STATUS "Using C++17 for RDKit version ${RDKIT_VERSION}")
+            else()
+                set(CMAKE_CXX_STANDARD 20)
+                message(STATUS "Using C++20 for RDKit version ${RDKIT_VERSION}")
+            endif()
+        elseif(RDKIT_VERSION_CONTENT MATCHES "RDKit_VERSION_MAJOR[ \t]+([0-9]+)")
+            # Alternative version detection
+            string(REGEX MATCH "RDKit_VERSION_MAJOR[ \t]+([0-9]+)" _ ${RDKIT_VERSION_CONTENT})
+            set(RDKIT_VERSION_MAJOR ${CMAKE_MATCH_1})
+            string(REGEX MATCH "RDKit_VERSION_MINOR[ \t]+([0-9]+)" _ ${RDKIT_VERSION_CONTENT})
+            set(RDKIT_VERSION_MINOR ${CMAKE_MATCH_1})
+            string(REGEX MATCH "RDKit_VERSION_PATCH[ \t]+([0-9]+)" _ ${RDKIT_VERSION_CONTENT})
+            set(RDKIT_VERSION_PATCH ${CMAKE_MATCH_1})
+            
+            if(RDKIT_VERSION_MAJOR AND RDKIT_VERSION_MINOR AND RDKIT_VERSION_PATCH)
+                set(RDKIT_VERSION "${RDKIT_VERSION_MAJOR}.${RDKIT_VERSION_MINOR}.${RDKIT_VERSION_PATCH}")
+                message(STATUS "Detected RDKit version: ${RDKIT_VERSION}")
+                
+                if(RDKIT_VERSION VERSION_LESS_EQUAL "2025.3.1")
+                    set(CMAKE_CXX_STANDARD 17)
+                    message(STATUS "Using C++17 for RDKit version ${RDKIT_VERSION}")
+                else()
+                    set(CMAKE_CXX_STANDARD 20)
+                    message(STATUS "Using C++20 for RDKit version ${RDKIT_VERSION}")
+                endif()
+            else()
+                # Fallback to C++20 if version detection fails
+                set(CMAKE_CXX_STANDARD 20)
+                message(STATUS "Could not detect RDKit version, defaulting to C++20")
+            endif()
+        else()
+            # Fallback to C++20 if version detection fails
+            set(CMAKE_CXX_STANDARD 20)
+            message(STATUS "Could not parse RDKit version, defaulting to C++20")
+        endif()
+    else()
+        # Fallback to C++20 if no version header found
+        set(CMAKE_CXX_STANDARD 20)
+        message(STATUS "No RDKit version header found, defaulting to C++20")
+    endif()
+else()
+    # Fallback to C++20 if RDKit not found initially
+    set(CMAKE_CXX_STANDARD 20)
+    message(STATUS "RDKit include directory not found initially, defaulting to C++20")
+endif()
+
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # For static linking and portability
@@ -18,37 +101,9 @@ endif()
 # Find required packages
 find_package(PkgConfig REQUIRED)
 
-# Find RDKit - try multiple approaches
-set(RDKit_ROOT_DIR "$ENV{RDBASE}")
-if(NOT RDKit_ROOT_DIR)
-    set(RDKit_ROOT_DIR "$ENV{CONDA_PREFIX}")
-endif()
-
-# Find RDKit - try multiple approaches
-set(RDKit_ROOT_DIR "$ENV{RDBASE}")
-if(NOT RDKit_ROOT_DIR)
-    set(RDKit_ROOT_DIR "$ENV{CONDA_PREFIX}")
-endif()
-
-# Try to find RDKit directly without imported targets first
-find_path(RDKIT_INCLUDE_DIR GraphMol/ROMol.h
-    PATHS ${RDKit_ROOT_DIR}/include/rdkit
-          ${RDKit_ROOT_DIR}/include
-          /usr/include/rdkit
-          /usr/local/include/rdkit
-    NO_DEFAULT_PATH)
-
-find_library(RDKIT_GRAPHMOL_LIB RDKitGraphMol
-    PATHS ${RDKit_ROOT_DIR}/lib
-          /usr/lib
-          /usr/local/lib
-    NO_DEFAULT_PATH)
-
+# RDKit should already be found from above
 if(RDKIT_INCLUDE_DIR AND RDKIT_GRAPHMOL_LIB)
     set(RDKit_FOUND TRUE)
-    message(STATUS "Found RDKit headers: ${RDKIT_INCLUDE_DIR}")
-    message(STATUS "Found RDKit GraphMol lib: ${RDKIT_GRAPHMOL_LIB}")
-    
     # Find all required RDKit libraries
     set(RDKIT_LIBRARIES)
     set(RDKIT_LIB_NAMES
@@ -212,7 +267,6 @@ if(UNIX AND NOT APPLE)
 endif()
 
 
-
 # Print configuration summary
 message(STATUS "")
 message(STATUS "=== Configuration Summary ===")
@@ -237,11 +291,20 @@ message(STATUS "")
 add_custom_target(build_and_test
     COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target stochastic_sampling_combined
     COMMAND ${CMAKE_COMMAND} -E echo "Module built successfully"
+    COMMAND ${CMAKE_COMMAND} -E echo "To test, run: python test_combined.py -s 'CCO' -d -nconfs 10"
     DEPENDS stochastic_sampling_combined
 )
 
-# Install the Python module
-install(TARGETS stochastic_sampling_combined
-    LIBRARY DESTINATION .
-    COMPONENT python
+# Create portable deployment package
+add_custom_target(create_portable_package
+    COMMAND ${CMAKE_COMMAND} -E make_directory portable_deployment
+    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:stochastic_sampling_combined> portable_deployment/
+    COMMAND ${CMAKE_COMMAND} -E echo "Copying RDKit libraries to portable_deployment..."
+    COMMAND ${CMAKE_COMMAND} -E copy ${RDKIT_LIBRARIES} portable_deployment/
+    COMMAND ${CMAKE_COMMAND} -E echo "Portable deployment created in: portable_deployment/"
+    COMMAND ${CMAKE_COMMAND} -E echo "To deploy:"
+    COMMAND ${CMAKE_COMMAND} -E echo "1. Copy the entire portable_deployment/ directory to target system"
+    COMMAND ${CMAKE_COMMAND} -E echo "2. Set LD_LIBRARY_PATH=\$PWD/portable_deployment or add to system library path"
+    COMMAND ${CMAKE_COMMAND} -E echo "3. Run your Python script"
+    DEPENDS stochastic_sampling_combined
 )

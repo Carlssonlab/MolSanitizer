@@ -12,6 +12,9 @@
 #include <stdexcept>
 #include <iostream>
 #include <algorithm>
+#if __cplusplus >= 202002L
+#include <span>
+#endif
 
 namespace StochasticSampling {
 namespace AcceleratedRMSD {
@@ -105,7 +108,11 @@ void SameMoleculeRMSDCalculator::generateSymmetricMappings(const RDKit::ROMol& m
     params.maxMatches = 1000; // Limit to prevent excessive computation
     
     // Set extraFinalCheck to filter out invalid SO2 mappings
+#if __cplusplus >= 202002L
+    params.extraFinalCheck = [&so2_pairs](const RDKit::ROMol &mol, std::span<const unsigned int> match) -> bool {
+#else
     params.extraFinalCheck = [&so2_pairs](const RDKit::ROMol &mol, const std::vector<unsigned int> &match) -> bool {
+#endif
         for (const auto& pair : so2_pairs) {
             int o1 = pair.first;
             int o2 = pair.second;
@@ -168,7 +175,7 @@ void SameMoleculeRMSDCalculator::generateSymmetricMappings(const RDKit::ROMol& m
     }
     
     // Debug output
-    // fprintf(stderr, "DEBUG: Generated %zu symmetric mappings for molecule\n", symmetric_mappings_.size());
+    fprintf(stderr, "DEBUG: Generated %zu symmetric mappings for molecule\n", symmetric_mappings_.size());
     // for (size_t i = 0; i < symmetric_mappings_.size(); ++i) {
     //     fprintf(stderr, "  Mapping %zu: %zu atom pairs\n", i, symmetric_mappings_[i].size());
     // }
