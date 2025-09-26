@@ -32,6 +32,11 @@ private:
     bool initialized_;
     bool use_symmetry_;
     bool symmetrize_conjugated_terminal_groups_;
+    size_t num_heavy_atoms_;
+    
+    // Reusable point vectors to avoid repeated allocations
+    mutable RDGeom::Point3DConstPtrVect ref_points_;
+    mutable RDGeom::Point3DConstPtrVect probe_points_;
     
     /**
      * Generate all symmetric mappings for the same molecule

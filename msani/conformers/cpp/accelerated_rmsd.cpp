@@ -153,7 +153,7 @@ void SameMoleculeRMSDCalculator::generateSymmetricMappings(const RDKit::ROMol& m
             }
         }
         
-        if (!heavy_mapping.empty() && heavy_mapping.size() == heavy_atom_indices_.size()) {
+        if (!heavy_mapping.empty() && heavy_mapping.size() == num_heavy_atoms_) {
             symmetric_mappings_.push_back(heavy_mapping);
         }
     }
@@ -161,7 +161,7 @@ void SameMoleculeRMSDCalculator::generateSymmetricMappings(const RDKit::ROMol& m
     // If no valid mappings found, create identity mapping
     if (symmetric_mappings_.empty()) {
         std::vector<std::pair<int, int>> identity_mapping;
-        for (size_t i = 0; i < heavy_atom_indices_.size(); ++i) {
+        for (size_t i = 0; i < num_heavy_atoms_; ++i) {
             identity_mapping.emplace_back(i, i);
         }
         symmetric_mappings_.push_back(identity_mapping);
@@ -175,7 +175,7 @@ void SameMoleculeRMSDCalculator::generateSymmetricMappings(const RDKit::ROMol& m
 } 
 
 SameMoleculeRMSDCalculator::SameMoleculeRMSDCalculator(bool use_symmetry, bool symmetrize_conjugated_terminal_groups) 
-    : initialized_(false), use_symmetry_(use_symmetry), symmetrize_conjugated_terminal_groups_(symmetrize_conjugated_terminal_groups) {}
+    : initialized_(false), use_symmetry_(use_symmetry), symmetrize_conjugated_terminal_groups_(symmetrize_conjugated_terminal_groups), num_heavy_atoms_(0) {}
 
 void SameMoleculeRMSDCalculator::initialize(const RDKit::ROMol& mol) {
     heavy_atom_indices_.clear();
@@ -189,13 +189,19 @@ void SameMoleculeRMSDCalculator::initialize(const RDKit::ROMol& mol) {
         }
     }
     
+    num_heavy_atoms_ = heavy_atom_indices_.size();
+    
+    // Reserve capacity for point vectors to avoid repeated allocations
+    ref_points_.reserve(num_heavy_atoms_);
+    probe_points_.reserve(num_heavy_atoms_);
+    
     // Generate symmetric mappings if enabled
     if (use_symmetry_) {
         generateSymmetricMappings(mol);
     } else {
         // Create identity mapping only
         std::vector<std::pair<int, int>> identity_mapping;
-        for (size_t i = 0; i < heavy_atom_indices_.size(); ++i) {
+        for (size_t i = 0; i < num_heavy_atoms_; ++i) {
             identity_mapping.emplace_back(i, i);
         }
         symmetric_mappings_.push_back(identity_mapping);
@@ -207,18 +213,18 @@ void SameMoleculeRMSDCalculator::initialize(const RDKit::ROMol& mol) {
 double SameMoleculeRMSDCalculator::calculateAlignedRMSD(const RDKit::Conformer& probe_conf, 
                                                        const RDKit::Conformer& ref_conf,
                                                        RDGeom::Transform3D* transform,
-                                                       double rmsd_threshold) const {
+                                                       double thres2) const {
     if (!initialized_) {
         throw std::runtime_error("Calculator not initialized");
     }
     
-    double best_rmsd = std::numeric_limits<double>::max();
-    // RDGeom::Transform3D best_transform;
+    double best_msd = std::numeric_limits<double>::max();
     
     // Try each symmetric mapping and find the one with lowest RMSD
     for (const auto& mapping : symmetric_mappings_) {
-        // Prepare point arrays for this mapping
-        RDGeom::Point3DConstPtrVect ref_points, probe_points;
+        // Clear and reuse point arrays for this mapping
+        ref_points_.clear();
+        probe_points_.clear();
         
         for (const auto& pair : mapping) {
             int probe_heavy_idx = pair.first;
@@ -228,28 +234,29 @@ double SameMoleculeRMSDCalculator::calculateAlignedRMSD(const RDKit::Conformer& 
             int probe_atom_idx = heavy_atom_indices_[probe_heavy_idx];
             int ref_atom_idx = heavy_atom_indices_[ref_heavy_idx];
             
-            probe_points.push_back(&probe_conf.getAtomPos(probe_atom_idx));
-            ref_points.push_back(&ref_conf.getAtomPos(ref_atom_idx));
+            probe_points_.push_back(&probe_conf.getAtomPos(probe_atom_idx));
+            ref_points_.push_back(&ref_conf.getAtomPos(ref_atom_idx));
         }
         
         // Perform alignment for this mapping
         RDGeom::Transform3D trans;
         double ssr = RDNumeric::Alignments::AlignPoints(
-            ref_points, probe_points, trans, nullptr, false, 30);
+            ref_points_, probe_points_, trans, nullptr, false, 25);
         
-        double rmsd = std::sqrt(ssr / heavy_atom_indices_.size());
+        // Compare squared RMSD directly to avoid sqrt in hot loop
+        double msd = ssr / num_heavy_atoms_;
         
-        if (rmsd < best_rmsd) {
-            best_rmsd = rmsd;
+        if (msd < best_msd) {
+            best_msd = msd;
         }
 
         // Early exit if threshold is set and met
-        if (rmsd_threshold >= 0.0 && rmsd <= rmsd_threshold) {
-            return rmsd;
+        if (thres2 >= 0.0 && msd <= thres2) {
+            return msd;
         }
     }
     
-    return best_rmsd;
+    return best_msd;
 }
 
 bool SameMoleculeRMSDCalculator::isSimilarToAny(const RDKit::ROMol& mol,
@@ -261,11 +268,11 @@ bool SameMoleculeRMSDCalculator::isSimilarToAny(const RDKit::ROMol& mol,
     }
     
     const RDKit::Conformer& probe_conf = mol.getConformer(probe_conf_id);
-    
+    double thres2 = (rmsd_threshold >= 0.0) ? rmsd_threshold * rmsd_threshold : -1.0;
     for (int ref_id : ref_conf_ids) {
         const RDKit::Conformer& ref_conf = mol.getConformer(ref_id);
-        double rmsd = calculateAlignedRMSD(probe_conf, ref_conf, nullptr, rmsd_threshold);
-        if (rmsd <= rmsd_threshold) {
+        double msd = calculateAlignedRMSD(probe_conf, ref_conf, nullptr, thres2);
+        if (msd <= thres2) {
             return true;
         }
     }
@@ -275,7 +282,7 @@ bool SameMoleculeRMSDCalculator::isSimilarToAny(const RDKit::ROMol& mol,
 
 
 size_t SameMoleculeRMSDCalculator::getNumHeavyAtoms() const {
-    return heavy_atom_indices_.size();
+    return num_heavy_atoms_;
 }
 
 const std::vector<int>& SameMoleculeRMSDCalculator::getHeavyAtomIndices() const {
