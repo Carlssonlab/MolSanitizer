@@ -93,30 +93,6 @@ public:
     bool isSymmetryEnabled() const;
 };
 
-/**
- * Optimized conformer similarity checker
- * Replacement for the ConformerCache::isSimilarFast function
- */
-class OptimizedConformerCache {
-private:
-    std::unique_ptr<SameMoleculeRMSDCalculator> rmsd_calc_;
-    std::vector<int> cached_conf_ids_;
-    
-public:
-    OptimizedConformerCache();
-    
-    void initialize(const RDKit::ROMol& mol);
-    
-    bool isSimilar(const RDKit::ROMol& mol,
-                  int probe_conf_id,
-                  double rmsd_threshold) const;
-    
-    void addConformer(int conf_id);
-    
-    size_t getNumCachedConformers() const;
-    
-    void clear();
-};
 
 } // namespace AcceleratedRMSD
 } // namespace StochasticSampling

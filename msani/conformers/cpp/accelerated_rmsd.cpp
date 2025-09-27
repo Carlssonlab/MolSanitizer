@@ -176,7 +176,7 @@ void SameMoleculeRMSDCalculator::generateSymmetricMappings(const RDKit::ROMol& m
     }
     
     // Debug output
-    // fprintf(stderr, "DEBUG: Generated %zu symmetric mappings for molecule\n", symmetric_mappings_.size());
+    fprintf(stderr, "DEBUG: Generated %zu symmetric mappings for molecule\n", symmetric_mappings_.size());
     // for (size_t i = 0; i < symmetric_mappings_.size(); ++i) {
     //     fprintf(stderr, "  Mapping %zu: %zu atom pairs\n", i, symmetric_mappings_[i].size());
     // }
@@ -231,33 +231,74 @@ double SameMoleculeRMSDCalculator::calculateAlignedRMSD(const RDKit::Conformer& 
     // Create a shuffled copy of symmetric mappings for stochastic early exit
     std::vector<std::vector<std::pair<int, int>>> shuffled_mappings = symmetric_mappings_;
     std::shuffle(shuffled_mappings.begin(), shuffled_mappings.end(), std::mt19937{std::random_device{}()});
-        
+    
+    // Precompute heavy-atom positions, centroids and radii once to avoid repeated work
+    const size_t n_heavy = num_heavy_atoms_;
+    std::vector<const RDGeom::Point3D*> heavy_probe_pos(n_heavy), heavy_ref_pos(n_heavy);
+    RDGeom::Point3D probe_centroid_all(0.0, 0.0, 0.0), ref_centroid_all(0.0, 0.0, 0.0);
+    for (size_t i = 0; i < n_heavy; ++i) {
+        int atom_idx = heavy_atom_indices_[static_cast<int>(i)];
+        heavy_probe_pos[i] = &probe_conf.getAtomPos(atom_idx);
+        heavy_ref_pos[i] = &ref_conf.getAtomPos(atom_idx);
+        probe_centroid_all += *heavy_probe_pos[i];
+        ref_centroid_all += *heavy_ref_pos[i];
+    }
+    double inv_n_heavy = 1.0 / static_cast<double>(n_heavy);
+    probe_centroid_all *= inv_n_heavy;
+    ref_centroid_all *= inv_n_heavy;
+
+    // Precompute radii (distance to centroid) once per heavy atom
+    std::vector<double> probe_radii(n_heavy), ref_radii(n_heavy);
+    for (size_t i = 0; i < n_heavy; ++i) {
+        const RDGeom::Point3D &pp = *heavy_probe_pos[i];
+        const RDGeom::Point3D &rp = *heavy_ref_pos[i];
+        double px = pp.x - probe_centroid_all.x;
+        double py = pp.y - probe_centroid_all.y;
+        double pz = pp.z - probe_centroid_all.z;
+        double rx = rp.x - ref_centroid_all.x;
+        double ry = rp.y - ref_centroid_all.y;
+        double rz = rp.z - ref_centroid_all.z;
+        probe_radii[i] = std::sqrt(px*px + py*py + pz*pz);
+        ref_radii[i] = std::sqrt(rx*rx + ry*ry + rz*rz);
+    }
+
     // Try each symmetric mapping and find the one with lowest RMSD
-    for (const auto& mapping : symmetric_mappings_) {
-        // Clear and reuse point arrays for this mapping
-        ref_points_.clear();
-        probe_points_.clear();
-        
+    for (const auto& mapping : shuffled_mappings) {
+        // Reset point arrays without deallocating capacity
+        ref_points_.resize(0);
+        probe_points_.resize(0);
+    
+        const double npts = static_cast<double>(mapping.size());
+        const double inv_n = (npts > 0.0) ? 1.0 / npts : inv_n_heavy;
+
+        // Compute radial lower bound using precomputed radii (no sqrt per mapping)
+        double radial_sq_sum = 0.0;
         for (const auto& pair : mapping) {
             int probe_heavy_idx = pair.first;
             int ref_heavy_idx = pair.second;
-            
-            // Get actual atom indices
-            int probe_atom_idx = heavy_atom_indices_[probe_heavy_idx];
-            int ref_atom_idx = heavy_atom_indices_[ref_heavy_idx];
-            
-            probe_points_.push_back(&probe_conf.getAtomPos(probe_atom_idx));
-            ref_points_.push_back(&ref_conf.getAtomPos(ref_atom_idx));
+
+            probe_points_.push_back(heavy_probe_pos[probe_heavy_idx]);
+            ref_points_.push_back(heavy_ref_pos[ref_heavy_idx]);
+
+            double d = probe_radii[probe_heavy_idx] - ref_radii[ref_heavy_idx];
+            radial_sq_sum += d * d;
         }
-        
+
+        double lower_bound_msd = radial_sq_sum * inv_n;
+
+        // If radial lower bound already worse than best or threshold, skip expensive alignment
+        if (lower_bound_msd >= best_msd) { continue; }
+        if (thres2 >= 0.0 && lower_bound_msd > thres2) { continue; }
+
         // Perform alignment for this mapping
         RDGeom::Transform3D trans;
         double ssr = RDNumeric::Alignments::AlignPoints(
             ref_points_, probe_points_, trans, nullptr, false, 25);
-        
+
         // Compare squared RMSD directly to avoid sqrt in hot loop
-        double msd = ssr / num_heavy_atoms_;
-        
+        double msd = ssr / static_cast<double>(num_heavy_atoms_);
+
+
         if (msd < best_msd) {
             best_msd = msd;
         }
@@ -307,37 +348,6 @@ size_t SameMoleculeRMSDCalculator::getNumSymmetricMappings() const {
 
 bool SameMoleculeRMSDCalculator::isSymmetryEnabled() const {
     return use_symmetry_;
-}
-
-OptimizedConformerCache::OptimizedConformerCache() 
-    : rmsd_calc_(std::make_unique<SameMoleculeRMSDCalculator>()) {}
-
-void OptimizedConformerCache::initialize(const RDKit::ROMol& mol) {
-    rmsd_calc_->initialize(mol);
-    cached_conf_ids_.clear();
-}
-
-bool OptimizedConformerCache::isSimilar(const RDKit::ROMol& mol,
-                                       int probe_conf_id,
-                                       double rmsd_threshold) const {
-    if (cached_conf_ids_.empty()) {
-        return false;
-    }
-    
-    return rmsd_calc_->isSimilarToAny(mol, probe_conf_id, cached_conf_ids_, 
-                                     rmsd_threshold);
-}
-
-void OptimizedConformerCache::addConformer(int conf_id) {
-    cached_conf_ids_.push_back(conf_id);
-}
-
-size_t OptimizedConformerCache::getNumCachedConformers() const {
-    return cached_conf_ids_.size();
-}
-
-void OptimizedConformerCache::clear() {
-    cached_conf_ids_.clear();
 }
 
 } // namespace AcceleratedRMSD
