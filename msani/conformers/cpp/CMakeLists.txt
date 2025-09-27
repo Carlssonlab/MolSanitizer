@@ -7,43 +7,28 @@ if(NOT RDKit_ROOT_DIR)
     set(RDKit_ROOT_DIR "$ENV{CONDA_PREFIX}")
 endif()
 
-# Try to find RDKit version to determine C++ standard
-find_path(RDKIT_INCLUDE_DIR GraphMol/ROMol.h
-    PATHS ${RDKit_ROOT_DIR}/include/rdkit
-          ${RDKit_ROOT_DIR}/include
-          /usr/include/rdkit
-          /usr/local/include/rdkit
-    NO_DEFAULT_PATH)
-
-if(RDKIT_INCLUDE_DIR)
-    # Try to detect RDKit version to set appropriate C++ standard
-    # Try to detect RDKit version using Python
-    execute_process(
-        COMMAND python -c "import rdkit; print(rdkit.__version__)"
-        OUTPUT_VARIABLE RDKIT_VERSION
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-        RESULT_VARIABLE RESULT
-    )
-    if(RESULT EQUAL 0)
-        message(STATUS "Detected RDKit version via Python: ${RDKIT_VERSION}")
-        # Set C++ standard based on RDKit version
-        # RDKit <= 2025.3.1: C++17, > 2025.3.1: C++20
-        if(RDKIT_VERSION VERSION_LESS_EQUAL "2025.3.1")
-            set(CMAKE_CXX_STANDARD 17)
-            message(STATUS "Using C++17 for RDKit version ${RDKIT_VERSION}")
-        else()
-            set(CMAKE_CXX_STANDARD 20)
-            message(STATUS "Using C++20 for RDKit version ${RDKIT_VERSION}")
-        endif()
+# Try to detect RDKit version using Python to determine C++ standard
+execute_process(
+    COMMAND python -c "import rdkit; print(rdkit.__version__)"
+    OUTPUT_VARIABLE RDKIT_VERSION
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    RESULT_VARIABLE RESULT
+)
+if(RESULT EQUAL 0)
+    message(STATUS "Detected RDKit version via Python: ${RDKIT_VERSION}")
+    # Set C++ standard based on RDKit version
+    # RDKit <= 2025.3.1: C++17, > 2025.3.1: C++20
+    if(RDKIT_VERSION VERSION_LESS_EQUAL "2025.3.1")
+        set(CMAKE_CXX_STANDARD 17)
+        message(STATUS "Using C++17 for RDKit version ${RDKIT_VERSION}")
     else()
-        # Fallback to C++20 if Python detection fails
         set(CMAKE_CXX_STANDARD 20)
-        message(STATUS "Could not detect RDKit version via Python, defaulting to C++20")
+        message(STATUS "Using C++20 for RDKit version ${RDKIT_VERSION}")
     endif()
 else()
-    # Fallback to C++20 if RDKit not found initially
-    set(CMAKE_CXX_STANDARD 20)
-    message(STATUS "RDKit include directory not found initially, defaulting to C++20")
+    # Fallback to C++17 if Python detection fails
+    set(CMAKE_CXX_STANDARD 17)
+    message(STATUS "Could not detect RDKit version via Python, defaulting to C++17")
 endif()
 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -61,9 +46,37 @@ endif()
 # Find required packages
 find_package(PkgConfig REQUIRED)
 
-# RDKit should already be found from above
+# Find RDKit - try multiple approaches
+set(RDKit_ROOT_DIR "$ENV{RDBASE}")
+if(NOT RDKit_ROOT_DIR)
+    set(RDKit_ROOT_DIR "$ENV{CONDA_PREFIX}")
+endif()
+
+# Find RDKit - try multiple approaches
+set(RDKit_ROOT_DIR "$ENV{RDBASE}")
+if(NOT RDKit_ROOT_DIR)
+    set(RDKit_ROOT_DIR "$ENV{CONDA_PREFIX}")
+endif()
+
+# Try to find RDKit directly without imported targets first
+find_path(RDKIT_INCLUDE_DIR GraphMol/ROMol.h
+    PATHS ${RDKit_ROOT_DIR}/include/rdkit
+          ${RDKit_ROOT_DIR}/include
+          /usr/include/rdkit
+          /usr/local/include/rdkit
+    NO_DEFAULT_PATH)
+
+find_library(RDKIT_GRAPHMOL_LIB RDKitGraphMol
+    PATHS ${RDKit_ROOT_DIR}/lib
+          /usr/lib
+          /usr/local/lib
+    NO_DEFAULT_PATH)
+
 if(RDKIT_INCLUDE_DIR AND RDKIT_GRAPHMOL_LIB)
     set(RDKit_FOUND TRUE)
+    message(STATUS "Found RDKit headers: ${RDKIT_INCLUDE_DIR}")
+    message(STATUS "Found RDKit GraphMol lib: ${RDKIT_GRAPHMOL_LIB}")
+    
     # Find all required RDKit libraries
     set(RDKIT_LIBRARIES)
     set(RDKIT_LIB_NAMES

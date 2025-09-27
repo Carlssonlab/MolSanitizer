@@ -12,6 +12,7 @@
 #include <stdexcept>
 #include <iostream>
 #include <algorithm>
+#include <random>
 #if __cplusplus >= 202002L
 #include <span>
 #endif
@@ -175,7 +176,7 @@ void SameMoleculeRMSDCalculator::generateSymmetricMappings(const RDKit::ROMol& m
     }
     
     // Debug output
-    fprintf(stderr, "DEBUG: Generated %zu symmetric mappings for molecule\n", symmetric_mappings_.size());
+    // fprintf(stderr, "DEBUG: Generated %zu symmetric mappings for molecule\n", symmetric_mappings_.size());
     // for (size_t i = 0; i < symmetric_mappings_.size(); ++i) {
     //     fprintf(stderr, "  Mapping %zu: %zu atom pairs\n", i, symmetric_mappings_[i].size());
     // }
@@ -227,6 +228,10 @@ double SameMoleculeRMSDCalculator::calculateAlignedRMSD(const RDKit::Conformer& 
     
     double best_msd = std::numeric_limits<double>::max();
     
+    // Create a shuffled copy of symmetric mappings for stochastic early exit
+    std::vector<std::vector<std::pair<int, int>>> shuffled_mappings = symmetric_mappings_;
+    std::shuffle(shuffled_mappings.begin(), shuffled_mappings.end(), std::mt19937{std::random_device{}()});
+        
     // Try each symmetric mapping and find the one with lowest RMSD
     for (const auto& mapping : symmetric_mappings_) {
         // Clear and reuse point arrays for this mapping

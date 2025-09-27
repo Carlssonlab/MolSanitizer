@@ -16,6 +16,7 @@
 #include <stdexcept>
 #include <functional>
 #include <unordered_set>
+#include <random>
 
 namespace StochasticSampling {
 
@@ -83,9 +84,12 @@ bool ConformerCache::isSimilarFast(const RDKit::Conformer& conf,
         
         // Use accelerated RMSD calculation instead of RDKit's getBestRMS
         std::vector<int> cached_conf_ids;
-        for (unsigned int i = 0; i < cache_mol_no_h->getNumConformers() - 1; ++i) { // -1 to exclude temp conformer
-            cached_conf_ids.push_back(static_cast<int>(i));
+        for (int i = static_cast<int>(cache_mol_no_h->getNumConformers()) - 2; i >= 0; --i) { // -2 to exclude temp conformer and start from last valid
+            cached_conf_ids.push_back(i);
         }
+        
+        // Shuffle cached_conf_ids for stochastic early exit
+        std::shuffle(cached_conf_ids.begin(), cached_conf_ids.end(), std::mt19937{std::random_device{}()});
         
         bool is_similar = false;
         if (!cached_conf_ids.empty() && rmsd_calculator) {
