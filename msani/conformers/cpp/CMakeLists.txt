@@ -17,68 +17,28 @@ find_path(RDKIT_INCLUDE_DIR GraphMol/ROMol.h
 
 if(RDKIT_INCLUDE_DIR)
     # Try to detect RDKit version to set appropriate C++ standard
-    find_file(RDKIT_VERSION_HEADER
-        NAMES Version.h version.h
-        PATHS ${RDKIT_INCLUDE_DIR}/GraphMol
-              ${RDKIT_INCLUDE_DIR}/RDKit
-              ${RDKIT_INCLUDE_DIR}
-        NO_DEFAULT_PATH)
-    
-    if(RDKIT_VERSION_HEADER)
-        # Read the version header to determine RDKit version
-        file(READ ${RDKIT_VERSION_HEADER} RDKIT_VERSION_CONTENT LIMIT 2048)
-        
-        # Try to extract version information
-        if(RDKIT_VERSION_CONTENT MATCHES "RDKIT_VERSION[ \t]+\"([0-9]+)\\.([0-9]+)\\.([0-9]+)\"")
-            set(RDKIT_VERSION_MAJOR ${CMAKE_MATCH_1})
-            set(RDKIT_VERSION_MINOR ${CMAKE_MATCH_2})
-            set(RDKIT_VERSION_PATCH ${CMAKE_MATCH_3})
-            set(RDKIT_VERSION "${RDKIT_VERSION_MAJOR}.${RDKIT_VERSION_MINOR}.${RDKIT_VERSION_PATCH}")
-            message(STATUS "Detected RDKit version: ${RDKIT_VERSION}")
-            
-            # Set C++ standard based on RDKit version
-            # RDKit <= 2025.3.1: C++17, > 2025.3.1: C++20
-            if(RDKIT_VERSION VERSION_LESS_EQUAL "2025.3.1")
-                set(CMAKE_CXX_STANDARD 17)
-                message(STATUS "Using C++17 for RDKit version ${RDKIT_VERSION}")
-            else()
-                set(CMAKE_CXX_STANDARD 20)
-                message(STATUS "Using C++20 for RDKit version ${RDKIT_VERSION}")
-            endif()
-        elseif(RDKIT_VERSION_CONTENT MATCHES "RDKit_VERSION_MAJOR[ \t]+([0-9]+)")
-            # Alternative version detection
-            string(REGEX MATCH "RDKit_VERSION_MAJOR[ \t]+([0-9]+)" _ ${RDKIT_VERSION_CONTENT})
-            set(RDKIT_VERSION_MAJOR ${CMAKE_MATCH_1})
-            string(REGEX MATCH "RDKit_VERSION_MINOR[ \t]+([0-9]+)" _ ${RDKIT_VERSION_CONTENT})
-            set(RDKIT_VERSION_MINOR ${CMAKE_MATCH_1})
-            string(REGEX MATCH "RDKit_VERSION_PATCH[ \t]+([0-9]+)" _ ${RDKIT_VERSION_CONTENT})
-            set(RDKIT_VERSION_PATCH ${CMAKE_MATCH_1})
-            
-            if(RDKIT_VERSION_MAJOR AND RDKIT_VERSION_MINOR AND RDKIT_VERSION_PATCH)
-                set(RDKIT_VERSION "${RDKIT_VERSION_MAJOR}.${RDKIT_VERSION_MINOR}.${RDKIT_VERSION_PATCH}")
-                message(STATUS "Detected RDKit version: ${RDKIT_VERSION}")
-                
-                if(RDKIT_VERSION VERSION_LESS_EQUAL "2025.3.1")
-                    set(CMAKE_CXX_STANDARD 17)
-                    message(STATUS "Using C++17 for RDKit version ${RDKIT_VERSION}")
-                else()
-                    set(CMAKE_CXX_STANDARD 20)
-                    message(STATUS "Using C++20 for RDKit version ${RDKIT_VERSION}")
-                endif()
-            else()
-                # Fallback to C++20 if version detection fails
-                set(CMAKE_CXX_STANDARD 20)
-                message(STATUS "Could not detect RDKit version, defaulting to C++20")
-            endif()
+    # Try to detect RDKit version using Python
+    execute_process(
+        COMMAND python -c "import rdkit; print(rdkit.__version__)"
+        OUTPUT_VARIABLE RDKIT_VERSION
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        RESULT_VARIABLE RESULT
+    )
+    if(RESULT EQUAL 0)
+        message(STATUS "Detected RDKit version via Python: ${RDKIT_VERSION}")
+        # Set C++ standard based on RDKit version
+        # RDKit <= 2025.3.1: C++17, > 2025.3.1: C++20
+        if(RDKIT_VERSION VERSION_LESS_EQUAL "2025.3.1")
+            set(CMAKE_CXX_STANDARD 17)
+            message(STATUS "Using C++17 for RDKit version ${RDKIT_VERSION}")
         else()
-            # Fallback to C++20 if version detection fails
             set(CMAKE_CXX_STANDARD 20)
-            message(STATUS "Could not parse RDKit version, defaulting to C++20")
+            message(STATUS "Using C++20 for RDKit version ${RDKIT_VERSION}")
         endif()
     else()
-        # Fallback to C++20 if no version header found
+        # Fallback to C++20 if Python detection fails
         set(CMAKE_CXX_STANDARD 20)
-        message(STATUS "No RDKit version header found, defaulting to C++20")
+        message(STATUS "Could not detect RDKit version via Python, defaulting to C++20")
     endif()
 else()
     # Fallback to C++20 if RDKit not found initially
