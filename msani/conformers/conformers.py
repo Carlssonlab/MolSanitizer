@@ -1312,6 +1312,7 @@ def gen_conf_chunk(df: DataFrame, args, input_file='0'):
                                         ignoreTorlib=ignoreTorlib,
                                         AllowNonRing=allowNonring,
                                         eps = args.eps,
+                                        timeout_conf=args.timeout_conf,
                                         request_alignment=request_alignment,
                                         )
                 except Exception as e:
