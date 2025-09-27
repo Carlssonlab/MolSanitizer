@@ -281,3 +281,9 @@ add_custom_target(create_portable_package
     COMMAND ${CMAKE_COMMAND} -E echo "3. Run your Python script"
     DEPENDS stochastic_sampling_combined
 )
+
+# Install the Python module
+install(TARGETS stochastic_sampling_combined
+    LIBRARY DESTINATION .
+    COMPONENT python
+)
