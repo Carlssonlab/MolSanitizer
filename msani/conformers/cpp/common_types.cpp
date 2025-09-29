@@ -18,6 +18,12 @@
 #include <unordered_set>
 #include <random>
 
+// thread-local RNG helper to avoid costly construction per-call
+static inline std::mt19937 &get_thread_rng_common() {
+    static thread_local std::mt19937 rng(std::random_device{}());
+    return rng;
+}
+
 namespace StochasticSampling {
 
 // ========================
@@ -51,6 +57,8 @@ void ConformerCache::initialize(const RDKit::ROMol& reference_mol) {
     RDKit::MolOps::removeAllHs(*cache_mol_no_h);
     cache_mol_no_h->clearConformers();
     energies.clear();
+    cache_ref_radii.clear();
+    cache_ref_centroids.clear();
     
     // Initialize accelerated RMSD calculator
     if (!rmsd_calculator) {
@@ -70,7 +78,7 @@ bool ConformerCache::isSimilarFast(const RDKit::Conformer& conf,
     try {
         // Create a temporary conformer with only heavy atoms
         auto temp_conf = std::make_unique<RDKit::Conformer>(cache_mol_no_h->getNumAtoms());
-        
+
         // Map coordinates from full conformer to heavy-atom-only conformer
         for (unsigned int i = 0; i < conf.getNumAtoms(); ++i) {
             int heavy_idx = heavy_atom_mapping[i];
@@ -78,28 +86,32 @@ bool ConformerCache::isSimilarFast(const RDKit::Conformer& conf,
                 temp_conf->setAtomPos(heavy_idx, conf.getAtomPos(i));
             }
         }
-        
+
+        // We no longer compute probe radii here; isSimilarToAny will compute probe radii once for the probe and
+        // forward it to calculateAlignedRMSD. This avoids duplicated work.
+
         // Add temporarily to cache molecule
         int temp_conf_id = cache_mol_no_h->addConformer(temp_conf.release(), true);
-        
+
         // Use accelerated RMSD calculation instead of RDKit's getBestRMS
         std::vector<int> cached_conf_ids;
         for (int i = static_cast<int>(cache_mol_no_h->getNumConformers()) - 2; i >= 0; --i) { // -2 to exclude temp conformer and start from last valid
             cached_conf_ids.push_back(i);
         }
-        
+
         // Shuffle cached_conf_ids for stochastic early exit
-        std::shuffle(cached_conf_ids.begin(), cached_conf_ids.end(), std::mt19937{std::random_device{}()});
-        
+        std::shuffle(cached_conf_ids.begin(), cached_conf_ids.end(), get_thread_rng_common());
+
         bool is_similar = false;
         if (!cached_conf_ids.empty() && rmsd_calculator) {
-            is_similar = rmsd_calculator->isSimilarToAny(*cache_mol_no_h, temp_conf_id, 
-                                                        cached_conf_ids, rmsd_threshold);
+            // Rely on the RMSD calculator which will compute probe radii once and use the provided cached per-ref data
+            is_similar = rmsd_calculator->isSimilarToAny(*cache_mol_no_h, temp_conf_id, cached_conf_ids, rmsd_threshold,
+                                                          &cache_ref_radii, &cache_ref_centroids);
         }
-        
+
         // Remove temporary conformer
         cache_mol_no_h->removeConformer(temp_conf_id);
-        
+
         return is_similar;
         
     } catch (const std::exception& e) {
@@ -129,9 +141,32 @@ void ConformerCache::addConformerFast(const RDKit::Conformer& conf,
             }
         }
         
+        // Compute centroid and squared radii for the stripped conformer BEFORE adding (we still own the object)
+        size_t n_heavy = cache_mol_no_h->getNumAtoms();
+        RDGeom::Point3D centroid(0.0, 0.0, 0.0);
+        std::vector<double> radii(n_heavy);
+        for (size_t i = 0; i < n_heavy; ++i) {
+            const RDGeom::Point3D &p = stripped_conf->getAtomPos(static_cast<unsigned int>(i));
+            centroid += p;
+        }
+        double inv_n = 1.0 / static_cast<double>(n_heavy);
+        centroid *= inv_n;
+        for (size_t i = 0; i < n_heavy; ++i) {
+            const RDGeom::Point3D &p = stripped_conf->getAtomPos(static_cast<unsigned int>(i));
+            double dx = p.x - centroid.x;
+            double dy = p.y - centroid.y;
+            double dz = p.z - centroid.z;
+            // store radius (distance from centroid)
+            radii[i] = std::sqrt(dx*dx + dy*dy + dz*dz);
+        }
+
         // Add to cache
         cache_mol_no_h->addConformer(stripped_conf.release(), true);
         energies.push_back(energy);
+
+        // Store cached per-conformer derived data (store radii)
+        cache_ref_radii.push_back(std::move(radii));
+        cache_ref_centroids.push_back(centroid);
         
     } catch (const std::exception& e) {
         std::cerr << "Error in ConformerCache::addConformerFast: " << e.what() << std::endl;
@@ -148,6 +183,8 @@ void ConformerCache::clear() {
         cache_mol_no_h->clearConformers();
     }
     energies.clear();
+    cache_ref_radii.clear();
+    cache_ref_centroids.clear();
 }
 
 // ========================

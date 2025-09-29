@@ -61,7 +61,12 @@ public:
     double calculateAlignedRMSD(const RDKit::Conformer& probe_conf,
                                    const RDKit::Conformer& ref_conf,
                                    RDGeom::Transform3D* transform = nullptr,
-                                   double rmsd_threshold = -1.0) const;
+                                   double rmsd_threshold = -1.0,
+                                   // Optional cached per-ref conformer data (squared radii and centroid)
+                                   const std::vector<double>* cached_ref_radii = nullptr,
+                                   const RDGeom::Point3D* cached_ref_centroid = nullptr,
+                                   // Optional precomputed probe radii (distance from probe centroid)
+                                   const std::vector<double>* cached_probe_radii = nullptr) const;
      
     /**
      * Check if a conformer is similar to any in a set (below threshold)
@@ -70,7 +75,10 @@ public:
     bool isSimilarToAny(const RDKit::ROMol& mol,
                        int probe_conf_id,
                        const std::vector<int>& ref_conf_ids,
-                       double rmsd_threshold) const;
+                       double rmsd_threshold,
+                       // Optional cached per-ref data from ConformerCache
+                       const std::vector<std::vector<double>>* cached_ref_radii = nullptr,
+                       const std::vector<RDGeom::Point3D>* cached_ref_centroids = nullptr) const;
     
     /**
      * Get the number of heavy atoms being used for RMSD calculation

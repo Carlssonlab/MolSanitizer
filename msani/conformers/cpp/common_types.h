@@ -94,6 +94,10 @@ private:
     std::unique_ptr<RDKit::RWMol> cache_mol_no_h;  // Molecule without hydrogens for RDKit RMSD
     std::vector<double> energies;  // Track energies for each cached conformer
     std::unique_ptr<AcceleratedRMSD::SameMoleculeRMSDCalculator> rmsd_calculator;  // Accelerated RMSD calculator
+    // Per-conformer cached data for heavy-atom-only conformers (per-atom radial distances from centroid)
+    // cache_ref_radii[conf_id][atom_index] == radius (distance from that conformer's centroid)
+    std::vector<std::vector<double>> cache_ref_radii; // radii per conformer (indexed by conformer id)
+    std::vector<RDGeom::Point3D> cache_ref_centroids;  // centroid per conformer
     
 public:
     ConformerCache() = default;
