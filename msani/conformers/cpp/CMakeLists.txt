@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.16)
-project(stochastic_sampling_combined)
+project(msani_confgen_cpp)
+
+# Always find the Python interpreter from the build environment
+find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
 
 # Find RDKit first to determine version for C++ standard
 set(RDKit_ROOT_DIR "$ENV{RDBASE}")
@@ -7,12 +10,26 @@ if(NOT RDKit_ROOT_DIR)
     set(RDKit_ROOT_DIR "$ENV{CONDA_PREFIX}")
 endif()
 
-# Try to detect RDKit version using Python to determine C++ standard
+# Try to get Python's site-packages path
 execute_process(
-    COMMAND python -c "import rdkit; print(rdkit.__version__)"
+    COMMAND ${Python3_EXECUTABLE} -c "import sys; import sysconfig; print(sysconfig.get_path('purelib'))"
+    OUTPUT_VARIABLE PYTHON_SITE_PACKAGES
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    ERROR_QUIET
+)
+message(STATUS "Python site-packages: ${PYTHON_SITE_PACKAGES}")
+message(STATUS "RDKit root directory: ${RDKit_ROOT_DIR}")
+message(STATUS "Python executable: ${Python3_EXECUTABLE}")
+
+# Try to detect RDKit version using Python to determine C++ standard
+# Add explicit PYTHONPATH from conda environment to ensure rdkit can be found
+set(ENV{PYTHONPATH} "${RDKit_ROOT_DIR}/lib/python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}/site-packages:${PYTHON_SITE_PACKAGES}:$ENV{PYTHONPATH}")
+execute_process(
+    COMMAND ${Python3_EXECUTABLE} -c "import sys; sys.path.insert(0, '${RDKit_ROOT_DIR}/lib/python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}/site-packages'); sys.path.insert(0, '${PYTHON_SITE_PACKAGES}'); import rdkit; print(rdkit.__version__)"
     OUTPUT_VARIABLE RDKIT_VERSION
     OUTPUT_STRIP_TRAILING_WHITESPACE
     RESULT_VARIABLE RESULT
+    ERROR_QUIET
 )
 if(RESULT EQUAL 0)
     message(STATUS "Detected RDKit version via Python: ${RDKIT_VERSION}")
@@ -32,6 +49,22 @@ else()
 endif()
 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# Detect whether RDKit was built with thread-safe substructure search support
+set(RDK_THREADSAFE_SSS OFF)
+execute_process(
+    COMMAND ${Python3_EXECUTABLE} -c "import sys; sys.path.insert(0, '${RDKit_ROOT_DIR}/lib/python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}/site-packages'); sys.path.insert(0, '${PYTHON_SITE_PACKAGES}'); from rdkit import rdBase; print('ON' if getattr(rdBase, '_multithreadedEnabled', False) else 'OFF')"
+    OUTPUT_VARIABLE RDK_THREADSAFE_FLAG
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    RESULT_VARIABLE RDK_THREADSAFE_RESULT
+    ERROR_QUIET
+)
+if(RDK_THREADSAFE_RESULT EQUAL 0 AND RDK_THREADSAFE_FLAG STREQUAL "ON")
+    set(RDK_THREADSAFE_SSS ON)
+    message(STATUS "RDKit reports multithreaded embedding support: ON")
+else()
+    message(STATUS "RDKit reports multithreaded embedding support: OFF")
+endif()
 
 # For static linking and portability
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
@@ -180,6 +213,7 @@ add_library(stochastic_sampling_lib STATIC
     common_types.cpp
     accelerated_rmsd.cpp
     stochastic_sampling.cpp
+    initial_embedder.cpp
 )
 
 # Set target properties for the library
@@ -206,18 +240,23 @@ elseif(TARGET Eigen3::Eigen)
 endif()
 
 # Create the Python module
-pybind11_add_module(stochastic_sampling_combined 
+pybind11_add_module(msani_confgen_cpp 
     pybind_interface.cpp
 )
 
 # Link the static library to the Python module
-target_link_libraries(stochastic_sampling_combined PRIVATE stochastic_sampling_lib)
+target_link_libraries(msani_confgen_cpp PRIVATE stochastic_sampling_lib)
 
 # Properties for the Python module
-target_compile_definitions(stochastic_sampling_combined PRIVATE VERSION_INFO="1.0.0")
+target_compile_definitions(msani_confgen_cpp PRIVATE VERSION_INFO="1.0.0")
+
+if(RDK_THREADSAFE_SSS)
+    target_compile_definitions(stochastic_sampling_lib PUBLIC RDK_BUILD_THREADSAFE_SSS)
+    target_compile_definitions(msani_confgen_cpp PRIVATE RDK_BUILD_THREADSAFE_SSS)
+endif()
 
 # Set properties for portable .so file
-set_target_properties(stochastic_sampling_combined PROPERTIES
+set_target_properties(msani_confgen_cpp PROPERTIES
     CXX_VISIBILITY_PRESET "hidden"
     VISIBILITY_INLINES_HIDDEN ON
 )
@@ -225,7 +264,7 @@ set_target_properties(stochastic_sampling_combined PROPERTIES
 # Set RPATH to find RDKit libraries
 if(RDKIT_LIBRARIES)
     get_filename_component(RDKIT_LIB_DIR "${RDKIT_LIBRARIES}" DIRECTORY)
-    set_target_properties(stochastic_sampling_combined PROPERTIES
+    set_target_properties(msani_confgen_cpp PROPERTIES
         INSTALL_RPATH "${RDKIT_LIB_DIR}"
         BUILD_WITH_INSTALL_RPATH TRUE
     )
@@ -233,7 +272,7 @@ endif()
 
 # Force static linking of standard libraries
 if(UNIX AND NOT APPLE)
-    target_link_options(stochastic_sampling_combined PRIVATE
+    target_link_options(msani_confgen_cpp PRIVATE
         -static-libgcc
         -static-libstdc++
     )
@@ -262,16 +301,16 @@ message(STATUS "")
 
 # Add custom target for building and testing
 add_custom_target(build_and_test
-    COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target stochastic_sampling_combined
+    COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target msani_confgen_cpp
     COMMAND ${CMAKE_COMMAND} -E echo "Module built successfully"
     COMMAND ${CMAKE_COMMAND} -E echo "To test, run: python test_combined.py -s 'CCO' -d -nconfs 10"
-    DEPENDS stochastic_sampling_combined
+    DEPENDS msani_confgen_cpp
 )
 
 # Create portable deployment package
 add_custom_target(create_portable_package
     COMMAND ${CMAKE_COMMAND} -E make_directory portable_deployment
-    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:stochastic_sampling_combined> portable_deployment/
+    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:msani_confgen_cpp> portable_deployment/
     COMMAND ${CMAKE_COMMAND} -E echo "Copying RDKit libraries to portable_deployment..."
     COMMAND ${CMAKE_COMMAND} -E copy ${RDKIT_LIBRARIES} portable_deployment/
     COMMAND ${CMAKE_COMMAND} -E echo "Portable deployment created in: portable_deployment/"
@@ -279,11 +318,11 @@ add_custom_target(create_portable_package
     COMMAND ${CMAKE_COMMAND} -E echo "1. Copy the entire portable_deployment/ directory to target system"
     COMMAND ${CMAKE_COMMAND} -E echo "2. Set LD_LIBRARY_PATH=\$PWD/portable_deployment or add to system library path"
     COMMAND ${CMAKE_COMMAND} -E echo "3. Run your Python script"
-    DEPENDS stochastic_sampling_combined
+    DEPENDS msani_confgen_cpp
 )
 
 # Install the Python module
-install(TARGETS stochastic_sampling_combined
+install(TARGETS msani_confgen_cpp
     LIBRARY DESTINATION .
     COMPONENT python
 )

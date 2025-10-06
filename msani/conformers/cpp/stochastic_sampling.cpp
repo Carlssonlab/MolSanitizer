@@ -118,13 +118,13 @@ ProductList stochasticSamplingDiscrete(RDKit::ROMol& mol,
     // SIMPLIFIED: Build MMFF properties once (topology-dependent, doesn't change)
     std::unique_ptr<RDKit::MMFF::MMFFMolProperties> mmffMolProperties;
     try {
-        mmffMolProperties = std::make_unique<RDKit::MMFF::MMFFMolProperties>(mol);
+        mmffMolProperties = std::make_unique<RDKit::MMFF::MMFFMolProperties>(mol, mmff_variant);
         if (!mmffMolProperties || !mmffMolProperties->isValid()) {
             return products;
         }
         
-        // Set MMFF variant (MMFF94 or MMFF94s)
-        mmffMolProperties->setMMFFVariant(mmff_variant);
+        // // Set MMFF variant (MMFF94 or MMFF94s)
+        // mmffMolProperties->setMMFFVariant(mmff_variant);
         
         // Set dielectric constant (eps)
         mmffMolProperties->setMMFFDielectricConstant(eps);

@@ -352,14 +352,19 @@ def find_cycloheptatriene(mol_H: Mol):
     """Find cycloheptatriene or cyclohepta-1,4-diene-3-sp2 substructure in the molecule."""
     return mol_H.GetSubstructMatches(cycloheptatriene_smarts) + mol_H.GetSubstructMatches(cyclohepta_1_4_diene_3_sp2_smarts)
 
+
+
 def classify_confs(conf, 
-                   energy, 
-                   non_planar_rings, 
-                   flippable_Ns, 
-                   flippable_Cs, 
-                   sulfo_matches, 
-                   conf_ring_descriptors_df, 
-                   tolerance=25):
+                    energy, 
+                    non_planar_rings, 
+                    flippable_Ns, 
+                    flippable_Cs, 
+                    sulfo_matches, 
+                    tolerance=25):
+    """
+    Classify a conformer based on ring conformations, flippable nitrogens,
+    substituted cyclohexanes, and sulfonamide-like scaffolds.
+    """
     
     temp_dict = {
         'Conformer': conf,
@@ -385,23 +390,17 @@ def classify_confs(conf,
 
     # Process flippable Nitrogens
     flippable_N_descriptors = sum([1 if is_equatorial(conf, atom_idx) else 0 for atom_idx in flippable_Ns])
-    # print(f"Flippable Nitrogens: {flippable_N_descriptors}")
     temp_dict['equatorial_subs_Ns'] = flippable_N_descriptors if flippable_Ns else -1
 
     # Process substituted cyclohexane
     aliphatic_cyclohexane_descriptors = sum([1 if is_equatorial(conf, atom_idx) else 0 for atom_idx in flippable_Cs])
-    # print(f"Aliphatic cyclohexane: {aliphatic_cyclohexane_descriptors}")
     temp_dict['equatorial_subs_Cs'] = aliphatic_cyclohexane_descriptors if flippable_Cs else -1
     
     # Process sulfo matches
     sulfo_descriptors = tuple([1 if rdMolTransforms.GetDihedralDeg(conf, d, b, c, e) > 0 else 0 for (a, b, c, d, e) in sulfo_matches])
     temp_dict['sulfo_descriptors'] = sulfo_descriptors if sulfo_descriptors else [-1]
 
-    # Create dataframe and append to conf_ring_descriptors_df
-    temp_df = DataFrame([temp_dict])
-    conf_ring_descriptors_df = concat([conf_ring_descriptors_df, temp_df], ignore_index=True)
-
-    return conf_ring_descriptors_df
+    return temp_dict
 
 def remove_unfavorable_confs(conf_ring_descriptors_df: DataFrame, name: str ='0')-> DataFrame:
     for column in conf_ring_descriptors_df.columns[2:-2]:

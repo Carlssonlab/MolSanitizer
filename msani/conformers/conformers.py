@@ -34,7 +34,7 @@ from msani.io.utils import log_error
 
 # Check if Open Babel is installed
 try:
-    from openbabel.openbabel import OBMol, OBConversion
+    from openbabel.openbabel import OBMol
     OBABEL_AVAILABLE = True
 except:
     OBABEL_AVAILABLE = False
@@ -59,7 +59,7 @@ except ImportError:
 
 # Check if the CPP-accelerated sampling module is available
 try:
-    import stochastic_sampling_combined as cpp_sampler
+    import msani_confgen_cpp as cpp_sampler
     CPP_AVAILABLE = True
 except:
     CPP_AVAILABLE = False
@@ -318,7 +318,7 @@ class ConformerGenerator:
                     print(f'\t {match}')
             
         # Determine number of initial conformations needed
-        self.num_initialConfs = 50 if (self.sulfo_matches or self.non_planar_rings or self.flippable_Ns) else 10
+        self.num_initialConfs = 50 if (self.sulfo_matches or self.non_planar_rings or self.flippable_Ns) else 1
 
     #================= Generation of initial conformers =========================
     # There are three methods for the generation of the initial conformers:
@@ -345,59 +345,89 @@ class ConformerGenerator:
             params.randomSeed = self.randomSeed # For reproducibility
             params.useRandomCoords = True
             conf_ring_descriptors_df = DataFrame()
-            for cid in rdDistGeom.EmbedMultipleConfs(self.mol_H, numConfs=self.num_initialConfs, params=params):
-                ff = rdForceFieldHelpers.MMFFGetMoleculeForceField(self.mol_H, self.mp, confId=cid)
-                if self.conjugated_substituted_nitrogen_5aro:
-                    # *-[nX3&+0:1]1[a:2][a:3][a:4][a:5]1 
-                    # a-b-c-d -> 180; a-b-f-e -> 180
-                    # b-c-d-e -> 0; d-e-f-b -> 0
-                    for a, b, c, d, e, f in self.conjugated_substituted_nitrogen_5aro:
-                        ff.MMFFAddTorsionConstraint(a, b, c, d, False, 178, 182, 1)
-                        ff.MMFFAddTorsionConstraint(a, b, f, e, False, 178, 182, 1)
-                        ff.MMFFAddTorsionConstraint(b, c, d, e, False, -2, 2, 1)
-                        ff.MMFFAddTorsionConstraint(d, e, f, b, False, -2, 2, 1)
-                if self.conjugated_substituted_nitrogen_6aro:
-                    # *-[nX3&+0:1]1[a:2][a:3][a:4][a:5][a:6]1
-                    # a-b-c-d -> 180; a-b-g-f -> 180
-                    # b-c-d-e -> 0; e-f-g-b -> 0
-                    for a, b, c, d, e, f, g in self.conjugated_substituted_nitrogen_6aro:
-                        ff.MMFFAddTorsionConstraint(a, b, c, d, False, 178, 182, 1)
-                        ff.MMFFAddTorsionConstraint(a, b, g, f, False, 178, 182, 1)
-                        ff.MMFFAddTorsionConstraint(b, c, d, e, False, -2, 2, 1)
-                        ff.MMFFAddTorsionConstraint(e, f, g, b, False, -2, 2, 1)
-                if self.barbiturate_matches:
-                    for match in self.barbiturate_matches:
-                        n = len(match)
-                        for i in range(n):
-                            a, b, c, d = [match[(i + j) % n] for j in range(4)]
-                            ff.MMFFAddTorsionConstraint(a, b, c, d, False, -2, 2, 1)
-                if self.hydantoin_matches:
-                    for match in self.hydantoin_matches:
-                        n = len(match)
-                        for i in range(n):
-                            a, b, c, d  = [match[(i + j) % n] for j in range(4)]
-                            ff.MMFFAddTorsionConstraint(a, b, c, d, False, -2, 2, 1)                
-                if self.substituted_N_barbi_hydan_like:
-                    for a, b, c, d in self.substituted_N_barbi_hydan_like:
-                        ff.MMFFAddTorsionConstraint(a, b, c, d, False, 178, 182, 1)
-                if self.planar_rings:
-                    for ring in self.planar_rings:
-                        # For planar rings, we need to ensure that the ring is planar.
-                        # This is done by setting the dihedral angles to +-5.
-                        n = len(ring)
-                        for i in range(n-1):
-                            a, b, c, d = ring[i], ring[i + 1], ring[(i + 2) % n], ring[(i + 3) % n ]
-                            ff.MMFFAddTorsionConstraint(a, b, c, d, False, -2, 2, 1)
-                ff.Minimize()
-                conformer = self.mol_H.GetConformer(cid)
-                energy = ff.CalcEnergy()
-                conf_ring_descriptors_df = utils.classify_confs(conformer, 
-                                                                energy, 
-                                                                self.non_planar_rings, 
-                                                                self.flippable_Ns, 
-                                                                self.flippable_Cs,
-                                                                self.sulfo_matches, 
-                                                                conf_ring_descriptors_df)
+            if CPP_AVAILABLE:
+                result_mols = cpp_sampler.embed_multiple_confs(mol = self.mol_H, 
+                                                               numConfs = self.num_initialConfs, 
+                                                               params = params, 
+                                                               constraints = self)
+                
+                # Collect conformer data efficiently
+                conformer_data_list = []
+                for conformer in result_mols.GetConformers():
+                    energy = conformer.GetDoubleProp(f'MMFF_Energy')
+                    conf_data = utils.classify_confs(conformer, 
+                                                          energy, 
+                                                          self.non_planar_rings, 
+                                                          self.flippable_Ns, 
+                                                          self.flippable_Cs,
+                                                          self.sulfo_matches)
+                    conformer_data_list.append(conf_data)
+                
+                # Create DataFrame once from all collected data
+                conf_ring_descriptors_df = DataFrame(conformer_data_list)
+            else:
+                print('C++ extension not available, please install it by create the environment again with:\n' \
+                'mamba create -f environment.yml\n' \
+                'conda activate msani\n' \
+                'pip install -e .')
+                exit(1)
+            # conformer_data_list = []
+            # for cid in rdDistGeom.EmbedMultipleConfs(self.mol_H, numConfs=self.num_initialConfs, params=params):
+            #     ff = rdForceFieldHelpers.MMFFGetMoleculeForceField(self.mol_H, self.mp, confId=cid)
+            #     if self.conjugated_substituted_nitrogen_5aro:
+            #         # *-[nX3&+0:1]1[a:2][a:3][a:4][a:5]1 
+            #         # a-b-c-d -> 180; a-b-f-e -> 180
+            #         # b-c-d-e -> 0; d-e-f-b -> 0
+            #         for a, b, c, d, e, f in self.conjugated_substituted_nitrogen_5aro:
+            #             ff.MMFFAddTorsionConstraint(a, b, c, d, False, 178, 182, 1)
+            #             ff.MMFFAddTorsionConstraint(a, b, f, e, False, 178, 182, 1)
+            #             ff.MMFFAddTorsionConstraint(b, c, d, e, False, -2, 2, 1)
+            #             ff.MMFFAddTorsionConstraint(d, e, f, b, False, -2, 2, 1)
+            #     if self.conjugated_substituted_nitrogen_6aro:
+            #         # *-[nX3&+0:1]1[a:2][a:3][a:4][a:5][a:6]1
+            #         # a-b-c-d -> 180; a-b-g-f -> 180
+            #         # b-c-d-e -> 0; e-f-g-b -> 0
+            #         for a, b, c, d, e, f, g in self.conjugated_substituted_nitrogen_6aro:
+            #             ff.MMFFAddTorsionConstraint(a, b, c, d, False, 178, 182, 1)
+            #             ff.MMFFAddTorsionConstraint(a, b, g, f, False, 178, 182, 1)
+            #             ff.MMFFAddTorsionConstraint(b, c, d, e, False, -2, 2, 1)
+            #             ff.MMFFAddTorsionConstraint(e, f, g, b, False, -2, 2, 1)
+            #     if self.barbiturate_matches:
+            #         for match in self.barbiturate_matches:
+            #             n = len(match)
+            #             for i in range(n):
+            #                 a, b, c, d = [match[(i + j) % n] for j in range(4)]
+            #                 ff.MMFFAddTorsionConstraint(a, b, c, d, False, -2, 2, 1)
+            #     if self.hydantoin_matches:
+            #         for match in self.hydantoin_matches:
+            #             n = len(match)
+            #             for i in range(n):
+            #                 a, b, c, d  = [match[(i + j) % n] for j in range(4)]
+            #                 ff.MMFFAddTorsionConstraint(a, b, c, d, False, -2, 2, 1)                
+            #     if self.substituted_N_barbi_hydan_like:
+            #         for a, b, c, d in self.substituted_N_barbi_hydan_like:
+            #             ff.MMFFAddTorsionConstraint(a, b, c, d, False, 178, 182, 1)
+            #     if self.planar_rings:
+            #         for ring in self.planar_rings:
+            #             # For planar rings, we need to ensure that the ring is planar.
+            #             # This is done by setting the dihedral angles to +-5.
+            #             n = len(ring)
+            #             for i in range(n-1):
+            #                 a, b, c, d = ring[i], ring[i + 1], ring[(i + 2) % n], ring[(i + 3) % n ]
+            #                 ff.MMFFAddTorsionConstraint(a, b, c, d, False, -2, 2, 1)
+            #     ff.Minimize()
+            #     conformer = self.mol_H.GetConformer(cid)
+            #     energy = ff.CalcEnergy()
+            #     conf_data = utils.classify_confs(conformer, 
+            #                                     energy, 
+            #                                     self.non_planar_rings, 
+            #                                     self.flippable_Ns, 
+            #                                     self.flippable_Cs,
+            #                                     self.sulfo_matches, 
+            #                                     )
+            #     conformer_data_list.append(conf_data)
+            # conf_ring_descriptors_df = DataFrame(conformer_data_list)
+                
             return conf_ring_descriptors_df
         
         
@@ -414,6 +444,12 @@ class ConformerGenerator:
             logger.warning(f"srETKDGv3 failed for {self.name}, using macrocyclic version")
             conf_ring_descriptors_df = embed_fix_ring_confs(method = 'ETKDGv3')
 
+        if len(conf_ring_descriptors_df) == 0:
+            print(f"ETKDGv3 also failed for {self.name}, using OpenBabel")
+            logger.warning(f"ETKDGv3 also failed for {self.name}, using OpenBabel")
+            self._embed_smiles_babel()
+            return
+        
         conf_ring_descriptors_df.sort_values(['equatorial_subs_Ns', 'equatorial_subs_Cs', 'Energy'],
                                             ascending=[False, False, True], inplace=True) 
         
@@ -589,9 +625,9 @@ class ConformerGenerator:
         
         """
         if not(CPP_AVAILABLE): 
-            print('C++ extension not available, please install it by create the environment again with:' \
-            'mamba create -f environment.yml' \
-            'conda activate msani' \
+            print('C++ extension not available, please install it by create the environment again with:\n' \
+            'mamba create -f environment.yml\n' \
+            'conda activate msani\n' \
             'pip install -e .')
             exit(1)
         try:

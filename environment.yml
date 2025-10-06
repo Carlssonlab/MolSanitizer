@@ -22,3 +22,5 @@ dependencies:
   - eigen
   - gxx_linux-64
   - compilers
+  - pkg-config
+  - make
