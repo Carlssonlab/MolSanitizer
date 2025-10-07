@@ -212,8 +212,8 @@ ProductList stochasticSamplingDiscrete(RDKit::ROMol& mol,
         }
     }
     
-    // Main sampling logic
-    if (possible_numConfs <= max_attempts) {
+    // Main sampling logic; avoid over-enumerate for compounds with too many hydroxyls (sugars). For these, use stochastic sampling.
+    if (possible_numConfs <= max_attempts && possible_numConfs * num_hydroxyl_combinations <= max_attempts * 5) {
         // ENUMERATION PATH WITH RANDOMNESS
         if (verbose) {
             fprintf(stderr, "Using enumeration approach with randomness (combinations: %lld)\n", possible_numConfs);
