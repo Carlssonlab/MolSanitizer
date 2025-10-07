@@ -7,7 +7,7 @@
     Should try to sample all possible conformations based on dihedral angles sampling based on: https://github.com/dkoes/rdkit-scripts/blob/master/rdallconf.py
 """
 # Author: Thua-Phong Lam, Jens Carlsson lab, Uppsala University
-# Date: 2025-09-04
+# Date: 2025-10-07
 
 import logging
 import os
@@ -15,13 +15,12 @@ import multiprocessing
 import subprocess
 import shutil
 import random
-import itertools
+import sys
 import tarfile, io
 import time
 import argparse
 
 from pandas import DataFrame, read_csv  # only what you use
-from numpy import empty, array, vstack
 from pathlib import Path
 from rdkit import Chem
 from rdkit.Chem import rdDistGeom, rdForceFieldHelpers, rdMolAlign, rdMolTransforms, PropertyPickleOptions
@@ -36,6 +35,7 @@ from msani.io.utils import log_error
 try:
     from openbabel.openbabel import OBMol
     OBABEL_AVAILABLE = True
+    obabel_path = os.path.join(os.path.dirname(sys.executable), 'obabel') # Ensure that the exact obabel within the same conda environment is used
 except:
     OBABEL_AVAILABLE = False
     pass
@@ -536,7 +536,7 @@ class ConformerGenerator:
         Embed the SMILES string using Open Babel. CLI version is used as it is found more flexible 
         than the RDKit version.'''
                                             # -h: add hs; gen3d
-        cmd = ["obabel", f"-:{self.smiles}", "-h", "--gen3d", "-osdf"]
+        cmd = [str(obabel_path), f"-:{self.smiles}", "-h", "--gen3d", "-osdf"]
 
         # Execute the command and capture stdout
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
