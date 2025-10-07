@@ -1244,7 +1244,10 @@ def gen_conf_chunk(df: DataFrame, args, input_file='0'):
 
     if args.timing: 
         if not(os.path.exists('msani_timing.csv')): 
-            with open('msani_timing.csv', 'w') as f: f.write('Name,Initial embedding,AMSOL,Torsional sampling,Mol2DB2,Total\n')
+            if 'sdf' in args.format:
+                with open('msani_timing.csv', 'w') as f: f.write('Name,Initial embedding,Torsional sampling,SDF,Total\n')
+            else:
+                with open('msani_timing.csv', 'w') as f: f.write('Name,Initial embedding,AMSOL,Torsional sampling,Mol2DB2,Total\n')
         logging_time = ""
     
     # Check if the output file already exists. A sign of unfinished job
@@ -1356,7 +1359,12 @@ def gen_conf_chunk(df: DataFrame, args, input_file='0'):
                     log_error(smiles, name)
                     continue
             if args.timing: sampling_time = time.time() # Time for sampling
-            if 'sdf' in args.format: confgen.to_sdf()
+            if 'sdf' in args.format: 
+                confgen.to_sdf()
+                if args.timing: 
+                    sdf_time = time.time() # Time for sdf
+                    logging_time += f'{name},{embed_time-start},{sampling_time-embed_time},{sdf_time-sampling_time},{sdf_time-start}\n'
+
             if 'mol2' in args.format: confgen.to_mol2()
             if 'db2' in args.format:
                 try: 
