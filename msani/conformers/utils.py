@@ -183,17 +183,6 @@ def find_amide(mol_H: Mol):
     '''
     return mol_H.GetSubstructMatches(amide_substructure)
 
-def calculate_dihedrals_for_rings(conf: Conformer, ring_atoms):
-    """Calculate dihedral angles for all torsions involving four consecutive atoms in the ring."""
-    ring_atoms = list(ring_atoms)
-    dihedrals = [
-        (idx1, idx2, idx3, idx4, rdMolTransforms.GetDihedralDeg(conf, idx1, idx2, idx3, idx4))
-        for idx1, idx2, idx3, idx4 in [
-            (ring_atoms[i], ring_atoms[(i + 1) % len(ring_atoms)], ring_atoms[(i + 2) % len(ring_atoms)], ring_atoms[(i + 3) % len(ring_atoms)])
-            for i in range(len(ring_atoms))
-        ]
-    ]
-    return dihedrals
 
 def normalize_angle(angle):
     """Normalize the angle to the range -180 to 180 degrees."""
@@ -437,69 +426,6 @@ def canonicalize_if_smiles(query: str):
 
 
 
-def precompute_bonded_and_same_parent_pairs(mol):
-    """
-    Precompute bonded atom pairs and pairs of atoms that share the same parent (common neighbor).
-
-    Parameters:
-    mol (rdkit.Chem.Mol): The RDKit molecule object.
-
-    Returns:
-    bonded_pairs (set): Set of tuples representing bonded atom pairs.
-    same_parent_pairs (set): Set of tuples representing atoms that share the same parent atom.
-    """
-    bonded_pairs = set()
-    same_parent_pairs = set()
-
-    # Iterate over all atoms in the molecule
-    for atom in mol.GetAtoms():
-        neighbors = atom.GetNeighbors()
-        atom_idx = atom.GetIdx()
-
-        # Get bonded pairs
-        for neighbor in neighbors:
-            neighbor_idx = neighbor.GetIdx()
-            bonded_pairs.add((atom_idx, neighbor_idx))
-            bonded_pairs.add((neighbor_idx, atom_idx))  # Symmetric bond
-
-        # Get atoms that share the same parent (common neighbors)
-        if len(neighbors) > 1:  # Only meaningful for atoms with more than 1 neighbor
-            neighbor_indices = [n.GetIdx() for n in neighbors]
-            for i in range(len(neighbor_indices)):
-                for j in range(i + 1, len(neighbor_indices)):
-                    same_parent_pairs.add((neighbor_indices[i], neighbor_indices[j]))
-                    same_parent_pairs.add((neighbor_indices[j], neighbor_indices[i]))  # Symmetric relation
-
-    return bonded_pairs, same_parent_pairs
-
-def precompute_nonbonded_pairs(mol, bonded_pairs, same_parent_pairs):
-    """
-    Precompute all atom pairs that need to be checked for steric clashes.
-    This avoids recomputing bonded/same-parent exclusions for every conformer.
-    """
-    num_atoms = mol.GetNumAtoms()
-    candidate_pairs = []
-    for i in range(num_atoms):
-        for j in range(i + 1, num_atoms):
-            if (i, j) in bonded_pairs or (i, j) in same_parent_pairs:
-                continue
-            candidate_pairs.append((i, j))
-    return np.array(candidate_pairs, dtype=np.int32)
-
-
-def check_too_close_nonbonded_atoms_vec(conformer, candidate_pairs, threshold=1.6):
-    """
-    Vectorized steric clash check:
-    - Uses precomputed candidate pairs
-    - Computes all distances in a single NumPy batch
-    - Returns early if any clash is detected
-    """
-    coords = np.asarray(conformer.GetPositions(), dtype=np.float64)
-    diffs = coords[candidate_pairs[:, 0]] - coords[candidate_pairs[:, 1]]
-    d2 = np.einsum("ij,ij->i", diffs, diffs)  # squared distances
-    return np.any(d2 < threshold * threshold)
-
-
 
 def count_confs_by_rotbonds(mol,
                             rot_bonds,
@@ -605,35 +531,6 @@ def count_confs_by_rotbonds(mol,
             print(f"\t{rule}")
 
     return int(total_confs), match_torlib_clean, hetero_H_bonds
-
-def get_random_angle(mean, tolerance, method='gauss', rounding = False):
-    """
-    Generate a random angle value from a Gaussian distribution given the expected mean and standard deviation,
-    and limit it within the specified range. Normalize the result to the [-180, 180] degree range.
-
-    Args:
-    mean (float): The expected mean angle.
-    tolerance (float): The tolerance .
-    method (str): The method to use for generating the random angle ('gauss' or 'uniform').
-
-    Returns:
-    float: A random angle normalized to the [-180, 180] degree range.
-    """
-
-    # Generate a random angle within the specified Gaussian distribution and range limits
-    if tolerance == 0: return mean
-    while True:
-        if method == 'gauss':
-            random_angle = random.gauss(mean, tolerance)
-        elif method == 'uniform':
-            random_angle = random.uniform(mean - tolerance, mean + tolerance)
-        if rounding: random_angle = round(random_angle/30) * 30
-        if mean-tolerance < random_angle < mean + tolerance: 
-            break
-
-    # Normalize to the [-180, 180] range
-    normalized_angle = (random_angle + 180) % 360 - 180
-    return normalized_angle
 
 
 def find_rigid_part(mol, request_alignment=None):
