@@ -343,7 +343,7 @@ class ConformerGenerator:
                 # If there are flippable C or N atoms, we need to generate more to filter out the favorable
                 params.pruneRmsThresh = 0.35 
             params.randomSeed = self.randomSeed # For reproducibility
-            params.useRandomCoords = True
+            #params.useRandomCoords = True
             conf_ring_descriptors_df = DataFrame()
             if CPP_AVAILABLE:
                 result_mols = cpp_sampler.embed_multiple_confs(mol = self.mol_H, 
