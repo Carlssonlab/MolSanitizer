@@ -280,7 +280,7 @@ class Msani:
                 # Group duplicates and expand
                 df.loc[duplicated_ids.index, 'ids'] = df.loc[duplicated_ids.index, 'ids'].groupby(df['ids']).transform(self.expand_ids)
             
-        if self.stereoisomers: df = Msani.enum_stereoisomers(df, max_isomers=self.max_stereoisomers, debug=self.debug, numcores=self.numcores)
+        if self.stereoisomers: df = Msani.enum_stereoisomers(df, max_isomers = self.max_stereoisomers, debug=self.debug, numcores=self.numcores)
         if (not(self.protonation) and not(self.protonation) and not(self.stereoisomers)):
             # If no SMILES processing , just return a canonical SMILES of the input
             df.loc[:, 'smiles'] = df['mol'].apply(lambda x: Chem.MolToSmiles(x))

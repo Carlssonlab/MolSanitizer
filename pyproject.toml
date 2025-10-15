@@ -50,9 +50,9 @@ gen3d = "msani.conformers.conformers:main"
 packages = ["msani"]
 
 [tool.scikit-build]
-# Configure CMake build for the C++ extension
-cmake.source-dir = "msani/conformers/cpp"
-cmake.minimum-version = "3.15"
+# Configure CMake build for all C++ extensions
+cmake.source-dir = "."
+cmake.minimum-version = "3.16"
 cmake.args = [
     "-DCMAKE_PREFIX_PATH=$CONDA_PREFIX",
     "-DCMAKE_FIND_ROOT_PATH=$CONDA_PREFIX",
@@ -60,7 +60,7 @@ cmake.args = [
     "-DCMAKE_CXX_FLAGS=-O3 -DNDEBUG",
     "-DBUILD_SHARED_LIBS=OFF"
 ]
-# Install the built .so file into the msani package
+# Install the built .so files into the msani package
 install.components = ["python"]
 wheel.packages = ["msani"]
 

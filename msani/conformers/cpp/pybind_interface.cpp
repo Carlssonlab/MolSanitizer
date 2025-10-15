@@ -732,7 +732,6 @@ PYBIND11_MODULE(msani_confgen_cpp, m) {
               "and initial embedding with torsion constraints for molecular structures.";
     
     // Version information
-    m.attr("__version__") = "0.4.0";
     m.attr("__author__") = "Phong Lam, Uppsala University (2025)";
 
     // Discrete sampling function

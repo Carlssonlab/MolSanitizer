@@ -14,5 +14,10 @@
     "python-envs.defaultEnvManager": "ms-python.python:conda",
     "python-envs.defaultPackageManager": "ms-python.python:conda",
     "python-envs.pythonProjects": [],
-    "cmake.ignoreCMakeListsMissing": true
+    "cmake.ignoreCMakeListsMissing": true,
+    "files.associations": {
+        "*.cpp": "cpp",
+        "chrono": "cpp",
+        "span": "cpp"
+    }
 }
