@@ -1,4 +1,4 @@
-name: msani_dev
+name: msani
 
 
 channels:
@@ -21,7 +21,6 @@ dependencies:
   - cmake<=3.29
   - pybind11
   - eigen
-  - gxx_linux-64
   - compilers
   - pkg-config
   - make

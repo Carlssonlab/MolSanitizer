@@ -30,7 +30,7 @@ dependencies = [
     "numpy",
     "rdkit",
     "gemmi",
-    #"meeko @ git+https://github.com/forlilab/meeko.git@develop",
+    "meeko @ git+https://github.com/forlilab/meeko.git@develop",
     "scipy",
     "pyaml"
 ]
