@@ -65,10 +65,38 @@ class SmilesStereoEnumerator {
   std::unique_ptr<StereoisomerEnumerator> dp_enumerator;
 };
 
-// Function to enumerate all stereoisomers and return as a list of SMILES
+// Helper function to create StereoEnumerationOptions from a Python dictionary
+StereoEnumerationOptions options_from_dict(const py::dict &params) {
+  StereoEnumerationOptions options;
+  
+  if (params.contains("maxIsomers")) {
+    options.maxIsomers = params["maxIsomers"].cast<unsigned int>();
+  }
+  if (params.contains("onlyUnassigned")) {
+    options.onlyUnassigned = params["onlyUnassigned"].cast<bool>();
+  }
+  if (params.contains("onlyStereoGroups")) {
+    options.onlyStereoGroups = params["onlyStereoGroups"].cast<bool>();
+  }
+  if (params.contains("unique")) {
+    options.unique = params["unique"].cast<bool>();
+  }
+  if (params.contains("tryEmbedding")) {
+    options.tryEmbedding = params["tryEmbedding"].cast<bool>();
+  }
+  if (params.contains("randomSeed")) {
+    options.randomSeed = params["randomSeed"].cast<int>();
+  }
+  
+  return options;
+}
+
+// Function to enumerate all stereoisomers using a Python dictionary
 std::vector<std::string> enumerate_stereoisomers(const std::string &smiles,
-                                                const StereoEnumerationOptions &options = StereoEnumerationOptions(),
-                                                bool verbose = false) {
+                                                 const py::dict &params,
+                                                 bool verbose = false) {
+  StereoEnumerationOptions options = options_from_dict(params);
+  
   std::vector<std::string> results;
   SmilesStereoEnumerator enumerator(smiles, options, verbose);
   
@@ -89,8 +117,10 @@ PYBIND11_MODULE(msani_stereoisomers, m) {
     // Version information
     m.attr("__author__") = "Phong Lam, Uppsala University (2025)";
 
-    // Expose StereoEnumerationOptions
-    std::string docString = "EnumerateStereoisomers options.";
+    // Expose StereoEnumerationOptions (kept for documentation purposes)
+    std::string docString = "EnumerateStereoisomers options.\n\n"
+                            "NOTE: This class is kept for reference but is not directly used.\n"
+                            "Use Python dictionaries with enumerate_stereoisomers() instead.";
     py::class_<StereoEnumerationOptions>(m, "StereoEnumerationOptions", docString.c_str())
         .def(py::init<>())
         .def_readwrite("tryEmbedding", &StereoEnumerationOptions::tryEmbedding,
@@ -115,10 +145,28 @@ PYBIND11_MODULE(msani_stereoisomers, m) {
         .def_readwrite("randomSeed", &StereoEnumerationOptions::randomSeed,
                        "Seed for random number generator. Default=-1 means no seed.");
 
-    // Expose convenience function to get all stereoisomers as list
+    // Expose dictionary-based enumeration function
     m.def("enumerate_stereoisomers", &enumerate_stereoisomers,
           py::arg("smiles"), 
-          py::arg("options") = StereoEnumerationOptions(), 
+          py::arg("params"), 
           py::arg("verbose") = false,
-          "Enumerate all stereoisomers of a molecule given its SMILES and return as a list of SMILES strings.");
+          "Enumerate all stereoisomers of a molecule given its SMILES and a dictionary of options.\n\n"
+          "Parameters\n"
+          "----------\n"
+          "smiles : str\n"
+          "    The SMILES string of the molecule.\n"
+          "params : dict\n"
+          "    Dictionary with the following optional keys:\n"
+          "    - maxIsomers (int): Maximum number of isomers to yield. Default=0 (no limit)\n"
+          "    - onlyUnassigned (bool): Only enumerate unassigned stereocenters. Default=True\n"
+          "    - onlyStereoGroups (bool): Only enumerate StereoGroups. Default=False\n"
+          "    - unique (bool): Return only unique stereoisomers. Default=True\n"
+          "    - tryEmbedding (bool): Validate stereoisomers via embedding. Default=False\n"
+          "    - randomSeed (int): Random seed for subset selection. Default=-1\n"
+          "verbose : bool, optional\n"
+          "    Enable verbose output. Default=False\n\n"
+          "Returns\n"
+          "-------\n"
+          "list of str\n"
+          "    List of SMILES strings representing the stereoisomers.");
 }

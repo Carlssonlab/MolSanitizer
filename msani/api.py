@@ -10,6 +10,7 @@ from msani.filtering.filters import Filters, against_humanity, hold_up
 from msani.moltransform.tautomerizer import Tautomerizer
 from msani.moltransform.ionizer import Ionizer
 from msani.moltransform.neutralizer import Neutralizer
+from msani.moltransform.stereoisomers import Stereoisomerizer
 
 logger = logging.getLogger('msani')
 RDLogger.DisableLog('rdApp.*') # To disable error messages with kekulizing tautomers from RDKit
@@ -54,6 +55,7 @@ class Msani:
                 pH = 7,
                 pH_range = 0,
                 numcores = 1,
+                randomSeed = 42,
                 standardize = False,
                 protonation_library = None,
                 tautomer_library = None,
@@ -78,6 +80,7 @@ class Msani:
         self.protonation = protonation
         self.pH = pH
         self.pH_range = pH_range
+        self.randomSeed = randomSeed
         self.standardize = standardize    
         self.debug = debug
         self.numcores = numcores
@@ -89,115 +92,6 @@ class Msani:
         attrs = ', '.join(f'{k}={v!r}' for k, v in self.__dict__.items())
         return f'{cls_name}\n({attrs})'
     
-
-
-    @staticmethod
-    def _generate_stereoisomers(mol, max_isomers):
-        """
-        Generate stereoisomers for a given molecule.
-        
-        Args:
-            mol (rdkit.Chem.Mol): RDKit molecule object.
-            max_isomers (int): Maximum number of stereoisomers to generate.
-        
-        Returns:
-            list: List of stereoisomer molecules.
-        """
-        opts = StereoEnumerationOptions(tryEmbedding=True, unique=True, maxIsomers=max_isomers)
-        isomers = list(EnumerateStereoisomers(mol, options=opts))
-        return isomers
-
-    @staticmethod
-    def _process_molecule_stereoisomer(row_data, max_isomers=8):
-        """
-        A wrapper to generate stereoisomers for a given molecule using multiprocessing.
-        Args:
-            row_data (Series): A row from the input DataFrame containing ['smiles', 'ids', 'mol'] and optionally 'highlights'.
-            max_isomers (int): Maximum number of stereoisomers to generate.
-
-        Returns:
-            results (list): List of expanded stereoisomers dictionaries with 'smiles', 'ids', 'mol', and optionally 'highlights'.
-        """
-        mol = Chem.MolFromSmiles(row_data['smiles'])
-        # If max_isomers is set to 1, return the original molecule and let the RDKit/CORINA guess it.
-        if max_isomers == 1: return [row_data]
-        try:
-            isomers = Msani._generate_stereoisomers(mol, max_isomers=max_isomers)
-        except Exception as e:
-            logger.error(f"Error generating stereoisomers for compound {row_data['ids']}: {row_data['smiles']}")
-            isomers = [mol]
-        centers = Chem.FindMolChiralCenters(mol, includeUnassigned=True)
-        unassigned = [idx for idx, tag in centers if tag == '?']
-        num_possible_isomers = 2 ** len(unassigned)
-        result = []
-        # Get highlights if available
-        highlights = row_data.get('highlights', None)
-        if len(isomers) == 1:
-            result.append({'smiles': Chem.MolToSmiles(isomers[0]),
-                            'ids': row_data['ids'],
-                            'mol': isomers[0],
-                            'highlights': highlights})
-        else:
-            if max_isomers > 0 and num_possible_isomers > max_isomers:
-                logger.info(f"{row_data['ids']}: Not all the stereoisomers are written out (capped at {max_isomers}/{num_possible_isomers}).")
-                isomers = isomers[:max_isomers]
-            two_digits = len(isomers) >= 10
-            for i, isomer in enumerate(isomers):
-                result.append({
-                    'smiles': Chem.MolToSmiles(isomer, isomericSmiles=True),
-                    'ids': row_data['ids'] + '.' + (f"{i+1:02}" if two_digits else f"{i+1}"),
-                    'mol': isomer,
-                    'highlights': highlights
-                })
-        
-        return result
-
-    @staticmethod
-    def enum_stereoisomers(df: DataFrame, max_isomers=8, numcores=4, debug=False) -> DataFrame:
-        """
-        Generate stereoisomers for molecules in the 'smiles' column and expand the DataFrame using multiprocessing.
-        
-        Args:
-            df (DataFrame): DataFrame with 'smiles' and 'ids' columns.
-            max_isomers (int): Maximum number of stereoisomers to generate for each molecule.
-            numcores (int): Number of processes to use. Default is 4.
-            debug (bool): Enable debug messages.
-        
-        Returns:
-            DataFrame: Expanded DataFrame with each stereoisomer as a separate row.
-        """
-        if df.empty:
-            logger.warning("Empty DataFrame provided, skipping stereoisomer generation.")
-            return df
-        # Partial function to fix max_isomers as an argument
-        process_func = partial(Msani._process_molecule_stereoisomer, max_isomers=max_isomers)
-        results = []
-
-        with mp.Pool(processes=numcores) as pool:
-            # Submit all tasks to the pool in parallel, keeping track of the rows for error handling
-            async_results = [(row, pool.apply_async(process_func, (row,))) for _, row in df.iterrows()]
-
-            # Collect results as they complete
-            for row_data, async_result in async_results:
-                try:
-                    chunk_result = async_result.get(timeout=60)
-                    results.extend(chunk_result)
-                except (mp.TimeoutError, Exception) as e:
-                    # Differentiate the logging based on the type of exception if desired
-                    if isinstance(e, mp.TimeoutError):
-                        logger.warning(f"Timeout occurred for compound {row_data['ids']}. Using original molecule.")
-                    else:
-                        logger.error(f"Error processing compound {row_data['ids']}: {str(e)}. Using original molecule.")
-                    
-                    highlights = row_data.get('highlights', None)
-                    results.append({
-                        'smiles': row_data['smiles'],
-                        'ids': row_data['ids'],
-                        'mol': row_data['mol'],
-                        'highlights': highlights
-                    })
-
-        return DataFrame(results)
     
     def expand_ids(self, group):
         if len(group) == 1:
@@ -267,6 +161,7 @@ class Msani:
                               neutralize = False,
                               debug=self.debug)
             df = ionizer.ionize_df(df)
+
         if (self.tautomers or self.protonation) and not(df.empty):
             # Coalesce the 'smiles' column to ensure it is present
             # Drop duplicate rows based on 'smiles' and 'ids'
@@ -280,7 +175,14 @@ class Msani:
                 # Group duplicates and expand
                 df.loc[duplicated_ids.index, 'ids'] = df.loc[duplicated_ids.index, 'ids'].groupby(df['ids']).transform(self.expand_ids)
             
-        if self.stereoisomers: df = Msani.enum_stereoisomers(df, max_isomers = self.max_stereoisomers, debug=self.debug, numcores=self.numcores)
+        if self.stereoisomers: 
+            stereoisomerizer = Stereoisomerizer(maxIsomers=self.max_stereoisomers,
+                                  tryEmbedding=True,
+                                  randomSeed=self.randomSeed,
+                                  numcores=self.numcores,
+                                  debug=self.debug)
+            df = stereoisomerizer.enumerate_df(df)
+
         if (not(self.protonation) and not(self.protonation) and not(self.stereoisomers)):
             # If no SMILES processing , just return a canonical SMILES of the input
             df.loc[:, 'smiles'] = df['mol'].apply(lambda x: Chem.MolToSmiles(x))

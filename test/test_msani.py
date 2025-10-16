@@ -484,7 +484,7 @@ class Test_MolSanitizer(unittest.TestCase):
             "debug": False, 
             "custom":None, 
             "prefix":output_prefix, 
-            "max_stereoisomers": 8,
+            "max_stereoisomers": 16,
             "numcores": 4,
             "test": False,
             "smiles": None,
