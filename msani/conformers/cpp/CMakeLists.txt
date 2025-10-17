@@ -326,3 +326,9 @@ install(TARGETS msani_confgen_cpp
     LIBRARY DESTINATION .
     COMPONENT python
 )
+
+# Install the .pyi stub file alongside the compiled module
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/../cpp/msani_confgen_cpp.pyi
+    DESTINATION .
+    COMPONENT python
+)

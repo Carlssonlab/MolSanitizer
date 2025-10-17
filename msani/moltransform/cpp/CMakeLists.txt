@@ -93,3 +93,10 @@ install(TARGETS msani_stereoisomers
     LIBRARY DESTINATION .
     COMPONENT python
 )
+
+# Install the .pyi stub file alongside the compiled module
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/../cpp/msani_stereoisomers.pyi
+    DESTINATION .
+    COMPONENT python
+)
+
