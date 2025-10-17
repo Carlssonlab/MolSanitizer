@@ -47,8 +47,9 @@ def apply_processes(chunk, args, rejected_file):
         mw=args.mw, chiral = args.chiral, tautomers=args.tautomers, taurdkit=args.taurdkit, 
         neutralize=args.neutralize, stereoisomers=args.stereoisomers, 
         max_stereoisomers=args.max_stereoisomers, protonation=args.protonation, pH=args.pH, 
-        pH_range=args.pH_range, numcores=args.numcores, standardize=args.standardize, 
-        protonation_library=args.protlib, tautomer_library=args.taulib,  debug=args.debug)
+        pH_range=args.pH_range, numcores=args.numcores, randomSeed=args.randomSeed, 
+        standardize=args.standardize, protonation_library=args.protlib, tautomer_library=args.taulib,  
+        debug=args.debug)
     chunk = processor.run(chunk, rejected_file)
     return chunk
 

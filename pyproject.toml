@@ -1,6 +1,6 @@
 [build-system]
-requires = ["setuptools>=61.0"]
-build-backend = "setuptools.build_meta"
+requires = ["scikit-build-core>=0.4.0"]
+build-backend = "scikit_build_core.build"
 
 [project]
 name = "MolSanitizer"
@@ -28,7 +28,7 @@ requires-python = ">=3.10,<3.13"
 dependencies = [
     "pandas",
     "numpy",
-    "rdkit>=2024.09.3,<=2025.03.1",
+    "rdkit",
     "gemmi",
     "meeko @ git+https://github.com/forlilab/meeko.git@develop",
     "scipy",
@@ -48,5 +48,20 @@ gen3d = "msani.conformers.conformers:main"
 
 [tool.setuptools]
 packages = ["msani"]
+
+[tool.scikit-build]
+# Configure CMake build for all C++ extensions
+cmake.source-dir = "."
+cmake.minimum-version = "3.16"
+cmake.args = [
+    "-DCMAKE_PREFIX_PATH=$CONDA_PREFIX",
+    "-DCMAKE_FIND_ROOT_PATH=$CONDA_PREFIX",
+    "-DCMAKE_INSTALL_PREFIX=$CONDA_PREFIX",
+    "-DCMAKE_CXX_FLAGS=-O3 -DNDEBUG",
+    "-DBUILD_SHARED_LIBS=OFF"
+]
+# Install the built .so files into the msani package
+install.components = ["python"]
+wheel.packages = ["msani"]
 
 

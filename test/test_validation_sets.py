@@ -154,6 +154,8 @@ class Test_ValidationSets(unittest.TestCase):
             "randomSeed": 42,
             "energywindow": 25,
             "timeout": 2,
+            "timeout_conf": 2,
+            "rmsd": 0.5,
             "tolerance": 30,
             "ignoretorlib":False,
             "timing":False,

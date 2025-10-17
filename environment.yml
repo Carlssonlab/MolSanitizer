@@ -11,7 +11,16 @@ dependencies:
   - pandas
   - pip
   - rdkit>=2024.09.3,<=2025.03.1
+  - librdkit-dev
+  - libboost-devel
+  - scikit-build-core
   - openbabel
   - scipy
   - pyaml
   - gemmi
+  - cmake<=3.29
+  - pybind11
+  - eigen
+  - compilers
+  - pkg-config
+  - make
