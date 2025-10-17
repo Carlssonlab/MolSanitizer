@@ -10,5 +10,14 @@
     "python.testing.unittestEnabled": true,
     "python.testing.pytestArgs": [
         "test"
-    ]
+    ],
+    "python-envs.defaultEnvManager": "ms-python.python:conda",
+    "python-envs.defaultPackageManager": "ms-python.python:conda",
+    "python-envs.pythonProjects": [],
+    "cmake.ignoreCMakeListsMissing": true,
+    "files.associations": {
+        "*.cpp": "cpp",
+        "chrono": "cpp",
+        "span": "cpp"
+    }
 }

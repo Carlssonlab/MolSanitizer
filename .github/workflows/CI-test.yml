@@ -3,7 +3,7 @@ name: CI
 on:
   push:
     branches:
-      - '**'
+      - main
     paths-ignore:
       - 'docs/**'
       - '**.md'
@@ -15,10 +15,68 @@ on:
       - 'docs/**'
       - '**.md'
       - '.github/**'
-  workflow_dispatch:      
-  
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  test:
+  # Quick check on all major OSes with Python 3.11
+  quick-test:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            python-version: "3.11"
+          - os: macos-14
+            python-version: "3.11"
+          - os: windows-latest
+            python-version: "3.11"
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Micromamba
+        uses: mamba-org/setup-micromamba@v1
+        with:
+          micromamba-version: latest
+          environment-file: environment.yml
+          environment-name: msani
+          create-args: python=${{ matrix.python-version }}
+          condarc: |
+            channels:
+              - conda-forge
+              - rdkit
+          cache-downloads: true
+          cache-environment: true
+
+      - name: Install in editable mode (Unix)
+        if: runner.os != 'Windows'
+        shell: bash -l {0}
+        run: pip install -e .
+
+      - name: Install in editable mode (Windows)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: micromamba run -n msani pip install -e .
+
+      - name: Run unittests (Unix)
+        if: runner.os != 'Windows'
+        shell: bash -l {0}
+        run: python -m unittest discover -s test
+
+      - name: Run unittests (Windows)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: micromamba run -n msani python -m unittest discover -s test
+
+  # Full matrix only runs when main branch is updated
+  full-matrix:
+    if: github.ref == 'refs/heads/main'
+    needs: quick-test
     strategy:
       fail-fast: false
       matrix:
@@ -37,9 +95,7 @@ jobs:
             python-version: "3.12"
           - os: windows-latest
             python-version: "3.12"
-
     runs-on: ${{ matrix.os }}
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -47,7 +103,7 @@ jobs:
       - name: Set up Micromamba
         uses: mamba-org/setup-micromamba@v1
         with:
-          micromamba-version: 'latest'
+          micromamba-version: latest
           environment-file: environment.yml
           environment-name: msani
           create-args: python=${{ matrix.python-version }}
@@ -58,31 +114,22 @@ jobs:
           cache-downloads: true
           cache-environment: true
 
-      # Linux/macOS install
       - name: Install in editable mode (Unix)
         if: runner.os != 'Windows'
         shell: bash -l {0}
         run: pip install -e .
 
-      # Windows install
       - name: Install in editable mode (Windows)
         if: runner.os == 'Windows'
         shell: powershell
         run: micromamba run -n msani pip install -e .
 
-
-      # Linux/macOS tests
       - name: Run unittests (Unix)
         if: runner.os != 'Windows'
         shell: bash -l {0}
-        run: |
-          python -m unittest test/test_msani.py
-          python -m unittest test/test_validation_sets.py
+        run: python -m unittest discover -s test
 
-      # Windows tests
       - name: Run unittests (Windows)
         if: runner.os == 'Windows'
         shell: powershell
-        run: |
-          micromamba run -n msani python -m unittest test/test_msani.py
-          micromamba run -n msani python -m unittest test/test_validation_sets.py
+        run: micromamba run -n msani python -m unittest discover -s test

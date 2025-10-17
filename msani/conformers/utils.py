@@ -3,6 +3,7 @@ import os
 import shutil
 import random
 import logging
+import time
 
 import numpy as np
 import yaml
@@ -11,7 +12,7 @@ from pandas import DataFrame, concat, read_csv  # only what you use
 from rdkit import Chem
 from rdkit.Chem import rdMolTransforms, rdMolAlign
 from rdkit.Chem.rdchem import Mol, Conformer
-from scipy.spatial.distance import pdist, squareform
+# from scipy.spatial.distance import pdist, squareform
 from pathlib import Path
 
 # from msani.filtering import strain_filter
@@ -41,6 +42,10 @@ barbiturate = Chem.MolFromSmarts('[C;$(C~[OX1,SX1]):1]1~[N:2]~[C;$(C~[OX1,SX1]):
 hydantoin = Chem.MolFromSmarts('[C;$(C~[OX1,SX1]):1]1~[N:2]~[C;$(C~[OX1,SX1]):3]~[*^2:4]~[A:5]~1') # To 0 iteratively four consecutive atoms
 substituted_N_barbi_hydan_like = Chem.MolFromSmarts('*~[C^2,N^2:1][C^2,N^2:2][C^2,N^2:3]')
 amide_substructure = Chem.MolFromSmarts('[$(C=O):1]!@[NX3&+0:2]') #primary, secondary amide for constrained planarity only
+aliphatic_hydroxyl_thiol = Chem.MolFromSmarts('C-[OX2H,SX2H]') #aliphatic hydroxyls and thiols
+phenol_thiolphenol = Chem.MolFromSmarts('a-[OX2H,SX2H]') #phenol and thiophenol
+hydroxamic_acid = Chem.MolFromSmarts('[NX3;$(N(-C=O))]-[OX2H1]') #hydroxamic acid and its tautomeric aci form
+hydroxyl_amine = Chem.MolFromSmarts('[NX3;!$(N~*=[O,S])!$(N=,#*):1]!@[OX2H1:2]') #hydroxylamine and its tautomeric aci form
 
 const_rule = [(-120, 30, 30, 1), (-60, 30, 30, 1), (0, 30, 30, 1), (60, 30, 30, 1), (120, 30, 30, 1), (180, 30, 30, 1)]
 
@@ -178,17 +183,6 @@ def find_amide(mol_H: Mol):
     '''
     return mol_H.GetSubstructMatches(amide_substructure)
 
-def calculate_dihedrals_for_rings(conf: Conformer, ring_atoms):
-    """Calculate dihedral angles for all torsions involving four consecutive atoms in the ring."""
-    ring_atoms = list(ring_atoms)
-    dihedrals = [
-        (idx1, idx2, idx3, idx4, rdMolTransforms.GetDihedralDeg(conf, idx1, idx2, idx3, idx4))
-        for idx1, idx2, idx3, idx4 in [
-            (ring_atoms[i], ring_atoms[(i + 1) % len(ring_atoms)], ring_atoms[(i + 2) % len(ring_atoms)], ring_atoms[(i + 3) % len(ring_atoms)])
-            for i in range(len(ring_atoms))
-        ]
-    ]
-    return dihedrals
 
 def normalize_angle(angle):
     """Normalize the angle to the range -180 to 180 degrees."""
@@ -347,14 +341,19 @@ def find_cycloheptatriene(mol_H: Mol):
     """Find cycloheptatriene or cyclohepta-1,4-diene-3-sp2 substructure in the molecule."""
     return mol_H.GetSubstructMatches(cycloheptatriene_smarts) + mol_H.GetSubstructMatches(cyclohepta_1_4_diene_3_sp2_smarts)
 
+
+
 def classify_confs(conf, 
-                   energy, 
-                   non_planar_rings, 
-                   flippable_Ns, 
-                   flippable_Cs, 
-                   sulfo_matches, 
-                   conf_ring_descriptors_df, 
-                   tolerance=25):
+                    energy, 
+                    non_planar_rings, 
+                    flippable_Ns, 
+                    flippable_Cs, 
+                    sulfo_matches, 
+                    tolerance=25):
+    """
+    Classify a conformer based on ring conformations, flippable nitrogens,
+    substituted cyclohexanes, and sulfonamide-like scaffolds.
+    """
     
     temp_dict = {
         'Conformer': conf,
@@ -380,23 +379,17 @@ def classify_confs(conf,
 
     # Process flippable Nitrogens
     flippable_N_descriptors = sum([1 if is_equatorial(conf, atom_idx) else 0 for atom_idx in flippable_Ns])
-    # print(f"Flippable Nitrogens: {flippable_N_descriptors}")
     temp_dict['equatorial_subs_Ns'] = flippable_N_descriptors if flippable_Ns else -1
 
     # Process substituted cyclohexane
     aliphatic_cyclohexane_descriptors = sum([1 if is_equatorial(conf, atom_idx) else 0 for atom_idx in flippable_Cs])
-    # print(f"Aliphatic cyclohexane: {aliphatic_cyclohexane_descriptors}")
     temp_dict['equatorial_subs_Cs'] = aliphatic_cyclohexane_descriptors if flippable_Cs else -1
     
     # Process sulfo matches
     sulfo_descriptors = tuple([1 if rdMolTransforms.GetDihedralDeg(conf, d, b, c, e) > 0 else 0 for (a, b, c, d, e) in sulfo_matches])
     temp_dict['sulfo_descriptors'] = sulfo_descriptors if sulfo_descriptors else [-1]
 
-    # Create dataframe and append to conf_ring_descriptors_df
-    temp_df = DataFrame([temp_dict])
-    conf_ring_descriptors_df = concat([conf_ring_descriptors_df, temp_df], ignore_index=True)
-
-    return conf_ring_descriptors_df
+    return temp_dict
 
 def remove_unfavorable_confs(conf_ring_descriptors_df: DataFrame, name: str ='0')-> DataFrame:
     for column in conf_ring_descriptors_df.columns[2:-2]:
@@ -433,80 +426,6 @@ def canonicalize_if_smiles(query: str):
 
 
 
-def precompute_bonded_and_same_parent_pairs(mol):
-    """
-    Precompute bonded atom pairs and pairs of atoms that share the same parent (common neighbor).
-
-    Parameters:
-    mol (rdkit.Chem.Mol): The RDKit molecule object.
-
-    Returns:
-    bonded_pairs (set): Set of tuples representing bonded atom pairs.
-    same_parent_pairs (set): Set of tuples representing atoms that share the same parent atom.
-    """
-    bonded_pairs = set()
-    same_parent_pairs = set()
-
-    # Iterate over all atoms in the molecule
-    for atom in mol.GetAtoms():
-        neighbors = atom.GetNeighbors()
-        atom_idx = atom.GetIdx()
-
-        # Get bonded pairs
-        for neighbor in neighbors:
-            neighbor_idx = neighbor.GetIdx()
-            bonded_pairs.add((atom_idx, neighbor_idx))
-            bonded_pairs.add((neighbor_idx, atom_idx))  # Symmetric bond
-
-        # Get atoms that share the same parent (common neighbors)
-        if len(neighbors) > 1:  # Only meaningful for atoms with more than 1 neighbor
-            neighbor_indices = [n.GetIdx() for n in neighbors]
-            for i in range(len(neighbor_indices)):
-                for j in range(i + 1, len(neighbor_indices)):
-                    same_parent_pairs.add((neighbor_indices[i], neighbor_indices[j]))
-                    same_parent_pairs.add((neighbor_indices[j], neighbor_indices[i]))  # Symmetric relation
-
-    return bonded_pairs, same_parent_pairs
-
-
-def check_too_close_nonbonded_atoms(conformer, mol, bonded_pairs, same_parent_pairs, threshold=1.6):
-    """
-    Check if any non-bonded and non-same-parent atoms in a given conformer are too close to each other.
-
-    Parameters:
-    conformer (rdkit.Chem.rdchem.Conformer): The RDKit conformer object.
-    mol (rdkit.Chem.Mol): The RDKit molecule object.
-    bonded_pairs (set): Precomputed set of bonded atom pairs.
-    same_parent_pairs (set): Precomputed set of atoms that share the same parent atom.
-    threshold (float): The distance threshold below which atoms are considered too close.
-
-    Returns:
-    bool: True if any non-bonded atoms are too close, False otherwise.
-    """
-    positions = conformer.GetPositions()
-    num_atoms = mol.GetNumAtoms()
-
-    # Compute pairwise distances between all atoms
-    pairwise_distances = pdist(positions)
-
-    # Convert pairwise distances into a square matrix form
-    distance_matrix = squareform(pairwise_distances)
-
-    # Iterate over all atom pairs and check distances
-    for i in range(num_atoms):
-        for j in range(i + 1, num_atoms):
-            # Skip if the atoms are bonded or share a common parent
-            if (i, j) in bonded_pairs or (i, j) in same_parent_pairs:
-                continue
-
-            # Check if the distance is below the threshold
-            if distance_matrix[i, j] < threshold:
-                #print(i, j, distance_matrix[i, j])
-                return True
-
-    return False
-
-
 
 def count_confs_by_rotbonds(mol,
                             rot_bonds,
@@ -515,27 +434,32 @@ def count_confs_by_rotbonds(mol,
                             torlib=None,
                             VERBOSE=False):
     """
-    Count the number of conformations based on rotatable bonds and reorder bonds with terminal
-    atoms at the beginning.
+    Count the number of conformations based on rotatable bonds and torsion rules.
+
+    This function analyzes the molecule's rotatable bonds, applies torsion rules (optionally ignoring the torsion library),
+    handles special cases for amides and symmetric patterns, and returns the total number of conformations along with
+    the processed torsion rules and heteroatom hydrogen bonds.
 
     Args:
-    mol (rdkit.Chem.Mol): The RDKit molecule object.
-    rot_bonds (list): List of rotatable bonds, each represented as a tuple of atom indices.
-    amide_bonds (list): List of tuples representing amide linkages.
-    ignoretorlib (bool): If True, ignore the torsion library and use a constant rule for amide atoms.
-    torlib (TorsionLibrary): Torsion library object to match dihedral angles.
-    VERBOSE (bool): If True, print detailed information about the rotatable bonds and matched rules.
+        mol (rdkit.Chem.Mol): The RDKit molecule object.
+        rot_bonds (list): List of rotatable bonds, each represented as a tuple of atom indices.
+        amide_bonds (list): List of tuples representing amide linkages.
+        ignoretorlib (bool): If True, ignore the torsion library for non-amide bonds and use a constant rule.
+        torlib: Torsion library object to match dihedral angles.
+        VERBOSE (bool): If True, print detailed information about symmetry and filtering.
 
     Returns:
-    bond_to_rule (dict): A dictionary mapping each rotatable bond to its corresponding rule.
+        total_confs (int): Estimated total number of conformations.
+        match_torlib_clean (list): List of processed torsion rules for each bond.
+        hetero_H_bonds (list): List of rotatable bonds involving heteroatom hydrogens.
     """
-
     matched_rules = torlib.get_match_dihedral(mol, mode = 'random')
     amide_atoms = set()
     if (amide_bonds):
         for b, c in amide_bonds:
             amide_atoms.add(b)
             amide_atoms.add(c)
+
     # Pre-compute a dictionary of rules by bond
     rule_by_bond = {}
     for rule in matched_rules:
@@ -548,10 +472,14 @@ def count_confs_by_rotbonds(mol,
         if bond in rule_by_bond:
             rule = rule_by_bond[bond]
             rule_copy = list(rule)
+
             # Only apply ignoretorlib if not amide bonds
             if ignoretorlib and len(set(bond) & amide_atoms) <= 1:
                 rule_copy[2] = const_rule
+
             bond_to_rule[bond] = rule_copy
+    hetero_H_bonds = _process_hetero_hydrogen_bonds(mol, bond_to_rule)
+
     for _, sym_row in symmetric_patterns_df.iterrows():
         matches = mol.GetSubstructMatches(sym_row['mol'])
         if not matches:
@@ -584,10 +512,14 @@ def count_confs_by_rotbonds(mol,
                     temp.append(peak)
             rule[2] = temp
     
+    # Reorder bonds and create final mappings
+    rot_bonds_reordered = _reorder_bonds(rot_bonds, hetero_H_bonds)
+    bond_to_rule_reordered = {b: bond_to_rule[b] for b in rot_bonds_reordered}
+
     total_confs = 1
     
     match_torlib_clean = []
-    for rule in bond_to_rule.values():
+    for rule in bond_to_rule_reordered.values():
         match_torlib_clean.append(rule)
         total_angles = 0
         for peak in rule[2]:
@@ -598,36 +530,7 @@ def count_confs_by_rotbonds(mol,
         for rule in match_torlib_clean:
             print(f"\t{rule}")
 
-    return int(total_confs), match_torlib_clean
-
-def get_random_angle(mean, tolerance, method='gauss', rounding = False):
-    """
-    Generate a random angle value from a Gaussian distribution given the expected mean and standard deviation,
-    and limit it within the specified range. Normalize the result to the [-180, 180] degree range.
-
-    Args:
-    mean (float): The expected mean angle.
-    tolerance (float): The tolerance .
-    method (str): The method to use for generating the random angle ('gauss' or 'uniform').
-
-    Returns:
-    float: A random angle normalized to the [-180, 180] degree range.
-    """
-
-    # Generate a random angle within the specified Gaussian distribution and range limits
-    if tolerance == 0: return mean
-    while True:
-        if method == 'gauss':
-            random_angle = random.gauss(mean, tolerance)
-        elif method == 'uniform':
-            random_angle = random.uniform(mean - tolerance, mean + tolerance)
-        if rounding: random_angle = round(random_angle/30) * 30
-        if mean-tolerance < random_angle < mean + tolerance: 
-            break
-
-    # Normalize to the [-180, 180] range
-    normalized_angle = (random_angle + 180) % 360 - 180
-    return normalized_angle
+    return int(total_confs), match_torlib_clean, hetero_H_bonds
 
 
 def find_rigid_part(mol, request_alignment=None):
@@ -805,6 +708,100 @@ def filter_symmetric_angles(angles, scores, symmetry_angle=180, tolerance=10):
 
     return kept_angles, kept_scores
 
+def _zero_out_fluctuations(rule):
+    """Helper function to zero out fluctuations in a rule."""
+    adjusted_peaks = []
+    for peak in rule[2]:
+        if isinstance(peak, tuple) and len(peak) >= 3:
+            adjusted_peaks.append((peak[0], 0, 0) + peak[3:])
+        else:
+            adjusted_peaks.append(peak)
+    rule[2] = adjusted_peaks
+
+def _process_hetero_hydrogen_bonds(mol, bond_to_rule):
+    """Process hydroxyl and thiol bonds with special angle rules."""
+    hetero_H_bonds = []
+    
+    # Define bond patterns and their corresponding angle rules
+    bond_patterns = [
+        (aliphatic_hydroxyl_thiol, [(0, 0, 0, 1), (120, 0, 0, 1), (-120, 0, 0, 1)]),
+        (phenol_thiolphenol, [(0, 0, 0, 1), (180, 0, 0, 1)]),
+        (hydroxamic_acid, [(0, 0, 0, 1), (180, 0, 0, 1)]),
+        (hydroxyl_amine, [(-120, 0, 0, 1), (120, 0, 0, 1)])
+    ]
+    
+    for pattern, angles in bond_patterns:
+        for match in mol.GetSubstructMatches(pattern):
+            bond_key = tuple(sorted(match))
+            if bond_key in bond_to_rule:
+                bond_to_rule[bond_key][2] = list(angles)
+                hetero_H_bonds.append(bond_key)
+    
+    return hetero_H_bonds
+
+def _reorder_bonds(rot_bonds, hetero_H_bonds):
+    """Reorder bonds to put hetero-H bonds at the end."""
+    return ([b for b in rot_bonds if b not in hetero_H_bonds] + 
+            [b for b in rot_bonds if b in hetero_H_bonds])
+
+def _extract_angles_from_peaks(peak_list):
+    """Extract angles and scores from peak list."""
+    angle_list = []
+    score_list = []
+    
+    for peak in peak_list:
+        if len(peak) < 4:
+            # Fallback case (e.g., symmetric angle filtering already applied)
+            angle_list = [p[0] for p in peak_list]
+            score_list = [p[1] for p in peak_list]
+            break
+        
+        angle_vals = discretinize_dihedrals(peak[0], peak[2])
+        angle_list.extend(angle_vals)
+        score_list.extend([peak[3]] * len(angle_vals))
+    
+    return angle_list, score_list
+
+
+def _deduplicate_angles(angle_list, score_list):
+    """Remove angles that are too similar (within ±30 degrees)."""
+    deduplicated_angles = []
+    deduplicated_scores = []
+    
+    for angle, score in zip(angle_list, score_list):
+        # Only add if not too similar to any existing angle
+        is_similar = any(
+            abs(angular_diff(angle, existing)) < 30 
+            for existing in deduplicated_angles
+        )
+        if not is_similar:
+            deduplicated_angles.append(angle)
+            deduplicated_scores.append(score)
+    
+    return deduplicated_angles, deduplicated_scores
+
+def _generate_angle_mappings(bond_to_rule_reordered):
+    """Generate final angle and score mappings."""
+    angle_map = {}
+    score_map = {}
+    total_confs = 1
+    
+    for bond_idx, rule in enumerate(bond_to_rule_reordered.values()):
+        name, atom_indices, peak_list = rule
+        
+        # Extract angles and scores from peaks
+        angle_list, score_list = _extract_angles_from_peaks(peak_list)
+        
+        # Remove duplicate angles
+        deduplicated_angles, deduplicated_scores = _deduplicate_angles(angle_list, score_list)
+        
+        # Update mappings
+        angle_map[bond_idx] = [name, atom_indices, deduplicated_angles]
+        score_map[bond_idx] = deduplicated_scores
+        total_confs *= len(deduplicated_angles)
+    
+    return angle_map, score_map, total_confs
+
 def count_confs_by_rotbonds_v2(mol,
                                rot_bonds,
                                ignoretorlib = False,
@@ -812,22 +809,26 @@ def count_confs_by_rotbonds_v2(mol,
                                torlib = None,
                                VERBOSE=False):
     """
-    Estimates the number of conformations by analyzing rotatable bonds and torsion rules.
-    Adjusts torsions for amide bonds and symmetric patterns.
+    Count the number of conformations based on rotatable bonds and torsion rules (deterministic version).
+
+    This function analyzes the molecule's rotatable bonds, applies torsion rules (optionally ignoring the torsion library),
+    handles special cases for amides, symmetric patterns, and heteroatom hydrogens, and returns the total number of
+    conformations along with detailed angle and score mappings for each bond.
 
     Args:
-        mol (rdkit.Chem.Mol): The input molecule.
-        rot_bonds (list): List of rotatable bonds.
-        ignoretorlib (bool): If True, ignore the torsion library and use all possible angles differ by 30 degrees.
-        amide_bonds (list): List of amide bonds to zero out fluctuations.
-        torlib (torsions.Torsional Library object)
-        VERBOSE (bool): If True, print detailed steps.
+        mol (rdkit.Chem.Mol): The RDKit molecule object.
+        rot_bonds (list): List of rotatable bonds (tuples of atom indices).
+        ignoretorlib (bool): If True, ignore the torsion library for non-amide bonds and use a constant rule.
+        amide_bonds (list): List of tuples representing amide bonds (optional).
+        torlib: Torsion library object for matching dihedral rules.
+        VERBOSE (bool): If True, print detailed information about symmetry and filtering.
 
     Returns:
-        tuple: (total_confs, angle_map, score_map)
-            - total_confs (int): Estimated number of conformations.
-            - angle_map (dict): Mapping of bond indices to possible angles.
-            - score_map (dict): Mapping of bond indices to scores for each angle.
+        total_confs (int): Estimated total number of conformations.
+        angle_map (dict): Mapping of bond indices to [name, atom_indices, list of angles].
+        score_map (dict): Mapping of bond indices to list of scores for each angle.
+        rot_bonds_reordered (list): Rotatable bonds reordered (hetero-H bonds at the end).
+        hetero_H_bonds (list): List of rotatable bonds involving heteroatom hydrogens.
     """
     # Step 1: Match torsion rules and rotatable bonds
     rot_bonds = rot_bonds.copy()
@@ -849,8 +850,7 @@ def count_confs_by_rotbonds_v2(mol,
     bond_to_rule = {}
     for bond in rot_bonds:
         if bond in rule_by_bond:
-            rule = rule_by_bond[bond]
-            rule_copy = list(rule)
+            rule_copy = list(rule_by_bond[bond])
             
             # Only apply ignoretorlib if not amide bonds
             if ignoretorlib and len(set(bond) & amide_atoms) <= 1:
@@ -862,16 +862,8 @@ def count_confs_by_rotbonds_v2(mol,
     if (amide_bonds):
         for amide_match in amide_bonds:
             bond_key = tuple(sorted(amide_match[0:2]))
-            if bond_key not in bond_to_rule:
-                continue
-            rule = bond_to_rule[bond_key]
-            adjusted_peaks = []
-            for peak in rule[2]:
-                if isinstance(peak, tuple) and len(peak) >= 3:
-                    adjusted_peaks.append((peak[0], 0, 0) + peak[3:])
-                else:
-                    adjusted_peaks.append(peak)
-            rule[2] = adjusted_peaks
+            if bond_key in bond_to_rule:
+                _zero_out_fluctuations(bond_to_rule[bond_key])
 
     # Zero out fluctuations for primary amidines, guanidines:
     uniq_matches_prim_amidines_guanidines = set()
@@ -880,98 +872,88 @@ def count_confs_by_rotbonds_v2(mol,
             uniq_matches_prim_amidines_guanidines.add(tuple(sorted(match[1:3])))
 
     for bond_key in list(uniq_matches_prim_amidines_guanidines):
-        if bond_key not in bond_to_rule: continue
-        rule = bond_to_rule[bond_key]
-        adjusted_peaks = []
-        for peak in rule[2]:
-            if isinstance(peak, tuple) and len(peak) >= 3:
-                adjusted_peaks.append((peak[0], 0, 0) + peak[3:])
-            else:
-                adjusted_peaks.append(peak)
-        rule[2] = adjusted_peaks
+        if bond_key in bond_to_rule: 
+            _zero_out_fluctuations(bond_to_rule[bond_key])
 
-    # Step 3: Apply symmetry filtering to avoid redundant angles
+    # Step 3: Special treatment for hydroxyls/thiols
+    hetero_H_bonds = _process_hetero_hydrogen_bonds(mol, bond_to_rule)
+
+
+    # Step 4: Apply symmetry filtering
+    _apply_symmetry_filtering(mol, bond_to_rule, rot_bonds, VERBOSE)
+    
+    # Step 5: Reorder bonds and create final mappings
+    rot_bonds_reordered = _reorder_bonds(rot_bonds, hetero_H_bonds)
+    bond_to_rule_reordered = {b: bond_to_rule[b] for b in rot_bonds_reordered}
+    
+    # Step 6: Generate angle and score mappings
+    angle_map, score_map, total_confs = _generate_angle_mappings(bond_to_rule_reordered)
+    
+    return total_confs, angle_map, score_map, rot_bonds_reordered, hetero_H_bonds
+
+def _apply_symmetry_filtering(mol, bond_to_rule, rot_bonds, VERBOSE):
+    """Apply symmetry filtering to avoid redundant angles."""
     for _, sym_row in symmetric_patterns_df.iterrows():
         matches = mol.GetSubstructMatches(sym_row['mol'])
         if not matches:
             continue
+            
         if VERBOSE:
             print(f"\tFound symmetric pattern: {sym_row['name']}")
+            
         period = 360 / sym_row['num_scaled']
-        check_symmetric_using_dfs = True if sym_row['name'].startswith('general') else False
+        check_symmetric_using_dfs = sym_row['name'].startswith('general')
+        
         for match in matches:
             if check_symmetric_using_dfs:
-                # Use a dfs to traverse in the Molecule graph, then compare the fragment smiles
                 idx2, idx3, idx4, idx5 = match[0], match[1], match[2], match[-1]
-                if not(identical_substituents(mol, idx2, idx3, idx4, idx5)): continue
+                if not identical_substituents(mol, idx2, idx3, idx4, idx5):
+                    continue
             
             bond_key = tuple(sorted(match[:2]))
             if bond_key not in bond_to_rule:
                 continue
-            if period == 1: 
+
+            # Handle complete rotation removal (period == 1)
+            if period == 1:
                 bond_to_rule.pop(bond_key)
                 rot_bonds.remove(bond_key)
                 continue
 
+            # Handle special case for tri_large_halogeno_methyl
             if sym_row['name'] == 'tri_large_halogeno_methyl':
-                # Special case for tri_large_halogeno_methyl, where we want to permute + 30o.
-                rule = bond_to_rule[bond_key]
-                peaks = rule[2]
-                angles = [normalize_angle(peaks[0][0] + x) for x in [0, -30, 30]]
-                scores = [peaks[0][3], round(peaks[0][3]/2, 2), round(peaks[0][3]/2, 2)]
-                rule[2] = list(zip(angles, scores))
-            if VERBOSE:
-                print(f'\tRemove duplicated rotation for {bond_key}')
-            rule = bond_to_rule[bond_key]
-            angles, scores = [], []
-            if len(rule[2][0]) < 4:
-                # Already reduced for this angle, skip further reduced
+                _handle_tri_halogeno_methyl(bond_to_rule[bond_key])
                 continue
-            for peak in rule[2]:
-                angle_list = discretinize_dihedrals(peak[0], peak[2])
-                angles.extend(angle_list)
-                scores.extend([peak[3]] * len(angle_list))
-            filtered_angles, filtered_scores = filter_symmetric_angles(angles, scores, period, 10)
-            rule[2] = list(zip(filtered_angles, filtered_scores))
+            
+            # Apply symmetry filtering
+            _filter_symmetric_rule(bond_to_rule[bond_key], period, VERBOSE, bond_key)
+
+def _handle_tri_halogeno_methyl(rule):
+    """Handle special case for tri_large_halogeno_methyl pattern."""
+    peaks = rule[2]
+    angles = [normalize_angle(peaks[0][0] + x) for x in [0, -30, 30]]
+    scores = [peaks[0][3], round(peaks[0][3]/2, 2), round(peaks[0][3]/2, 2)]
+    rule[2] = list(zip(angles, scores))
 
 
-    # Step 4: Discretize angles and estimate total possible conformations
-    angle_map = {}
-    score_map = {}
-    total_confs = 1
-    for bond_idx, rule in enumerate(bond_to_rule.values()):
-        name, atom_indices, peak_list = rule
-        angle_list = []
-        score_list = []
-        total_angles = 0
-        for peak in peak_list:
-            if len(peak) < 4:
-                # fallback case (e.g., symmetric angle filtering already applied)
-                angle_list = [peak[0] for peak in peak_list]
-                score_list = [peak[1] for peak in peak_list]
-                total_angles = len(angle_list)
-                break
-            angle_vals = discretinize_dihedrals(peak[0], peak[2])
-            angle_list.extend(angle_vals)
-            score_list.extend([peak[3]] * len(angle_vals))
+def _filter_symmetric_rule(rule, period, VERBOSE, bond_key):
+    """Apply symmetric filtering to a torsion rule."""
+    if VERBOSE:
+        print(f'\tRemove duplicated rotation for {bond_key}')
         
+    # Skip if already processed
+    if len(rule[2][0]) < 4:
+        return
+    
+    angles, scores = [], []
+    for peak in rule[2]:
+        angle_list = discretinize_dihedrals(peak[0], peak[2])
+        angles.extend(angle_list)
+        scores.extend([peak[3]] * len(angle_list))
+    
+    filtered_angles, filtered_scores = filter_symmetric_angles(angles, scores, period, 10)
+    rule[2] = list(zip(filtered_angles, filtered_scores))
 
-        # Filter out too similar angles (within <±30 degrees)
-        deduplicated_angles = []
-        deduplicated_scores = []
-        for angle, score in zip(angle_list, score_list):
-            # Only add if not too similar to any existing angle
-            if not any(abs(angular_diff(angle, existing)) < 30 for existing in deduplicated_angles):
-                deduplicated_angles.append(angle)
-                deduplicated_scores.append(score)
-
-        total_angles = len(deduplicated_angles)
-        angle_map[bond_idx] = [name, atom_indices, deduplicated_angles]
-        score_map[bond_idx] = deduplicated_scores
-        total_confs *= total_angles
-
-
-    return total_confs, angle_map, score_map, rot_bonds
 
 def within_tolerance(angle, center, tolerance):
     """
@@ -993,3 +975,104 @@ def within_tolerance(angle, center, tolerance):
     diff = (angle - center + 180) % 360 - 180
     return abs(diff) <= tolerance
 
+def remove_nonpolar_hydrogens(mol: Chem.Mol) -> Chem.Mol:
+    """
+    Remove non-polar hydrogens from the molecule.
+    Non-polar hydrogens are those attached to carbon atoms.
+
+    Args:
+        mol (Chem.Mol): RDKit molecule object.
+
+    Returns:
+        Chem.Mol: New molecule with non-polar hydrogens removed.
+    """
+    editable = Chem.RWMol(mol)
+    to_remove = []
+    for atom in editable.GetAtoms():
+        if atom.GetAtomicNum() == 1:
+            neighbors = atom.GetNeighbors()
+            if len(neighbors) == 1 and neighbors[0].GetAtomicNum() == 6:
+                to_remove.append(atom.GetIdx())
+    for idx in sorted(to_remove, reverse=True):
+        editable.RemoveAtom(idx)
+    return editable.GetMol()
+
+
+def is_similar_rmsd(current_conformer, previous_conformers, cutoff, mol=None, numcores=1):
+    """
+    Cluster conformers based on BestRMS to determine if a new conformer is similar to existing ones.
+    
+    This function compares a current conformer against a list of previous conformers using
+    RDKit's GetBestRMS function, which calculates the root-mean-square deviation after
+    optimal alignment. Non-polar hydrogens are removed before RMSD calculation to focus
+    on the heavy atom framework and polar hydrogens that are important for interactions.
+    
+    Args:
+        current_conformer (Chem.Conformer): The new conformer to compare.
+        previous_conformers (list): List of tuples (conformer, energy) representing 
+                                   previously accepted conformers.
+        cutoff (float): RMSD cutoff value in Angstroms. If RMSD <= cutoff, conformers 
+                       are considered similar.
+        mol (Chem.Mol, optional): RDKit molecule object. If provided, will be used
+                                 for RMSD calculation. If None, a temporary molecule
+                                 will be created from the conformers.
+        numcores (int): number of cores for multiprocessing.
+    
+    Returns:
+        bool: True if the current conformer is similar to any previous conformer 
+              (RMSD <= cutoff), False otherwise.
+    
+    Example:
+        >>> current_conf = mol.GetConformer(0)
+        >>> prev_confs = [(mol.GetConformer(1), 10.5), (mol.GetConformer(2), 12.3)]
+        >>> is_similar = cluster_conformer_by_bestrmsd(current_conf, prev_confs, 0.5, mol)
+    """
+    if cutoff == 0:
+        return False
+    if not previous_conformers:
+        return False
+    
+    # We need the original molecule to work with
+    if mol is None:
+        raise ValueError("mol parameter is required for RMSD calculation")
+    
+    # Create a molecule with all conformers for comparison
+    temp_mol = Chem.Mol(mol)
+    temp_mol.RemoveAllConformers()
+    
+    # Add current conformer
+    current_conf_id = temp_mol.AddConformer(current_conformer, assignId=True)
+    
+    # Add all previous conformers
+    prev_conf_ids = []
+    for prev_conformer, _ in previous_conformers:
+        prev_conf_id = temp_mol.AddConformer(prev_conformer, assignId=True)
+        prev_conf_ids.append(prev_conf_id)
+    
+    # Remove non-polar hydrogens for RMSD calculation
+    # mol_no_h = remove_nonpolar_hydrogens(temp_mol)
+    mol_no_h = Chem.RemoveAllHs(temp_mol)
+    # Compare current conformer against each previous conformer
+    for prev_conf_id in prev_conf_ids:
+        try:
+            # Calculate BestRMS between the conformers
+            rmsd = rdMolAlign.GetBestRMS(mol_no_h, mol_no_h, 
+                                         prbId=current_conf_id, refId=prev_conf_id,
+                                         maxMatches=1000, numThreads=numcores)
+            # If RMSD is within cutoff, conformers are considered similar
+            if rmsd <= cutoff:
+                return True
+                
+        except Exception as e:
+            # In case of any errors in RMSD calculation, log warning and continue
+            logger.warning(f"Error calculating RMSD: {e}")
+            continue
+    
+    # If no similar conformer found, return False
+    return False
+
+
+def check_timeout(start_time, max_duration):
+    """Check if the elapsed time has exceeded the maximum duration."""
+    elapsed_time = time.time() - start_time
+    return elapsed_time > max_duration

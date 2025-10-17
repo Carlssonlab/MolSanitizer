@@ -15,6 +15,7 @@ from msani.batchmode import Split_Submit_jobs
 from msani.io import parsers
 
 OS = platform.system()
+machine = platform.machine().lower()
 
 class Test_MolSanitizer(unittest.TestCase):
     @classmethod
@@ -296,8 +297,8 @@ class Test_MolSanitizer(unittest.TestCase):
                                   f'{self.path}/out_enamine_rejected.txt')
         os.chdir(self.path)
 
-    @unittest.skipIf(OS in ["Darwin"],
-        "Skipping test on MacOS due to no compatible AMSOL software.")
+    @unittest.skipIf((OS == "Darwin" and ("arm" in machine or "aarch64" in machine)),
+        "Skipping test on MacOS_ARM64 due to no compatible AMSOL software.")
     def test_db2_generation(self):
         tmp_obj = tempfile.TemporaryDirectory()
         temp_dir = tmp_obj.name
@@ -322,8 +323,8 @@ class Test_MolSanitizer(unittest.TestCase):
         shutil.rmtree(f"{temp_dir}")
         tmp_obj.cleanup()
     
-    @unittest.skipIf(OS in ["Darwin"],
-        "Skipping test on MacOS due to no compatible AMSOL software.")
+    @unittest.skipIf((OS == "Darwin" and ("arm" in machine or "aarch64" in machine)),
+        "Skipping test on MacOS_ARM64 due to no compatible AMSOL software.")
     def test_db2_sulfonamide(self):
         tmp_obj = tempfile.TemporaryDirectory()
         temp_dir = tmp_obj.name
@@ -483,7 +484,7 @@ class Test_MolSanitizer(unittest.TestCase):
             "debug": False, 
             "custom":None, 
             "prefix":output_prefix, 
-            "max_stereoisomers": 8,
+            "max_stereoisomers": 16,
             "numcores": 4,
             "test": False,
             "smiles": None,
@@ -496,6 +497,8 @@ class Test_MolSanitizer(unittest.TestCase):
             "randomSeed": 42,
             "energywindow": 25,
             "timeout": 2,
+            "timeout_conf": 2,
+            "rmsd": 0.5,
             "tolerance": 30,
             "ignoretorlib":False,
             "timing":False,

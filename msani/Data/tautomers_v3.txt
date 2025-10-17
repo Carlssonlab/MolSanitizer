@@ -15,6 +15,18 @@ aromatize_3-imino-2H-5aro-CH0	0	[NX3H0,O,S:1]1[*H;!$(*~[OX1,OH,SX2H,SX1]):2][C:3
 aromatize_3-imino-2H2-5aro-CH0	0	[NX3H0,O,S:1]1[*H2:2][C:3](=[N&H0;!$(N-C=[C,N]):7])[*;!$(*~[OX1,OH,SX2H,SX1]):4]=,:[*;!$(*~[OX1,OH,SX2H,SX1]):5]1>>[nH0,o,s:1]1[aH:2][c:3]([NH:7])[a:4][a:5]1	exceptions:10.1039/C0OB00867B,10.1021/acs.orglett.7b03390
 aromatize_3-imino-2H-5aro-CH0	0	[NH:1]1[*H;!$(*~[OX1,OH,SX2H,SX1]):2][C:3](=[N&H0;!$(N-C=[C,N]):7])[*;!$(*~[OX1,OH,SX2H,SX1]):4]=,:[*;!$(*~[OX1,OH,SX2H,SX1]):5]1>>[nH:1]1[a&H0:2][c:3]([NH:7])[a:4][a:5]1	exceptions:10.1039/C0OB00867B,10.1021/acs.orglett.7b03390
 aromatize_3-imino-2H2-5aro-CH0	0	[NH:1]1[*H2:2][C:3](=[N&H0;!$(N-C=[C,N]):7])[*;!$(*~[OX1,OH,SX2H,SX1]):4]=,:[*;!$(*~[OX1,OH,SX2H,SX1]):5]1>>[nH:1]1[aH:2][c:3]([NH:7])[a:4][a:5]1	exceptions:10.1039/C0OB00867B,10.1021/acs.orglett.7b03
+aromatize_exo-methylidene-cyclohexa-1,3-diene-CH0-CH1	0	[CH0:1]=[C:2]1[C:3]=[C:4][C:5]=[C:6][CH:7]1>>[CH:1]-[c:2]1[c:3][c:4][c:5][c:6][cH0:7]1
+aromatize_exo-methylidene-cyclohexa-1,3-diene-CH0-CH2	0	[CH0:1]=[C:2]1[C:3]=[C:4][C:5]=[C:6][CH2:7]1>>[CH:1]-[c:2]1[c:3][c:4][c:5][c:6][cH:7]1
+aromatize_exo-methylidene-cyclohexa-1,3-diene-CH1-CH1	0	[CH:1]=[C:2]1[C:3]=[C:4][C:5]=[C:6][CH:7]1>>[CH2:1]-[c:2]1[c:3][c:4][c:5][c:6][cH0:7]1
+aromatize_exo-methylidene-cyclohexa-1,3-diene-CH1-CH2	0	[CH:1]=[C:2]1[C:3]=[C:4][C:5]=[C:6][CH2:7]1>>[CH2:1]-[c:2]1[c:3][c:4][c:5][c:6][cH:7]1
+aromatize_exo-methylidene-cyclohexa-1,3-diene-CH2-CH1	0	[CH2:1]=[C:2]1[C:3]=[C:4][C:5]=[C:6][CH:7]1>>[CH3:1]-[c:2]1[c:3][c:4][c:5][c:6][cH0:7]1
+aromatize_exo-methylidene-cyclohexa-1,3-diene-CH2-CH2	0	[CH2:1]=[C:2]1[C:3]=[C:4][C:5]=[C:6][CH2:7]1>>[CH3:1]-[c:2]1[c:3][c:4][c:5][c:6][cH:7]1
+aromatize_exo-methylidene-cyclohexa-1,4-diene-CH0-CH1	0	[CH0:1]=[C:2]1[C:3]=[C:4][CH:5][C:6]=[C:7]1>>[CH:1]-[c:2]1[c:3][c:4][cH0:5][c:6][c:7]1
+aromatize_exo-methylidene-cyclohexa-1,4-diene-CH0-CH2	0	[CH0:1]=[C:2]1[C:3]=[C:4][CH2:5][C:6]=[C:7]1>>[CH:1]-[c:2]1[c:3][c:4][cH:5][c:6][c:7]1
+aromatize_exo-methylidene-cyclohexa-1,4-diene-CH1-CH1	0	[CH:1]=[C:2]1[C:3]=[C:4][CH:5][C:6]=[C:7]1>>[CH2:1]-[c:2]1[c:3][c:4][cH0:5][c:6][c:7]1
+aromatize_exo-methylidene-cyclohexa-1,4-diene-CH1-CH2	0	[CH:1]=[C:2]1[C:3]=[C:4][CH2:5][C:6]=[C:7]1>>[CH2:1]-[c:2]1[c:3][c:4][cH:5][c:6][c:7]1
+aromatize_exo-methylidene-cyclohexa-1,4-diene-CH2-CH1	0	[CH2:1]=[C:2]1[C:3]=[C:4][CH:5][C:6]=[C:7]1>>[CH3:1]-[c:2]1[c:3][c:4][cH0:5][c:6][c:7]1
+aromatize_exo-methylidene-cyclohexa-1,4-diene-CH2-CH2	0	[CH2:1]=[C:2]1[C:3]=[C:4][CH2:5][C:6]=[C:7]1>>[CH3:1]-[c:2]1[c:3][c:4][cH:5][c:6][c:7]1
 exo-methylidene-quinone_to_Me-quinone-CH0-CH1	0	[CH0:1]=[C:2]1[CH1;!$(C~[OX1,OH]):3][C;$(C=O):4][c;!$(c~[OX1,OH]):5][c;!$(c~[OX1,OH]):6][C;$(C=O):7]1>>[CH:1]-[C:2]1=[CH0:3][C:4][c:5][c:6][C:7]1
 exo-methylidene-quinone_to_Me-quinone-CH1-CH1	0	[CH:1]=[C:2]1[CH1;!$(C~[OX1,OH]):3][C;$(C=O):4][c;!$(c~[OX1,OH]):5][c;!$(c~[OX1,OH]):6][C;$(C=O):7]1>>[CH2:1]-[C:2]1=[CH0:3][C:4][c:5][c:6][C:7]1
 exo-methylidene-quinone_to_Me-quinone-CH2-CH1	0	[CH2:1]=[C:2]1[CH1;!$(C~[OX1,OH]):3][C;$(C=O):4][c;!$(c~[OX1,OH]):5][c;!$(c~[OX1,OH]):6][C;$(C=O):7]1>>[CH3:1]-[C:2]1=[CH0:3][C:4][c:5][c:6][C:7]1
@@ -189,6 +201,8 @@ endo-anthracycline	0	[O:1]=[C:2]1[C:3]=[C:4][C:5](=[O:6])[c:7]2[c:8]1[c:9]([OH:1
 12-34-exo-quinone-CH0-CH2	0	[OH:1]-[c:2]1[c:3][c:4](-[#6&H0:5]=[A:6]-[A:11]=[*H2;!$(*-,:[#6]=*):12])[c:7](-[OH:8])[c:9][c:10]1>>[O&H0:1]=[C:2]1[C:3]=[C:4](-[CH:5]-[A:6]=[A:11]-[AH3:12])[C:7](=[O&H0:8])[#6:9]=,:[#6:10]1
 12-34-exo-quinone-CH0-CH1	0	[OH:1]-[c:2]1[c:3][c:4](-[#6&H0:5]=[A:6]-[A:11]=[*H;!$(*-,:[#6]=*):12])[c:7](-[OH:8])[c:9][c:10]1>>[O&H0:1]=[C:2]1[C:3]=[C:4](-[CH:5]-[A:6]=[A:11]-[AH2:12])[C:7](=[O&H0:8])[#6:9]=,:[#6:10]1
 12-34-exo-quinone-CH0-CH0	0	[OH:1]-[c:2]1[c:3][c:4](-[#6&H0:5]=[A:6]-[A:11]=[*&H0;!$(*-,:[#6]=*):12])[c:7](-[OH:8])[c:9][c:10]1>>[O&H0:1]=[C:2]1[C:3]=[C:4](-[CH:5]-[A:6]=[A:11]-[AH:12])[C:7](=[O&H0:8])[#6:9]=,:[#6:10]1
+6-memb-ring-1,3-di(thio)keto_to_enol-CH2	0	[O,SX1:1]=[Cz1&r6:2]-[CH1z0&r6;!$(C(-C=O)(-C=O)-C=O):3]-[Cz1&r6:4]=[O:5]>>[OH,SH:1]-[C:2]=[CH0:3]-[C:4]=[O:5]
+6-memb-ring-1,3-di(thio)keto_to_enol-CH2	0	[O,SX1:1]=[Cz1&r6:2]-[CH2&r6:3]-[Cz1&r6:4]=[O:5]>>[OH,SH:1]-[C:2]=[CH:3]-[C:4]=[O:5]
 aminoenol_to_amide-AH2	0	[AH2:1]=[C:2](-[OH,SH:3])-[N&+0:4]>>[AH3:1]-[C:2](=[O&H0,S&H0:3])-[N:4]
 aminoenol_to_amide-AH1	0	[AH;!$(A-,:[#6]=*):1]=[C:2](-[OH,SH:3])-[N&+0:4]>>[AH2:1]-[C:2](=[O&H0,S&H0:3])-[N:4]
 aminoenol_to_amide-AH0	0	[A&H0;!$(A-,:[#6]=*):1]=[C:2](-[OH,SH:3])-[N&+0:4]>>[AH:1]-[C:2](=[O&H0,S&H0:3])-[N:4]

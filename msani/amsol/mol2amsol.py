@@ -7,12 +7,11 @@
 ## 
 #################################################################################################################
 ## Modified by Trent Balius in the Shoichet Lab, UCSF in 2013
+## Updated by Phong Lam in the Carlsson Lab, UU in 2024-2025
 #################################################################################################################
 
 
-import math, sys
-import os.path
-import cmath
+import sys
 from math import sqrt
 
 #################################################################################################################
@@ -386,108 +385,3 @@ def heavy_atom_RMSD(ref,pose):
     return sqrt(sum/num_hvy_atoms)
 
 #################################################################################################################
-#################################################################################################################
-def formal_charge(molecule):
-        total = 0
-        for i in range(len(molecule.atom_list)):
-                total += molecule.atom_list[i].Q
-        return total
-#################################################################################################################
-def centre_of_mass(molecule):
-        # Dictionary of atomic weights of elements
-        atom_mass = {'O':15.9994 ,'N':14.00674 ,'C':12.011 ,'F':18.9984032 ,'Cl':35.4527 ,'Br':79.904
-        ,'I':126.90447 ,'H':1.00794 ,'B':10.811 ,'S':32.066 ,'P':30.973762 ,'Li':6.941 ,'Na':22.98968
-        ,'Mg':24.3050 ,'Al':26.981539 ,'Si':28.0855 ,'K':39.0983 ,'Ca':40.078 ,'Cr':51.9961 ,'Mn':54.93805
-        ,'Fe':55.847 ,'Co':58.93320 ,'Cu':63.546 ,'Zn':65.39 ,'Se':78.96 ,'Mo':95.94 ,'Sn':118.710 ,'LP':0.0 }
-
-        cmass = [0,0,0]
-        centroid = [0,0,0]
-        molecular_weight = 0
-        for k in range(0,len(molecule.atom_list)):
-                element = molecule.atom_list[k].type.split('.')[0]
-                cmass[0] += molecule.atom_list[k].X * atom_mass[element]
-                cmass[1] += molecule.atom_list[k].Y * atom_mass[element]
-                cmass[2] += molecule.atom_list[k].Z * atom_mass[element]
-                centroid[0] += molecule.atom_list[k].X
-                centroid[1] += molecule.atom_list[k].Y
-                centroid[2] += molecule.atom_list[k].Z
-                molecular_weight += atom_mass[element]
-        #print "Molecular Weight =",molecular_weight
-        cmass[0] /= molecular_weight
-        cmass[1] /= molecular_weight
-        cmass[2] /= molecular_weight
-        centroid[0] /= len(molecule.atom_list)
-        centroid[1] /= len(molecule.atom_list)
-        centroid[2] /= len(molecule.atom_list)
-        #print 'Centroid =',centroid
-        return cmass
-#################################################################################################################
-def molecular_weight(molecule):
-        # Dictionary of atomic weights of elements
-        atom_mass = {'O':15.9994 ,'N':14.00674 ,'C':12.011 ,'F':18.9984032 ,'Cl':35.4527 ,'Br':79.904
-        ,'I':126.90447 ,'H':1.00794 ,'B':10.811 ,'S':32.066 ,'P':30.973762 ,'Li':6.941 ,'Na':22.98968
-        ,'Mg':24.3050 ,'Al':26.981539 ,'Si':28.0855 ,'K':39.0983 ,'Ca':40.078 ,'Cr':51.9961 ,'Mn':54.93805
-        ,'Fe':55.847 ,'Co':58.93320 ,'Cu':63.546 ,'Zn':65.39 ,'Se':78.96 ,'Mo':95.94 ,'Sn':118.710 ,'LP':0.0 }
-
-        molecular_weight = 0
-        for k in range(0,len(molecule.atom_list)):
-                element = molecule.atom_list[k].type.split('.')[0]
-                molecular_weight += atom_mass[element]
-        return molecular_weight
-#################################################################################################################
-def calc_dipole_moment(molecule):
-    uIsum=0
-    uJsum=0
-    uKsum=0
-    dipolemoment=0
-    conversion = 4.796 # Convert partialcharge*angstroms --> Coulombs*meters (Debye)
-
-    cmass = centre_of_mass(molecule)
-    #print "Centre of mass = ",cmass
-
-    #cmass = [molecule.atom_list[0].X, molecule.atom_list[0].Y, molecule.atom_list[0].Z]
-    for k in range(0,len(molecule.atom_list)):
-        uIsum += molecule.atom_list[k].Q * (molecule.atom_list[k].X - cmass[0])
-        uJsum += molecule.atom_list[k].Q * (molecule.atom_list[k].Y - cmass[1])
-        uKsum += molecule.atom_list[k].Q * (molecule.atom_list[k].Z - cmass[2])
-
-    umag          = sqrt( (uIsum*uIsum) + (uJsum*uJsum) + (uKsum*uKsum) )
-    dipolemoment  = umag*conversion;
-    uvector = [uIsum,uJsum,uKsum]
-
-    return uvector, dipolemoment
-#################################################################################################################
-# Takes a single Mol object and returns a Mol object without the hydrogens
-# Have to remove H from atom_list, bond_list and residue_list
-def remove_hydrogens(m):
-    atom_list = []
-    bond_list = []
-    residue_list = {}
-
-    # Retain only heavy atoms in atom_list
-    num_hvy_atoms = 0
-    for i in range(len(m.atom_list)):
-        if (m.atom_list[i].heavy_atom):
-           atom_list.append(m.atom_list[i])
-           num_hvy_atoms+=1
-
-    # Retain only bonds containing heavy atoms
-    for bond_id in range(len(m.bond_list)):
-        retain_bond = True
-        for atom_id in range(len(m.atom_list)):
-           if (m.atom_list[atom_id].heavy_atom):
-              continue  
-           # Atoms down here are always hydrogen 
-           if (m.bond_list[bond_id].a1_num == m.atom_list[atom_id].num):
-              retain_bond = False 
-           if (m.bond_list[bond_id].a2_num == m.atom_list[atom_id].num):
-              retain_bond = False
-        if (retain_bond):
-            bond_list.append(m.bond_list[bond_id])
-
-    # Assuming that residue list does not change
-
-    data = Mol(m.name,atom_list,bond_list,m.residue_list)
-    return data
-#################################################################################################################
-
