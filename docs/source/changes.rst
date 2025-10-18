@@ -15,6 +15,10 @@ All notable changes to this project will be documented in this file.
 ⚡ Performance
 ~~~~~~~~~~~~~~
 
+-  C++ accelerated ConformerGenerator and StereoIsomerEnumerator. Now
+   ConformerGenerator supports RMSD pruning with super high performance
+   (faster than OMEGA/Conforge). -
+   (`ee88e17 <https://github.com/phonglam3103/MolSanitizer/commit/ee88e1726b55c045a20803a0f0f9d5b154253715>`__)
 -  Only desalt for entries where there are more than 1 fragment (smiles
    containing ‘.’). This has proven to gain upto 3X performance on
    million-sized databases. -
