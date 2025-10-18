@@ -20,10 +20,19 @@ Example of how to set up a working conda environment to run the code on Mac OS a
     
     conda env create -f MolSanitizer/environment.yml # Trick: use mamba (if you have) for much faster installation
     conda activate msani
-    pip install -e msani
+    pip install -e MolSanitizer
 
 For Windows users, we recommend them to follow the instruction [here](https://msani.readthedocs.io/en/latest/installation.html). More information on the installation and dependencies could be found in the same page
 
+## New C++ implementation since October 18, 2025
+
+Since version 0.5.0, MolSanitizer has transferred the heavily demanding parts to C++, hence more dependencies are required to build and compile the program. If the users happen to have created the conda environment using the above instruction, they need to install the additional dependencies for C++:
+
+    mamba env update --name msani --file environment.yml
+
+After that, re-install the package:
+
+    pip install -e MolSanitizer
 
 ## Documentation
 
