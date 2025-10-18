@@ -4,10 +4,33 @@ project(msani_confgen_cpp)
 # Always find the Python interpreter from the build environment
 find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
 
-# Find RDKit first to determine version for C++ standard
+# Find RDKit root (Conda on Windows uses Library/*)
 set(RDKit_ROOT_DIR "$ENV{RDBASE}")
 if(NOT RDKit_ROOT_DIR)
     set(RDKit_ROOT_DIR "$ENV{CONDA_PREFIX}")
+endif()
+
+# Fallback: derive environment root from Python's sys.prefix if still empty
+if(NOT RDKit_ROOT_DIR)
+    execute_process(
+        COMMAND ${Python3_EXECUTABLE} -c "import sys; print(sys.prefix)"
+        OUTPUT_VARIABLE _PY_SYS_PREFIX
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
+    )
+    if(_PY_SYS_PREFIX)
+        set(RDKit_ROOT_DIR "${_PY_SYS_PREFIX}")
+    endif()
+endif()
+
+# Help CMake find Conda-provided CMake packages (RDKitConfig.cmake, pybind11Config.cmake)
+if(RDKit_ROOT_DIR)
+    list(PREPEND CMAKE_PREFIX_PATH
+        "${RDKit_ROOT_DIR}"
+        "${RDKit_ROOT_DIR}/Library"
+        "${RDKit_ROOT_DIR}/Library/lib/cmake"
+        "${RDKit_ROOT_DIR}/lib/cmake"
+    )
 endif()
 
 # Try to get Python's site-packages path
@@ -68,47 +91,82 @@ endif()
 
 # For static linking and portability
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-set(BUILD_SHARED_LIBS OFF)
+# On Windows (MSVC), we use dynamic linking with RDKit DLLs
+# On Linux/Mac, we use static linking for portability
+if(NOT MSVC)
+    set(BUILD_SHARED_LIBS OFF)
+endif()
 
-# Set static linking flags for portable .so file
+# Platform-specific compiler flags for optimization
+if(MSVC)
+    # Microsoft Visual C++ - Remove all optimization flags that might interfere
+    # Clear any inherited flags
+    string(REPLACE "/O2" "" CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
+    string(REPLACE "/Ob2" "" CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /O2 /Ob2 /DNDEBUG" CACHE STRING "" FORCE)
+    # Use target-specific flags instead of global add_compile_options to avoid conflicts
+    set(MSVC_COMPILE_FLAGS /W3 /EHsc /bigobj)
+    # Define BOOST_NO_EXCEPTIONS=0 to ensure Boost exception handling is enabled
+    add_compile_definitions(BOOST_NO_EXCEPTIONS=0)
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    # GCC or Clang
+    add_compile_options(-O3 -Wall)
+    set(MSVC_COMPILE_FLAGS "")
+endif()
+
+# Some build frontends inject '-O3' unconditionally; remove it for MSVC to avoid cl warnings
+if(MSVC)
+    foreach(flag_var
+        CMAKE_C_FLAGS CMAKE_C_FLAGS_DEBUG CMAKE_C_FLAGS_RELEASE CMAKE_C_FLAGS_RELWITHDEBINFO CMAKE_C_FLAGS_MINSIZEREL
+        CMAKE_CXX_FLAGS CMAKE_CXX_FLAGS_DEBUG CMAKE_CXX_FLAGS_RELEASE CMAKE_CXX_FLAGS_RELWITHDEBINFO CMAKE_CXX_FLAGS_MINSIZEREL)
+        if(DEFINED ${flag_var})
+            string(REPLACE "-O3" "" ${flag_var} "${${flag_var}}")
+            set(${flag_var} "${${flag_var}}" CACHE STRING "" FORCE)
+        endif()
+    endforeach()
+endif()
+
+# Set static linking flags for portable .so file (Linux/Mac only)
 if(UNIX AND NOT APPLE)
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++")
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -static-libgcc -static-libstdc++")
 endif()
 
 # Find required packages
-find_package(PkgConfig REQUIRED)
+find_package(PkgConfig QUIET)
 
-# Find RDKit - try multiple approaches
-set(RDKit_ROOT_DIR "$ENV{RDBASE}")
-if(NOT RDKit_ROOT_DIR)
-    set(RDKit_ROOT_DIR "$ENV{CONDA_PREFIX}")
-endif()
-
-# Find RDKit - try multiple approaches
-set(RDKit_ROOT_DIR "$ENV{RDBASE}")
-if(NOT RDKit_ROOT_DIR)
-    set(RDKit_ROOT_DIR "$ENV{CONDA_PREFIX}")
-endif()
+## RDKit discovery
+find_package(RDKit CONFIG QUIET)
 
 # Try to find RDKit directly without imported targets first
-find_path(RDKIT_INCLUDE_DIR GraphMol/ROMol.h
-    PATHS ${RDKit_ROOT_DIR}/include/rdkit
-          ${RDKit_ROOT_DIR}/include
-          /usr/include/rdkit
-          /usr/local/include/rdkit
-    NO_DEFAULT_PATH)
+if(NOT RDKit_FOUND)
+    find_path(RDKIT_INCLUDE_DIR GraphMol/ROMol.h
+        PATHS
+            ${RDKit_ROOT_DIR}/include/rdkit
+            ${RDKit_ROOT_DIR}/include
+            ${RDKit_ROOT_DIR}/Library/include/rdkit
+            ${RDKit_ROOT_DIR}/Library/include
+            /usr/include/rdkit
+            /usr/local/include/rdkit
+    )
 
-find_library(RDKIT_GRAPHMOL_LIB RDKitGraphMol
-    PATHS ${RDKit_ROOT_DIR}/lib
-          /usr/lib
-          /usr/local/lib
-    NO_DEFAULT_PATH)
+    find_library(RDKIT_GRAPHMOL_LIB NAMES RDKitGraphMol
+        PATHS
+            ${RDKit_ROOT_DIR}/lib
+            ${RDKit_ROOT_DIR}/Library/lib
+            /usr/lib
+            /usr/local/lib
+    )
+endif()
 
-if(RDKIT_INCLUDE_DIR AND RDKIT_GRAPHMOL_LIB)
+if(RDKit_FOUND OR (RDKIT_INCLUDE_DIR AND RDKIT_GRAPHMOL_LIB))
     set(RDKit_FOUND TRUE)
-    message(STATUS "Found RDKit headers: ${RDKIT_INCLUDE_DIR}")
-    message(STATUS "Found RDKit GraphMol lib: ${RDKIT_GRAPHMOL_LIB}")
+    if(RDKIT_INCLUDE_DIR)
+        message(STATUS "Found RDKit headers: ${RDKIT_INCLUDE_DIR}")
+    endif()
+    if(RDKIT_GRAPHMOL_LIB)
+        message(STATUS "Found RDKit GraphMol lib: ${RDKIT_GRAPHMOL_LIB}")
+    endif()
     
     # Find all required RDKit libraries
     set(RDKIT_LIBRARIES)
@@ -117,34 +175,31 @@ if(RDKIT_INCLUDE_DIR AND RDKIT_GRAPHMOL_LIB)
         RDKitMolTransforms
         RDKitForceFieldHelpers
         RDKitForceField
-        RDKitDistGeom
         RDKitDistGeomHelpers
+        RDKitDistGeometry
         RDKitEigenSolvers
-        RDKitNumerics
         RDKitAlignment
-        RDKitMMFFHelpers
         RDKitSmilesParse
-        RDKitMolOps
         RDKitSubstructMatch
-        RDKitQueryOps
-        RDKitGeometry
         RDKitRDGeneral
+        RDKitRDGeometryLib
     )
     
-    foreach(lib_name ${RDKIT_LIB_NAMES})
-        find_library(${lib_name}_LIB ${lib_name}
-            PATHS ${RDKit_ROOT_DIR}/lib
-                  /usr/lib
-                  /usr/local/lib
-            NO_DEFAULT_PATH)
-        if(${lib_name}_LIB)
-            list(APPEND RDKIT_LIBRARIES ${${lib_name}_LIB})
-            message(STATUS "Found ${lib_name}: ${${lib_name}_LIB}")
-        endif()
-    endforeach()
-else()
-    # Fallback to package-based search
-    find_package(RDKit QUIET)
+    if(NOT RDKit_FOUND)
+        foreach(lib_name ${RDKIT_LIB_NAMES})
+            find_library(${lib_name}_LIB NAMES ${lib_name}
+                PATHS
+                    ${RDKit_ROOT_DIR}/lib
+                    ${RDKit_ROOT_DIR}/Library/lib
+                    /usr/lib
+                    /usr/local/lib
+            )
+            if(${lib_name}_LIB)
+                list(APPEND RDKIT_LIBRARIES ${${lib_name}_LIB})
+                message(STATUS "Found ${lib_name}: ${${lib_name}_LIB}")
+            endif()
+        endforeach()
+    endif()
 endif()
 
 if(NOT RDKit_FOUND)
@@ -152,14 +207,16 @@ if(NOT RDKit_FOUND)
 endif()
 
 # Find PyBind11
-find_package(pybind11 QUIET)
+find_package(pybind11 CONFIG QUIET)
 if(NOT pybind11_FOUND)
     # Try to find pybind11 in conda environment
     find_path(PYBIND11_INCLUDE_DIR pybind11/pybind11.h
-        PATHS ${RDKit_ROOT_DIR}/include
-              /usr/include
-              /usr/local/include
-        NO_DEFAULT_PATH)
+        PATHS
+            ${RDKit_ROOT_DIR}/include
+            ${RDKit_ROOT_DIR}/Library/include
+            /usr/include
+            /usr/local/include
+    )
     
     if(PYBIND11_INCLUDE_DIR)
         set(pybind11_FOUND TRUE)
@@ -170,14 +227,14 @@ if(NOT pybind11_FOUND)
         set_target_properties(pybind11::headers PROPERTIES
             INTERFACE_INCLUDE_DIRECTORIES "${PYBIND11_INCLUDE_DIR}")
         
-        # Find Python
-        find_package(Python COMPONENTS Interpreter Development REQUIRED)
+    # Find Python (already found as Python3)
+    find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
         
         # Create pybind11::module target
         add_library(pybind11::module INTERFACE IMPORTED)
         set_target_properties(pybind11::module PROPERTIES
             INTERFACE_INCLUDE_DIRECTORIES "${PYBIND11_INCLUDE_DIR}"
-            INTERFACE_LINK_LIBRARIES "Python::Module")
+            INTERFACE_LINK_LIBRARIES "Python3::Module")
         
         # Set compile definitions for pybind11 module
         target_compile_definitions(pybind11::module INTERFACE
@@ -189,7 +246,7 @@ if(NOT pybind11_FOUND)
     message(FATAL_ERROR "PyBind11 not found. Please ensure PyBind11 is installed.")
 endif()
 
-# Find Boost (required by RDKit)
+# Find Boost (required by RDKit) - Add more components for exception handling
 find_package(Boost REQUIRED COMPONENTS system filesystem serialization)
 
 # Find Eigen3 (required by RDKit)
@@ -214,7 +271,15 @@ add_library(stochastic_sampling_lib STATIC
     accelerated_rmsd.cpp
     stochastic_sampling.cpp
     initial_embedder.cpp
+    $<$<PLATFORM_ID:Windows>:boost_throw_stub.cpp>
+    $<$<PLATFORM_ID:Windows>:rdkit_romol_destroy_stub.cpp>
 )
+
+# Apply MSVC-specific compile flags to this target
+if(MSVC)
+    target_compile_options(stochastic_sampling_lib PRIVATE ${MSVC_COMPILE_FLAGS})
+    target_compile_definitions(stochastic_sampling_lib PRIVATE RDKIT_DYN_LINK)
+endif()
 
 # Set target properties for the library
 target_include_directories(stochastic_sampling_lib PUBLIC
@@ -222,11 +287,36 @@ target_include_directories(stochastic_sampling_lib PUBLIC
 )
 
 # Link RDKit to the library
-if(RDKIT_INCLUDE_DIR)
-    target_include_directories(stochastic_sampling_lib PUBLIC ${RDKIT_INCLUDE_DIR})
-    target_link_libraries(stochastic_sampling_lib PUBLIC ${RDKIT_LIBRARIES})
+if(RDKit_FOUND)
+    # Use imported RDKit targets (provides both includes and libs automatically)
+    # Link in dependency order: low-level libraries first
+    target_link_libraries(stochastic_sampling_lib PUBLIC
+        RDKit::RDGeneral
+        RDKit::RDGeometryLib
+        RDKit::SubstructMatch
+        RDKit::SmilesParse
+        RDKit::GraphMol
+        RDKit::EigenSolvers
+        RDKit::Alignment
+        RDKit::ForceField
+        RDKit::ForceFieldHelpers
+        RDKit::DistGeometry
+        RDKit::DistGeomHelpers
+        RDKit::MolTransforms
+    )
+    # On Windows with MSVC, RDKit is built as DLLs
+    # Add the DLL directory to runtime path
+    if(MSVC AND RDKit_ROOT_DIR)
+        set_target_properties(stochastic_sampling_lib PROPERTIES
+            VS_DEBUGGER_ENVIRONMENT "PATH=${RDKit_ROOT_DIR}/Library/bin;$ENV{PATH}"
+        )
+    endif()
 else()
-    target_link_libraries(stochastic_sampling_lib PUBLIC RDKit::GraphMol RDKit::MolTransforms RDKit::ForceFieldHelpers)
+    # Fallback: manual include and lib linking
+    if(RDKIT_INCLUDE_DIR)
+        target_include_directories(stochastic_sampling_lib PUBLIC ${RDKIT_INCLUDE_DIR})
+    endif()
+    target_link_libraries(stochastic_sampling_lib PUBLIC ${RDKIT_LIBRARIES})
 endif()
 
 # Link Boost
@@ -244,8 +334,41 @@ pybind11_add_module(msani_confgen_cpp
     pybind_interface.cpp
 )
 
+# Apply MSVC-specific compile flags to this target
+if(MSVC)
+    target_compile_options(msani_confgen_cpp PRIVATE ${MSVC_COMPILE_FLAGS})
+    target_compile_definitions(msani_confgen_cpp PRIVATE RDKIT_DYN_LINK)
+    # Enable verbose library search output from the linker
+    target_link_options(msani_confgen_cpp PRIVATE /VERBOSE:LIB)
+endif()
+
 # Link the static library to the Python module
 target_link_libraries(msani_confgen_cpp PRIVATE stochastic_sampling_lib)
+
+# On Windows/MSVC, explicitly link RDKit and Boost to the extension as well
+if(RDKit_FOUND)
+    target_link_libraries(msani_confgen_cpp PRIVATE
+        RDKit::RDGeneral
+        RDKit::RDGeometryLib
+        RDKit::SubstructMatch
+        RDKit::SmilesParse
+        RDKit::GraphMol
+        RDKit::EigenSolvers
+        RDKit::Alignment
+        RDKit::ForceField
+        RDKit::ForceFieldHelpers
+        RDKit::DistGeometry
+        RDKit::DistGeomHelpers
+        RDKit::MolTransforms
+    )
+else()
+    if(RDKIT_LIBRARIES)
+        target_link_libraries(msani_confgen_cpp PRIVATE ${RDKIT_LIBRARIES})
+    endif()
+endif()
+
+# Also link Boost explicitly to avoid missing transitive linkage on MSVC
+target_link_libraries(msani_confgen_cpp PRIVATE Boost::system Boost::filesystem Boost::serialization)
 
 # Properties for the Python module
 target_compile_definitions(msani_confgen_cpp PRIVATE VERSION_INFO="1.0.0")
@@ -260,6 +383,28 @@ set_target_properties(msani_confgen_cpp PROPERTIES
     CXX_VISIBILITY_PRESET "hidden"
     VISIBILITY_INLINES_HIDDEN ON
 )
+
+# On Windows with MSVC, ensure RDKit DLLs are in the PATH at runtime
+# The conda environment already has them in Library/bin
+if(MSVC)
+    # Copy RDKit DLLs next to the built extension for reliable loading
+    if(DEFINED RDKit_ROOT_DIR)
+        file(GLOB RDKIT_DLLS "${RDKit_ROOT_DIR}/Library/bin/RDKit*.dll")
+        foreach(dll ${RDKIT_DLLS})
+            add_custom_command(TARGET msani_confgen_cpp POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                    "${dll}"
+                    $<TARGET_FILE_DIR:msani_confgen_cpp>
+            )
+        endforeach()
+    endif()
+    # Add a note in the configuration output
+    message(STATUS "")
+    message(STATUS "Windows DLL Note: RDKit DLLs will be loaded from:")
+    message(STATUS "  ${RDKit_ROOT_DIR}/Library/bin")
+    message(STATUS "Ensure this directory is in your PATH when using the module.")
+    message(STATUS "")
+endif()
 
 # Set RPATH to find RDKit libraries
 if(RDKIT_LIBRARIES)
@@ -295,9 +440,17 @@ message(STATUS "Boost found: ${Boost_FOUND}")
 message(STATUS "Eigen3 found: ${Eigen3_FOUND}")
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 message(STATUS "C++ compiler: ${CMAKE_CXX_COMPILER}")
-message(STATUS "Static linking: ON (for portability)")
+if(MSVC)
+    message(STATUS "Linking mode: Dynamic (using RDKit DLLs)")
+else()
+    message(STATUS "Linking mode: Static (for portability)")
+endif()
 message(STATUS "=============================")
 message(STATUS "")
+
+# Print link libraries for diagnostics
+get_target_property(_msani_confgen_libs msani_confgen_cpp LINK_LIBRARIES)
+message(STATUS "msani_confgen_cpp link libs: ${_msani_confgen_libs}")
 
 # Add custom target for building and testing
 add_custom_target(build_and_test

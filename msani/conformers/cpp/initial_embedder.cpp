@@ -1004,8 +1004,8 @@ bool embedPoints(RDGeom::PointPtrVect *positions, detail::EmbedArgs eargs,
 
   return gotCoords;
 }
-// export this since we are going to be testing it
-RDKIT_DISTGEOMHELPERS_EXPORT void findDoubleBonds(
+// Local helper; do not use RDKit's export macros here
+void findDoubleBonds(
     const ROMol &mol,
     std::vector<std::tuple<unsigned int, unsigned int, unsigned int>>
         &doubleBondEnds,

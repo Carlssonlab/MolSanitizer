@@ -58,6 +58,11 @@ jobs:
         shell: bash -l {0}
         run: pip install -e .
 
+
+      - name: Set up Visual Studio (Windows)
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+
       - name: Install in editable mode (Windows)
         if: runner.os == 'Windows'
         shell: powershell
