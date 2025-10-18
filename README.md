@@ -16,13 +16,13 @@ We will set up the environment using [Anaconda](https://docs.anaconda.com/anacon
     OR
     git clone https://ghp_token@github.com/phonglam3103/MolSanitizer.git  #Put your personal token so that you don't have to sign in every time.
     
-Example of how to set up a working conda environment to run the code:
+Example of how to set up a working conda environment to run the code on Mac OS and Linux:
     
     conda env create -f MolSanitizer/environment.yml # Trick: use mamba (if you have) for much faster installation
     conda activate msani
     pip install -e msani
 
-More information on the installation and dependencies could be found [here](https://msani.readthedocs.io/en/latest/installation.html).
+For Windows users, we recommend them to follow the instruction [here](https://msani.readthedocs.io/en/latest/installation.html). More information on the installation and dependencies could be found in the same page
 
 
 ## Documentation

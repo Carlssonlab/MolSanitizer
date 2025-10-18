@@ -29,14 +29,39 @@ We will set up the environment using `Anaconda <https://docs.anaconda.com/anacon
    $ git clone https://github.com/phonglam3103/MolSanitizer.git
     
 
-Example of how to set up a working conda environment to run the code:
+Mac OS and Linux
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+For UNIX-based systems (Mac OS and Linux), the installation and building process could be done quite straightforwardly. In the same folder as previous steps, use:
 
 .. code-block:: console
    
    $ conda env create -f MolSanitizer/environment.yml
-   $ conda activate MolSanitizer
+   $ conda activate msani
    $ pip install -e MolSanitizer
 
+Windows
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The installation in Windows requires the installation of Microsoft Visual Studio (VS) with C++ build tools, which can be downloaded from `here <https://visualstudio.microsoft.com/downloads/?cid=learn-onpage-download-install-visual-studio-page-cta>`_. Scroll down and only Download the option "Build Tools for Visual Studio 2022".
+
+.. image:: _static/VisualStudio.png
+   :width: 700px
+   :align: center
+
+Then, during the installation, make sure to select the "Desktop development with C++" workload, as shown below:
+
+.. image:: _static/VisualStudio2.png
+   :width: 700px
+   :align: center
+
+After installing Visual Studio, you can proceed with the installation of MolSanitizer. In the same folder as previous steps, use:
+
+.. code-block:: console
+
+   $ conda env create -f MolSanitizer/environment.yml
+   $ conda activate msani
+   $ pip install -e MolSanitizer
 
 Testing
 -------
