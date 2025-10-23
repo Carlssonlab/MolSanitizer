@@ -15,34 +15,21 @@ The precompiled AMSOL should work fine if put it in this folder with the correct
 
 Download the source code from [here](https://comp.chem.umn.edu/sds/amsol/amsol.cgi)
 
-Extract the zip file and go to the AMSOL7.1 folder.
-
-In lines 320-323 of amsol.compile, use your editor of interest, replace to:
+Extract the zip file and in terminal:
 
 ```bash
-set F77  = 'gfortran -c -finit-local-zero -fno-automatic -ffixed-line-length-72 -std=legacy -Iinclude -O -o'
-set F77o = 'gfortran -c -finit-local-zero -fno-automatic -ffixed-line-length-72 -std=legacy -Iinclude -o'
-set LD   = 'gfortran -ffixed-line-length-72 -o'
-```
-
-Save and return to the folder.
-Run two modifications in command line:
-
-```bash
+cd amsol7.1
+sed -i '' "s/set F77  = 'g77 -c -finit-local-zero -fno-automatic -Iinclude -O -o'/set F77  = 'gfortran -c -finit-local-zero -fno-automatic -ffixed-line-length-72 -std=legacy -Iinclude -O -o'/g" amsol.compile && \
+sed -i '' "s/set F77o = 'g77 -c -finit-local-zero -fno-automatic -Iinclude -o'/set F77o = 'gfortran -c -finit-local-zero -fno-automatic -ffixed-line-length-72 -std=legacy -Iinclude -o'/g" amsol.compile && \
+sed -i '' "s/set LD   = 'g77 -o'/set LD   = 'gfortran -ffixed-line-length-72 -o'/g" amsol.compile && \
 sed -i 's/ OPEN(20,NAME=/ OPEN(20,FILE='/g new/amsol.f
 sed -i 's/ OPEN(19,NAME=/ OPEN(19,FILE='/g new/amsol.f
-```
-
-Now it is able to compile AMSOL using (please read through the right below option before starting):
-```bash
-csh amsol.compile
-```
-
-Choose: man -> linux -> amsol7.1 -> s
-
-Now the amsol is available. Don't forget to add the executable permission to such file:
-
-```bash
+csh amsol.compile<<EOF
+man
+linux
+amsol7.1
+s
+EOF
 chmod +x amsol7.1
 ```
 
@@ -72,47 +59,26 @@ This provides gfortran, gcc, and the C-shell (csh) needed to run AMSOL’s legac
 
 Download the source code from [here](https://comp.chem.umn.edu/sds/amsol/amsol.cgi)
 
-Extract the zip file and go to the AMSOL7.1 folder.
-
-Open amsol.compile and update lines 320–322 as follows:
-
+Extract the zip file and in terminal:
 ```bash
-set F77  = 'gfortran -c -finit-local-zero -fno-automatic -ffixed-line-length-72 -std=legacy -Iinclude -O -o'
-set F77o = 'gfortran -c -finit-local-zero -fno-automatic -ffixed-line-length-72 -std=legacy -Iinclude -o'
-set LD   = 'clang -L/usr/local/opt/gcc/lib/gcc/current -I/usr/local/opt/gcc/include -lgfortran -o'
-```
-
-This ensures that gfortran is used for compilation, and clang handles the linking against the Homebrew-installed Fortran runtime.
-
-Apple’s sed requires slightly different syntax than Linux. Run in terminal:
-
-```bash
-sed -i '' "s/ OPEN(20,NAME=/ OPEN(20,FILE=/" new/amsol.f
-sed -i '' "s/ OPEN(19,NAME=/ OPEN(19,FILE=/" new/amsol.f
-```
-
-## Compile AMSOL
-
-Run the build script:
-
-```bash
-csh amsol.compile
-```
-
-When prompted, choose:
-```bash
-man -> linux -> amsol7.1_macos_x64 -> s
-```
-
-Now the amsol is available. Don't forget to add the executable permission to such file:
-
-```bash
+cd amsol7.1 && \
+sed -i '' "s/set F77  = 'g77 -c -finit-local-zero -fno-automatic -Iinclude -O -o'/set F77  = 'gfortran -std=legacy -c -finit-local-zero -fno-automatic -Iinclude -O -o'/g" amsol.compile && \
+sed -i '' "s/set F77o = 'g77 -c -finit-local-zero -fno-automatic -Iinclude -o'/set F77o = 'gfortran -std=legacy -c -finit-local-zero -fno-automatic -Iinclude -o'/g" amsol.compile && \
+sed -i '' "s/set LD   = 'g77 -o'/set LD   = 'gfortran -o'/g" amsol.compile && \
+sed -i '' "s/ OPEN(20,NAME=/ OPEN(20,FILE=/" new/amsol.f && \
+sed -i '' "s/ OPEN(19,NAME=/ OPEN(19,FILE=/" new/amsol.f && \
+csh amsol.compile <<EOF
+man
+linux
+amsol7.1_macos_x64
+s
+EOF
 chmod +x amsol7.1_macos_x64
 ```
 
 Then move `amsol7.1_macos_x64` to this folder. The program will detect automatically the architecture of the machine and run the software accordingly.
 
-# For MacOS ARM64 (Apple Silicon)
+# For MacOS ARM64
 
 ## Prerequisites
 
@@ -134,38 +100,21 @@ brew install tcsh
 
 Download the source code from [here](https://comp.chem.umn.edu/sds/amsol/amsol.cgi)
 
-Extract the zip file and go to the AMSOL7.1 folder.
-
-
-In terminal, use:
+Extract the zip file then in terminal, use:
 
 ```bash
-cd amsol7.1
-GCC_LIB=$(gfortran -print-file-name=libgfortran.a | xargs dirname)
-sed -i '' "s|set F77 .*|set F77  = 'gfortran -c -finit-local-zero -fno-automatic -ffixed-line-length-72 -std=legacy -Iinclude -O -o'|" amsol.compile
-sed -i '' "s|set F77o .*|set F77o = 'gfortran -c -finit-local-zero -fno-automatic -ffixed-line-length-72 -std=legacy -Iinclude -o'|" amsol.compile
-sed -i '' "s|set LD .*|set LD   = 'clang -L$GCC_LIB -lgfortran -o'|" amsol.compile
-
-sed -i '' "s/ OPEN(20,NAME=/ OPEN(20,FILE=/" new/amsol.f
-sed -i '' "s/ OPEN(19,NAME=/ OPEN(19,FILE=/" new/amsol.f
-```
-
-## Compile AMSOL
-
-Run the build script:
-
-```bash
-csh amsol.compile
-```
-
-When prompted, choose:
-```bash
-man -> linux -> amsol7.1_macos_arm64 -> s
-```
-
-Now the amsol is available. Don't forget to add the executable permission to such file:
-
-```bash
+cd amsol7.1 && \
+sed -i '' "s/set F77  = 'g77 -c -finit-local-zero -fno-automatic -Iinclude -O -o'/set F77  = 'gfortran -std=legacy -c -finit-local-zero -fno-automatic -Iinclude -O -o'/g" amsol.compile && \
+sed -i '' "s/set F77o = 'g77 -c -finit-local-zero -fno-automatic -Iinclude -o'/set F77o = 'gfortran -std=legacy -c -finit-local-zero -fno-automatic -Iinclude -o'/g" amsol.compile && \
+sed -i '' "s/set LD   = 'g77 -o'/set LD   = 'gfortran -o'/g" amsol.compile && \
+sed -i '' "s/ OPEN(20,NAME=/ OPEN(20,FILE=/" new/amsol.f && \
+sed -i '' "s/ OPEN(19,NAME=/ OPEN(19,FILE=/" new/amsol.f && \
+csh amsol.compile <<EOF
+man
+linux
+amsol7.1_macos_arm64
+s
+EOF
 chmod +x amsol7.1_macos_arm64
 ```
 
