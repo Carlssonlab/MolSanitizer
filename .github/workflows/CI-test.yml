@@ -30,9 +30,10 @@ jobs:
         include:
           - os: ubuntu-latest
             python-version: "3.11"
-          - os: macos-14
+          - os: macos-latest
             python-version: "3.11"
-          - os: windows-latest
+            # See https://github.com/actions/runner-images/issues/5166, use older Windows for faster testing
+          - os: windows-2019
             python-version: "3.11"
     runs-on: ${{ matrix.os }}
     steps:
