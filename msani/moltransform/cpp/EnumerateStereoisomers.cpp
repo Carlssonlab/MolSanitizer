@@ -78,6 +78,7 @@ std::unique_ptr<ROMol> StereoisomerEnumerator::next() {
 
 void StereoisomerEnumerator::buildFlippers() {
   auto sis = Chirality::findPotentialStereo(d_mol, true, true);
+
   for (const auto &si : sis) {
     if (d_options.onlyUnassigned &&
         si.specified != Chirality::StereoSpecified::Unknown &&
@@ -144,7 +145,10 @@ std::unique_ptr<ROMol> StereoisomerEnumerator::generateRandomIsomer() {
         d_generatedIsomers.insert(smi);
       }
 
-      if (d_options.tryEmbedding) {
+      // Only try embedding when there are actual configurations to flip.
+      // If there are no flippers, just return the molecule as-is even if
+      // tryEmbedding is enabled.
+      if (d_options.tryEmbedding && !d_flippers.empty()) {
         if (embeddable(*isomer)) {
           return isomer;
         }
