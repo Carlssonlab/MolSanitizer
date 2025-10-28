@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [unreleased - most recent changes come first]
+
+### ⚡ Performance
+
+- Do not try to embed the molecule when not flipping any stereocenteres. This help to replicate the behavior of StereoIsomerEnumerator in RDKit Python version and can speed up the enumerating process. - ([cb805eb](https://github.com/phonglam3103/MolSanitizer/commit/cb805eba9a609f8f90026487a0be478bf7accfe0))
+
 ## [0.5.0] - 2025-10-18
 
 ### 🐛 Bug Fixes
