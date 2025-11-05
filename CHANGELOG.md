@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [unreleased - most recent changes come first]
 
+### 🚀 Features
+
+- The standardize flag now doesn't try to canonicalize the tatuomeric form anymore. We found that TautomerEnumerator.Canonicalize could return tautomers that cannot be transfered back to the given tautomer. Instead, the script only "normalize" the functional groups such as aromatic groups, sulfones, azides to a canonical form. - ([3df8882](https://github.com/phonglam3103/MolSanitizer/commit/3df88828f2c1c6dcf0b7fba9adf0a43da0fb0e1b))
+
 ### ⚡ Performance
 
 - Do not try to embed the molecule when not flipping any stereocenteres. This help to replicate the behavior of StereoIsomerEnumerator in RDKit Python version and can speed up the enumerating process. - ([cb805eb](https://github.com/phonglam3103/MolSanitizer/commit/cb805eba9a609f8f90026487a0be478bf7accfe0))
