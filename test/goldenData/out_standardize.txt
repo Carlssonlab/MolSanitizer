@@ -1,0 +1,7 @@
+Cc1cc2c(nc1C)C(=O)C=C(N)C2=O should_not_break_pyridine
+O=C1[C@H](CC[C@H](O)c2ccc(F)cc2)[C@@H](c2ccc(O)cc2)N1c1ccc(F)cc1 Largest_fragment
+O=C(O)c1ccccc1 Neutralize_parent
+CN=[N+]=[N-] azide_normalize
+CCS(C)(=O)=O sulfone_normalize
+CC#N nitrile_normalize
+O=C(O)c1cccc(O)c1 neutralize

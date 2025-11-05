@@ -9,6 +9,8 @@ from pandas import DataFrame, read_csv
 import logging
 
 logger = logging.getLogger('msani')
+uncharger = rdMolStandardize.Uncharger()
+
 RDLogger.DisableLog('rdApp.*') # To disable error messages with kekulizing tautomers from RDKit
 
 class Filters():
@@ -382,30 +384,27 @@ class Filters():
         return df
     
     @staticmethod
-    def applyStandarizeFilters(mol, params):
+    def applyStandarizeFilters(mol):
 
-        taut_uncharged_parent_clean_mol = None
+        uncharged_parent_clean_mol = None
 
         try:
 
-            clean_mol = rdMolStandardize.Cleanup(mol, params) 
+            clean_mol = rdMolStandardize.Cleanup(mol) 
 
             # if many fragments, get the "parent"
-            parent_clean_mol = rdMolStandardize.FragmentParent(clean_mol, params)
+            parent_clean_mol = rdMolStandardize.FragmentParent(clean_mol)
 
             # try to neutralize molecule
-            uncharger = rdMolStandardize.Uncharger()
+            global uncharger
             uncharged_parent_clean_mol = uncharger.uncharge(parent_clean_mol)
             
-            # tautomer enumerator
-            te = rdMolStandardize.TautomerEnumerator(params) 
-            taut_uncharged_parent_clean_mol = te.Canonicalize(uncharged_parent_clean_mol)
 
         except:
 
             logger.info(f'Molecule NOT processed: {Chem.MolToSmiles(mol)}')
 
-        return taut_uncharged_parent_clean_mol
+        return uncharged_parent_clean_mol
 
     @staticmethod
     def standarizeFilters(df: DataFrame) -> DataFrame:
@@ -423,15 +422,11 @@ class Filters():
 
 
         # Filter out rows where 'smiles' contains any organometallics
-        filtered_df = df[~df['smiles'].apply(lambda x: any(om in x for om in organometallics))]
+        filtered_df = df[~df['smiles'].apply(lambda x: any(om in x for om in organometallics))].copy()
         if filtered_df.empty:
             return filtered_df
-        params = rdMolStandardize.CleanupParameters()
-        params.tautomerRemoveSp3Stereo = False
-        params.tautomerRemoveBondStereo = False
-        params.tautomerRemoveIsotopicHs = False
 
-        filtered_df['mol'] = filtered_df['mol'].apply(lambda x:  Filters.applyStandarizeFilters(x, params))
+        filtered_df['mol'] = filtered_df['mol'].apply(lambda x:  Filters.applyStandarizeFilters(x))
         filtered_df['smiles'] = filtered_df['mol'].apply(lambda x: Chem.MolToSmiles(x))
 
         return filtered_df
