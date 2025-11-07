@@ -125,10 +125,12 @@ class Msani:
         if self.standardize: 
             df = Filters.standarizeFilters(df)
             return df
+        
+        if self.neutralize: 
+            df = Neutralizer.neutralize_df(df)
+            df = Filters.remove_invalid_SMILES(df)
+
         if self.tautomers or self.protonation:
-            if self.neutralize: 
-                df = Neutralizer.neutralize_df(df)
-                df = Filters.remove_invalid_SMILES(df)
             df.loc[:, 'original_idx'] = df.index
             
         if self.tautomers: 
@@ -138,9 +140,11 @@ class Msani:
                                         neutralize = False,
                                         numcores = self.numcores) # Already neutralized
             df = tautomerizer.tautomerize_df(df)
+
         if self.pains: df = Filters.painsFilter(df,
                                                 rejectedFile = rejected_file,
                                                 debug = self.debug)
+            
         if self.unwanted is not None: 
             df = Filters.unwantedFilter(df,
                                         rejectedFile = rejected_file,

@@ -47,8 +47,8 @@ def arguments(args):
             smartsFile = Path(__file__).parent.parent / 'Data' / 'salt_stripping.txt'
             logger.info(f'Loading salt stripping rules from: {smartsFile.resolve()}')
 
-    if args.protonation or args.tautomers:
-        logger.info(f"Neutralize before tautomerization and protonation: {args.neutralize}")
+    if args.protonation or args.tautomers or args.removesalts:
+        logger.info(f"Neutralize after removesalts and before tautomerization/protonation: {args.neutralize}")
 
     if args.protonation:
         logger.info(f"Protonation: {args.protonation}")

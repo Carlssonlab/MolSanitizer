@@ -141,15 +141,61 @@ def parseArguments(args = None, batch_mode = False):
 
     # Group 3: SMILES processing options
     smiles_group = parser.add_argument_group("SMILES processing options")
-    smiles_group.add_argument('--tautomers', '-tau', action='store_true', default=defaults.get('tautomers', False), help='Tautomers enumeration')
-    smiles_group.add_argument('--stereoisomers', '-ste', action='store_true', default=defaults.get('stereoisomers', False),  help='Stereoisomers enumeration (only consider unspecified chiral centers)')
-    smiles_group.add_argument('--max_stereoisomers','-ms', type=int, default=defaults.get('max_stereoisomers', max_stereoisomers), help=f'Maximum number of stereoisomers to consider (default: {max_stereoisomers}')
-    smiles_group.add_argument('--protonation', '-prot', action='store_true', default=defaults.get('protonation', False), help='Apply protonation to the structures')
-    smiles_group.add_argument('--pH', '-p', type=int, default=defaults.get('pH', pH), help='pH for the protonation (default: 7)')
-    smiles_group.add_argument('--pH_range', '-r', type=int, default=defaults.get('pH_range', pH_range), help='pH range for the protonation (default: 0)')
-    smiles_group.add_argument('--noneutralize',  action='store_false', dest='neutralize', default = True, help='Do not neutralize the molecule before tautomerization' if show_advanced_help else argparse.SUPPRESS)
-    smiles_group.add_argument('--notaurdkit', action='store_false', dest='taurdkit', default = True, help='Do not use RDKit to canonicalize the tautomeric form of the input SMILES' if show_advanced_help else argparse.SUPPRESS)
-    smiles_group.add_argument('--standardize', '-std', action='store_true', default=defaults.get('standardize', False), help='Standardize structures for machine learning using RDKit')
+    smiles_group.add_argument(
+        '--neutralize', '-neu',
+        action=argparse.BooleanOptionalAction,
+        default=defaults.get('neutralize', None),
+        help='Neutralize molecules (use --no-neutralize to disable). Will be applied after removesalts and before tautomerization/protonation.'
+    )
+    smiles_group.add_argument(
+        '--tautomers', '-tau',
+        action='store_true',
+        default=defaults.get('tautomers', False),
+        help='Tautomers enumeration.'
+    )
+    smiles_group.add_argument(
+        '--stereoisomers', '-ste',
+        action=argparse.BooleanOptionalAction,
+        default=defaults.get('stereoisomers', False),
+        help='Stereoisomers enumeration (only unspecified chiral centers)'
+    )
+    smiles_group.add_argument(
+        '--max_stereoisomers','-ms',
+        type=int,
+        default=defaults.get('max_stereoisomers', max_stereoisomers),
+        help=f'Maximum number of stereoisomers to consider (default: {max_stereoisomers})'
+    )
+    smiles_group.add_argument(
+        '--protonation', '-prot',
+        action='store_true',
+        default=defaults.get('protonation', False),
+        help='Apply protonation to the structures'
+    )
+    smiles_group.add_argument(
+        '--pH', '-p',
+        type=int,
+        default=defaults.get('pH', pH),
+        help='pH for the protonation (default: 7)'
+    )
+    smiles_group.add_argument(
+        '--pH_range', '-r',
+        type=int,
+        default=defaults.get('pH_range', pH_range),
+        help='pH range for the protonation (default: 0)'
+    )
+    smiles_group.add_argument(
+        '--notaurdkit',
+        action='store_false',
+        dest='taurdkit',
+        default=True,
+        help='Do not use RDKit to canonicalize the tautomeric form of the input SMILES' if show_advanced_help else argparse.SUPPRESS
+    )
+    smiles_group.add_argument(
+        '--standardize', '-std',
+        action='store_true',
+        default=defaults.get('standardize', False),
+        help='Standardize structures for machine learning using RDKit'
+    )
 
     # Group 4: 3D related options
     gen3d = parser.add_argument_group("Generate 3D conformers options")
@@ -247,7 +293,7 @@ def parseArguments(args = None, batch_mode = False):
             parser.error(f'The torsion definition file: {args.torsion} does not exist.')
         else:
             args.torsion = Path(args.torsion).resolve() 
-            
+
     if batch_mode: return args, parser
     else: return args
 
@@ -276,10 +322,21 @@ def Sanitycheck(args: dict):
     if args.gen3d:
         # Always enumerate stereoisomers for before generating DB2 and PDBQT files
         # Maximum number of stereoisomers is set to in parser
-        args.stereoisomers = True
+        if args.stereoisomers is None:
+            print("Stereoisomers enumeration is turned on by default when generating 3D conformers.\nTo disable, use the --no-stereoisomers flag.\n")
+            args.stereoisomers = True
+        else:
+            args.stereoisomers = False
     
     if (args.pH != 7 or args.pH_range != 0) and not args.protonation:
         print("It seems like you forget the --protonation flag. We turned it on for you.")
         args.protonation = True
+
+    if args.neutralize is None:
+        if args.tautomers or args.protonation or args.removesalts:
+            print("\nNeutralization is turned on by default when tautomerization, protonation, or removesalts is requested.\nTo disable, use the --no-neutralize flag.\n")
+            args.neutralize = True
+        else:
+            args.neutralize = False
     return args
 
