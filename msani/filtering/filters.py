@@ -10,6 +10,8 @@ import logging
 
 logger = logging.getLogger('msani')
 uncharger = rdMolStandardize.Uncharger()
+saltfile = Path(__file__).parent.parent / 'Data' / 'salt_stripping.txt'
+salt_remover = SaltRemover.SaltRemover(defnFilename=saltfile)        
 
 RDLogger.DisableLog('rdApp.*') # To disable error messages with kekulizing tautomers from RDKit
 
@@ -194,22 +196,28 @@ class Filters():
         Returns:
             DataFrame: A new DataFrame chunk with salt-stripped molecules.
         """
-        # Get the absolute path to the template SMARTS file using pathlib
-        smartsFile = Path(__file__).parent.parent / 'Data' / 'salt_stripping.txt'
-        if debug: 
-            logger.info(f'Parsing salts SMARTS file: {smartsFile.resolve()}')
 
-        remover = SaltRemover.SaltRemover(defnFilename=smartsFile)
         filtered_df = df.copy()
+
+        global salt_remover
+
         # Only process the entries with '.' in the SMILES (multiple )
-        for idx in df[df['smiles'].str.contains(r"\.", na=False)].index:
-            filtered_df.at[idx, 'mol'] = Filters.stripSMILESsalt(df.at[idx, 'mol'], remover, debug)
-            filtered_df.at[idx, 'smiles'] = Chem.MolToSmiles(filtered_df.at[idx, 'mol'])
-        filtered_df=filtered_df[filtered_df['smiles']!=''] #Remove purely salt molecules
+        has_dot = filtered_df['smiles'].str.contains('.', regex=False, na=False)
+        idx = filtered_df.index[has_dot]
+        new_mols = filtered_df.loc[idx, 'mol'].apply(lambda m: Filters.stripSMILESsalt(m, salt_remover, debug))
+        filtered_df.loc[idx, 'mol'] = new_mols
+        filtered_df.loc[idx, 'smiles'] = new_mols.map(Chem.MolToSmiles)
+        filtered_df = filtered_df[filtered_df['smiles'] != '']
+
         if debug: 
             logger.info(f"Removed pure {len(df) - len(filtered_df)} salts from the input molecules.")
             print(f"Removed pure {len(df) - len(filtered_df)} salts from the input molecules.")
-        filtered_df['mol'].apply(lambda x: Chem.SanitizeMol(x))
+
+        filtered_df['error'] = filtered_df['mol'].apply(lambda x: Chem.SanitizeMol(x, catchErrors=True))
+        #filtered_df['smiles'] = filtered_df['mol'].apply(Chem.MolToSmiles)
+        for idx, error in filtered_df[filtered_df['error'] != 0].iterrows():
+            logger.warning(f'''SANITIZE FAILED: SMILES: {error['smiles']} - ID: {error['ids']}''')
+        filtered_df = filtered_df[filtered_df['error'] == 0]
         return filtered_df
     
     @staticmethod
