@@ -43,6 +43,9 @@ def arguments(args):
 
     if args.removesalts:
         logger.info(f"Remove salts and retain largest fragments: {args.removesalts}")
+        if args.debug:
+            smartsFile = Path(__file__).parent.parent / 'Data' / 'salt_stripping.txt'
+            logger.info(f'Loading salt stripping rules from: {smartsFile.resolve()}')
 
     if args.protonation or args.tautomers:
         logger.info(f"Neutralize before tautomerization and protonation: {args.neutralize}")
@@ -51,12 +54,14 @@ def arguments(args):
         logger.info(f"Protonation: {args.protonation}")
         logger.info(f"pH: {args.pH}")
         logger.info(f"pH range: {args.pH_range}")
+        if args.protlib:
+            logger.info(f"Using protonation library: {args.protlib}")
 
 
     if args.tautomers:
         logger.info(f"Tautomers enumeration: {args.tautomers}")
-        smartsFile = Path(__file__).parent.parent / 'Data' / 'tautomers_v3.txt'
-        logger.info(f'Loading tautomerization rules from: {smartsFile}')
+        if args.taulib:
+            logger.info(f"Using tautomer library: {args.taulib}")
 
     if args.stereoisomers:
         logger.info(f"Stereoisomers enumeration: {args.stereoisomers}")
