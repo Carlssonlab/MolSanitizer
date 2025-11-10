@@ -252,11 +252,18 @@ class Test_MolSanitizer(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             args = self.generate_mock_arguments([f'{self.path}/in_stereo.txt'],
                                                 ['stereoisomers', 'test', ], temp_dir)
-            args.max_stereoisomers = 128
+            args.max_isomers = 128
             cli.clean_data(args)
             self.compare_relative(f'{temp_dir}/dummy_output_clean.txt',
                                   f'{self.path}/out_stereo.txt')
 
+    def test_neutralize(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            args = self.generate_mock_arguments([f'{self.path}/in_neutralize.txt'],
+                                                ['neutralize', 'test', ], temp_dir)
+            cli.clean_data(args)
+            self.compare_relative(f'{temp_dir}/dummy_output_clean.txt',
+                                  f'{self.path}/out_neutralize.txt')
 
     def test_protonation(self):
         with tempfile.TemporaryDirectory() as temp_dir:

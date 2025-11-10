@@ -1,0 +1,6 @@
+C[C@@H]1C[C@H]2[C@@H]3CCC4=CC(=O)C=C[C@]4(C)[C@@]3(F)[C@@H](O)C[C@]2(C)[C@@]1(O)C(=O)COP(=O)([O-])[O-] DexamethasonePhosphate
+CCCCC(N(C(C(C)C)C(O)=O)Cc1ccc(c2c(c3n[n-]nn3)cccc2)cc1)=O Valsartan
+O=C(c1c(O)cccc1)[O-] Salicylic_acid
+CC1=C(/C=C/C(C)=C/C=C/C(C)=C/C([O-])=O)C(C)(C)CCC1 tretinoin
+[O-]CC(C[N+](C)(C)C)C([O-])=O 3-oxido-2-((trimethylammonio)methyl)propanoate
+CNC1=CC=[NH+]C=C1 4-(methylamino)pyridin-1-ium

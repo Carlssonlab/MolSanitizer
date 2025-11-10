@@ -17,7 +17,7 @@ with open(Path(__file__).parent.parent / 'msani_configurations.yaml') as confFil
     corina_exe = configurations['CORINA']
     energy_window = configurations['ENERGY_WINDOW']
     numconfs = configurations['NUMCONFS']
-    max_stereoisomers = configurations['MAX_STEREOISOMERS']
+    max_isomers = configurations['MAX_STEREOISOMERS']
     pH = configurations['PH']
     pH_range = configurations['PH_RANGE']
 
@@ -62,15 +62,19 @@ class CustomHelpFormatter(argparse.RawTextHelpFormatter):
         """
         Override to customize the argument display in the help message.
         Suppress the metavar formatting like `$short $metavar, $long=$metavar`.
+        Also hides any automatically generated '--no-*' flags from BooleanOptionalAction.
         """
         if not action.option_strings:
             return super()._format_action_invocation(action)
 
-        parts = []
-        for option_string in action.option_strings:
-            parts.append(option_string)
-        return ', '.join(parts)
+        # Hide any '--no-*' option variants
+        filtered_opts = [
+            opt for opt in action.option_strings if not opt.startswith('--no-')
+        ]
 
+        return ', '.join(filtered_opts)
+
+    
 def parseArguments(args = None, batch_mode = False):
     # Support the parsing of a YAML configuration file
     pre_parser = argparse.ArgumentParser(add_help=False)
@@ -145,7 +149,19 @@ def parseArguments(args = None, batch_mode = False):
         '--neutralize', '-neu',
         action=argparse.BooleanOptionalAction,
         default=defaults.get('neutralize', None),
-        help='Neutralize molecules (use --no-neutralize to disable). Will be applied after removesalts and before tautomerization/protonation.'
+        help='Neutralize molecules.\nWill be applied after removesalts and before tautomerization/protonation (use --no-neutralize to disable).'
+    )
+    smiles_group.add_argument(
+        '--stereoisomers', '-st',
+        action=argparse.BooleanOptionalAction,
+        default=defaults.get('stereoisomers', None),
+        help='Stereoisomers enumeration.\nWill be applied by default when gen3d is on (use --no-stereoisomers to disable)'
+    )
+    smiles_group.add_argument(
+        '--max_isomers','-ms',
+        type=int,
+        default=defaults.get('max_isomers', max_isomers),
+        help=f'Maximum number of stereoisomers to consider (default: {max_isomers})'
     )
     smiles_group.add_argument(
         '--tautomers', '-tau',
@@ -154,22 +170,10 @@ def parseArguments(args = None, batch_mode = False):
         help='Tautomers enumeration.'
     )
     smiles_group.add_argument(
-        '--stereoisomers', '-ste',
-        action=argparse.BooleanOptionalAction,
-        default=defaults.get('stereoisomers', False),
-        help='Stereoisomers enumeration (only unspecified chiral centers)'
-    )
-    smiles_group.add_argument(
-        '--max_stereoisomers','-ms',
-        type=int,
-        default=defaults.get('max_stereoisomers', max_stereoisomers),
-        help=f'Maximum number of stereoisomers to consider (default: {max_stereoisomers})'
-    )
-    smiles_group.add_argument(
         '--protonation', '-prot',
         action='store_true',
         default=defaults.get('protonation', False),
-        help='Apply protonation to the structures'
+        help='(De)protonate the structures'
     )
     smiles_group.add_argument(
         '--pH', '-p',
@@ -319,6 +323,17 @@ def Sanitycheck(args: dict):
         if 'all' in args.unwanted: args.unwanted=['regular','special','optional']
         args.unwanted=[word.title() for word in args.unwanted]
 
+    if (args.pH != 7 or args.pH_range != 0) and not args.protonation:
+        print("It seems like you forget the --protonation flag. We turned it on for you.")
+        args.protonation = True
+
+    if args.neutralize is None:
+        if args.removesalts or args.tautomers or args.protonation:
+            print("\nNeutralization is turned on by default when removesalts, tautomerization, or protonation is requested.\nTo disable, use the --no-neutralize flag.\n")
+            args.neutralize = True
+        else:
+            args.neutralize = False
+
     if args.gen3d:
         # Always enumerate stereoisomers for before generating DB2 and PDBQT files
         # Maximum number of stereoisomers is set to in parser
@@ -328,15 +343,5 @@ def Sanitycheck(args: dict):
         else:
             args.stereoisomers = False
     
-    if (args.pH != 7 or args.pH_range != 0) and not args.protonation:
-        print("It seems like you forget the --protonation flag. We turned it on for you.")
-        args.protonation = True
-
-    if args.neutralize is None:
-        if args.tautomers or args.protonation or args.removesalts:
-            print("\nNeutralization is turned on by default when tautomerization, protonation, or removesalts is requested.\nTo disable, use the --no-neutralize flag.\n")
-            args.neutralize = True
-        else:
-            args.neutralize = False
     return args
 
