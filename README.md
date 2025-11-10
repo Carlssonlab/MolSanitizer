@@ -1,7 +1,7 @@
 # MolSanitizer - A package to prepare SMILES databases
 [![python](https://img.shields.io/badge/python-v3.10--3.12-blue)]()
 [![anaconda](https://img.shields.io/badge/Anaconda.org-2.1.0-green.svg?style=flat-square)](https://docs.anaconda.com/anaconda/install/index.html)
-[![Documentation](https://img.shields.io/badge/docs-0.2.2-orange)](https://msani.readthedocs.io/)
+[![Documentation](https://img.shields.io/badge/documentations-orange)](https://msani.readthedocs.io/)
 ![GitHub forks](https://img.shields.io/github/forks/:user/:repo)
 [![license](https://img.shields.io/badge/license-GPLv2-yellow)](LICENSE)
 
@@ -42,7 +42,7 @@ To start to use msani, use the `-h` or `--help` flag for available options:
 
 Documentation on the theory behind MolSanitizer and how to use it can be found [here](https://msani.readthedocs.io)
 
-<img src="./plots/Workflow.png" width="1000">
+<img src="./docs/source/_static/Workflow.png" width="1000">
 
 ## Notes about AMSOL
 
