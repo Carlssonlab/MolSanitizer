@@ -60,7 +60,7 @@ Below is the default configuration file:
     
     #===============SINGLE MODE================
     EMBED_METHOD: 'rdkit' # choose from 'rdkit', 'obabel', 'corina'
-    CORINA: '/proj/carlssonlab/corina/corina-4.2/corina'
+    CORINA: '/soft/corina/corina-4.2/corina'
     ENERGY_WINDOW: 25
     NUMCONFS: 2000
     MAX_STEREOISOMERS: 8
@@ -89,36 +89,18 @@ Help message
 
 .. code-block:: console
 
-    usage: msani [--input_files INPUT_FILES [INPUT_FILES ...]] [--smiles SMILES [SMILES ...]] [--extended]
-             [--prefix PREFIX] [--synthon] [--removesalts] [--create_custom] [--custom CUSTOM] 
-             [--unwanted [{all,regular,special,optional} ...]] [--pains] [--ha HA]
-             [--logp LOGP] [--hba HBA] [--hbd HBD] [--mw MW] [--chiral CHIRAL] [--tautomers]
-             [--stereoisomers] [--max_stereoisomers MAX_STEREOISOMERS] [--protonation] [--pH PH]
-             [--pH_range PH_RANGE] [--noneutralize] [--notaurdkit] [--standardize] [--gen3d]
-             [--format [{db2,db2.tgz,pdbqt,sdf,mol2} ...]] [--method {rdkit,obabel,corina}]
-             [--numconfs NUMCONFS] [--randomSeed RANDOMSEED] [--timeout TIMEOUT]
-             [--energywindow ENERGYWINDOW] [--rigid RIGID] [--nringconfs NRINGCONFS]
-             [--mode {vs,extensive,ignoretorlib}] [--tolerance TOLERANCE] [--nocleanup] [--debug]
-             [--lazy] [--numcores NUMCORES] [--help] [--timing] [--version]
+    usage: msani [--input_files INPUT_FILES [INPUT_FILES ...]] [--input_list INPUT_LIST] [--smiles SMILES [SMILES ...]] [--extended] [--prefix PREFIX] [--synthon] [--removesalts] [--create_custom] [--custom CUSTOM]
+             [--unwanted [{all,regular,special,optional} ...]] [--pains] [--neutralize | --no-neutralize | -neu] [--stereoisomers | --no-stereoisomers | -st] [--max_isomers MAX_ISOMERS] [--tautomers] [--protonation] [--pH PH]
+             [--pH_range PH_RANGE] [--standardize] [--gen3d] [--format [{db2,db2.tgz,pdbqt,sdf,mol2} ...]] [--method {rdkit,obabel,corina}] [--numconfs NUMCONFS] [--timeout TIMEOUT] [--energywindow ENERGYWINDOW] [--nringconfs NRINGCONFS]
+             [--mode {fixed,random,ignoretorlib}] [--allowNonring] [--rmsd RMSD] [--config CONFIG] [--create_config] [--lazy] [--numcores NUMCORES] [--help] [--help_advanced] [--version]
 
     MolSanitizer - A package to prepare SMILES databases
 
-        Ex. input file (space or tab-separated file):
-            COCCC(=O)Nc1ncc(s1)Br  CP000000418470
-            C1CC(C(=O)NC1)SCCC=CBr  CP000000432409
-            CC(C)(C)CNC(=O)c1ccsc1Br  CP000001634597
-
-        Ex. run
-        msani -i example.smi --removesalts --pains --unwanted all --stereoisomers --protonation
-        msani -i example.smi --pdbqt --logp "<=500" --hba "<=10" --hbd "<=5" --mw "<=500"
-        msani -i example.smi --pains --unwanted regular optional --stereoisomers --protonation
-        msani -i example.smi --pains --unwanted all --protonation -p 7 -r 1 --tautomers --stereoisomers --gen3d -f db2.tgz
-        
-
     Input and output options:
     --input_files, -i     Input files containing chemical structures
+    --input_list, -il     Path to a text file containing one or more input file paths (one per line).
     --smiles, -s          Input SMILES strings
-    --extended, -e        Extended SMILES reading (tab-separated files supported only) (default: False)
+    --extended, -e        Extended SMILES reading (tab-separated files supported only).
     --prefix, -pre        Prefix for the output files. (defalt: input file name).
     --synthon, -stn       Synthon mode (Additional metadata about the capping groups required)
 
@@ -142,11 +124,13 @@ Help message
     --pains               Remove PAINS violations from the structures.
 
     SMILES processing options:
-    --tautomers, -tau     Tautomers enumeration
-    --stereoisomers, -ste Stereoisomers enumeration (only consider unspecified chiral centers)
-    --max_stereoisomers, -ms
-                          Maximum number of stereoisomers to consider (default: 8
-    --protonation, -prot  Apply protonation to the structures
+    --neutralize, -neu    Neutralize molecules.
+                            Will be applied after removesalts and before tautomerization/protonation (use --no-neutralize to disable).
+    --stereoisomers, -st  Stereoisomers enumeration.
+                            Will be applied by default when gen3d is on (use --no-stereoisomers to disable)
+    --max_isomers, -ms    Maximum number of stereoisomers to consider (default: 8)
+    --tautomers, -tau     Tautomers enumeration.
+    --protonation, -prot  (De)protonate the structures
     --pH, -p              pH for the protonation (default: 7)
     --pH_range, -r        pH range for the protonation (default: 0)
     --standardize, -std   Standardize structures for machine learning using RDKit
@@ -157,20 +141,39 @@ Help message
                             (Default: db2.tgz - Options: sdf, db2, db2.tgz, mol2, pdbqt.)
     --method, -m          Embedding method (default: rdkit - options: rdkit, obabel, corina)
     --numconfs, -nconfs   Maximum number of conformers to generate (default: 2000)
-    --timeout, -to        Timeout for the initial embedding for each SMILES entry before using OpenBabel
+    --timeout, -to        Timeout for the initial embedding for each entry before using OpenBabel
                             Default: 2 minutes
     --energywindow, -w    Energy window for sampling the conformations (default: 25 kcal/mol)
     --nringconfs, -nr     Maximum number of ring conformers to generate (default: 1)
     --mode, -mode         Mode for generating conformers
                             Default: fixed - Options: fixed, random, ignoretorlib
-    --allowNonring        Allow the full sampling of non-ring compounds (default undersample to 30 confs).
+    --allowNonring        Allow the full sampling of non-ring comdpounds (default undersample to 30 confs).
+    --rmsd, -rmsd         Minimum RMSD between two conformers (default: 0.5 Å).
 
     Miscellaneous:
+    --config, -c          Path to the YAML configuration file
+    --create_config       Create a template for the configuration file
     --lazy                Implement all the processing and preparation steps
     --numcores, -j        Number of cores to use for parallel processing (default: 4)
     --help, -h            Show this help message and exit
     --help_advanced, -xh  Show advanced help message with additional options
     --version, -v         Show the current version of MolSanitizer
+
+    Example input file (space or tab-separated file):
+            COCCC(=O)Nc1ncc(s1)Br  CP000000418470
+            C1CC(C(=O)NC1)SCCC=CBr  CP000000432409
+            CC(C)(C)CNC(=O)c1ccsc1Br  CP000001634597
+
+    Extended SMILES is supported with the -e flag (SMILES and IDs need to be tab-separated):        
+            CC[C@H]1[C@H](C(=O)N[C@H](C)CCCC(=O)NOCC(F)(F)F)CCN1C |&1:2,3|  Cmp0001
+            CCC(CC(=O)N(CC)CCC(=O)N1CCO[C@H]2COC[C@H]21)C(F)F |&1:17,21|    Cmp0002
+            CC(C)CC(CNC(=O)C1CSC1)C(=O)N[C@H]1C[C@@H](O)[C@H](F)C1 |&1:16,18,20|    Cmp0003
+                
+    Example usage:
+        msani -i example.smi --removesalts --pains --unwanted all --stereoisomers --protonation
+        msani -i example.smi --logp "<=500" --hba "<=10" --hbd "<=5" --mw "<=500" -3d -f pdbqt
+        msani -i example.smi --pains --unwanted regular optional --stereoisomers --protonation
+        msani -i example.smi --pains --unwanted all -prot -p 7 -tau -ste -3d -f db2.tgz
 
 Available filters and preparation steps
 -------------------------------------------
@@ -187,9 +190,19 @@ To use the remove salts function, simply use the ``--removesalts`` flag. The pro
 
     $ msani -i example.smi --removesalts
 
-2. Tautomers enumeration
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+2. Neutralization
+~~~~~~~~~~~~~~~~~~~~~~
 
+Molecules can be neutralized using the ``--neutralize`` or ``-neu`` flag. The neutralization will be applied after the salt removal and before the tautomerization/protonation steps. If the user does not want to neutralize the molecules, he/she can use the ``--no-neutralize`` flag.
+
+.. code-block:: console
+
+    $ msani -i example.smi --neutralize
+    $ msani -i example.smi -neu  # Short version
+    $ msani -i example.smi --removesalts --no-neutralize  # To disable neutralization when using removesalts
+
+3. Tautomers enumeration
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
 The tautomers could be generated using the ``--tautomers`` flag. msani uses a two-step approach for the enumeration of tautomers. First, the canonical tautomer from the scoring function of ``rdMolStandardize.TautomerEnumerator`` is used. Then, the exceptions are corrected using the expert-curated SMARTS rules. The SMARTS rules are readily accessible at `msani/Data/tautomers.txt <https://github.com/phonglam3103/msani/blob/main/msani/Data/tautomers.txt>`_.
@@ -198,7 +211,7 @@ The tautomers could be generated using the ``--tautomers`` flag. msani uses a tw
 
     $ msani -i example.smi --tautomers
 
-3. Descriptor-based filtering
+4. Descriptor-based filtering
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The following descriptors are supported for filtering: heavy atoms (HA), logP, hydrogen bond acceptors (HBA), hydrogen bond donors (HBD), molecular weight (MW), and number chiral centers. The descriptors can be filtered using the following flags:
@@ -217,7 +230,7 @@ For example, to filter the logP values less than or equal to 3.5, use the follow
     $ msani -i example.smi --logp "<=3.5"
 
 
-4. PAINS filtering
+5. PAINS filtering
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Molecules that contain PAINS substructures can be efficiently eliminated using the ``--pains`` flag. The violated structures will be stored in the **_rejected** file.
@@ -236,7 +249,7 @@ Example of the **_rejected** output is as below:
     COCC1(CC(=O)NCc2cc(O)ccc2O)CC1                    Z2832180283   "PAINS violation: Mannich_a(296)"
     CCCCN(Cc1ccc(OS(=O)(=O)F)cc1)Cc1ccccc1O           Z4607533150   "PAINS violation: Mannich_a(296)"
 
-5. Unwanted substructures filtering
+6. Unwanted substructures filtering
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Molecules that contain unwanted substructures can be efficiently eliminated using the ``--unwanted`` flag. msani uses an expert-curated list that contains undesirable substructures, accompanied by the reasons and references for filtering. The list can be obtained from `msani/Data/filter_out.csv <https://github.com/phonglam3103/msani/blob/main/msani/Data/filter_out.csv>`_.
@@ -263,7 +276,7 @@ The first two columns (SMARTS and LABEL) are required for the program to parse, 
     $ msani -i example.smi --custom templates.txt
     $ msani -i example.smi --unwanted all --custom templates.tsv
 
-6. Protonation
+7. Protonation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 msani supports the assignment of protonation states at various pH values using the ``--protonation`` flag. By default, the pH is set to 7 (configurable via ``-p`` or ``--pH``), and the pH range is set to 0 (specified using ``-r`` or ``--range``). This configuration protonates molecules at a specific pH of 7. However, it is also possible to enumerate potential protonation states across a pH range. For instance, setting ``--range 2`` explores pH values within 7 ± 2. The program evaluates each pH value in the specified range and assigns the possible protonation states of the molecule at those pH levels. Only unique products are output to a file. Functional groups with multiple protonation possibilities (e.g., piperazine, amidine) are expanded, with an underscore (`_`) appended to their names to indicate variations.
@@ -287,7 +300,7 @@ The program employs SMARTS-based reactions to iteratively assign protonation sta
    O=C([O-])C1C2C(O)C2CN1C(=O)CN1CC[NH2+]CC1 mol4_2
 
 
-7. Stereoisomers enumeration
+8. Stereoisomers enumeration
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
@@ -312,7 +325,7 @@ It is possible to define the maximum number of stereoisomers generated for each 
 
     $ msani -i example.smi --stereoisomers --max_stereoisomers 32
 
-8. Conformer generator
+9. Conformer generator
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Basic usage
