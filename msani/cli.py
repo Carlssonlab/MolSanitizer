@@ -46,7 +46,7 @@ def apply_processes(chunk, args, rejected_file):
         pains=args.pains, ha=args.ha, logp=args.logp, hba=args.hba, hbd=args.hbd, 
         mw=args.mw, chiral = args.chiral, tautomers=args.tautomers, taurdkit=args.taurdkit, 
         neutralize=args.neutralize, stereoisomers=args.stereoisomers, 
-        max_stereoisomers=args.max_stereoisomers, protonation=args.protonation, pH=args.pH, 
+        max_stereoisomers=args.max_isomers, protonation=args.protonation, pH=args.pH, 
         pH_range=args.pH_range, numcores=args.numcores, randomSeed=args.randomSeed, 
         standardize=args.standardize, protonation_library=args.protlib, tautomer_library=args.taulib,  
         debug=args.debug)

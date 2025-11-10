@@ -65,7 +65,7 @@ def arguments(args):
 
     if args.stereoisomers:
         logger.info(f"Stereoisomers enumeration: {args.stereoisomers}")
-        logger.info(f"Max stereoisomers: {args.max_stereoisomers}")
+        logger.info(f"Max stereoisomers: {args.max_isomers}")
 
     if args.pains:
         logger.info(f"PAINS filter: {args.pains}")
