@@ -113,13 +113,6 @@ with open(os.path.join(os.path.dirname(__file__), 'msani_configurations.yaml')) 
     max_jobs = configurations['MAX_JOBS']
     max_array_size = configurations['MAX_ARRAY_SIZE']
     max_limit_project = configurations['MAX_LIMIT_PROJECT']
-    timeout = configurations['TIMEOUT']
-    corina_exe = configurations['CORINA']
-    energy_window = configurations['ENERGY_WINDOW']
-    numconfs = configurations['NUMCONFS']
-    max_stereoisomers = configurations['MAX_STEREOISOMERS']
-    pH = configurations['PH']
-    pH_range = configurations['PH_RANGE']
 
 def count_lines_bash(file_path):
     result = subprocess.run(['wc', '-l', file_path], stdout=subprocess.PIPE)
