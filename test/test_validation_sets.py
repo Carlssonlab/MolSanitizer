@@ -141,7 +141,7 @@ class Test_ValidationSets(unittest.TestCase):
             "debug": False, 
             "custom":None, 
             "prefix":output_prefix, 
-            "max_stereoisomers": 8,
+            "max_isomers": 8,
             "numcores": 4,
             "test": False,
             "smiles": None,
