@@ -6,11 +6,16 @@ All notable changes to this project will be documented in this file.
 
 ### 🚀 Features
 
+- New flag `--neutralize` or `-neu` helps to neutralize the database. This option will be turned on by default when using `--removesalts`, `--tatutomers` or `--protonate`. The user could turn it off by usign `--no-neutralize`. - ([135ec8e](https://github.com/phonglam3103/MolSanitizer/commit/135ec8e6cab8f9198ba7e249d00b846aeb604265))
 - The standardize flag now doesn't try to canonicalize the tatuomeric form anymore. We found that TautomerEnumerator.Canonicalize could return tautomers that cannot be transfered back to the given tautomer. Instead, the script only "normalize" the functional groups such as aromatic groups, sulfones, azides to a canonical form. - ([3df8882](https://github.com/phonglam3103/MolSanitizer/commit/3df88828f2c1c6dcf0b7fba9adf0a43da0fb0e1b))
 
 ### 🐛 Bug Fixes
 
 - Add a security mechanism on failed-to-sanitize molecules after SaltRemover. Slight improvements in performance thanks to the cache of SaltRemover and avoid Python loop overhead. Fix #28 - ([01db117](https://github.com/phonglam3103/MolSanitizer/commit/01db117dc823c4a5896db0748fae87e350d8e35d))
+
+### 🚜 Refactor
+
+- Change the option `--max_stereoisomers` to `--max_isomers` in the CLI. Other yaml based file should keep as is. - ([caacf37](https://github.com/phonglam3103/MolSanitizer/commit/caacf3780b205511f16bff8a1d6d4876bdbebba4))
 
 ### ⚡ Performance
 

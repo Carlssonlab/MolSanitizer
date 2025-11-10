@@ -9,6 +9,11 @@ All notable changes to this project will be documented in this file.
 🚀 Features
 ~~~~~~~~~~~
 
+-  New flag ``--neutralize`` or ``-neu`` helps to neutralize the
+   database. This option will be turned on by default when using
+   ``--removesalts``, ``--tatutomers`` or ``--protonate``. The user
+   could turn it off by usign ``--no-neutralize``. -
+   (`135ec8e <https://github.com/phonglam3103/MolSanitizer/commit/135ec8e6cab8f9198ba7e249d00b846aeb604265>`__)
 -  The standardize flag now doesn’t try to canonicalize the tatuomeric
    form anymore. We found that TautomerEnumerator.Canonicalize could
    return tautomers that cannot be transfered back to the given
@@ -23,6 +28,13 @@ All notable changes to this project will be documented in this file.
    SaltRemover. Slight improvements in performance thanks to the cache
    of SaltRemover and avoid Python loop overhead. Fix #28 -
    (`01db117 <https://github.com/phonglam3103/MolSanitizer/commit/01db117dc823c4a5896db0748fae87e350d8e35d>`__)
+
+🚜 Refactor
+~~~~~~~~~~~
+
+-  Change the option ``--max_stereoisomers`` to ``--max_isomers`` in the
+   CLI. Other yaml based file should keep as is. -
+   (`caacf37 <https://github.com/phonglam3103/MolSanitizer/commit/caacf3780b205511f16bff8a1d6d4876bdbebba4>`__)
 
 ⚡ Performance
 ~~~~~~~~~~~~~~
@@ -139,6 +151,8 @@ All notable changes to this project will be documented in this file.
 -  Updated p-EWG phenol rule, remove redundant duplicated rules. -
    (`dde92a8 <https://github.com/phonglam3103/MolSanitizer/commit/dde92a8b57dd3fda15e0093902f70e7d99a26ce7>`__)
 
+.. _refactor-1:
+
 🚜 Refactor
 ~~~~~~~~~~~
 
@@ -235,7 +249,7 @@ All notable changes to this project will be documented in this file.
    single script properly. -
    (`16df3eb <https://github.com/phonglam3103/MolSanitizer/commit/16df3eb8041000348e4a0de40da9471c4fcc26fb>`__)
 
-.. _refactor-1:
+.. _refactor-2:
 
 🚜 Refactor
 ~~~~~~~~~~~
@@ -337,7 +351,7 @@ All notable changes to this project will be documented in this file.
    (more realistic) instead of planar. -
    (`640cc55 <https://github.com/phonglam3103/MolSanitizer/commit/640cc5561f3597ef0cb6dbb99b7448bc25a07076>`__)
 
-.. _refactor-2:
+.. _refactor-3:
 
 🚜 Refactor
 ~~~~~~~~~~~
@@ -497,7 +511,7 @@ All notable changes to this project will be documented in this file.
    -
    (`f1f82b7 <https://github.com/phonglam3103/MolSanitizer/commit/f1f82b7b7705b1bb5e32a3624fa7890e49b5a773>`__)
 
-.. _refactor-3:
+.. _refactor-4:
 
 🚜 Refactor
 ~~~~~~~~~~~
@@ -597,7 +611,7 @@ All notable changes to this project will be documented in this file.
    names -> make all the DB2 files have the same name as \****\* -
    (`755d696 <https://github.com/phonglam3103/MolSanitizer/commit/755d69641b1eb5df29a70b9d569e3b3a9c3f94d1>`__)
 
-.. _refactor-4:
+.. _refactor-5:
 
 🚜 Refactor
 ~~~~~~~~~~~
@@ -667,7 +681,7 @@ All notable changes to this project will be documented in this file.
    the earlier version. -
    (`e17a0a1 <https://github.com/phonglam3103/MolSanitizer/commit/e17a0a13189a3c17fcf0faf3000fd932e46dfc75>`__)
 
-.. _refactor-5:
+.. _refactor-6:
 
 🚜 Refactor
 ~~~~~~~~~~~
@@ -717,7 +731,7 @@ All notable changes to this project will be documented in this file.
    to generate DB2 files. -
    (`4b0d04b <https://github.com/phonglam3103/MolSanitizer/commit/4b0d04b56ef7b87a7c799688dcc0201655c15d2f>`__)
 
-.. _refactor-6:
+.. _refactor-7:
 
 🚜 Refactor
 ~~~~~~~~~~~
@@ -763,7 +777,7 @@ All notable changes to this project will be documented in this file.
 -  Fix an error that find_sulfonamide not function as expected -
    (`1818ea7 <https://github.com/phonglam3103/MolSanitizer/commit/1818ea71c6b8856d0603f125c5860639d09886ab>`__)
 
-.. _refactor-7:
+.. _refactor-8:
 
 🚜 Refactor
 ~~~~~~~~~~~
