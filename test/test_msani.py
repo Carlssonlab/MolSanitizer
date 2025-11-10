@@ -304,7 +304,9 @@ class Test_MolSanitizer(unittest.TestCase):
             self.compare_relative(f'{temp_dir}/dummy_output_rejected.txt',
                                   f'{self.path}/out_enamine_rejected.txt')
         os.chdir(self.path)
-
+    
+    @unittest.skipIf((OS == "Darwin" and ("arm" in machine or "aarch64" in machine)),
+        "Skipping test on MacOS_ARM64 due to no compatible AMSOL software.")
     def test_db2_generation(self):
         tmp_obj = tempfile.TemporaryDirectory()
         temp_dir = tmp_obj.name
@@ -486,11 +488,11 @@ class Test_MolSanitizer(unittest.TestCase):
             'protonation': False,
             'pH': 7,
             'pH_range': 0,
-            "neutralize": True, 
+            "neutralize": False, 
             "debug": False, 
             "custom":None, 
             "prefix":output_prefix, 
-            "max_stereoisomers": 16,
+            "max_isomers": 16,
             "numcores": 4,
             "test": False,
             "smiles": None,
