@@ -155,7 +155,7 @@ def prepare(mol2file, name, netcharge, VERBOSE=False):
         print("is correctly set in ~/.cshrc or ~/.bashrc")
   
 
-    subprocess.run(["cp", mol2file, "temp.mol2"])
+    subprocess.run(["cp", "--", mol2file, "temp.mol2"])
 
     convert_to_ZmatMOPAC("temp.mol2", "temp.ZmatMOPAC", VERBOSE)
     ZmatMOPAC_data = read_ZmatMOPAC("temp.ZmatMOPAC", VERBOSE)
