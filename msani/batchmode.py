@@ -115,7 +115,7 @@ with open(os.path.join(os.path.dirname(__file__), 'msani_configurations.yaml')) 
     max_limit_project = configurations['MAX_LIMIT_PROJECT']
 
 def count_lines_bash(file_path):
-    result = subprocess.run(['wc', '-l', file_path], stdout=subprocess.PIPE)
+    result = subprocess.run(['wc', '-l', '--', file_path], stdout=subprocess.PIPE)
     return int(result.stdout.split()[0])
 
 def parse_flags_single_job(args: dict, parser):
