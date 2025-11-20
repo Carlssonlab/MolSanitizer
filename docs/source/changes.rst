@@ -24,6 +24,9 @@ All notable changes to this project will be documented in this file.
 🐛 Bug Fixes
 ~~~~~~~~~~~~
 
+-  Fix a bug that the simultaneous flags –stereoisomers and –gen3d turns
+   off the stereoisomer enumeration. -
+   (`89e2981 <https://github.com/phonglam3103/MolSanitizer/commit/89e2981d89f62595727da1ef301adc3000baf7cb>`__)
 -  Add a security mechanism on failed-to-sanitize molecules after
    SaltRemover. Slight improvements in performance thanks to the cache
    of SaltRemover and avoid Python loop overhead. Fix #28 -
@@ -32,6 +35,9 @@ All notable changes to this project will be documented in this file.
 🚜 Refactor
 ~~~~~~~~~~~
 
+-  Refactor parser, with safer mechanism for extracting information from
+   the yaml file. -
+   (`ad3042a <https://github.com/phonglam3103/MolSanitizer/commit/ad3042a97b6b2347f30e5fba56946ea5425bede1>`__)
 -  Change the option ``--max_stereoisomers`` to ``--max_isomers`` in the
    CLI. Other yaml based file should keep as is. -
    (`caacf37 <https://github.com/phonglam3103/MolSanitizer/commit/caacf3780b205511f16bff8a1d6d4876bdbebba4>`__)
