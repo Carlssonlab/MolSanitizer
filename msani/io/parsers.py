@@ -32,9 +32,6 @@ info_batch = f"""MolSanitizer - A package to prepare SMILES databases
         Number of compounds per job: {lines_per_job} 
         Maximum jobs at the same time: {max_jobs} job(s)
 
-        Ex. run
-        msani_batch -i example.smi -l 50 --db2
-        msani_batch -i example.smi -l 50 --stereoisomers --protonation --db2 --nocleanup
         """
 
 info_standalone = """MolSanitizer - A package to prepare SMILES databases
@@ -54,7 +51,7 @@ epilog ="""  Example input file (space or tab-separated file):
     msani -i example.smi --removesalts --pains --unwanted all --stereoisomers --protonation
     msani -i example.smi --logp "<=500" --hba "<=10" --hbd "<=5" --mw "<=500" -3d -f pdbqt
     msani -i example.smi --pains --unwanted regular optional --stereoisomers --protonation
-    msani -i example.smi --pains --unwanted all -prot -p 7 -tau -ste -3d -f db2.tgz
+    msani -i example.smi --pains --unwanted all -prot -p 7 -tau -st -3d -f db2.tgz
     
 """
 class CustomHelpFormatter(argparse.RawTextHelpFormatter):
@@ -546,8 +543,6 @@ def Sanitycheck(args: dict):
         if args.stereoisomers is None:
             print("Stereoisomers enumeration is turned on by default when generating 3D conformers.\nTo disable, use the --no-stereoisomers flag.\n")
             args.stereoisomers = True
-        else:
-            args.stereoisomers = False
     
     return args
 
