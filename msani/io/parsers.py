@@ -131,7 +131,7 @@ def parseArguments(args = None, batch_mode = False):
     io_group.add_argument(
         '--prefix', '-pre', 
         default=defaults.get('prefix', None), 
-        type=str, help='Prefix for the output files. (defalt: input file name).')
+        type=str, help='Prefix for the output files. (default: input file name).')
     io_group.add_argument(
         '--synthon', '-stn',  
         action='store_true', 
@@ -202,7 +202,7 @@ def parseArguments(args = None, batch_mode = False):
         '--mw', 
         default=defaults.get('mw', None), 
         type=str, 
-        help='Filter by  molecular weight.' if show_advanced_help else argparse.SUPPRESS)
+        help='Filter by molecular weight.' if show_advanced_help else argparse.SUPPRESS)
     filter_group.add_argument(
         '--chiral', 
         default=defaults.get('chiral', None), 
@@ -335,7 +335,7 @@ def parseArguments(args = None, batch_mode = False):
         '--allowNonring', 
         action='store_true', 
         default=defaults.get('allowNonring', True), 
-        help='Allow the full sampling of non-ring comdpounds (default undersample to 30 confs).')
+        help='Allow the full sampling of non-ring compounds (default undersample to 30 confs).')
     gen3d.add_argument(
         '--eps', 
         type=float, 
