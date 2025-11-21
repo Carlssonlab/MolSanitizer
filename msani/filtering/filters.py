@@ -198,7 +198,7 @@ class Filters():
         res = Chem.Mol(mol)
         rdMolStandardize.FragmentParentInPlace(res)
         if debug: 
-            logger.info(f"Stripped alkali metals from {Chem.MolToSmiles(mol)}")
+            logger.info(f"Stripped alkali metals: {Chem.MolToSmiles(mol)} -> {Chem.MolToSmiles(res)}")
         return res
     
     @staticmethod
@@ -218,14 +218,14 @@ class Filters():
         global salt_remover
 
         # Only process the entries with '.' in the SMILES (multiple )
-        has_dot = filtered_df['smiles'].str.contains(r'\.', regex=True, na=False)
+        has_dot = filtered_df['smiles'].str.contains('.', regex=False, na=False)
         idx = filtered_df.index[has_dot]
         new_mols = filtered_df.loc[idx, 'mol'].apply(lambda m: Filters.stripSMILESsalt(m, salt_remover, debug))
         filtered_df.loc[idx, 'mol'] = new_mols
         filtered_df.loc[idx, 'smiles'] = new_mols.map(Chem.MolToSmiles)
 
         # Disconnect alkali metals (Na, K) from the molecules Issue #33
-        has_alkali = filtered_df['smiles'].str.contains(r'\[Na\]|\[K\]', regex=True, na=False)
+        has_alkali = filtered_df['smiles'].str.contains(r'Na|K', regex=True, na=False)
         idx_alkali = filtered_df.index[has_alkali]
         filtered_df.loc[idx_alkali, 'mol'] = filtered_df.loc[idx_alkali, 'mol'].apply(lambda m: Filters.stripalkali(m, debug))
         filtered_df.loc[idx_alkali, 'smiles'] = filtered_df.loc[idx_alkali, 'mol'].map(Chem.MolToSmiles)
