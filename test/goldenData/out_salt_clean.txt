@@ -13,3 +13,5 @@ CCOC(=O)C1=C(COCCN)NC(C)=C(C(=O)OC)C1c1ccccc1Cl amlodipin_acetate
 CN(C)c1ccc(C=Cc2cc[n+](C)cc2)cc1 4-{2-[4-(Dimethylamino)phenyl]ethenyl}-1-methylpyridinium-2,4,6-trimethylbenzenesulfonatemonohydrate
 Cc1ccc(-c2nc3ccc(C)cn3c2CC(=O)N(C)C)cc1 zolpidem_tartrate
 CCOC(=O)C1=C(COCCN)NC(C)=C(C(=O)OC)C1c1ccccc1Cl amlodipin_felodipin
+CC(C)Cc1ccc(C(C)C(=O)[O][Mg][Br])cc1 Should_keep_Mg
+CC(C)Cc1ccc(C(C)C(=O)[O-])cc1 Should_remove_Na

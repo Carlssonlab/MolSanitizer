@@ -178,13 +178,29 @@ class Filters():
         """
         res, deleted = molRemover.StripMolWithDeleted(mol)
 
-        if debug and len(deleted) > 0: logger.info(f"Stripped salt {Chem.MolToSmiles(mol)}:  Salts:{' '.join([Chem.MolToSmiles(m) for m in deleted])}")
-        
+        if debug and len(deleted) > 0: 
+            logger.info(f"Stripped salt {Chem.MolToSmiles(mol)}:  Salts:{' '.join([Chem.MolToSmiles(m) for m in deleted])}")
         if len(Chem.rdmolops.GetMolFrags(res)) > 1:
             # If still contains more than one fragment, retains the largest one
             rdMolStandardize.FragmentParentInPlace(res)
+
         return res
 
+    @staticmethod
+    def stripalkali(mol, debug = False):
+        """Strip alkali metals (Na, K) from the input molecule.
+        Args:
+            mol (rdkit mol object): The input molecule.
+            debug (bool, optional): Debug mode. Defaults to False.
+        Returns:
+            rdkit mol object: The stripped molecule.
+        """
+        res = Chem.Mol(mol)
+        rdMolStandardize.FragmentParentInPlace(res)
+        if debug: 
+            logger.info(f"Stripped alkali metals: {Chem.MolToSmiles(mol)} -> {Chem.MolToSmiles(res)}")
+        return res
+    
     @staticmethod
     def saltstripping(df: DataFrame, debug = False) -> DataFrame:
         """Remove salts from the input molecules using the RDKit SaltRemover class.
@@ -207,6 +223,12 @@ class Filters():
         new_mols = filtered_df.loc[idx, 'mol'].apply(lambda m: Filters.stripSMILESsalt(m, salt_remover, debug))
         filtered_df.loc[idx, 'mol'] = new_mols
         filtered_df.loc[idx, 'smiles'] = new_mols.map(Chem.MolToSmiles)
+
+        # Disconnect alkali metals (Na, K) from the molecules Issue #33
+        has_alkali = filtered_df['smiles'].str.contains(r'Na|K', regex=True, na=False)
+        idx_alkali = filtered_df.index[has_alkali]
+        filtered_df.loc[idx_alkali, 'mol'] = filtered_df.loc[idx_alkali, 'mol'].apply(lambda m: Filters.stripalkali(m, debug))
+        filtered_df.loc[idx_alkali, 'smiles'] = filtered_df.loc[idx_alkali, 'mol'].map(Chem.MolToSmiles)
         filtered_df = filtered_df[filtered_df['smiles'] != '']
 
         if debug: 
