@@ -9,6 +9,9 @@ All notable changes to this project will be documented in this file.
 🚀 Features
 ~~~~~~~~~~~
 
+-  Add stripalkali method to remove alkali metals from molecules and
+   update saltstripping to handle them. Resolve #33 -
+   (`84f506b <https://github.com/phonglam3103/MolSanitizer/commit/84f506b6b23bb413e5220d87c55eb72f765f8986>`__)
 -  New flag ``--neutralize`` or ``-neu`` helps to neutralize the
    database. This option will be turned on by default when using
    ``--removesalts``, ``--tatutomers`` or ``--protonate``. The user
