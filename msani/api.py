@@ -68,7 +68,7 @@ class Msani:
         self.hbd = hbd
         self.mw = mw
         self.custom = custom
-        self.unwanted = unwanted
+        self.unwanted = [word.title() for word in unwanted if isinstance(word, str)] if unwanted is not None else None
         self.pains = pains
         self.chiral = chiral
         
