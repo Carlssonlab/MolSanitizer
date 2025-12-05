@@ -25,6 +25,7 @@ TAUTOMER_PARAMS.tautomerRemoveBondStereo = False
 TAUTOMER_PARAMS.tautomerRemoveIsotopicHs = False
 TAUTOMER_PARAMS.maxTransforms = 1000
 TAUTOMER_PARAMS.maxTautomers = 1000
+TAUTOMER_PARAMS.tautomerReassignStereo = False
 
 TE = rdMolStandardize.TautomerEnumerator(TAUTOMER_PARAMS) 
 
@@ -233,7 +234,6 @@ class Tautomerizer:
             for name, substruct in self.integrity_substructs.items():
                 original_mol_substructs[name] = set(mol.GetSubstructMatches(substruct))
             
-            Chem.AssignCIPLabels(mol)
             initial_chiral_centers = len(Chem.FindMolChiralCenters(mol))
             intial_defined_double_bonds = self.count_defined_stereo_doublebonds(mol) 
 
@@ -246,7 +246,6 @@ class Tautomerizer:
             # Enumerate the tautomers
             for tau in TE.Enumerate(mol):
                 # Check chiral centers
-                Chem.AssignCIPLabels(tau)
                 tau_chiral_centers = len(Chem.FindMolChiralCenters(tau))
                 if tau_chiral_centers < initial_chiral_centers:
                     if self.debug: print(f"\t{Chem.MolToSmiles(tau)} has fewer chiral centers than the input, skipping")
