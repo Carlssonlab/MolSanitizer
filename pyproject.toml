@@ -52,7 +52,7 @@ packages = ["msani"]
 [tool.scikit-build]
 # Configure CMake build for all C++ extensions
 cmake.source-dir = "."
-cmake.minimum-version = "3.16"
+cmake.version = ">=3.16"
 cmake.args = [
     "-DCMAKE_PREFIX_PATH=$CONDA_PREFIX",
     "-DCMAKE_FIND_ROOT_PATH=$CONDA_PREFIX",
