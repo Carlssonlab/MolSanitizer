@@ -76,9 +76,9 @@ if(RESULT EQUAL 0)
         message(STATUS "Using C++20 for RDKit version ${RDKIT_VERSION}")
     endif()
 else()
-    # Fallback to C++17 if Python detection fails
-    set(CMAKE_CXX_STANDARD 17)
-    message(STATUS "Could not detect RDKit version via Python, defaulting to C++17")
+    # Fallback to C++20 if Python detection fails
+    set(CMAKE_CXX_STANDARD 20)
+    message(STATUS "Could not detect RDKit version via Python, defaulting to C++20")
 endif()
 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)

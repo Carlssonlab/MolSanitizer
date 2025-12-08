@@ -76,8 +76,8 @@ if(RESULT EQUAL 0)
         message(STATUS "Using C++20 for RDKit version ${RDKIT_VERSION}")
     endif()
 else()
-    message(WARNING "Could not detect RDKit version via Python, defaulting to C++17")
-    set(CMAKE_CXX_STANDARD 17)
+    message(WARNING "Could not detect RDKit version via Python, defaulting to C++20")
+    set(CMAKE_CXX_STANDARD 20)
 endif()
 
 # For static linking and portability - MUST be set before any targets are created
