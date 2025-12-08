@@ -105,7 +105,7 @@ if(MSVC)
     string(REPLACE "/Ob2" "" CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /O2 /Ob2 /DNDEBUG" CACHE STRING "" FORCE)
     # Use target-specific flags instead of global add_compile_options to avoid conflicts
-    set(MSVC_COMPILE_FLAGS /W3 /EHsc /bigobj)
+    set(MSVC_COMPILE_FLAGS /W3 /EHsc /bigobj /Zc:__cplusplus)
     # Define BOOST_NO_EXCEPTIONS=0 to ensure Boost exception handling is enabled
     add_compile_definitions(BOOST_NO_EXCEPTIONS=0)
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
