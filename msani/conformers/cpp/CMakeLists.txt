@@ -49,6 +49,8 @@ message(STATUS "Python executable: ${Python3_EXECUTABLE}")
 if(WIN32)
     set(PYTHON_PATH_SEP ";")
     set(RDKIT_SITE_PACKAGES "${RDKit_ROOT_DIR}/Lib/site-packages")
+    # Ensure RDKit DLLs are in PATH for the import to work
+    set(ENV{PATH} "${RDKit_ROOT_DIR}/Library/bin;$ENV{PATH}")
 else()
     set(PYTHON_PATH_SEP ":")
     set(RDKIT_SITE_PACKAGES "${RDKit_ROOT_DIR}/lib/python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}/site-packages")
