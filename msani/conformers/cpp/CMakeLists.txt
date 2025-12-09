@@ -46,9 +46,19 @@ message(STATUS "Python executable: ${Python3_EXECUTABLE}")
 
 # Try to detect RDKit version using Python to determine C++ standard
 # Add explicit PYTHONPATH from conda environment to ensure rdkit can be found
-set(ENV{PYTHONPATH} "${RDKit_ROOT_DIR}/lib/python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}/site-packages:${PYTHON_SITE_PACKAGES}:$ENV{PYTHONPATH}")
+if(WIN32)
+    set(PYTHON_PATH_SEP ";")
+    set(RDKIT_SITE_PACKAGES "${RDKit_ROOT_DIR}/Lib/site-packages")
+    # Ensure RDKit DLLs are in PATH for the import to work
+    set(ENV{PATH} "${RDKit_ROOT_DIR}/Library/bin;$ENV{PATH}")
+else()
+    set(PYTHON_PATH_SEP ":")
+    set(RDKIT_SITE_PACKAGES "${RDKit_ROOT_DIR}/lib/python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}/site-packages")
+endif()
+
+set(ENV{PYTHONPATH} "${RDKIT_SITE_PACKAGES}${PYTHON_PATH_SEP}${PYTHON_SITE_PACKAGES}${PYTHON_PATH_SEP}$ENV{PYTHONPATH}")
 execute_process(
-    COMMAND ${Python3_EXECUTABLE} -c "import sys; sys.path.insert(0, '${RDKit_ROOT_DIR}/lib/python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}/site-packages'); sys.path.insert(0, '${PYTHON_SITE_PACKAGES}'); import rdkit; print(rdkit.__version__)"
+    COMMAND ${Python3_EXECUTABLE} -c "import sys; sys.path.insert(0, '${RDKIT_SITE_PACKAGES}'); sys.path.insert(0, '${PYTHON_SITE_PACKAGES}'); import rdkit; print(rdkit.__version__)"
     OUTPUT_VARIABLE RDKIT_VERSION
     OUTPUT_STRIP_TRAILING_WHITESPACE
     RESULT_VARIABLE RESULT
@@ -66,9 +76,9 @@ if(RESULT EQUAL 0)
         message(STATUS "Using C++20 for RDKit version ${RDKIT_VERSION}")
     endif()
 else()
-    # Fallback to C++17 if Python detection fails
-    set(CMAKE_CXX_STANDARD 17)
-    message(STATUS "Could not detect RDKit version via Python, defaulting to C++17")
+    # Fallback to C++20 if Python detection fails
+    set(CMAKE_CXX_STANDARD 20)
+    message(STATUS "Could not detect RDKit version via Python, defaulting to C++20")
 endif()
 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -76,7 +86,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Detect whether RDKit was built with thread-safe substructure search support
 set(RDK_THREADSAFE_SSS OFF)
 execute_process(
-    COMMAND ${Python3_EXECUTABLE} -c "import sys; sys.path.insert(0, '${RDKit_ROOT_DIR}/lib/python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}/site-packages'); sys.path.insert(0, '${PYTHON_SITE_PACKAGES}'); from rdkit import rdBase; print('ON' if getattr(rdBase, '_multithreadedEnabled', False) else 'OFF')"
+    COMMAND ${Python3_EXECUTABLE} -c "import sys; sys.path.insert(0, '${RDKIT_SITE_PACKAGES}'); sys.path.insert(0, '${PYTHON_SITE_PACKAGES}'); from rdkit import rdBase; print('ON' if getattr(rdBase, '_multithreadedEnabled', False) else 'OFF')"
     OUTPUT_VARIABLE RDK_THREADSAFE_FLAG
     OUTPUT_STRIP_TRAILING_WHITESPACE
     RESULT_VARIABLE RDK_THREADSAFE_RESULT
@@ -105,7 +115,7 @@ if(MSVC)
     string(REPLACE "/Ob2" "" CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /O2 /Ob2 /DNDEBUG" CACHE STRING "" FORCE)
     # Use target-specific flags instead of global add_compile_options to avoid conflicts
-    set(MSVC_COMPILE_FLAGS /W3 /EHsc /bigobj)
+    set(MSVC_COMPILE_FLAGS /W3 /EHsc /bigobj /Zc:__cplusplus)
     # Define BOOST_NO_EXCEPTIONS=0 to ensure Boost exception handling is enabled
     add_compile_definitions(BOOST_NO_EXCEPTIONS=0)
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")

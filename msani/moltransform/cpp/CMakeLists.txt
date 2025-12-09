@@ -1,9 +1,84 @@
 cmake_minimum_required(VERSION 3.16)
 project(msani_stereoisomers)
 
-# Set C++ standard based on RDKit version
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
+# Always find the Python interpreter from the build environment
+find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
+
+# Find RDKit root (Conda on Windows uses Library/*)
+set(RDKit_ROOT_DIR "$ENV{RDBASE}")
+if(NOT RDKit_ROOT_DIR)
+    set(RDKit_ROOT_DIR "$ENV{CONDA_PREFIX}")
+endif()
+
+# Fallback: derive environment root from Python's sys.prefix if still empty
+if(NOT RDKit_ROOT_DIR)
+    execute_process(
+        COMMAND ${Python3_EXECUTABLE} -c "import sys; print(sys.prefix)"
+        OUTPUT_VARIABLE _PY_SYS_PREFIX
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
+    )
+    if(_PY_SYS_PREFIX)
+        set(RDKit_ROOT_DIR "${_PY_SYS_PREFIX}")
+    endif()
+endif()
+
+# Help CMake find Conda-provided CMake packages (RDKitConfig.cmake, pybind11Config.cmake)
+if(RDKit_ROOT_DIR)
+    list(PREPEND CMAKE_PREFIX_PATH
+        "${RDKit_ROOT_DIR}"
+        "${RDKit_ROOT_DIR}/Library"
+        "${RDKit_ROOT_DIR}/Library/lib/cmake"
+        "${RDKit_ROOT_DIR}/lib/cmake"
+    )
+endif()
+
+# Try to get Python's site-packages path
+execute_process(
+    COMMAND ${Python3_EXECUTABLE} -c "import sys; import sysconfig; print(sysconfig.get_path('purelib'))"
+    OUTPUT_VARIABLE PYTHON_SITE_PACKAGES
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    ERROR_QUIET
+)
+message(STATUS "Python site-packages: ${PYTHON_SITE_PACKAGES}")
+message(STATUS "RDKit root directory: ${RDKit_ROOT_DIR}")
+message(STATUS "Python executable: ${Python3_EXECUTABLE}")
+
+# Try to detect RDKit version using Python to determine C++ standard
+# Add explicit PYTHONPATH from conda environment to ensure rdkit can be found
+if(WIN32)
+    set(PYTHON_PATH_SEP ";")
+    set(RDKIT_SITE_PACKAGES "${RDKit_ROOT_DIR}/Lib/site-packages")
+    # Ensure RDKit DLLs are in PATH for the import to work
+    set(ENV{PATH} "${RDKit_ROOT_DIR}/Library/bin;$ENV{PATH}")
+else()
+    set(PYTHON_PATH_SEP ":")
+    set(RDKIT_SITE_PACKAGES "${RDKit_ROOT_DIR}/lib/python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}/site-packages")
+endif()
+
+set(ENV{PYTHONPATH} "${RDKIT_SITE_PACKAGES}${PYTHON_PATH_SEP}${PYTHON_SITE_PACKAGES}${PYTHON_PATH_SEP}$ENV{PYTHONPATH}")
+execute_process(
+    COMMAND ${Python3_EXECUTABLE} -c "import sys; sys.path.insert(0, '${RDKIT_SITE_PACKAGES}'); sys.path.insert(0, '${PYTHON_SITE_PACKAGES}'); import rdkit; print(rdkit.__version__)"
+    OUTPUT_VARIABLE RDKIT_VERSION
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    RESULT_VARIABLE RESULT
+    ERROR_QUIET
+)
+if(RESULT EQUAL 0)
+    message(STATUS "Detected RDKit version via Python: ${RDKIT_VERSION}")
+    # Set C++ standard based on RDKit version
+    # RDKit <= 2025.3.1: C++17, > 2025.3.1: C++20
+    if(RDKIT_VERSION VERSION_LESS_EQUAL "2025.3.1")
+        set(CMAKE_CXX_STANDARD 17)
+        message(STATUS "Using C++17 for RDKit version ${RDKIT_VERSION}")
+    else()
+        set(CMAKE_CXX_STANDARD 20)
+        message(STATUS "Using C++20 for RDKit version ${RDKIT_VERSION}")
+    endif()
+else()
+    message(WARNING "Could not detect RDKit version via Python, defaulting to C++20")
+    set(CMAKE_CXX_STANDARD 20)
+endif()
 
 # For static linking and portability - MUST be set before any targets are created
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
@@ -21,7 +96,7 @@ if(MSVC)
     string(REPLACE "/Ob2" "" CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /O2 /Ob2 /DNDEBUG" CACHE STRING "" FORCE)
     # Use target-specific flags instead of global add_compile_options to avoid conflicts
-    set(MSVC_COMPILE_FLAGS /W3 /EHsc /bigobj)
+    set(MSVC_COMPILE_FLAGS /W3 /EHsc /bigobj /Zc:__cplusplus)
     # Define BOOST_NO_EXCEPTIONS=0 to ensure Boost exception handling is enabled
     add_compile_definitions(BOOST_NO_EXCEPTIONS=0)
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")

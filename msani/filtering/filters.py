@@ -493,7 +493,7 @@ class Filters():
         """
         # Set up the PAINS catalog
         from rdkit.Chem.FilterCatalog import FilterCatalog, FilterCatalogParams
-        if rdBase.rdkitVersion != '2024.09.1':
+        if rdBase.rdkitVersion < '2025.09.3':
             print('\nThe warning is expected and can be ignored.\n')
         params = FilterCatalogParams()
         params.AddCatalog(FilterCatalogParams.FilterCatalogs.PAINS)

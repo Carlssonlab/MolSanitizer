@@ -14,8 +14,8 @@
 #include <RDGeneral/export.h>
 
 // Define export macro if not already defined
-#ifndef RDKIT_ENUMERATESTEREOISOMERS_EXPORT
-#define RDKIT_ENUMERATESTEREOISOMERS_EXPORT
+#ifndef MSANI_ENUMERATESTEREOISOMERS_EXPORT
+#define MSANI_ENUMERATESTEREOISOMERS_EXPORT
 #endif
 
 #include <GraphMol/Atom.h>
@@ -30,7 +30,7 @@ namespace details {
 // called in the Python, but in fact they set a particular
 // stereochemistry at a centre according to whether a bool is
 // true or not.  Setters would be a more accurate name.
-struct RDKIT_ENUMERATESTEREOISOMERS_EXPORT Flipper {
+struct MSANI_ENUMERATESTEREOISOMERS_EXPORT Flipper {
  public:
   Flipper() = default;
   Flipper(const Flipper &other) = delete;
@@ -44,7 +44,7 @@ struct RDKIT_ENUMERATESTEREOISOMERS_EXPORT Flipper {
   virtual void flip(bool flag) = 0;
 };
 
-struct RDKIT_ENUMERATESTEREOISOMERS_EXPORT AtomFlipper : public Flipper {
+struct MSANI_ENUMERATESTEREOISOMERS_EXPORT AtomFlipper : public Flipper {
  public:
   AtomFlipper() = delete;
   AtomFlipper(RWMol &mol, const Chirality::StereoInfo &si);
@@ -59,7 +59,7 @@ struct RDKIT_ENUMERATESTEREOISOMERS_EXPORT AtomFlipper : public Flipper {
   Atom *dp_atom{nullptr};
 };
 
-struct RDKIT_ENUMERATESTEREOISOMERS_EXPORT BondFlipper : public Flipper {
+struct MSANI_ENUMERATESTEREOISOMERS_EXPORT BondFlipper : public Flipper {
  public:
   BondFlipper() = delete;
   // This c'tor may leave dp_bond as a nullptr if the bond
@@ -76,7 +76,7 @@ struct RDKIT_ENUMERATESTEREOISOMERS_EXPORT BondFlipper : public Flipper {
   Bond *dp_bond{nullptr};
 };
 
-struct RDKIT_ENUMERATESTEREOISOMERS_EXPORT StereoGroupFlipper : public Flipper {
+struct MSANI_ENUMERATESTEREOISOMERS_EXPORT StereoGroupFlipper : public Flipper {
  public:
   StereoGroupFlipper() = delete;
   StereoGroupFlipper(const StereoGroup &sg);
@@ -91,7 +91,7 @@ struct RDKIT_ENUMERATESTEREOISOMERS_EXPORT StereoGroupFlipper : public Flipper {
   std::vector<std::pair<Atom *, Atom::ChiralType>> d_original_parities;
 };
 
-struct RDKIT_ENUMERATESTEREOISOMERS_EXPORT AtropisomerFlipper : public Flipper {
+struct MSANI_ENUMERATESTEREOISOMERS_EXPORT AtropisomerFlipper : public Flipper {
  public:
   AtropisomerFlipper() = delete;
   AtropisomerFlipper(RWMol &mol, const Chirality::StereoInfo &si);

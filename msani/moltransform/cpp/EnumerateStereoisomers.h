@@ -16,8 +16,8 @@
 #define RD_ENUMERATESTEREOISOMERS_H
 
 // Define export macro if not already defined
-#ifndef RDKIT_ENUMERATESTEREOISOMERS_EXPORT
-#define RDKIT_ENUMERATESTEREOISOMERS_EXPORT
+#ifndef MSANI_ENUMERATESTEREOISOMERS_EXPORT
+#define MSANI_ENUMERATESTEREOISOMERS_EXPORT
 #endif
 
 #include "Flippers.h"
@@ -34,7 +34,7 @@
 namespace RDKit {
 namespace EnumerateStereoisomers {
 
-struct RDKIT_ENUMERATESTEREOISOMERS_EXPORT StereoEnumerationOptions {
+struct MSANI_ENUMERATESTEREOISOMERS_EXPORT StereoEnumerationOptions {
   bool tryEmbedding{false};   // If true, the process attempts to generate
                               // a standard RDKit distance geometry
                               // conformation for the stereoisomer.  If this
@@ -67,7 +67,7 @@ struct RDKIT_ENUMERATESTEREOISOMERS_EXPORT StereoEnumerationOptions {
 // Class that enumerates the stereoisomers of a molecule.  Acts like a
 // Python generator so in principle has no limit on the number of stereoisomers
 // it can produce.
-class RDKIT_ENUMERATESTEREOISOMERS_EXPORT StereoisomerEnumerator {
+class MSANI_ENUMERATESTEREOISOMERS_EXPORT StereoisomerEnumerator {
  public:
   StereoisomerEnumerator() = delete;
   StereoisomerEnumerator(
