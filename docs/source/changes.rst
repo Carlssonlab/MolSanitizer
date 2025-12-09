@@ -27,6 +27,9 @@ All notable changes to this project will be documented in this file.
 🐛 Bug Fixes
 ~~~~~~~~~~~~
 
+-  Prevent stereochemistry reassignment during tautomerization. This
+   helps MolSanitizer supports any RDKit >= 2024.09.3 -
+   (`456c8f4 <https://github.com/phonglam3103/MolSanitizer/commit/456c8f40a5dd83fe6c2f7f6542ea5a74c9a83b4f>`__)
 -  Fix a bug that the simultaneous flags –stereoisomers and –gen3d turns
    off the stereoisomer enumeration. -
    (`89e2981 <https://github.com/phonglam3103/MolSanitizer/commit/89e2981d89f62595727da1ef301adc3000baf7cb>`__)
