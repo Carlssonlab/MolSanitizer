@@ -56,7 +56,7 @@ jobs:
       - name: Install in editable mode (Unix)
         if: runner.os != 'Windows'
         shell: bash -l {0}
-        run: pip install -e .
+        run: pip install -e . -v
 
 
       - name: Set up Visual Studio (Windows)
@@ -66,7 +66,7 @@ jobs:
       - name: Install in editable mode (Windows)
         if: runner.os == 'Windows'
         shell: powershell
-        run: micromamba run -n msani pip install -e .
+        run: micromamba run -n msani pip install -e . -v
 
       - name: Run unittests (Unix)
         if: runner.os != 'Windows'
@@ -120,12 +120,12 @@ jobs:
   #     - name: Install in editable mode (Unix)
   #       if: runner.os != 'Windows'
   #       shell: bash -l {0}
-  #       run: pip install -e .
+  #       run: pip install -e . -v
 
   #     - name: Install in editable mode (Windows)
   #       if: runner.os == 'Windows'
   #       shell: powershell
-  #       run: micromamba run -n msani pip install -e .
+  #       run: micromamba run -n msani pip install -e . -v
 
   #     - name: Run unittests (Unix)
   #       if: runner.os != 'Windows'
