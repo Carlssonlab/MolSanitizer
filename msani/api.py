@@ -62,11 +62,11 @@ class Msani:
                 debug = False):
 
         self.removesalts = removesalts
-        self.ha = ha
-        self.logp = logp
-        self.hba = hba
-        self.hbd = hbd
-        self.mw = mw
+        self.ha = str(ha) if ha is not None else None
+        self.logp = str(logp) if logp is not None else None
+        self.hba = str(hba) if hba is not None else None
+        self.hbd = str(hbd) if hbd is not None else None
+        self.mw = str(mw) if mw is not None else None
         self.custom = custom
         self.unwanted = [word.title() for word in unwanted if isinstance(word, str)] if unwanted is not None else None
         self.pains = pains
@@ -132,7 +132,6 @@ class Msani:
 
         if self.tautomers or self.protonation:
             df.loc[:, 'original_idx'] = df.index
-            
         if self.tautomers: 
             tautomerizer = Tautomerizer(smartsFile = self.tautomer_library,
                                         taurdkit = self.taurdkit, 
@@ -140,7 +139,6 @@ class Msani:
                                         neutralize = False,
                                         numcores = self.numcores) # Already neutralized
             df = tautomerizer.tautomerize_df(df)
-
         if self.pains: df = Filters.painsFilter(df,
                                                 rejectedFile = rejected_file,
                                                 debug = self.debug)
@@ -156,7 +154,6 @@ class Msani:
                                       rejectedFile = rejected_file,
                                       smartsFile = self.custom,
                                       debug = self.debug)
-            
         if self.protonation: 
             ionizer = Ionizer(smartsFile = self.protonation_library,
                               pH = self.pH,
