@@ -1,6 +1,5 @@
 import logging
 from pathlib import Path
-from msani.filtering.filters import loadSMARTSdata
 import os
 logger = logging.getLogger('msani')
 

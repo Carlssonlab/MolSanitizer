@@ -111,8 +111,21 @@ class Filters():
         self.hbd = hbd
         self.mw = mw
         self.chiral = chiral
+
         self.custom = custom
         self.unwanted = unwanted
+
+        if self.custom is not None or self.unwanted is not None:
+            if self.custom: temp_df_custom = loadSMARTSdata(self.custom)
+            if self.unwanted:
+                smartsFile = Path(__file__).parent / 'Data' / 'filter_out.txt'
+                temp_df_unwanted = loadSMARTSdata(smartsFile.resolve(), self.unwanted)
+            self.unwanted_df = pd.concat([temp_df_custom, temp_df_unwanted]) if self.custom and self.unwanted \
+                else temp_df_custom if self.custom else temp_df_unwanted
+            logger.info(f"Loaded {len(self.unwanted_df)} SMARTS patterns for unwanted filtering.")
+        else:
+            self.unwanted_df = None
+
         self.pains = pains
         self.rejectedFile = rejectedFile
 
@@ -533,8 +546,6 @@ class Filters():
             first_line = file.readline().strip().upper()
             return 'SMARTS' in first_line
         
-    @staticmethod
-    
 
     @staticmethod
     def filterbysmarts(mol, smarts_df: DataFrame) -> str:
@@ -544,31 +555,35 @@ class Filters():
         return 'OK'
     
     @staticmethod
-    def unwantedFilter(df: DataFrame, rejectedFile, unwanted_option, debug = False) -> DataFrame:
+    def unwantedFilter(df: DataFrame, rejectedFile, unwanted_option = None, unwanted_df: DataFrame = None, debug = False) -> DataFrame:
         """Filter out unwanted substructures using a default list of SMARTS patterns.
 
             Args:
                 df (DataFrame): Input DataFrame with 'mol' column containing RDKit molecule objects.
                 rejectedFile (str): Path to the file to save rejected molecules.
-                unwanted_option (list): The mode input by thle user.
+                unwanted_option (list): The mode input by the user.
+                unwanted_df (DataFrame): DataFrame containing the SMARTS patterns and their corresponding RDKit molecule objects.
                 debug (bool, optional): Debug mode. Defaults to False.
 
             Returns:
                 DataFrame: A new DataFrame chunk with molecules that passed the filter.
         """
-        # Get the absolute path to the template SMARTS file using pathlib
-        smartsFile = Path(__file__).parent.parent / 'Data' / 'filter_out.txt'
+        if unwanted_df is None:
+            # Backward compatible, if the user already provide the DataFrame, then use it
+            # Get the absolute path to the template SMARTS file using pathlib
+            smartsFile = Path(__file__).parent.parent / 'Data' / 'filter_out.txt'
 
-        # Load smarts to clean  from file
-        unwanted_df = loadSMARTSdata(smartsFile.resolve(), unwanted_option)
-        logger.info(f'Parsed {len(unwanted_df)} substructures from: {smartsFile}')
+            # Load smarts to clean  from file
+            unwanted_df = loadSMARTSdata(smartsFile.resolve(), unwanted_option)
+            logger.info(f'Parsed {len(unwanted_df)} substructures from: {smartsFile}')
+
         # Apply reactions to each SMILES in the DataFrame
         df_clean = df.copy()
         df_clean['reason'] = df['mol'].apply(lambda x: Filters.filterbysmarts(x, unwanted_df))
         rejected_df=df_clean[df_clean['reason']!='OK']
         if debug:
-            logger.info(f"Removed {len(rejected_df)} molecules with unwanted substructures: {set(rejected_df['reason'].values)}")
-            print(f"Removed {len(rejected_df)} molecules with unwanted substructures: {set(rejected_df['reason'].values)}")
+            logger.info(f"Removed {len(rejected_df)} molecules with unwanted substructures")
+            print(f"Removed {len(rejected_df)} molecules with unwanted substructures")
         rejected_df.to_csv(rejectedFile, index=False, mode='a', columns=['smiles','ids','reason'], sep = ' ', header=False)
         return df_clean[df_clean['reason']=='OK']
 
@@ -587,8 +602,8 @@ class Filters():
             DataFrame: A new DataFrame chunk with molecules that passed the filter.
         """
         # Load smarts to clean  from file
-        unwanted_df = loadSMARTSdata(smartsFile)
-        logger.info(f'Parsed {len(unwanted_df)} custom substructures from: {smartsFile}')
+        unwanted_df = loadSMARTSdata(smartsFile.resolve())
+        if debug: logger.info(f'Parsed {len(unwanted_df)} custom substructures from: {smartsFile}')
 
         # Apply reactions to each SMILES in the DataFrame
         df_clean = df.copy()
@@ -622,10 +637,14 @@ class Filters():
             df = Filters.filter_by_mw(df, self.mw, rejectedFile, debug)
         if self.chiral:
             df = Filters.filter_by_chiralcenters(df, self.chiral, rejectedFile, debug)
-        if self.custom:
-            df = Filters.customFilter(df, rejectedFile, self.custom, debug)
-        if self.unwanted:
-            df = Filters.unwantedFilter(df, rejectedFile, self.unwanted, debug)
+        if self.unwanted_df is not None:
+            df = Filters.unwantedFilter(
+                df, 
+                rejectedFile, 
+                unwanted_option=None, 
+                unwanted_df=self.unwanted_df, 
+                debug=debug
+            )
         if self.pains:
             df = Filters.painsFilter(df, rejectedFile, debug)
         return df

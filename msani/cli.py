@@ -40,16 +40,7 @@ def process_enamine_name(chunk):
     chunk['smiles'] = chunk['smiles'].apply(lambda x: x.split()[0])
     return chunk
 
-def apply_processes(chunk, args, rejected_file):
-    processor = Msani(
-        removesalts=args.removesalts, custom= args.custom, unwanted=args.unwanted,
-        pains=args.pains, ha=args.ha, logp=args.logp, hba=args.hba, hbd=args.hbd, 
-        mw=args.mw, chiral = args.chiral, tautomers=args.tautomers, taurdkit=args.taurdkit, 
-        neutralize=args.neutralize, stereoisomers=args.stereoisomers, 
-        max_stereoisomers=args.max_isomers, protonation=args.protonation, pH=args.pH, 
-        pH_range=args.pH_range, numcores=args.numcores, randomSeed=args.randomSeed, 
-        standardize=args.standardize, protonation_library=args.protlib, tautomer_library=args.taulib,  
-        debug=args.debug)
+def apply_processes(chunk, processor, rejected_file):
     chunk = processor.run(chunk, rejected_file)
     return chunk
 
@@ -119,7 +110,7 @@ def read_input_file(input_file, is_enamine, is_synthon):
             dtype={'smiles': str, 'ids': str}  # Enforce string types
         )
     
-def process_files(args, start_time: int):
+def process_files(processor: Msani, args, start_time: int):
     if args.standardize:
         logger.warning('standardize predictor format preparation selected. Will skip all other flags and only standardize the molecules using RDKit default functions.')
 
@@ -133,8 +124,7 @@ def process_files(args, start_time: int):
         df_input = read_input_file(input_file, args.extended, args.synthon)
 
         for step, chunk in enumerate(df_input, start=1):
-            # if args.enamine: chunk = process_enamine_name(chunk)
-            chunk = apply_processes(chunk, args, rejected_file)
+            chunk = apply_processes(chunk, processor, rejected_file)
             if not chunk.empty:
                 if args.synthon and not(args.standardize):
                     chunk.to_csv(output_file,
@@ -162,9 +152,9 @@ def process_files(args, start_time: int):
                     log_step_time(time.time()-start_time, 2)
                 elif step > 2:
                     log_step_time(time.time()-start_time, step)
-                start_time = time.time()
+                
 
-def process_smiles(args):
+def process_smiles(processor: Msani, args):
     rejected_file = "msani_rejected.txt"
     smiles_list, mols, names = [], [], []
     for idx, smiles in enumerate(args.smiles):
@@ -179,7 +169,7 @@ def process_smiles(args):
         names.append(name)
     chunk = DataFrame({'smiles': smiles_list, 'ids': names, 'mol': mols})
     
-    chunk = apply_processes(chunk, args, rejected_file)
+    chunk = apply_processes(chunk, processor, rejected_file)
 
     if args.gen3d:
         from msani.conformers import conformers
@@ -193,11 +183,20 @@ def process_smiles(args):
 def clean_data(args):
     start_time = time.time()
     rdkit_version = rdBase.rdkitVersion
-    logger.info(f'RDKit version: {rdkit_version}')        
+    logger.info(f'RDKit version: {rdkit_version}') 
+    processor = Msani(
+        removesalts=args.removesalts, custom= args.custom, unwanted=args.unwanted,
+        pains=args.pains, ha=args.ha, logp=args.logp, hba=args.hba, hbd=args.hbd, 
+        mw=args.mw, chiral = args.chiral, tautomers=args.tautomers, taurdkit=args.taurdkit, 
+        neutralize=args.neutralize, stereoisomers=args.stereoisomers, 
+        max_stereoisomers=args.max_isomers, protonation=args.protonation, pH=args.pH, 
+        pH_range=args.pH_range, numcores=args.numcores, randomSeed=args.randomSeed, 
+        standardize=args.standardize, protonation_library=args.protlib, tautomer_library=args.taulib,  
+        debug=args.debug)       
     if args.smiles:
-        process_smiles(args)
+        process_smiles(processor, args)
     elif args.input_files:
-        process_files(args, start_time)
+        process_files(processor, args, start_time)
 
     log_execution_time(start_time, args.test)
 
