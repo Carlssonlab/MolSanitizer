@@ -412,7 +412,7 @@ def _process_ionization_rows(df, ionizer, smiles_column, mol_column, name_column
     """
     results = []
     for _, row in df.iterrows():
-        highlights = row.get('highlights', None)
+        longname = row.get('longname', None)
         original_idx = row.get('original_idx', None)  # For debugging purposes
         protonated_smiles = ionizer.ionize(mol=row[mol_column])
 
@@ -420,7 +420,7 @@ def _process_ionization_rows(df, ionizer, smiles_column, mol_column, name_column
             results.append({name_column: row[name_column],
                             mol_column: Chem.MolFromSmiles(smiles),
                             smiles_column: smiles,
-                            'highlights': highlights,
+                            'longname': longname,
                             'original_idx': original_idx})
     
     return results

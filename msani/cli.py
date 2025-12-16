@@ -82,11 +82,11 @@ def read_input_file(input_file, is_enamine, is_synthon):
         return read_csv(
             input_file,
             sep=r'\s+',
-            names=['smiles', 'ids', 'highlights'],
+            names=['smiles', 'ids', 'longname'],
             usecols=[0, 1, 2],
             header=None,
             chunksize=250_000,
-            dtype={'smiles': str, 'ids': str, 'highlights': str}  # Enforce string types
+            dtype={'smiles': str, 'ids': str, 'longname': str}  # Enforce string types
         )
     if is_enamine:
         logger.info('Using Enamine format for parsing')
@@ -130,7 +130,7 @@ def process_files(processor: Msani, args, start_time: int):
                     chunk.to_csv(output_file,
                                  index=False,
                                  mode='a',
-                                 columns=['smiles', 'ids', 'highlights'],
+                                 columns=['smiles', 'ids', 'longname'],
                                  header=False,
                                  sep=' ')
                 else:
