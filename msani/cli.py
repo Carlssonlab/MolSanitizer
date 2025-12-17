@@ -110,7 +110,7 @@ def read_input_file(input_file, is_enamine, is_synthon):
             dtype={'smiles': str, 'ids': str}  # Enforce string types
         )
     
-def process_files(processor: Msani, args, start_time: int):
+def process_files(processor: Msani, args):
     if args.standardize:
         logger.warning('standardize predictor format preparation selected. Will skip all other flags and only standardize the molecules using RDKit default functions.')
 
@@ -124,6 +124,7 @@ def process_files(processor: Msani, args, start_time: int):
         df_input = read_input_file(input_file, args.extended, args.synthon)
 
         for step, chunk in enumerate(df_input, start=1):
+            new_start_time = time.time()
             chunk = apply_processes(chunk, processor, rejected_file)
             if not chunk.empty:
                 if args.synthon and not(args.standardize):
@@ -146,12 +147,14 @@ def process_files(processor: Msani, args, start_time: int):
                 conformers.gen_conf_chunk(chunk, args, input_file_path.stem)
             
             if not args.test:
-                if step == 1: time_step1 = time.time()-start_time
+                if step == 1: 
+                    time_step1 = time.time()-new_start_time
+                # Only log time for step 1 if there are more than 1 chunk, otherwise it will be logged in the whole program level
                 if step == 2:
                     log_step_time(time_step1, 1)
-                    log_step_time(time.time()-start_time, 2)
+                    log_step_time(time.time()-new_start_time, 2)
                 elif step > 2:
-                    log_step_time(time.time()-start_time, step)
+                    log_step_time(time.time()-new_start_time, step)
                 
 
 def process_smiles(processor: Msani, args):
@@ -196,7 +199,7 @@ def clean_data(args):
     if args.smiles:
         process_smiles(processor, args)
     elif args.input_files:
-        process_files(processor, args, start_time)
+        process_files(processor, args)
 
     log_execution_time(start_time, args.test)
 
