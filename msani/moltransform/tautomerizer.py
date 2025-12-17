@@ -531,7 +531,7 @@ def _process_tautomer_rows(df, tautomerizer, smiles_column, mol_column, name_col
     results = []
     for _, row in df.iterrows():
         mol = row[mol_column]
-        highlights = row.get('highlights', None)
+        longname = row.get('longname', None)
         original_idx = row.get('original_idx', None)  # For debugging purposes
         tautomers_smiles = tautomerizer.tautomerize(mol=mol, name = row[name_column])
 
@@ -540,7 +540,7 @@ def _process_tautomer_rows(df, tautomerizer, smiles_column, mol_column, name_col
             results.append({name_column: row[name_column],
                             mol_column: Chem.MolFromSmiles(tautomer),
                             smiles_column: tautomer,
-                            'highlights': highlights,
+                            'longname': longname,
                             'original_idx': original_idx
                             })
 

@@ -1,12 +1,10 @@
 import logging
-import multiprocessing as mp
-from functools import partial
 
 from rdkit import Chem, RDLogger
-from rdkit.Chem.EnumerateStereoisomers import EnumerateStereoisomers, StereoEnumerationOptions
-from pandas import DataFrame, Series  # only what you use
+from pandas import DataFrame, Series, concat  # only what you use
+from pathlib import Path
 
-from msani.filtering.filters import Filters, against_humanity, hold_up
+from msani.filtering.filters import Filters, against_humanity, hold_up, loadSMARTSdata
 from msani.moltransform.tautomerizer import Tautomerizer
 from msani.moltransform.ionizer import Ionizer
 from msani.moltransform.neutralizer import Neutralizer
@@ -67,8 +65,21 @@ class Msani:
         self.hba = str(hba) if hba is not None else None
         self.hbd = str(hbd) if hbd is not None else None
         self.mw = str(mw) if mw is not None else None
+
         self.custom = custom
         self.unwanted = [word.title() for word in unwanted if isinstance(word, str)] if unwanted is not None else None
+
+        if self.custom is not None or self.unwanted is not None:
+            if self.custom: temp_df_custom = loadSMARTSdata(self.custom)
+            if self.unwanted:
+                smartsFile = Path(__file__).parent / 'Data' / 'filter_out.txt'
+                temp_df_unwanted = loadSMARTSdata(smartsFile.resolve(), self.unwanted)
+            self.unwanted_df = concat([temp_df_custom, temp_df_unwanted]) if self.custom and self.unwanted \
+                else temp_df_custom if self.custom else temp_df_unwanted
+            logger.info(f"Loaded {len(self.unwanted_df)} SMARTS patterns for unwanted filtering.")
+        else:
+            self.unwanted_df = None
+
         self.pains = pains
         self.chiral = chiral
         
@@ -143,17 +154,13 @@ class Msani:
                                                 rejectedFile = rejected_file,
                                                 debug = self.debug)
             
-        if self.unwanted is not None: 
+        # We already gathered the unwanted SMARTS patterns in the constructor
+        if self.unwanted_df is not None: 
             df = Filters.unwantedFilter(df,
                                         rejectedFile = rejected_file,
-                                        unwanted_option = self.unwanted,
+                                        unwanted_df = self.unwanted_df,
                                         debug = self.debug)
-            
-        if self.custom is not None: 
-            df = Filters.customFilter(df,
-                                      rejectedFile = rejected_file,
-                                      smartsFile = self.custom,
-                                      debug = self.debug)
+
         if self.protonation: 
             ionizer = Ionizer(smartsFile = self.protonation_library,
                               pH = self.pH,
