@@ -1,7 +1,7 @@
 import logging
 
 from rdkit import Chem, RDLogger
-from pandas import DataFrame, Series  # only what you use
+from pandas import DataFrame, Series, concat  # only what you use
 from pathlib import Path
 
 from msani.filtering.filters import Filters, against_humanity, hold_up, loadSMARTSdata
@@ -74,7 +74,7 @@ class Msani:
             if self.unwanted:
                 smartsFile = Path(__file__).parent / 'Data' / 'filter_out.txt'
                 temp_df_unwanted = loadSMARTSdata(smartsFile.resolve(), self.unwanted)
-            self.unwanted_df = pd.concat([temp_df_custom, temp_df_unwanted]) if self.custom and self.unwanted \
+            self.unwanted_df = concat([temp_df_custom, temp_df_unwanted]) if self.custom and self.unwanted \
                 else temp_df_custom if self.custom else temp_df_unwanted
             logger.info(f"Loaded {len(self.unwanted_df)} SMARTS patterns for unwanted filtering.")
         else:

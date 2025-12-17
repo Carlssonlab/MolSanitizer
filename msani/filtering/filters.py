@@ -5,7 +5,7 @@ from rdkit.Chem import  SaltRemover, rdMolDescriptors
 from rdkit.Chem.Descriptors import MolLogP
 from rdkit.Chem.MolStandardize import rdMolStandardize
 
-from pandas import DataFrame, read_csv
+from pandas import DataFrame, read_csv, concat
 import logging
 
 logger = logging.getLogger('msani')
@@ -120,7 +120,7 @@ class Filters():
             if self.unwanted:
                 smartsFile = Path(__file__).parent / 'Data' / 'filter_out.txt'
                 temp_df_unwanted = loadSMARTSdata(smartsFile.resolve(), self.unwanted)
-            self.unwanted_df = pd.concat([temp_df_custom, temp_df_unwanted]) if self.custom and self.unwanted \
+            self.unwanted_df = concat([temp_df_custom, temp_df_unwanted]) if self.custom and self.unwanted \
                 else temp_df_custom if self.custom else temp_df_unwanted
             logger.info(f"Loaded {len(self.unwanted_df)} SMARTS patterns for unwanted filtering.")
         else:
@@ -544,8 +544,7 @@ class Filters():
         """
         with open(file_path, 'r') as file:
             first_line = file.readline().strip().upper()
-            return 'SMARTS' in first_line
-        
+            return 'SMARTS' in first_line   
 
     @staticmethod
     def filterbysmarts(mol, smarts_df: DataFrame) -> str:
