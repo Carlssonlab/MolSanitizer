@@ -41,6 +41,9 @@ All notable changes to this project will be documented in this file.
 🚜 Refactor
 ~~~~~~~~~~~
 
+-  Pre-load custom and unwanted substructures in the Filters class. No
+   changes in the syntax of either API or Filters. -
+   (`c30224b <https://github.com/phonglam3103/MolSanitizer/commit/c30224b5aa6e660b9f50d9ab3e5832d048ba1650>`__)
 -  Refactor parser, with safer mechanism for extracting information from
    the yaml file. -
    (`ad3042a <https://github.com/phonglam3103/MolSanitizer/commit/ad3042a97b6b2347f30e5fba56946ea5425bede1>`__)
@@ -56,6 +59,13 @@ All notable changes to this project will be documented in this file.
    StereoIsomerEnumerator in RDKit Python version and can speed up the
    enumerating process. -
    (`cb805eb <https://github.com/phonglam3103/MolSanitizer/commit/cb805eba9a609f8f90026487a0be478bf7accfe0>`__)
+
+🎨 Styling
+~~~~~~~~~~
+
+-  Don’t show warning about “not found any conformations” and do not
+   record “Failed_sampling” to sdf files -
+   (`85218a1 <https://github.com/phonglam3103/MolSanitizer/commit/85218a13e508bba6e6297aafa225536d7c1218ad>`__)
 
 [0.5.0] - 2025-10-18
 --------------------
@@ -395,6 +405,8 @@ All notable changes to this project will be documented in this file.
    aromatic rings. -
    (`c745454 <https://github.com/phonglam3103/MolSanitizer/commit/c745454c8c7093f5389ecde4b883f15bc2e22c3e>`__)
 
+.. _styling-1:
+
 🎨 Styling
 ~~~~~~~~~~
 
@@ -453,7 +465,7 @@ All notable changes to this project will be documented in this file.
    some cases with symmetric ring-substituents. -
    (`435a0df <https://github.com/phonglam3103/MolSanitizer/commit/435a0df74dd47bec831bbd27aa74f92a59554652>`__)
 
-.. _styling-1:
+.. _styling-2:
 
 🎨 Styling
 ~~~~~~~~~~
@@ -555,7 +567,7 @@ All notable changes to this project will be documented in this file.
    only being used for the initial conversion for AMSOL. -
    (`65eed12 <https://github.com/phonglam3103/MolSanitizer/commit/65eed12479d9d31fc11eeb31d0b40061f59fab5a>`__)
 
-.. _styling-2:
+.. _styling-3:
 
 🎨 Styling
 ~~~~~~~~~~
@@ -926,7 +938,7 @@ All notable changes to this project will be documented in this file.
    and symmetrical compounds -
    (`b6a04ad <https://github.com/phonglam3103/MolSanitizer/commit/b6a04ad9adf4f988092b6c5af0eed96aede2deff>`__)
 
-.. _styling-3:
+.. _styling-4:
 
 🎨 Styling
 ~~~~~~~~~~
@@ -977,7 +989,7 @@ All notable changes to this project will be documented in this file.
    steroids, morphine…🔥 -
    (`0ff023e <https://github.com/phonglam3103/MolSanitizer/commit/0ff023ed4ee262100fc8baa67865dd9346b457a4>`__)
 
-.. _styling-4:
+.. _styling-5:
 
 🎨 Styling
 ~~~~~~~~~~
@@ -1053,7 +1065,7 @@ All notable changes to this project will be documented in this file.
 -  *(Documentations for the new batch mode of MolSanitizer)* :fire: -
    (`abe3cfc <https://github.com/phonglam3103/MolSanitizer/commit/abe3cfc707dfb5d7e4e48f299080cf37f6d8c347>`__)
 
-.. _styling-5:
+.. _styling-6:
 
 🎨 Styling
 ~~~~~~~~~~

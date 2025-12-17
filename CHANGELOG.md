@@ -18,12 +18,17 @@ All notable changes to this project will be documented in this file.
 
 ### 🚜 Refactor
 
+- Pre-load custom and unwanted substructures in the Filters class. No changes in the syntax of either API or Filters. - ([c30224b](https://github.com/phonglam3103/MolSanitizer/commit/c30224b5aa6e660b9f50d9ab3e5832d048ba1650))
 - Refactor parser, with safer mechanism for extracting information from the yaml file. - ([ad3042a](https://github.com/phonglam3103/MolSanitizer/commit/ad3042a97b6b2347f30e5fba56946ea5425bede1))
 - Change the option `--max_stereoisomers` to `--max_isomers` in the CLI. Other yaml based file should keep as is. - ([caacf37](https://github.com/phonglam3103/MolSanitizer/commit/caacf3780b205511f16bff8a1d6d4876bdbebba4))
 
 ### ⚡ Performance
 
 - Do not try to embed the molecule when not flipping any stereocenteres. This help to replicate the behavior of StereoIsomerEnumerator in RDKit Python version and can speed up the enumerating process. - ([cb805eb](https://github.com/phonglam3103/MolSanitizer/commit/cb805eba9a609f8f90026487a0be478bf7accfe0))
+
+### 🎨 Styling
+
+- Don't show warning about "not found any conformations" and do not record "Failed_sampling" to sdf files - ([85218a1](https://github.com/phonglam3103/MolSanitizer/commit/85218a13e508bba6e6297aafa225536d7c1218ad))
 
 ## [0.5.0] - 2025-10-18
 
