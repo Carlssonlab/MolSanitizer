@@ -318,7 +318,8 @@ C[NH2+]CC(C)c1ccccc1 Novartis_158
 OC(CNc1cccc[nH+]1)c1ccccc1 Novartis_159_1
 OC(CNc1ccccn1)c1ccccc1 Novartis_159_2
 O=C([O-])c1ccccc1C(=O)[O-] Novartis_160
-CNC(=O)Oc1ccc2c(c1)C1(C)CCN(C)C1N2C Novartis_161
+CNC(=O)Oc1ccc2c(c1)C1(C)CCN(C)C1N2C Novartis_161_1
+CNC(=O)Oc1ccc2c(c1)C1(C)CC[NH+](C)C1N2C Novartis_161_2
 O=C([O-])c1ccccn1 Novartis_162
 CCC1C(=O)OCC1Cc1c[nH+]cn1C Novartis_163_1
 CCC1C(=O)OCC1Cc1cncn1C Novartis_163_2
