@@ -2,7 +2,7 @@
 # Lines start with # or empty lines are skipped.
 # The rules are constructed as: FUNCTIONAL_GROUP	pKa     TYPE	Enumerate	REACTION	REF
 # Only the first 5 columns are necessary.
-# Last update: July 31st, 2025
+# Last update: December 20th, 2025
 
 # FUNCTIONAL_GROUP	pKa	TYPE	Enumerate	REACTION	REF
 #OH-ACIDITY-CARBONYL
