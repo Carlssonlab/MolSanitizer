@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### 🚀 Features
 
+- Update new rules for aminals and tautomerization of furanones (PR #39) - ([3f408bb](https://github.com/phonglam3103/MolSanitizer/commit/3f408bbb716a536a44536974aa38b49d5d6b6985))
 - Add stripalkali method to remove alkali metals from molecules and update saltstripping to handle them. Resolve #33 - ([84f506b](https://github.com/phonglam3103/MolSanitizer/commit/84f506b6b23bb413e5220d87c55eb72f765f8986))
 - New flag `--neutralize` or `-neu` helps to neutralize the database. This option will be turned on by default when using `--removesalts`, `--tatutomers` or `--protonate`. The user could turn it off by usign `--no-neutralize`. - ([135ec8e](https://github.com/phonglam3103/MolSanitizer/commit/135ec8e6cab8f9198ba7e249d00b846aeb604265))
 - The standardize flag now doesn't try to canonicalize the tatuomeric form anymore. We found that TautomerEnumerator.Canonicalize could return tautomers that cannot be transfered back to the given tautomer. Instead, the script only "normalize" the functional groups such as aromatic groups, sulfones, azides to a canonical form. - ([3df8882](https://github.com/phonglam3103/MolSanitizer/commit/3df88828f2c1c6dcf0b7fba9adf0a43da0fb0e1b))
@@ -18,12 +19,17 @@ All notable changes to this project will be documented in this file.
 
 ### 🚜 Refactor
 
+- Pre-load custom and unwanted substructures in the Filters class. No changes in the syntax of either API or Filters. - ([c30224b](https://github.com/phonglam3103/MolSanitizer/commit/c30224b5aa6e660b9f50d9ab3e5832d048ba1650))
 - Refactor parser, with safer mechanism for extracting information from the yaml file. - ([ad3042a](https://github.com/phonglam3103/MolSanitizer/commit/ad3042a97b6b2347f30e5fba56946ea5425bede1))
 - Change the option `--max_stereoisomers` to `--max_isomers` in the CLI. Other yaml based file should keep as is. - ([caacf37](https://github.com/phonglam3103/MolSanitizer/commit/caacf3780b205511f16bff8a1d6d4876bdbebba4))
 
 ### ⚡ Performance
 
 - Do not try to embed the molecule when not flipping any stereocenteres. This help to replicate the behavior of StereoIsomerEnumerator in RDKit Python version and can speed up the enumerating process. - ([cb805eb](https://github.com/phonglam3103/MolSanitizer/commit/cb805eba9a609f8f90026487a0be478bf7accfe0))
+
+### 🎨 Styling
+
+- Don't show warning about "not found any conformations" and do not record "Failed_sampling" to sdf files - ([85218a1](https://github.com/phonglam3103/MolSanitizer/commit/85218a13e508bba6e6297aafa225536d7c1218ad))
 
 ## [0.5.0] - 2025-10-18
 

@@ -40,16 +40,7 @@ def process_enamine_name(chunk):
     chunk['smiles'] = chunk['smiles'].apply(lambda x: x.split()[0])
     return chunk
 
-def apply_processes(chunk, args, rejected_file):
-    processor = Msani(
-        removesalts=args.removesalts, custom= args.custom, unwanted=args.unwanted,
-        pains=args.pains, ha=args.ha, logp=args.logp, hba=args.hba, hbd=args.hbd, 
-        mw=args.mw, chiral = args.chiral, tautomers=args.tautomers, taurdkit=args.taurdkit, 
-        neutralize=args.neutralize, stereoisomers=args.stereoisomers, 
-        max_stereoisomers=args.max_isomers, protonation=args.protonation, pH=args.pH, 
-        pH_range=args.pH_range, numcores=args.numcores, randomSeed=args.randomSeed, 
-        standardize=args.standardize, protonation_library=args.protlib, tautomer_library=args.taulib,  
-        debug=args.debug)
+def apply_processes(chunk, processor, rejected_file):
     chunk = processor.run(chunk, rejected_file)
     return chunk
 
@@ -91,11 +82,11 @@ def read_input_file(input_file, is_enamine, is_synthon):
         return read_csv(
             input_file,
             sep=r'\s+',
-            names=['smiles', 'ids', 'highlights'],
+            names=['smiles', 'ids', 'longname'],
             usecols=[0, 1, 2],
             header=None,
             chunksize=250_000,
-            dtype={'smiles': str, 'ids': str, 'highlights': str}  # Enforce string types
+            dtype={'smiles': str, 'ids': str, 'longname': str}  # Enforce string types
         )
     if is_enamine:
         logger.info('Using Enamine format for parsing')
@@ -119,7 +110,7 @@ def read_input_file(input_file, is_enamine, is_synthon):
             dtype={'smiles': str, 'ids': str}  # Enforce string types
         )
     
-def process_files(args, start_time: int):
+def process_files(processor: Msani, args):
     if args.standardize:
         logger.warning('standardize predictor format preparation selected. Will skip all other flags and only standardize the molecules using RDKit default functions.')
 
@@ -133,14 +124,14 @@ def process_files(args, start_time: int):
         df_input = read_input_file(input_file, args.extended, args.synthon)
 
         for step, chunk in enumerate(df_input, start=1):
-            # if args.enamine: chunk = process_enamine_name(chunk)
-            chunk = apply_processes(chunk, args, rejected_file)
+            new_start_time = time.time()
+            chunk = apply_processes(chunk, processor, rejected_file)
             if not chunk.empty:
                 if args.synthon and not(args.standardize):
                     chunk.to_csv(output_file,
                                  index=False,
                                  mode='a',
-                                 columns=['smiles', 'ids', 'highlights'],
+                                 columns=['smiles', 'ids', 'longname'],
                                  header=False,
                                  sep=' ')
                 else:
@@ -156,15 +147,17 @@ def process_files(args, start_time: int):
                 conformers.gen_conf_chunk(chunk, args, input_file_path.stem)
             
             if not args.test:
-                if step == 1: time_step1 = time.time()-start_time
+                if step == 1: 
+                    time_step1 = time.time()-new_start_time
+                # Only log time for step 1 if there are more than 1 chunk, otherwise it will be logged in the whole program level
                 if step == 2:
                     log_step_time(time_step1, 1)
-                    log_step_time(time.time()-start_time, 2)
+                    log_step_time(time.time()-new_start_time, 2)
                 elif step > 2:
-                    log_step_time(time.time()-start_time, step)
-                start_time = time.time()
+                    log_step_time(time.time()-new_start_time, step)
+                
 
-def process_smiles(args):
+def process_smiles(processor: Msani, args):
     rejected_file = "msani_rejected.txt"
     smiles_list, mols, names = [], [], []
     for idx, smiles in enumerate(args.smiles):
@@ -179,7 +172,7 @@ def process_smiles(args):
         names.append(name)
     chunk = DataFrame({'smiles': smiles_list, 'ids': names, 'mol': mols})
     
-    chunk = apply_processes(chunk, args, rejected_file)
+    chunk = apply_processes(chunk, processor, rejected_file)
 
     if args.gen3d:
         from msani.conformers import conformers
@@ -193,11 +186,20 @@ def process_smiles(args):
 def clean_data(args):
     start_time = time.time()
     rdkit_version = rdBase.rdkitVersion
-    logger.info(f'RDKit version: {rdkit_version}')        
+    logger.info(f'RDKit version: {rdkit_version}') 
+    processor = Msani(
+        removesalts=args.removesalts, custom= args.custom, unwanted=args.unwanted,
+        pains=args.pains, ha=args.ha, logp=args.logp, hba=args.hba, hbd=args.hbd, 
+        mw=args.mw, chiral = args.chiral, tautomers=args.tautomers, taurdkit=args.taurdkit, 
+        neutralize=args.neutralize, stereoisomers=args.stereoisomers, 
+        max_stereoisomers=args.max_isomers, protonation=args.protonation, pH=args.pH, 
+        pH_range=args.pH_range, numcores=args.numcores, randomSeed=args.randomSeed, 
+        standardize=args.standardize, protonation_library=args.protlib, tautomer_library=args.taulib,  
+        debug=args.debug)       
     if args.smiles:
-        process_smiles(args)
+        process_smiles(processor, args)
     elif args.input_files:
-        process_files(args, start_time)
+        process_files(processor, args)
 
     log_execution_time(start_time, args.test)
 

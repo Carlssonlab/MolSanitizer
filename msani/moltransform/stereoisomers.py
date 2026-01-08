@@ -236,7 +236,7 @@ def _process_stereoisomers_row(row, stereo_params, smiles_column='smiles', mol_c
     if mol is None:
         mol = Chem.MolFromSmiles(smiles)
     
-    highlights = row.get('highlights', None)
+    longname = row.get('longname', None)
     original_idx = row.get('original_idx', None)
     mol_name = row[name_column]
 
@@ -253,7 +253,7 @@ def _process_stereoisomers_row(row, stereo_params, smiles_column='smiles', mol_c
             smiles_column: stereoisomers_smiles[0],
             name_column: mol_name,
             mol_column: Chem.MolFromSmiles(stereoisomers_smiles[0]),
-            'highlights': highlights,
+            'longname': longname,
             'original_idx': original_idx
         })
     else:
@@ -267,7 +267,7 @@ def _process_stereoisomers_row(row, stereo_params, smiles_column='smiles', mol_c
                 smiles_column: stereoisomer,
                 mol_column: Chem.MolFromSmiles(stereoisomer),
                 name_column: mol_name + (f".{idx+1:02d}" if two_digits else f".{idx+1}"),
-                'highlights': highlights,
+                'longname': longname,
                 'original_idx': original_idx
             })
 

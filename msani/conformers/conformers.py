@@ -842,7 +842,7 @@ class ConformerGenerator:
                                                   timeout_conf = timeout_conf,
                                                   eps = eps)
             if result.HasProp('Failed_sampling') and result.GetProp('Failed_sampling') == '1':
-                print(f'Failed to find any confs for {self.name}, using the random dihedral angles approach as a fallback')
+                if self.VERBOSE: print(f'Failed to find any confs for {self.name}, using the random dihedral angles approach as a fallback')
                 possible_numConfs, match_torlib, self.hetero_H_bonds = utils.count_confs_by_rotbonds(mol = self.ring_confs[0],
                                                              rot_bonds = self.rot_bonds,
                                                              amide_bonds = self.amide_linkages,
@@ -861,7 +861,7 @@ class ConformerGenerator:
                                                 )
                 
                 if result.HasProp('Failed_sampling') and result.GetProp('Failed_sampling') == '1':
-                    print(f'Failed for stochastic sampling for {self.name}, use the original conformation')
+                    if self.VERBOSE: print(f'Failed for stochastic sampling for {self.name}, use the original conformation')
                     continue
             
             largest_ring = max(self.atom_maps, key=len)
@@ -885,6 +885,11 @@ class ConformerGenerator:
         if filename is None:
             filename = self.name
 
+        # Remove the Failed_sampling property from the SDF file if it exists
+        for mol in self.ring_confs:
+            if mol.HasProp('Failed_sampling'): mol.ClearProp('Failed_sampling')
+
+        # Write the conformers to SDF file(s)
         if len(self.ring_confs) == 1:
             with Chem.SDWriter(f"sdf/{filename}.sdf") as writer:
                 for confid in range(self.ring_confs[0].GetNumConformers()):
@@ -1221,7 +1226,7 @@ def gen_conf_chunk(df: DataFrame, args, input_file='0'):
             random.seed(randomSeed)
             smiles = row['smiles']
             name = row['ids']
-            longname = row['highlights'] if args.synthon else None
+            longname = row['longname'] if args.synthon else None
             if name in processed_mols:
                 print(f"Skipping {name} as it already exists")
                 logger.info(f"Skipping {name} as it already exists")
