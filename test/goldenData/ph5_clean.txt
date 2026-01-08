@@ -123,3 +123,7 @@ COC(=O)c1ccc(O)cc1 p-OH-benzoate
 O=c1[nH]c2ccccc2cc1O 3-OH-quinolinone
 CN1CC(C#N)=C([O-])C1=O 3-OH-pyrrol-2-one_1
 CN1CC(C#N)=C(O)C1=O 3-OH-pyrrol-2-one_2
+Cc1c(O)c(=O)ccn1C deferiprone-like
+CCC[NH2+]CNCC aliphatic_aminal_1
+CCCNC[NH2+]CC aliphatic_aminal_2
+C[NH2+]CNc1ccccc1 mono-aro_aminal

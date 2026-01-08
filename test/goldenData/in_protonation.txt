@@ -101,3 +101,6 @@ O=S1NC(CCc2ccccc2)=NO1	oxathiadiazole-2-oxide
 COC(=O)c1ccc(O)cc1 p-OH-benzoate
 O=c1[nH]c2ccccc2cc1O 3-OH-quinolinone
 CN1CC(C#N)=C(O)C1=O 3-OH-pyrrol-2-one
+Cc1c(O)c(O)cc[n+]1C deferiprone-like
+CCNCNCCC aliphatic_aminal
+c1ccccc1NCNC mono-aro_aminal

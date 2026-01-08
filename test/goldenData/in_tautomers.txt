@@ -268,3 +268,5 @@ O=c1ccc2co[nH]c-2n1	1H-isoxazolo[3,4-b]pyridin-6-one_to_7H
 O=c1cc2o[nH]cc-2cn1	2H-isoxazolo[4,5-c]pyridin-6-one_to_5H
 O=c1cccc2o[nH]cc1-2	2H-benzo[d]isoxazol-4-one_to_OH
 O=c1cccc2[nH]occ1-2	1H-benzo[c]isoxazol-4-one_to_OH
+Cc1oc(C)c(O)c1O furan-3,4-diole_to_furaneol_CH1
+Oc1cocc1O furan-3,4-diole_to_furaneol_CH2
