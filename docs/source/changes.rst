@@ -9,6 +9,9 @@ All notable changes to this project will be documented in this file.
 🚀 Features
 ~~~~~~~~~~~
 
+-  Update new rules for aminals and tautomerization of furanones (PR
+   #39) -
+   (`3f408bb <https://github.com/phonglam3103/MolSanitizer/commit/3f408bbb716a536a44536974aa38b49d5d6b6985>`__)
 -  Add stripalkali method to remove alkali metals from molecules and
    update saltstripping to handle them. Resolve #33 -
    (`84f506b <https://github.com/phonglam3103/MolSanitizer/commit/84f506b6b23bb413e5220d87c55eb72f765f8986>`__)
