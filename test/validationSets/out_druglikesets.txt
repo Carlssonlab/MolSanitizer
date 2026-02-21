@@ -266,8 +266,7 @@ C#CC1(O)CCC2C3CCc4cc(O)ccc4C3CCC21C Novartis_108
 CC1CCc2cc(F)cc3c(=O)c(C(=O)[O-])cn1c23 Novartis_109
 [NH-]S(=O)(=O)c1cc(C(=O)[O-])c(NCc2ccco2)cc1Cl Novartis_110_1
 NS(=O)(=O)c1cc(C(=O)[O-])c(NCc2ccco2)cc1Cl Novartis_110_2
-O=C([O-])c1cc(O)c([O-])c(O)c1 Novartis_111_1
-O=C([O-])c1cc(O)c(O)c(O)c1 Novartis_111_2
+O=C([O-])c1cc(O)c(O)c(O)c1 Novartis_111
 O=C([O-])C(O)C(O)C(O)C(O)CO Novartis_112
 CC1CC[NH+]2CCCC12 Novartis_114
 CC1CC[NH+]2CCCC12 Novartis_115
