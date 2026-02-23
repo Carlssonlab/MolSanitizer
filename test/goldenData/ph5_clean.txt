@@ -127,3 +127,8 @@ Cc1c(O)c(=O)ccn1C deferiprone-like
 CCC[NH2+]CNCC aliphatic_aminal_1
 CCCNC[NH2+]CC aliphatic_aminal_2
 C[NH2+]CNc1ccccc1 mono-aro_aminal
+CCOC(N)=[NH2+] isourea_linear
+NC1=[NH+]CCO1 isourea_cyclic
+CC(=O)c1ccccc1O o-carbonyl-phenols
+CCC(=O)c1ccc(O)c(C(=O)NC)c1 o-carbonyl-p-EWG-phenols
+O=C(c1ccccc1O)c1ccccc1O benzophenones

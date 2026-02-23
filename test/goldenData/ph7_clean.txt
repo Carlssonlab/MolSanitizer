@@ -124,3 +124,9 @@ CCC[NH2+]CNCC aliphatic_aminal_1
 CCCNC[NH2+]CC aliphatic_aminal_2
 CNCNc1ccccc1 mono-aro_aminal_1
 C[NH2+]CNc1ccccc1 mono-aro_aminal_2
+CCOC(N)=[NH2+] isourea_linear
+NC1=[NH+]CCO1 isourea_cyclic
+CC(=O)c1ccccc1O o-carbonyl-phenols
+CCC(=O)c1ccc(O)c(C(=O)NC)c1 o-carbonyl-p-EWG-phenols_1
+CCC(=O)c1ccc([O-])c(C(=O)NC)c1 o-carbonyl-p-EWG-phenols_2
+O=C(c1ccccc1O)c1ccccc1O benzophenones

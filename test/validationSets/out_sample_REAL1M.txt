@@ -102,8 +102,7 @@ Cc1cc(C(=O)N[C@@H]2CCN(C(=O)[C@@H]3CC=CC[C@H]3C)C2)nc(=O)[nH]1 m_275592____14114
 Cn1cc(-c2cncc(C(=O)N3CCC(c4nnn[n-]4)CC3)c2)cn1 s_22____12622712____4358684
 CCOC(=O)c1cnc2cc(C(=O)NCC3C=NN(C)C3=O)nn2c1 m_22____24034416____19973884
 CC[C@H]1[C@@H](O)CCN1C(=O)C1(C)C=CCN1C(=O)c1cc(=O)[nH]cn1 m_274552____23519876____24968020____15976968
-CC(=O)c1cc(-c2nc(-c3ccc(F)cc3)no2)ccc1O s_265764____4557804____26710636_1
-CC(=O)c1cc(-c2nc(-c3ccc(F)cc3)no2)ccc1[O-] s_265764____4557804____26710636_2
+CC(=O)c1cc(-c2nc(-c3ccc(F)cc3)no2)ccc1O s_265764____4557804____26710636
 O=C([N-]S(=O)(=O)c1nc(Cl)cs1)C1CC2CCC(C2)C1 m_2740____10738730____14721086
 CC(NC(=O)CCCNC(=O)c1c[nH]c(=S)cn1)c1ccccn1 m_274552____23522682____13729280____25045472
 COCO[C@@H](C)C(=O)N1CCC(F)(CNC(=O)c2ccc[nH]c2=O)C1 m_275592____19666716____15840502____19053500

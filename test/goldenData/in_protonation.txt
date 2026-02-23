@@ -104,3 +104,8 @@ CN1CC(C#N)=C(O)C1=O 3-OH-pyrrol-2-one
 Cc1c(O)c(O)cc[n+]1C deferiprone-like
 CCNCNCCC aliphatic_aminal
 c1ccccc1NCNC mono-aro_aminal
+NC(OCC)=N isourea_linear
+C1(N)=NCCO1 isourea_cyclic
+CC(=O)c1ccccc1O o-carbonyl-phenols
+CCC(=O)c1ccc(O)c(C(=O)NC)c1 o-carbonyl-p-EWG-phenols
+O=C(c1ccccc1O)c1ccccc1O benzophenones
