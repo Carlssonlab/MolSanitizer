@@ -109,3 +109,6 @@ C1(N)=NCCO1 isourea_cyclic
 CC(=O)c1ccccc1O o-carbonyl-phenols
 CCC(=O)c1ccc(O)c(C(=O)NC)c1 o-carbonyl-p-EWG-phenols
 O=C(c1ccccc1O)c1ccccc1O benzophenones
+COC(=O)c1cccc(F)c1O o-carbonyl-o-halo-phenols
+COC(=O)c1cc(Br)cc(F)c1O o-carbonyl-o,p-dihalo-phenols
+O=Cc1cc(C=O)c(O)c(C=O)c1 o,o,p-tricarbonyl-phenols
