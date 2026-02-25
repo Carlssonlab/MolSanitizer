@@ -130,7 +130,7 @@ CC(=O)c1ccccc1O o-carbonyl-phenols
 CCC(=O)c1ccc(O)c(C(=O)NC)c1 o-carbonyl-p-EWG-phenols_1
 CCC(=O)c1ccc([O-])c(C(=O)NC)c1 o-carbonyl-p-EWG-phenols_2
 O=C(c1ccccc1O)c1ccccc1O benzophenones
-COC(=O)c1cccc(F)c1O o-carbonyl-o-halo-phenols_1
-COC(=O)c1cccc(F)c1[O-] o-carbonyl-o-halo-phenols_1
+COC(=O)c1cccc(F)c1O o/p/m,m-di-carbonyl-o/m/p-halo-phenols_1
+COC(=O)c1cccc(F)c1[O-] o/p/m,m-di-carbonyl-o/m/p-halo-phenols_2
 COC(=O)c1cc(Br)cc(F)c1[O-] o-carbonyl-o,p-dihalo-phenols
 O=Cc1cc(C=O)c([O-])c(C=O)c1 o,o,p-tricarbonyl-phenols

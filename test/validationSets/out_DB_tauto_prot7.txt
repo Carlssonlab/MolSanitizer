@@ -1348,7 +1348,8 @@ Cc1nc(COP(=O)([O-])[O-])cc(CN(CC[NH+](CC(=O)[O-])Cc2cc(COP(=O)([O-])[O-])nc(C)c2
 C1N2CN3CN1CN(C2)C3 Methenamine
 C[N+]1(CC2CC2)CCC23c4c5ccc(O)c4OC2C(=O)CCC3(O)C1C5 Methylnaltrexone
 NC(=O)Cc1cccc(C(=O)c2ccccc2)c1N Nepafenac
-O=C(Nc1ccc([N+](=O)[O-])cc1Cl)c1cc(Cl)ccc1O Niclosamide
+O=C(Nc1ccc([N+](=O)[O-])cc1Cl)c1cc(Cl)ccc1O Niclosamide_1
+O=C(Nc1ccc([N+](=O)[O-])cc1Cl)c1cc(Cl)ccc1[O-] Niclosamide_2
 CCCCCCCCCc1ccc(OCCOCCOCCOCCOCCOCCOCCOCCOCCO)cc1 Nonoxynol-9
 Nc1ccc(C(=O)Oc2ccccc2)c(O)c1 Phenyl_aminosalicylate
 c1cc(C[NH+]2CCC[NH2+]CCNCCCNCC2)ccc1C[NH+]1CCC[NH2+]CCNCCCNCC1 Plerixafor_1
@@ -1796,7 +1797,8 @@ C=C1CC23CCC4C(C)(C(=O)[O-])CCCC4(C)C2CCC1(OC1OC(CO)C(O)C(O)C1OC1OC(CO)C(O)C(O)C1
 CN(C)c1cc(C[NH2+]CC(C)(C)C)c(O)c2c1CC1CC3C([NH+](C)C)C([O-])=C(C(N)=O)C(=O)C3(O)C(O)=C1C2=O Omadacycline_1
 CN(C)c1cc(C[NH2+]CC(C)(C)C)c(O)c2c1CC1CC3C([NH+](C)C)C([O-])=C(C(N)=O)C(=O)C3(O)C([O-])=C1C2=O Omadacycline_2
 [NH3+]C1c2cccnc2C(OC(=O)N2CCC(n3c(=O)[nH]c4ncccc43)CC2)CCC1c1cccc(F)c1F Rimegepant
-NC(=O)c1nc(F)cnc1O Favipiravir
+NC(=O)c1nc(F)cnc1O Favipiravir_1
+NC(=O)c1nc(F)cnc1[O-] Favipiravir_2
 O=S1(=O)CCN(C[NH+]2CCS(=O)(=O)NC2)CN1 Taurolidine
 C#CC1(O)CCC2C3CCC4=CCCCC4C3CCC21C Lynestrenol
 C=C(C)C1CCC2(C(=O)[O-])CCC3(C)C(CCC4C5(C)CCC(O)C(C)(C)C5CCC43C)C12 Betulinic_Acid
