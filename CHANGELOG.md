@@ -13,6 +13,7 @@ All notable changes to this project will be documented in this file.
 
 ### 🐛 Bug Fixes
 
+- Update the SMARTS pattern of HBA to match the latest RDKit's bug fix. - ([a72319c](https://github.com/phonglam3103/MolSanitizer/commit/a72319c7a8700cd68ef1e0711b71fcfeac126cb6))
 - Prevent stereochemistry reassignment during tautomerization. This helps MolSanitizer supports any RDKit >= 2024.09.3 - ([456c8f4](https://github.com/phonglam3103/MolSanitizer/commit/456c8f40a5dd83fe6c2f7f6542ea5a74c9a83b4f))
 - Fix a bug that the simultaneous flags --stereoisomers and --gen3d turns off the stereoisomer enumeration. - ([89e2981](https://github.com/phonglam3103/MolSanitizer/commit/89e2981d89f62595727da1ef301adc3000baf7cb))
 - Add a security mechanism on failed-to-sanitize molecules after SaltRemover. Slight improvements in performance thanks to the cache of SaltRemover and avoid Python loop overhead. Fix #28 - ([01db117](https://github.com/phonglam3103/MolSanitizer/commit/01db117dc823c4a5896db0748fae87e350d8e35d))

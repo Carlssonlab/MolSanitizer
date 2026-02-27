@@ -30,6 +30,9 @@ All notable changes to this project will be documented in this file.
 🐛 Bug Fixes
 ~~~~~~~~~~~~
 
+-  Update the SMARTS pattern of HBA to match the latest RDKit’s bug fix.
+   -
+   (`a72319c <https://github.com/phonglam3103/MolSanitizer/commit/a72319c7a8700cd68ef1e0711b71fcfeac126cb6>`__)
 -  Prevent stereochemistry reassignment during tautomerization. This
    helps MolSanitizer supports any RDKit >= 2024.09.3 -
    (`456c8f4 <https://github.com/phonglam3103/MolSanitizer/commit/456c8f40a5dd83fe6c2f7f6542ea5a74c9a83b4f>`__)
