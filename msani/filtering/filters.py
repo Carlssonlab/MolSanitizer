@@ -322,8 +322,10 @@ class Filters():
     def filter_by_hba(df, filter_query, rejectedFile, debug = False) -> DataFrame:
         """Filter out molecules with required number of H-bond acceptors using the RDKit CalcNumHBA().
 
-        NOTE: It is by intention that the function uses CalcNumHBA() instead of CalcNumLipinskiHBA() was used as we believe that it better represents the chemistry.
-
+        NOTE: It is recently updated to use the Python function CalcNumHBA() within this file to remain the consistency between the RDKit versions.
+        The previous version of RDKit CalcNumHBA() was updated in 2025.09.3 so that we may have different results between the different versions of RDKit.
+        SMARTS pattern: 
+        
         Args:
             df (DataFrame): Input DataFrame with 'mol' column containing RDKit molecule objects.
             debug (bool, optional): Debug mode. Defaults to False.
@@ -332,7 +334,7 @@ class Filters():
             DataFrame: A new DataFrame chunk with molecules containing heavy atoms.
         """
         df = df.copy()
-        df['hba'] = df['mol'].apply(lambda x: rdMolDescriptors.CalcNumHBA(x))
+        df['hba'] = df['mol'].apply(lambda x: CalcNumHBA(x))
         query = Filters.convert_to_query(filter_query, 'hba')
         rejected_df = df.query(f'not ({query})').copy()
         rejected_df['hba'] = rejected_df['hba'].apply(lambda x: f'hba {x}')
@@ -347,7 +349,8 @@ class Filters():
         """Filter out molecules with required number of H-bond donors using the RDKit CalcNumLipinskiHBD().
 
         NOTE: It is by intention that the function uses CalcNumLipinskiHBD() instead of CalcNumHBD() was used as we believe that it better represents the chemistry.
-
+              This will run in C++ to count the total number of OH and NH. (NH2 = 2 donors)
+              
         Args:
             df (DataFrame): Input DataFrame with 'mol' column containing RDKit molecule objects.
             debug (bool, optional): Debug mode. Defaults to False.
@@ -676,6 +679,11 @@ def loadSMARTSdata(smartsFile: str, unwanted_option=None) -> DataFrame:
         return smarts_df
 
 against_humanity = Chem.MolFromSmarts('[O+0&H0,SX2+0&H0,NX2,F,Cl,Br,I]-[PX4](=O)(A)[A;$([F,Cl,Br,I,SX2,NX2]),$(C#N),$([O,S]a)]')
+hba_smarts = Chem.MolFromSmarts("[$([O,S;H1;v2]-[!$(*=[O,N,P,S])]),$([O,S;H0;v2]),$([O,S;-]),$([N;v3;!$(N-*=!@[O,N,P,S])]),$([nH0X2,o,s;+0])]")
+
+def CalcNumHBA(mol):
+    return len(mol.GetSubstructMatches(hba_smarts))
+
 hold_up = '''⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣀⣀⣀⣀⣀⣀⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
 ⠀⠀⠀⠀⠀⠀⠀⣀⣤⣶⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣶⣤⣀⠀⠀⠀⠀⠀⠀⠀
 ⠀⠀⠀⠀⠀⣠⣾⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⣄⠀⠀⠀⠀⠀

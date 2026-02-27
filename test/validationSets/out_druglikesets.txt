@@ -266,8 +266,7 @@ C#CC1(O)CCC2C3CCc4cc(O)ccc4C3CCC21C Novartis_108
 CC1CCc2cc(F)cc3c(=O)c(C(=O)[O-])cn1c23 Novartis_109
 [NH-]S(=O)(=O)c1cc(C(=O)[O-])c(NCc2ccco2)cc1Cl Novartis_110_1
 NS(=O)(=O)c1cc(C(=O)[O-])c(NCc2ccco2)cc1Cl Novartis_110_2
-O=C([O-])c1cc(O)c([O-])c(O)c1 Novartis_111_1
-O=C([O-])c1cc(O)c(O)c(O)c1 Novartis_111_2
+O=C([O-])c1cc(O)c(O)c(O)c1 Novartis_111
 O=C([O-])C(O)C(O)C(O)C(O)CO Novartis_112
 CC1CC[NH+]2CCCC12 Novartis_114
 CC1CC[NH+]2CCCC12 Novartis_115
@@ -333,8 +332,7 @@ COC(=O)C12CCC(CC(O)C1)N2C Novartis_170_2
 C[NH+]1C2CCC1CC(O)C2 Novartis_171
 C[NH+]1C2CCC1CC(O)C2 Novartis_172
 C[NH2+]C(C)C(O)c1ccccc1 Novartis_173
-Cc1ncc(CO)c(C=O)c1[O-] Novartis_174_1
-Cc1ncc(CO)c(C=O)c1O Novartis_174_2
+Cc1ncc(CO)c(C=O)c1O Novartis_174
 C=CC1C[NH+]2CCC1CC2C(O)c1ccnc2ccc(OC)cc12 Novartis_178
 Cc1cc2nc3c(=O)[nH]c(=O)nc-3n(CC(O)C(O)C(O)CO)c2cc1C Novartis_179
 O=C([O-])c1ccccc1O Novartis_180
@@ -355,8 +353,7 @@ Cn1c(=O)c2[n-]cnc2n(C)c1=O Novartis_190_2
 COc1cc(C=O)ccc1[O-] Novartis_194_1
 COc1cc(C=O)ccc1O Novartis_194_2
 COc1ccc(C=O)cc1O Novartis_195
-COc1cccc(C=O)c1[O-] Novartis_196_1
-COc1cccc(C=O)c1O Novartis_196_2
+COc1cccc(C=O)c1O Novartis_196
 CC(=O)CC(c1ccccc1)c1c([O-])c2ccccc2oc1=O Novartis_197
 O=C([O-])COCCN1CC[NH+](C(c2ccccc2)c2ccc(Cl)cc2)CC1 CHEMBL1000_1
 O=C([O-])COCC[NH+]1CCN(C(c2ccccc2)c2ccc(Cl)cc2)CC1 CHEMBL1000_2
@@ -369,7 +366,7 @@ OC(Cn1cncn1)(Cn1cncn1)c1ccc(F)cc1F CHEMBL106
 CCCCC(=O)N(Cc1ccc(-c2ccccc2-c2nnn[n-]2)cc1)C(C(=O)[O-])C(C)C CHEMBL1069
 O=C([O-])CCc1nc(-c2ccccc2)c(-c2ccccc2)o1 CHEMBL1071
 CCCCNc1cc(C(=O)[O-])cc(S(N)(=O)=O)c1Oc1ccccc1 CHEMBL1072
-N=C(N)SCCc1cccc(CCSC(=N)N)c1 CHEMBL107201
+NC(=[NH2+])SCCc1cccc(CCSC(N)=[NH2+])c1 CHEMBL107201
 Cc1cnc(C(=O)NCCc2ccc(S(=O)(=O)[N-]C(=O)NC3CCCCC3)cc2)cn1 CHEMBL1073
 Clc1ccc2nsnc2c1NC1=[NH+]CCN1 CHEMBL1079
 Cc1cc(C[NH+](CC(=O)Nc2ccc(Cl)cc2Cl)C2CCCCC2)ccc1OCC(=O)[O-] CHEMBL1081917_1
@@ -545,7 +542,8 @@ O=C([N-]S(=O)(=O)c1ccc(F)cc1)N1CCC([NH+]2CCC(Oc3ccc(Cl)c(Cl)c3)CC2)CC1 CHEMBL217
 O=C([N-]S(=O)(=O)c1ccc(Cl)cc1)N1CCC([NH+]2CCC(Oc3ccc(Cl)c(Cl)c3)CC2)CC1 CHEMBL2171035
 COc1ccc(S(=O)(=O)[N-]C(=O)N2CCC([NH+]3CCC(Oc4ccc(Cl)c(Cl)c4)CC3)CC2)cc1 CHEMBL2171036
 Cc1ccc(S(=O)(=O)[N-]C(=O)N2CCC([NH+]3CCC(Oc4ccc(Cl)c(C)c4Cl)CC3)CC2)cc1 CHEMBL2171047
-O=C(Nc1ccc(Cl)c(S(=O)(=O)N2CC[NH2+]CC2)c1O)Nc1cccc(F)c1Cl CHEMBL2178579
+O=C(Nc1ccc(Cl)c(S(=O)(=O)N2CC[NH2+]CC2)c1[O-])Nc1cccc(F)c1Cl CHEMBL2178579_1
+O=C(Nc1ccc(Cl)c(S(=O)(=O)N2CC[NH2+]CC2)c1O)Nc1cccc(F)c1Cl CHEMBL2178579_2
 COc1ccc(C2(c3cccc(-c4cncnc4)c3)N=C(C)C(N)=[NH+]2)cc1C CHEMBL2180027
 CC1=NC(c2cccc(-c3cncc(Cl)c3)c2)(C2CC2)[NH+]=C1N CHEMBL2180033
 CCOC(=O)C1=C(C)NC(C)=C(C(C)=O)C1c1cccc2c(=O)cc(C)oc12 CHEMBL2181926

@@ -298,10 +298,12 @@ COC(=O)c1ccc([N+](=O)[O-])c([O-])c1 serjeant4219
 Oc1c(Cl)cc(Br)cc1Cl serjeant3260_2
 [O-]c1c(Cl)cc(Cl)cc1Cl serjeant2919_1
 Oc1c(Cl)cc(Cl)cc1Cl serjeant2919_2
-O=[N+]([O-])c1cc(Br)ccc1O 8
+O=[N+]([O-])c1cc(Br)ccc1O 8_1
+O=[N+]([O-])c1cc(Br)ccc1[O-] 8_2
 O=Nc1ccc(O)cc1 serjeant2986_1
 O=Nc1ccc([O-])cc1 serjeant2986_2
-O=[N+]([O-])c1cc(Cl)ccc1O serjeant3284
+O=[N+]([O-])c1cc(Cl)ccc1[O-] serjeant3284_1
+O=[N+]([O-])c1cc(Cl)ccc1O serjeant3284_2
 C[N+]1=C(C=CC2=C3Oc4cc(O)c(Cl)cc4C=C3CCC2)C(C)(C)c2ccccc21 30996989
 COc1ccc(O)c(N=O)c1 serjeant3683_1
 COc1ccc([O-])c(N=O)c1 serjeant3683_2
@@ -2499,8 +2501,9 @@ CC(C)(C)c1cc(=O)[nH]c(SCC(=O)c2ccc(Cl)c(S([NH-])(=O)=O)c2)n1 22646651_1
 CC(C)(C)c1cc(=O)[nH]c(SCC(=O)c2ccc(Cl)c(S(N)(=O)=O)c2)n1 22646651_2
 CCOC(=O)c1cnc(SCC(=O)c2ccc(Cl)c(S(N)(=O)=O)c2)[nH]c1=O 22646653_1
 CCOC(=O)c1cnc(SCC(=O)c2ccc(Cl)c(S([NH-])(=O)=O)c2)[nH]c1=O 22646653_2
-[NH-]S(=O)(=O)c1cc(C2(O)CSC3=NCCN32)ccc1Cl 1032963_1
-NS(=O)(=O)c1cc(C2(O)CSC3=NCCN32)ccc1Cl 1032963_2
+[NH-]S(=O)(=O)c1cc(C2(O)CSC3=[NH+]CCN32)ccc1Cl 1032963_1
+[NH-]S(=O)(=O)c1cc(C2(O)CSC3=NCCN32)ccc1Cl 1032963_2
+NS(=O)(=O)c1cc(C2(O)CSC3=[NH+]CCN32)ccc1Cl 1032963_3
 NS(=O)(=O)c1cc(C(=O)Cn2c(CO)nc3ccccc32)ccc1Cl 20934104_1
 [NH-]S(=O)(=O)c1cc(C(=O)Cn2c(CO)nc3ccccc32)ccc1Cl 20934104_2
 NS(=O)(=O)c1cc(C(=O)Cn2cnc3ccccc32)ccc1Cl 20934098_1

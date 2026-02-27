@@ -1,6 +1,9 @@
 CC1=SCCC1	H-lambda4-sulphane_to_lambda2-CH0
 C1CCC=S1	H-lambda4-sulphane_to_lambda2-CH1
 CCS=C	H-lambda4-sulphane_to_lambda2-CH2
+CC(O)=[N+](C)C mannich-like-amides_to_amides
+c1cc2C(NC)=[N+](C)Cc2cc1 N+_amidine-NH1
+c1cc2C(N)=[N+](C)Cc2cc1 N+_amidine-NH2
 CN=C1C(C)N(C)C=C1	aromatize_3-imino-2H-5aro-CH0
 CN=C1CN(C)C=C1	aromatize_3-imino-2H2-5aro-CH0
 C=C1C(C(C=CC=C2)=C2C(C1C)=O)=O	exo-methylidene-quinone_to_Me-quinone-CH1
