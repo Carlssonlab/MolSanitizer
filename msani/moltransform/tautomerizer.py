@@ -395,12 +395,13 @@ class Tautomerizer:
 
         return mol
 
-    def enumerate(self, mol: Chem.Mol):
+    def enumerate(self, mol: Chem.Mol, max_tautomers: int = 10):
         """
         Enumerate different combination of different tautomer substructures of a molecule.
 
         Args:
             mol (rdkit.Chem.rdchem.Mol): The reactant molecule.
+            max_tautomers (int): Hard limit on maximum tautomers to prevent combinatorial explosion.
         Returns:
             list: A list of unique SMILES strings of the tautomer substructures.
         """
@@ -409,6 +410,10 @@ class Tautomerizer:
             #rxn.Initialize()
             i = 0
             while i < len(unique_smiles):
+                if len(unique_smiles) >= max_tautomers:
+                    if self.debug: print(f"\tReached max_tautomers ({max_tautomers}) limit, stopping enumeration.")
+                    break
+                    
                 current_smiles = unique_smiles[i]
                 current_mol = Chem.MolFromSmiles(current_smiles)
                 products = rxn.RunReactants((current_mol,))
@@ -421,7 +426,12 @@ class Tautomerizer:
                             new_smiles = Chem.MolToSmiles(new_mol)
                             if new_smiles not in unique_smiles:
                                 unique_smiles.append(new_smiles)
+                                if len(unique_smiles) >= max_tautomers:
+                                    break # Instantly break inner loop if cap hit
                 i += 1
+            if len(unique_smiles) >= max_tautomers:
+                break # Break outer reaction loop as well if cap hit
+                
         return unique_smiles
 
 
