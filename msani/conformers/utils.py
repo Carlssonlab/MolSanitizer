@@ -1,7 +1,6 @@
 import subprocess
 import os
 import shutil
-import random
 import logging
 import time
 

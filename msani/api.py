@@ -150,12 +150,15 @@ class Msani:
                                         neutralize = False,
                                         numcores = self.numcores) # Already neutralized
             df = tautomerizer.tautomerize_df(df)
-        if self.pains: df = Filters.painsFilter(df,
+        if self.pains: 
+            if self.debug: print("Filtering PAINS")
+            df = Filters.painsFilter(df,
                                                 rejectedFile = rejected_file,
                                                 debug = self.debug)
             
         # We already gathered the unwanted SMARTS patterns in the constructor
         if self.unwanted_df is not None: 
+            if self.debug: print("Filtering Unwanted")
             df = Filters.unwantedFilter(df,
                                         rejectedFile = rejected_file,
                                         unwanted_df = self.unwanted_df,

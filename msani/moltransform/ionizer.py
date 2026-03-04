@@ -5,6 +5,7 @@ import multiprocessing as mp
 from io import StringIO
 from functools import partial
 
+from numpy import array_split, arange
 from pandas import DataFrame, read_csv, concat
 from pathlib import Path
 from rdkit import Chem, RDLogger
@@ -353,13 +354,15 @@ class Ionizer:
         """
         # Ensure mol_column exists
         if mol_column not in df.columns:
-            df.loc[:,mol_column] = df[smiles_column].apply(Chem.MolFromSmiles)
+            df = df.copy() # Make a single shallow copy to safely add mol_column
+            df[mol_column] = df[smiles_column].apply(Chem.MolFromSmiles)
 
         # Determine number of cores
         numcores = min(self.numcores, len(df))  # Prevent using more cores than data chunks
 
-        # Split DataFrame into chunks
-        chunks = [df.iloc[i::numcores] for i in range(numcores)]
+        # Handle contiguous chunks using numpy array_split indexing to save memory footprint overhead of copying rows
+        chunk_indices = array_split(arange(len(df)), numcores)
+        chunks = [df.iloc[indices] for indices in chunk_indices]
 
         # Create a partial function for multiprocessing
         process_func = partial(_process_ionization_rows, ionizer=self,
@@ -369,11 +372,10 @@ class Ionizer:
 
         results = []
         with mp.Pool(processes=numcores) as pool:
-            async_results = [pool.apply_async(process_func, (chunk,)) for chunk in chunks]
-
-            for async_result in async_results:
+            # imap is typically more memory efficient
+            for async_result in pool.imap_unordered(process_func, chunks):
                 try:
-                    results.extend(async_result.get())  # Timeout for safety
+                    results.extend(async_result)  # Timeout for safety
                 except Exception as e:
                     logger.error(f"Error processing a molecule batch: {str(e)}")
 
@@ -399,7 +401,9 @@ class Ionizer:
         if len(df) == 0:
             return df
         if mol_column not in df.columns:
-            df.loc[:,mol_column] = df[smiles_column].apply(lambda x: Chem.MolFromSmiles(x))
+            df = df.copy() # Make a shallow copy to safely add mol_column
+            df[mol_column] = df[smiles_column].apply(lambda x: Chem.MolFromSmiles(x))
+            
         if self.numcores > 1:
             return self.ionize_df_mp(df, smiles_column, name_column, mol_column)
         else:

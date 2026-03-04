@@ -85,7 +85,7 @@ def read_input_file(input_file, is_enamine, is_synthon):
             names=['smiles', 'ids', 'longname'],
             usecols=[0, 1, 2],
             header=None,
-            chunksize=250_000,
+            chunksize=100_000,
             dtype={'smiles': str, 'ids': str, 'longname': str}  # Enforce string types
         )
     if is_enamine:
@@ -96,7 +96,7 @@ def read_input_file(input_file, is_enamine, is_synthon):
             names=['smiles', 'ids'],
             usecols=[0, 1],
             header=None,
-            chunksize=250_000,
+            chunksize=100_000,
             dtype={'smiles': str, 'ids': str}  # Enforce string types
         )
     else:
@@ -106,7 +106,7 @@ def read_input_file(input_file, is_enamine, is_synthon):
             names=['smiles', 'ids'],
             usecols=[0, 1],
             header=None,
-            chunksize=250_000,
+            chunksize=100_000,
             dtype={'smiles': str, 'ids': str}  # Enforce string types
         )
     

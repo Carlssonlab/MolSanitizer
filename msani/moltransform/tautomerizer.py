@@ -5,6 +5,7 @@ import shutil
 from functools import partial
 from itertools import tee
 
+from numpy import array_split, arange
 from pandas import DataFrame, read_csv
 from pathlib import Path
 from rdkit import Chem, RDLogger
@@ -475,10 +476,14 @@ class Tautomerizer:
         Tautomerize a dataframe of molecules using multiprocessing with chunked processing.
         """
         if mol_column not in df.columns:
-            df.loc[:,mol_column] = df[smiles_column].apply(Chem.MolFromSmiles)
+            df = df.copy() # Make a single shallow copy to safely add mol_column
+            df[mol_column] = df[smiles_column].apply(Chem.MolFromSmiles)
 
         num_cores = min(self.numcores, len(df))  # Avoid using more cores than data chunks
-        chunks = [df.iloc[i::num_cores] for i in range(num_cores)]
+        
+        # Use numpy array split style indexing to avoid making copies of chunks
+        chunk_indices = array_split(arange(len(df)), num_cores)
+        chunks = [df.iloc[indices] for indices in chunk_indices]
 
         process_func = partial(_process_tautomer_rows, tautomerizer=self,
                                smiles_column=smiles_column,
@@ -487,11 +492,10 @@ class Tautomerizer:
 
         results = []
         with mp.Pool(processes=num_cores) as pool:
-            async_results = [pool.apply_async(process_func, (chunk,)) for chunk in chunks]
-
-            for async_result in async_results:
+            # imap or map is typically more memory efficient than apply_async + list extend
+            for async_result in pool.imap_unordered(process_func, chunks):
                 try:
-                    results.extend(async_result.get())  # Timeout for safety
+                    results.extend(async_result)
                 except Exception as e:
                     logger.error(f"Error processing a tautomer batch: {str(e)}")
 
@@ -516,7 +520,9 @@ class Tautomerizer:
         if df.empty:
             return df
         if mol_column not in df.columns:
-            df.loc[:,mol_column] = df[smiles_column].apply(Chem.MolFromSmiles)
+            df = df.copy() # Make a shallow copy to safely add mol_column
+            df[mol_column] = df[smiles_column].apply(Chem.MolFromSmiles)
+            
         if self.numcores > 1:
             return self.tautomerize_df_mp(df, smiles_column, mol_column, name_column)
         else:
