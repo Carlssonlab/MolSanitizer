@@ -373,9 +373,15 @@ class Ionizer:
         results = []
         with mp.Pool(processes=numcores) as pool:
             # imap is typically more memory efficient
-            for async_result in pool.imap_unordered(process_func, chunks):
+            # The try/except must wrap the iteration (not just extend), because imap_unordered
+            # re-raises worker exceptions at the point where the iterator is advanced.
+            imap_iter = pool.imap_unordered(process_func, chunks)
+            while True:
                 try:
-                    results.extend(async_result)  # Timeout for safety
+                    async_result = next(imap_iter)
+                    results.extend(async_result)
+                except StopIteration:
+                    break
                 except Exception as e:
                     logger.error(f"Error processing a molecule batch: {str(e)}")
 

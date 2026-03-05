@@ -503,9 +503,15 @@ class Tautomerizer:
         results = []
         with mp.Pool(processes=num_cores) as pool:
             # imap or map is typically more memory efficient than apply_async + list extend
-            for async_result in pool.imap_unordered(process_func, chunks):
+            # The try/except must wrap the iteration (not just extend), because imap_unordered
+            # re-raises worker exceptions at the point where the iterator is advanced.
+            imap_iter = pool.imap_unordered(process_func, chunks)
+            while True:
                 try:
+                    async_result = next(imap_iter)
                     results.extend(async_result)
+                except StopIteration:
+                    break
                 except Exception as e:
                     logger.error(f"Error processing a tautomer batch: {str(e)}")
 
