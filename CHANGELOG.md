@@ -13,6 +13,9 @@ All notable changes to this project will be documented in this file.
 
 ### 🐛 Bug Fixes
 
+- Ensure multiprocessing imap_unordered iteration correctly handles worker exceptions by wrapping iteration in a try/except block. - ([4d4dd97](https://github.com/phonglam3103/MolSanitizer/commit/4d4dd9773cc8f4ba5041176b7ee6207f636c58bc))
+- Add a upper cap that the number of tautomers after enumeration should not more than 10 tautomers/molecules. - ([9fb64ac](https://github.com/phonglam3103/MolSanitizer/commit/9fb64ac340e26f238e983136cdf0603705801597))
+- Fix a problem that could result in peak of memory usage. Now the implementation read by smaller chunk but also with less redundant copies of the dataframes. - ([2be3855](https://github.com/phonglam3103/MolSanitizer/commit/2be38550a5de0572316b6ba9f997c4ba8a6fe04c))
 - Update the SMARTS pattern of HBA to match the latest RDKit's bug fix. - ([a72319c](https://github.com/phonglam3103/MolSanitizer/commit/a72319c7a8700cd68ef1e0711b71fcfeac126cb6))
 - Prevent stereochemistry reassignment during tautomerization. This helps MolSanitizer supports any RDKit >= 2024.09.3 - ([456c8f4](https://github.com/phonglam3103/MolSanitizer/commit/456c8f40a5dd83fe6c2f7f6542ea5a74c9a83b4f))
 - Fix a bug that the simultaneous flags --stereoisomers and --gen3d turns off the stereoisomer enumeration. - ([89e2981](https://github.com/phonglam3103/MolSanitizer/commit/89e2981d89f62595727da1ef301adc3000baf7cb))
