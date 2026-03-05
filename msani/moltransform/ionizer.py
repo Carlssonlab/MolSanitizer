@@ -5,6 +5,7 @@ import multiprocessing as mp
 from io import StringIO
 from functools import partial
 
+from numpy import array_split, arange
 from pandas import DataFrame, read_csv, concat
 from pathlib import Path
 from rdkit import Chem, RDLogger
@@ -353,13 +354,15 @@ class Ionizer:
         """
         # Ensure mol_column exists
         if mol_column not in df.columns:
-            df.loc[:,mol_column] = df[smiles_column].apply(Chem.MolFromSmiles)
+            df = df.copy() # Make a single shallow copy to safely add mol_column
+            df[mol_column] = df[smiles_column].apply(Chem.MolFromSmiles)
 
         # Determine number of cores
         numcores = min(self.numcores, len(df))  # Prevent using more cores than data chunks
 
-        # Split DataFrame into chunks
-        chunks = [df.iloc[i::numcores] for i in range(numcores)]
+        # Use numpy array_split to create contiguous (sequential) chunks instead of the previous interleaved (stride-based) df.iloc[i::numcores] approach
+        chunk_indices = array_split(arange(len(df)), numcores)
+        chunks = [df.iloc[indices] for indices in chunk_indices]
 
         # Create a partial function for multiprocessing
         process_func = partial(_process_ionization_rows, ionizer=self,
@@ -369,11 +372,16 @@ class Ionizer:
 
         results = []
         with mp.Pool(processes=numcores) as pool:
-            async_results = [pool.apply_async(process_func, (chunk,)) for chunk in chunks]
-
-            for async_result in async_results:
+            # imap is typically more memory efficient
+            # The try/except must wrap the iteration (not just extend), because imap_unordered
+            # re-raises worker exceptions at the point where the iterator is advanced.
+            imap_iter = pool.imap_unordered(process_func, chunks)
+            while True:
                 try:
-                    results.extend(async_result.get())  # Timeout for safety
+                    async_result = next(imap_iter)
+                    results.extend(async_result)
+                except StopIteration:
+                    break
                 except Exception as e:
                     logger.error(f"Error processing a molecule batch: {str(e)}")
 
@@ -399,7 +407,9 @@ class Ionizer:
         if len(df) == 0:
             return df
         if mol_column not in df.columns:
-            df.loc[:,mol_column] = df[smiles_column].apply(lambda x: Chem.MolFromSmiles(x))
+            df = df.copy() # Make a shallow copy to safely add mol_column
+            df[mol_column] = df[smiles_column].apply(lambda x: Chem.MolFromSmiles(x))
+            
         if self.numcores > 1:
             return self.ionize_df_mp(df, smiles_column, name_column, mol_column)
         else:

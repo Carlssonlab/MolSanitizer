@@ -219,9 +219,10 @@ def Split_Submit_jobs(args: dict, parser):
     slurm_header = slurm_header.replace('PROJECT_NAME', args.proj_name)
     slurm_header = slurm_header.replace('TIME_LIMIT', f'{args.timelimit}:00:00')
     if not(args.gen3d): slurm_header = slurm_header.replace('msani_3d', 'msani_2d')
-    if args.lines >= 250_000: slurm_header = slurm_header.replace('MEMORY', '12G')
-    elif args.lines >= 100_000: slurm_header = slurm_header.replace('MEMORY', '6G')
-    else: slurm_header = slurm_header.replace('MEMORY', '4G')
+    if args.lines >= 100_000: slurm_header = slurm_header.replace('MEMORY', '8G')
+    elif args.lines >= 50_000: slurm_header = slurm_header.replace('MEMORY', '6G')
+    elif args.lines >= 25_000: slurm_header = slurm_header.replace('MEMORY', '4G')
+    else: slurm_header = slurm_header.replace('MEMORY', '2G')
 
     # Turn the arguments into a string of flags
     flags = parse_flags_single_job(args, parser)
