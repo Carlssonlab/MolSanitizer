@@ -360,7 +360,7 @@ class Ionizer:
         # Determine number of cores
         numcores = min(self.numcores, len(df))  # Prevent using more cores than data chunks
 
-        # Handle contiguous chunks using numpy array_split indexing to save memory footprint overhead of copying rows
+        # Use numpy array_split to create contiguous (sequential) chunks instead of the previous interleaved (stride-based) df.iloc[i::numcores] approach
         chunk_indices = array_split(arange(len(df)), numcores)
         chunks = [df.iloc[indices] for indices in chunk_indices]
 

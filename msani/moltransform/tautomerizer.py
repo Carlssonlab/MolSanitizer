@@ -491,7 +491,7 @@ class Tautomerizer:
 
         num_cores = min(self.numcores, len(df))  # Avoid using more cores than data chunks
         
-        # Use numpy array split style indexing to avoid making copies of chunks
+        # Use numpy array split indexing to create contiguous row chunks (better cache/memory locality than strided df.iloc[i::num_cores])
         chunk_indices = array_split(arange(len(df)), num_cores)
         chunks = [df.iloc[indices] for indices in chunk_indices]
 
