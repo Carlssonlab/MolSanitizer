@@ -1,5 +1,6 @@
 import argparse
 import multiprocessing as mp
+import platform
 from concurrent.futures import ProcessPoolExecutor
 import logging
 import shutil
@@ -14,6 +15,10 @@ from rdkit.Chem.MolStandardize import rdMolStandardize
 
 from msani.moltransform.neutralizer import Neutralizer
 from msani.io.parsers import CustomHelpFormatter
+
+# forkserver avoids inheriting parent locks (RDKit allocator, logging) on Linux.
+# Windows only supports 'spawn'; macOS prefers 'spawn' too (fork is deprecated).
+_MP_START_METHOD = 'forkserver' if platform.system() == 'Linux' else 'spawn'
 
 RDLogger.DisableLog('rdApp.*') # To disable error messages with kekulizing tautomers from RDKit
 logger = logging.getLogger('msani')
@@ -499,9 +504,8 @@ class Tautomerizer:
         chunk_indices = array_split(arange(len(df)), num_cores)
         chunks = [df.iloc[indices] for indices in chunk_indices]
 
-        # forkserver: worker starts in a clean process (no inherited locks from parent).
-        # initializer: Tautomerizer is pickled once at worker startup, not once per chunk.
-        ctx = mp.get_context('forkserver')
+        # _MP_START_METHOD: forkserver on Linux (no inherited locks), spawn elsewhere.
+        ctx = mp.get_context(_MP_START_METHOD)
         with ProcessPoolExecutor(
                 max_workers=num_cores,
                 mp_context=ctx,
