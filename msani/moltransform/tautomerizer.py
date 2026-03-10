@@ -1,8 +1,8 @@
 import argparse
 import multiprocessing as mp
+from concurrent.futures import ProcessPoolExecutor
 import logging
 import shutil
-from functools import partial
 from itertools import tee
 
 from numpy import array_split, arange
@@ -388,8 +388,8 @@ class Tautomerizer:
                 if error == 0:
                     mol = new_mol
                 else:
-                    if self.debug: print(f"\tError sanitizing molecule: {Chem.MolToSmiles(mol)}")
-                    logger.info(f"Error sanitizing molecule: {Chem.MolToSmiles(mol)}")
+                    if self.debug: 
+                        print(f"\tError sanitizing molecule: {Chem.MolToSmiles(mol)}")
                     break
                 runs += 1
 
@@ -483,32 +483,34 @@ class Tautomerizer:
                           mol_column: str = 'mol',
                           name_column: str = 'ids') -> DataFrame:
         """
-        Tautomerize a dataframe of molecules using multiprocessing with chunked processing.
+        Tautomerize a dataframe of molecules using ProcessPoolExecutor with
+        forkserver start method and an initializer to avoid:
+          1. Pipe-buffer deadlocks from imap_unordered with large results.
+          2. RDKit/logging lock inheritance via os.fork() on Linux.
+          3. Re-pickling the Tautomerizer object for every chunk.
         """
         if mol_column not in df.columns:
-            df = df.copy() # Make a single shallow copy to safely add mol_column
+            df = df.copy()  # Make a single shallow copy to safely add mol_column
             df[mol_column] = df[smiles_column].apply(Chem.MolFromSmiles)
 
         num_cores = min(self.numcores, len(df))  # Avoid using more cores than data chunks
-        
-        # Use numpy array split style indexing to avoid making copies of chunks
+
+        # Use numpy array_split to produce contiguous index slices (no data copies)
         chunk_indices = array_split(arange(len(df)), num_cores)
         chunks = [df.iloc[indices] for indices in chunk_indices]
 
-        process_func = partial(_process_tautomer_rows, tautomerizer=self,
-                               smiles_column=smiles_column,
-                               mol_column=mol_column,
-                               name_column=name_column)
+        # forkserver: worker starts in a clean process (no inherited locks from parent).
+        # initializer: Tautomerizer is pickled once at worker startup, not once per chunk.
+        ctx = mp.get_context('forkserver')
+        with ProcessPoolExecutor(
+                max_workers=num_cores,
+                mp_context=ctx,
+                initializer=_init_tautomerizer_worker,
+                initargs=(self,)) as executor:
+            # list() drains eagerly via an internal thread — safe from pipe-block.
+            batch_results = list(executor.map(_tautomerize_chunk_worker, chunks))
 
-        results = []
-        with mp.Pool(processes=num_cores) as pool:
-            # imap or map is typically more memory efficient than apply_async + list extend
-            for async_result in pool.imap_unordered(process_func, chunks):
-                try:
-                    results.extend(async_result)
-                except Exception as e:
-                    logger.error(f"Error processing a tautomer batch: {str(e)}")
-
+        results = [row for batch in batch_results if batch for row in batch]
         return DataFrame(results)
 
     def tautomerize_df(self, 
@@ -540,6 +542,26 @@ class Tautomerizer:
 
                        
 
+# ---------------------------------------------------------------------------
+# Module-level worker helpers for ProcessPoolExecutor
+# These must be at module level (not nested) to be picklable.
+# ---------------------------------------------------------------------------
+
+_tautomerizer_worker = None  # per-worker singleton set by the initializer
+
+
+def _init_tautomerizer_worker(tautomerizer):
+    """Initializer run once per worker process."""
+    global _tautomerizer_worker
+    _tautomerizer_worker = tautomerizer
+
+
+def _tautomerize_chunk_worker(chunk):
+    """Top-level worker function dispatched by ProcessPoolExecutor."""
+    return _process_tautomer_rows(chunk, _tautomerizer_worker,
+                                  'smiles', 'mol', 'ids')
+
+
 def _process_tautomer_rows(df, tautomerizer, smiles_column, mol_column, name_column):
     """
     Common function to process tautomerization for both single-core and multiprocessing.
@@ -551,7 +573,6 @@ def _process_tautomer_rows(df, tautomerizer, smiles_column, mol_column, name_col
         original_idx = row.get('original_idx', None)  # For debugging purposes
         tautomers_smiles = tautomerizer.tautomerize(mol=mol, name = row[name_column])
 
-        
         for _, tautomer in enumerate(tautomers_smiles):
             results.append({name_column: row[name_column],
                             mol_column: Chem.MolFromSmiles(tautomer),

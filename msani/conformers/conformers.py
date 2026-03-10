@@ -1243,9 +1243,19 @@ def gen_conf_chunk(df: DataFrame, args, input_file='0'):
                     queue = multiprocessing.Queue()
                     process = multiprocessing.Process(target=initial_embedding, args=(queue, smiles, name, randomSeed, nr, numcores, VERBOSE))
                     process.start()
-                    process.join(timeout=timeout*60)  # default 2 minutes timeout
-                    # Check if process is still alive (meaning it exceeded timeout)
-                    if process.is_alive():
+                    # IMPORTANT: drain the queue BEFORE joining the process.
+                    # If the child writes large binary data (complex molecules can
+                    # exceed 64 KB), queue.put() blocks waiting for the parent to
+                    # read — while the parent is blocked on join() — deadlock.
+                    # Reading first guarantees the child can always finish writing.
+                    result_data = None
+                    try:
+                        result_data = queue.get(timeout=timeout * 60)
+                    except Exception:
+                        pass  # Timeout or error — process may have crashed
+                    process.join(timeout=5)  # Short join: child should have exited by now
+                    # Check if process is still alive (meaning it exceeded timeout or crashed)
+                    if process.is_alive() or result_data is None:
                         logger.warning(f"Timeout occurred while generating conformation for {name}, using OpenBabel.")
                         process.terminate()
                         process.join()
@@ -1259,29 +1269,23 @@ def gen_conf_chunk(df: DataFrame, args, input_file='0'):
                             logger.error(f"Error in generating initial conformation using OpenBabel for {name}, skipping it")
                             log_error(smiles, name)
                             continue
-
-                    # Retrieve result from queue
-                    elif not queue.empty():
-                        bin_amsol_mol, bin_conf_rings, mol2_str, error = queue.get() 
-
+                    else:
+                        # Result was drained from the queue before join
+                        bin_amsol_mol, bin_conf_rings, mol2_str, error = result_data
                         if error:
                             logger.error(f"Error in generating initial conformation using RDKit for {name}, skipping it: {error}")
                             log_error(smiles, name)
                             continue
-                        confgen = ConformerGenerator.from_existing_data(smiles=smiles, 
-                                                                        name=name, 
-                                                                        amsol_mol=bin_amsol_mol, 
-                                                                        ring_confs=bin_conf_rings, 
-                                                                        mol2_str=mol2_str, 
-                                                                        request_alignment=request_alignment, 
+                        confgen = ConformerGenerator.from_existing_data(smiles=smiles,
+                                                                        name=name,
+                                                                        amsol_mol=bin_amsol_mol,
+                                                                        ring_confs=bin_conf_rings,
+                                                                        mol2_str=mol2_str,
+                                                                        request_alignment=request_alignment,
                                                                         mode=mode,
                                                                         tolerance=tolerance,
                                                                         rmsd=args.rmsd,
                                                                         VERBOSE=VERBOSE)
-                    else:
-                        logger.error(f"Unknown error in generating initial conformation for {name}, skipping it.")
-                        log_error(smiles, name)
-                        continue
             except Exception as e:
                 logger.error(f"Error in generating initial conformation for {name}, skipping it: {e}")
                 log_error(smiles, name)

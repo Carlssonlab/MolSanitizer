@@ -2,8 +2,8 @@ import argparse
 import logging
 import shutil
 import multiprocessing as mp
+from concurrent.futures import ProcessPoolExecutor
 from io import StringIO
-from functools import partial
 
 from numpy import array_split, arange
 from pandas import DataFrame, read_csv, concat
@@ -242,8 +242,8 @@ class Ionizer:
             if error == 0:
                 return self.recursive_reaction(product, rxn, set())
             else:
-                logger.info(f"Error sanitizing molecule: {Chem.MolToSmiles(product)}")
-                if self.debug: print(f"Error sanitizing molecule: {Chem.MolToSmiles(product)}")
+                if self.debug: 
+                    print(f"Error sanitizing molecule: {Chem.MolToSmiles(product)}")
                 return {fallback_smi}
         except Exception as e:
             logger.error(f"Exception during sanitization: {e}")
@@ -341,8 +341,12 @@ class Ionizer:
                      name_column: str = 'ids',
                      mol_column: str = 'mol') -> DataFrame:
         """
-        Protonate the input molecules using multiprocessing with chunked DataFrame processing.
-        
+        Protonate the input molecules using ProcessPoolExecutor with
+        forkserver start method and an initializer to avoid:
+          1. Pipe-buffer deadlocks from imap_unordered with large results.
+          2. RDKit/logging lock inheritance via os.fork() on Linux.
+          3. Re-pickling the Ionizer object for every chunk.
+
         Parameters:
             df (DataFrame): The input DataFrame containing SMILES strings.
             smiles_column (str): The column name containing SMILES strings (default: smiles).
@@ -354,31 +358,28 @@ class Ionizer:
         """
         # Ensure mol_column exists
         if mol_column not in df.columns:
-            df = df.copy() # Make a single shallow copy to safely add mol_column
+            df = df.copy()  # Make a single shallow copy to safely add mol_column
             df[mol_column] = df[smiles_column].apply(Chem.MolFromSmiles)
 
         # Determine number of cores
         numcores = min(self.numcores, len(df))  # Prevent using more cores than data chunks
 
-        # Handle contiguous chunks using numpy array_split indexing to save memory footprint overhead of copying rows
+        # Handle contiguous chunks using numpy array_split
         chunk_indices = array_split(arange(len(df)), numcores)
         chunks = [df.iloc[indices] for indices in chunk_indices]
 
-        # Create a partial function for multiprocessing
-        process_func = partial(_process_ionization_rows, ionizer=self,
-                               smiles_column=smiles_column,
-                               mol_column=mol_column,
-                               name_column=name_column)
+        # forkserver: worker starts in a clean process (no inherited locks from parent).
+        # initializer: Ionizer is pickled once at worker startup, not once per chunk.
+        ctx = mp.get_context('forkserver')
+        with ProcessPoolExecutor(
+                max_workers=numcores,
+                mp_context=ctx,
+                initializer=_init_ionizer_worker,
+                initargs=(self,)) as executor:
+            # list() drains eagerly via an internal thread — safe from pipe-block.
+            batch_results = list(executor.map(_ionize_chunk_worker, chunks))
 
-        results = []
-        with mp.Pool(processes=numcores) as pool:
-            # imap is typically more memory efficient
-            for async_result in pool.imap_unordered(process_func, chunks):
-                try:
-                    results.extend(async_result)  # Timeout for safety
-                except Exception as e:
-                    logger.error(f"Error processing a molecule batch: {str(e)}")
-
+        results = [row for batch in batch_results if batch for row in batch]
         return DataFrame(results)
     
     def ionize_df(self, 
@@ -410,6 +411,25 @@ class Ionizer:
             return DataFrame(_process_ionization_rows(df, self, smiles_column, mol_column, name_column))
 
 
+# ---------------------------------------------------------------------------
+# Module-level worker helpers for ProcessPoolExecutor
+# These must be at module level (not nested) to be picklable.
+# ---------------------------------------------------------------------------
+
+_ionizer_worker = None  # per-worker singleton set by the initializer
+
+
+def _init_ionizer_worker(ionizer):
+    """Initializer run once per worker process."""
+    global _ionizer_worker
+    _ionizer_worker = ionizer
+
+
+def _ionize_chunk_worker(chunk):
+    """Top-level worker function dispatched by ProcessPoolExecutor."""
+    return _process_ionization_rows(chunk, _ionizer_worker, 'smiles', 'mol', 'ids')
+
+
 def _process_ionization_rows(df, ionizer, smiles_column, mol_column, name_column):
     """
     Common function to process ionization for both single-core and multiprocessing.
@@ -426,7 +446,7 @@ def _process_ionization_rows(df, ionizer, smiles_column, mol_column, name_column
                             smiles_column: smiles,
                             'longname': longname,
                             'original_idx': original_idx})
-    
+
     return results
 
 def main():

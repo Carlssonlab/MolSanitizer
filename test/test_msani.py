@@ -540,6 +540,29 @@ class Test_MolSanitizer(unittest.TestCase):
         for mode in modes: 
             if (mode not in ['unwanted','custom']): args[mode] = True
         return SimpleNamespace(**args)
- 
+        
+    def test_multiprocessing_no_deadlock(self):
+        """Verify that ProcessPoolExecutor-based tautomerization and ionization
+        complete without deadlock and return non-empty results."""
+        from msani.moltransform.tautomerizer import Tautomerizer
+        from msani.moltransform.ionizer import Ionizer
+        from pandas import DataFrame
+
+        # 20 rows — enough to exercise the chunking / forkserver path
+        smiles = ['c1ccccc1O', 'CC(=O)O', 'CCN', 'c1ccncc1O', 'CCCO'] * 4
+        df = DataFrame({'smiles': smiles, 'ids': [f'm{i}' for i in range(20)]})
+
+        with self.subTest(msg="Tautomerizer multiprocessing (numcores=2)"):
+            tau = Tautomerizer(numcores=2)
+            result = tau.tautomerize_df(df)
+            self.assertGreater(len(result), 0,
+                               "tautomerize_df with numcores=2 returned empty DataFrame")
+
+        with self.subTest(msg="Ionizer multiprocessing (numcores=2)"):
+            ion = Ionizer(pH=7, numcores=2)
+            result2 = ion.ionize_df(df)
+            self.assertGreater(len(result2), 0,
+                               "ionize_df with numcores=2 returned empty DataFrame")
+
 if __name__ == '__main__':
         unittest.main()
