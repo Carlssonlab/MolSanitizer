@@ -55,6 +55,7 @@ class Msani:
                 numcores = 1,
                 randomSeed = 42,
                 timeout = 60,
+                stereo_timeout = 60,
                 standardize = False,
                 protonation_library = None,
                 tautomer_library = None,
@@ -94,6 +95,7 @@ class Msani:
         self.pH_range = pH_range
         self.randomSeed = randomSeed
         self.timeout = timeout
+        self.stereo_timeout = stereo_timeout
         self.standardize = standardize    
         self.debug = debug
         self.numcores = numcores
@@ -193,7 +195,7 @@ class Msani:
                                   tryEmbedding=True,
                                   randomSeed=self.randomSeed,
                                   numcores=self.numcores,
-                                  timeout=self.timeout,
+                                  timeout=self.stereo_timeout,
                                   debug=self.debug)
             df = stereoisomerizer.enumerate_df(df)
 

@@ -230,6 +230,13 @@ def parseArguments(args = None, batch_mode = False):
         help=f'Maximum number of stereoisomers to consider (default: {max_isomers})'
     )
     smiles_group.add_argument(
+        '--stereo_timeout', '-sto',
+        type=int,
+        default=defaults.get('stereo_timeout', 60),
+        help='Per-molecule timeout in seconds for stereoisomer enumeration (default: 60).\n'
+             'Molecules that exceed this limit keep their input SMILES unchanged.'
+    )
+    smiles_group.add_argument(
         '--tautomers', '-tau',
         action='store_true',
         default=defaults.get('tautomers', False),
