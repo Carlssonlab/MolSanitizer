@@ -1243,11 +1243,6 @@ def gen_conf_chunk(df: DataFrame, args, input_file='0'):
                     queue = multiprocessing.Queue()
                     process = multiprocessing.Process(target=initial_embedding, args=(queue, smiles, name, randomSeed, nr, numcores, VERBOSE))
                     process.start()
-                    # IMPORTANT: drain the queue BEFORE joining the process.
-                    # If the child writes large binary data (complex molecules can
-                    # exceed 64 KB), queue.put() blocks waiting for the parent to
-                    # read — while the parent is blocked on join() — deadlock.
-                    # Reading first guarantees the child can always finish writing.
                     result_data = None
                     try:
                         result_data = queue.get(timeout=timeout * 60)

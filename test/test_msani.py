@@ -16,39 +16,6 @@ from msani.io import parsers
 
 OS = platform.system()
 machine = platform.machine().lower()
-
-
-def _run_and_put(q, fn, args, kwargs):
-    """Module-level target for multiprocessing.Process used by the deadlock test.
-
-    Runs ``fn(*args, **kwargs)`` and puts ``(True, result)`` into *q* on
-    success, or ``(False, repr(exc))`` on failure.  Must live at module level
-    so that the 'spawn'/'forkserver' start methods can pickle it.
-    """
-    try:
-        result = fn(*args, **kwargs)
-        q.put((True, result))
-    except Exception as exc:  # noqa: BLE001
-        q.put((False, repr(exc)))
-
-
-def _collect_result(q, p, label):
-    """Retrieve (ok, payload) from *q* after the worker process *p* has joined.
-
-    Raises AssertionError with a clear diagnostic if the queue is empty,
-    which happens when the worker crashes or is killed before it can put
-    a result (e.g. an unhandled signal, OOM kill, or import error in a
-    'spawn' child).
-    """
-    import queue as _queue
-    try:
-        return q.get_nowait()
-    except _queue.Empty:
-        raise AssertionError(
-            f"{label}: worker process exited without putting a result "
-            f"(exitcode={p.exitcode})"
-        )
-
 class Test_MolSanitizer(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -293,7 +260,7 @@ class Test_MolSanitizer(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             args = self.generate_mock_arguments([f'{self.path}/in_stereo_complex.txt'],
                                                 ['stereoisomers', 'test'], temp_dir)
-            args.stereo_timeout = 5
+            args.stereo_timeout = 1
             args.max_isomers = 128
             cli.clean_data(args)
             self.compare_relative(f'{temp_dir}/dummy_output_clean.txt',

@@ -84,7 +84,8 @@ class Stereoisomerizer:
             'onlyStereoGroups': onlyStereoGroups,
             'unique': unique,
             'tryEmbedding': tryEmbedding,
-            'randomSeed': randomSeed
+            'randomSeed': randomSeed,
+            'timeout': float(timeout),  
         }
         self.numcores = numcores
         self.timeout = timeout
@@ -145,12 +146,8 @@ class Stereoisomerizer:
 
         num_cores = min(self.numcores, len(df))
 
-        # self.options is already a dict with all C++-facing parameters; copy to
-        # avoid mutating shared state across pool workers.
-        stereo_params = self.options.copy()
-
         process_func = partial(_process_stereoisomers_row,
-                               stereo_params=stereo_params,
+                               stereo_params=self.options,
                                smiles_column=smiles_column,
                                mol_column=mol_column,
                                name_column=name_column,
@@ -158,25 +155,13 @@ class Stereoisomerizer:
 
         results = []
         with mp.Pool(processes=num_cores) as pool:
-            # Submit all rows up front so workers run in parallel.
             async_results = [
                 (row, pool.apply_async(process_func, (row,)))
                 for _, row in df.iterrows()
             ]
-            # Collect results in submission order, applying per-row timeout.
             for row, async_result in async_results:
                 try:
-                    results.extend(async_result.get(timeout=self.timeout))
-                except mp.TimeoutError:
-                    logger.warning(
-                        f"TimeoutError: Compound {row[name_column]} took too long, "
-                        "the input SMILES is kept."
-                    )
-                    results.append({
-                        name_column: row[name_column],
-                        smiles_column: row[smiles_column],
-                        mol_column: row.get(mol_column),
-                    })
+                    results.extend(async_result.get())
                 except Exception as e:
                     logger.error(
                         f"Error processing stereoisomer for {row[name_column]}: {str(e)}"
@@ -232,7 +217,21 @@ def _process_stereoisomers_row(row, stereo_params, smiles_column='smiles', mol_c
 
     # Use the dictionary-based C++ function
     stereoisomers_smiles = ms.enumerate_stereoisomers(smiles, stereo_params, debug)
-    
+
+    # Empty list means C++ hit the timeout before finding a single isomer.
+    # Fall back to the input SMILES so the molecule is not silently dropped.
+    if not stereoisomers_smiles:
+        logger.warning(
+            f"{mol_name}: Stereoisomerization timed out, the input SMILES is kept."
+        )
+        return [{
+            smiles_column: smiles,
+            name_column: mol_name,
+            mol_column: mol,
+            'longname': longname,
+            'original_idx': original_idx,
+        }]
+
     if len(stereoisomers_smiles) == 1:
         results.append({
             smiles_column: stereoisomers_smiles[0],
@@ -322,7 +321,7 @@ def main():
         '-j',
         type=int,
         default=4,
-        help="Number of CPU cores to use for parallel processing. Default is 1."
+        help="Number of CPU cores to use for parallel processing. Default is 4."
     )
     parser.add_argument(
         '--timeout',
