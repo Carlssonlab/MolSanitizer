@@ -2,10 +2,7 @@
 MolSanitizer in a standalone mode.
 """
 
-__author__ = "Thua-Phong Lam, Szymon Pach, Israel Cabeza de Vaca"
-__place__ = "Jens Carlsson lab, Uppsala University, Sweden"
-__license__ = "GPLv2"
-__version__ = "0.5.0"
+from msani import __version__
 
 import pathlib
 import os
