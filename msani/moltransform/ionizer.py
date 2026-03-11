@@ -379,7 +379,7 @@ class Ionizer:
                 max_workers=numcores,
                 mp_context=ctx,
                 initializer=_init_ionizer_worker,
-                initargs=(self,)) as executor:
+                initargs=(self, smiles_column, name_column, mol_column)) as executor:
             # Iterate the map() iterator incrementally: ProcessPoolExecutor's internal
             # background reader thread drains the result pipe continuously, so this is
             # safe from pipe-buffer deadlock while avoiding the 2x peak-memory spike
@@ -425,17 +425,27 @@ class Ionizer:
 # ---------------------------------------------------------------------------
 
 _ionizer_worker = None  # per-worker singleton set by the initializer
+_ionizer_smiles_column = 'smiles'
+_ionizer_name_column = 'ids'
+_ionizer_mol_column = 'mol'
 
 
-def _init_ionizer_worker(ionizer):
+def _init_ionizer_worker(ionizer, smiles_column, name_column, mol_column):
     """Initializer run once per worker process."""
-    global _ionizer_worker
+    global _ionizer_worker, _ionizer_smiles_column
+    global _ionizer_name_column, _ionizer_mol_column
     _ionizer_worker = ionizer
+    _ionizer_smiles_column = smiles_column
+    _ionizer_name_column = name_column
+    _ionizer_mol_column = mol_column
 
 
 def _ionize_chunk_worker(chunk):
     """Top-level worker function dispatched by ProcessPoolExecutor."""
-    return _process_ionization_rows(chunk, _ionizer_worker, 'smiles', 'mol', 'ids')
+    return _process_ionization_rows(chunk, _ionizer_worker,
+                                    _ionizer_smiles_column,
+                                    _ionizer_mol_column,
+                                    _ionizer_name_column)
 
 
 def _process_ionization_rows(df, ionizer, smiles_column, mol_column, name_column):

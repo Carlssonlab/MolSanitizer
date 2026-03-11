@@ -510,7 +510,7 @@ class Tautomerizer:
                 max_workers=num_cores,
                 mp_context=ctx,
                 initializer=_init_tautomerizer_worker,
-                initargs=(self,)) as executor:
+                initargs=(self, smiles_column, mol_column, name_column)) as executor:
             # Iterate the map() iterator incrementally: ProcessPoolExecutor's internal
             # background reader thread drains the result pipe continuously, so this is
             # safe from pipe-buffer deadlock while avoiding the 2x peak-memory spike
@@ -556,18 +556,27 @@ class Tautomerizer:
 # ---------------------------------------------------------------------------
 
 _tautomerizer_worker = None  # per-worker singleton set by the initializer
+_tautomerizer_smiles_column = 'smiles'
+_tautomerizer_mol_column = 'mol'
+_tautomerizer_name_column = 'ids'
 
 
-def _init_tautomerizer_worker(tautomerizer):
+def _init_tautomerizer_worker(tautomerizer, smiles_column, mol_column, name_column):
     """Initializer run once per worker process."""
-    global _tautomerizer_worker
+    global _tautomerizer_worker, _tautomerizer_smiles_column
+    global _tautomerizer_mol_column, _tautomerizer_name_column
     _tautomerizer_worker = tautomerizer
+    _tautomerizer_smiles_column = smiles_column
+    _tautomerizer_mol_column = mol_column
+    _tautomerizer_name_column = name_column
 
 
 def _tautomerize_chunk_worker(chunk):
     """Top-level worker function dispatched by ProcessPoolExecutor."""
     return _process_tautomer_rows(chunk, _tautomerizer_worker,
-                                  'smiles', 'mol', 'ids')
+                                  _tautomerizer_smiles_column,
+                                  _tautomerizer_mol_column,
+                                  _tautomerizer_name_column)
 
 
 def _process_tautomer_rows(df, tautomerizer, smiles_column, mol_column, name_column):
