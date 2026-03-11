@@ -1,12 +1,10 @@
 import argparse
 import multiprocessing as mp
 import platform
-from concurrent.futures import ProcessPoolExecutor
 import logging
 import shutil
 from itertools import tee
 
-from numpy import array_split, arange
 from pandas import DataFrame, read_csv
 from pathlib import Path
 from rdkit import Chem, RDLogger
@@ -462,8 +460,6 @@ class Tautomerizer:
         
         if mol is None and smiles:
             mol = Chem.MolFromSmiles(smiles)
-        else:
-            smiles = Chem.MolToSmiles(mol)
         if self.debug:
             print(f"Tautomerizing {name}...")
             logger.info(f"Tautomerizing {name}...")
@@ -496,9 +492,9 @@ class Tautomerizer:
 
         num_cores = min(self.numcores, len(df))
         ctx = mp.get_context(_MP_START_METHOD)
-        
-        # Package the row data without the heavy Tautomerizer object
-        rows = [(row, smiles_column, mol_column, name_column) for _, row in df.iterrows()]
+        # Package the row data efficiently using python dicts to avoid memory bloat of large Pandas Series
+        keys = df.columns.tolist()
+        rows = ((dict(zip(keys, r)), smiles_column, mol_column, name_column) for r in df.itertuples(index=False, name=None))
         
         results = []
         with ctx.Pool(processes=num_cores,
@@ -527,7 +523,8 @@ class Tautomerizer:
         if self.numcores > 1:
             return self.tautomerize_df_mp(df, smiles_column, mol_column, name_column)
         else:
-            rows = [(row, smiles_column, mol_column, name_column) for _, row in df.iterrows()]
+            keys = df.columns.tolist()
+            rows = ((dict(zip(keys, r)), smiles_column, mol_column, name_column) for r in df.itertuples(index=False, name=None))
             results = []
             
             # Set global worker for single-core execution to share the same function

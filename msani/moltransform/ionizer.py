@@ -3,10 +3,8 @@ import logging
 import platform
 import shutil
 import multiprocessing as mp
-from concurrent.futures import ProcessPoolExecutor
 from io import StringIO
 
-from numpy import array_split, arange
 from pandas import DataFrame, read_csv, concat
 from pathlib import Path
 from rdkit import Chem, RDLogger
@@ -368,9 +366,9 @@ class Ionizer:
 
         numcores = min(self.numcores, len(df))
         ctx = mp.get_context(_MP_START_METHOD)
-        
-        # Package the row data without the heavy Ionizer object
-        rows = [(row, smiles_column, name_column, mol_column) for _, row in df.iterrows()]
+        # Package the row data efficiently using python dicts to avoid memory bloat of large Pandas Series
+        keys = df.columns.tolist()
+        rows = ((dict(zip(keys, r)), smiles_column, name_column, mol_column) for r in df.itertuples(index=False, name=None))
         
         results = []
         with ctx.Pool(processes=numcores,
@@ -399,7 +397,8 @@ class Ionizer:
         if self.numcores > 1:
             return self.ionize_df_mp(df, smiles_column, name_column, mol_column)
         else:
-            rows = [(row, smiles_column, name_column, mol_column) for _, row in df.iterrows()]
+            keys = df.columns.tolist()
+            rows = ((dict(zip(keys, r)), smiles_column, name_column, mol_column) for r in df.itertuples(index=False, name=None))
             results = []
             
             # Set global worker for single-core execution

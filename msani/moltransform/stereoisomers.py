@@ -155,14 +155,10 @@ class Stereoisomerizer:
                                debug=self.debug)
 
         results = []
-        with mp.Pool(processes=num_cores) as pool:
-            async_results = [
-                (row, pool.apply_async(process_func, (row,)))
-                for _, row in df.iterrows()
-            ]
-            for row, async_result in async_results:
+        if num_cores <= 1:
+            for _, row in df.iterrows():
                 try:
-                    results.extend(async_result.get())
+                    results.extend(process_func(row))
                 except Exception as e:
                     logger.error(
                         f"Error processing stereoisomer for {row[name_column]}: {str(e)}"
@@ -172,6 +168,24 @@ class Stereoisomerizer:
                         smiles_column: row[smiles_column],
                         mol_column: row.get(mol_column),
                     })
+        else:
+            with mp.Pool(processes=num_cores) as pool:
+                async_results = [
+                    (row, pool.apply_async(process_func, (row,)))
+                    for _, row in df.iterrows()
+                ]
+                for row, async_result in async_results:
+                    try:
+                        results.extend(async_result.get())
+                    except Exception as e:
+                        logger.error(
+                            f"Error processing stereoisomer for {row[name_column]}: {str(e)}"
+                        )
+                        results.append({
+                            name_column: row[name_column],
+                            smiles_column: row[smiles_column],
+                            mol_column: row.get(mol_column),
+                        })
 
         return DataFrame(results)
 

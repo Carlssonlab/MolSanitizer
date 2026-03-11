@@ -19,6 +19,7 @@ import sys
 import tarfile, io
 import time
 import argparse
+import queue
 
 from pandas import DataFrame, read_csv  # only what you use
 from pathlib import Path
@@ -944,6 +945,8 @@ class ConformerGenerator:
             pdbqt_string, success, error_msg = PDBQTWriterLegacy.write_string(prepared_mol[0])
             if success:
                 #print(pdbqt_string)
+                import os
+                os.makedirs("pdbqt", exist_ok=True)
                 if is_multi:
                     with open(f"pdbqt/{filename}.nr{i}.pdbqt", 'w') as f:
                         for line in pdbqt_string:
@@ -1244,29 +1247,16 @@ def gen_conf_chunk(df: DataFrame, args, input_file='0'):
                     process = multiprocessing.Process(target=initial_embedding, args=(queue, smiles, name, randomSeed, nr, numcores, VERBOSE))
                     process.start()
                     result_data = None
-                    
-                    # Compute total wait time in seconds
-                    total_wait = timeout * 60
-                    start_wait = time.time()
-                    
-                    # Poll while the process is alive or we haven't timed out
-                    while time.time() - start_wait < total_wait:
-                        try:
-                            # Short timeout to allow checking is_alive() frequently
-                            result_data = queue.get(timeout=0.5)
-                            break # Success
-                        except queue.Empty:
-                            if not process.is_alive():
-                                # Process died without writing to queue
-                                break
-                    
-                    process.join(timeout=1.0)  # Short join: child should have exited by now
+                    try:
+                        result_data = queue.get(timeout=timeout * 60)
+                    except Exception:
+                        pass  # Timeout or error — process may have crashed
+                    process.join(timeout=5)  # Short join: child should have exited by now
                     # Check if process is still alive (meaning it exceeded timeout or crashed)
                     if process.is_alive() or result_data is None:
-                        logger.warning(f"Timeout or crash occurred while generating conformation for {name}, using OpenBabel.")
-                        if process.is_alive():
-                            process.terminate()
-                            process.join()
+                        logger.warning(f"Timeout occurred while generating conformation for {name}, using OpenBabel.")
+                        process.terminate()
+                        process.join()
                         try:
                             confgen = ConformerGenerator(smiles, name, num_ring_confs=nr, method='obabel', tolerance=tolerance, rmsd=args.rmsd, VERBOSE=VERBOSE)
                         except Exception as e:
