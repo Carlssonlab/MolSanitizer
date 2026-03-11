@@ -511,10 +511,14 @@ class Tautomerizer:
                 mp_context=ctx,
                 initializer=_init_tautomerizer_worker,
                 initargs=(self,)) as executor:
-            # list() drains eagerly via an internal thread — safe from pipe-block.
-            batch_results = list(executor.map(_tautomerize_chunk_worker, chunks))
-
-        results = [row for batch in batch_results if batch for row in batch]
+            # Iterate the map() iterator incrementally: ProcessPoolExecutor's internal
+            # background reader thread drains the result pipe continuously, so this is
+            # safe from pipe-buffer deadlock while avoiding the 2x peak-memory spike
+            # that list(executor.map(...)) + a separate flatten step would cause.
+            results = []
+            for batch in executor.map(_tautomerize_chunk_worker, chunks):
+                if batch:
+                    results.extend(batch)
         return DataFrame(results)
 
     def tautomerize_df(self, 

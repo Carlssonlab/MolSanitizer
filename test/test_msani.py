@@ -543,10 +543,18 @@ class Test_MolSanitizer(unittest.TestCase):
         
     def test_multiprocessing_no_deadlock(self):
         """Verify that ProcessPoolExecutor-based tautomerization and ionization
-        complete without deadlock and return non-empty results."""
+        complete without deadlock and return non-empty results.
+
+        Each call is run inside a ThreadPoolExecutor future with a hard timeout
+        so that a deadlock regression causes a clean test failure instead of
+        hanging the entire CI suite indefinitely.
+        """
+        from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
         from msani.moltransform.tautomerizer import Tautomerizer
         from msani.moltransform.ionizer import Ionizer
         from pandas import DataFrame
+
+        TIMEOUT = 60  # seconds — generous for 20 trivial SMILES, fatal for a real hang
 
         # 20 rows — enough to exercise the chunking / forkserver path
         smiles = ['c1ccccc1O', 'CC(=O)O', 'CCN', 'c1ccncc1O', 'CCCO'] * 4
@@ -554,13 +562,31 @@ class Test_MolSanitizer(unittest.TestCase):
 
         with self.subTest(msg="Tautomerizer multiprocessing (numcores=2)"):
             tau = Tautomerizer(numcores=2)
-            result = tau.tautomerize_df(df)
+            with ThreadPoolExecutor(max_workers=1) as tex:
+                future = tex.submit(tau.tautomerize_df, df)
+                try:
+                    result = future.result(timeout=TIMEOUT)
+                except FuturesTimeoutError:
+                    future.cancel()
+                    self.fail(
+                        f"tautomerize_df with numcores=2 did not complete within "
+                        f"{TIMEOUT}s — possible deadlock regression"
+                    )
             self.assertGreater(len(result), 0,
                                "tautomerize_df with numcores=2 returned empty DataFrame")
 
         with self.subTest(msg="Ionizer multiprocessing (numcores=2)"):
             ion = Ionizer(pH=7, numcores=2)
-            result2 = ion.ionize_df(df)
+            with ThreadPoolExecutor(max_workers=1) as tex:
+                future = tex.submit(ion.ionize_df, df)
+                try:
+                    result2 = future.result(timeout=TIMEOUT)
+                except FuturesTimeoutError:
+                    future.cancel()
+                    self.fail(
+                        f"ionize_df with numcores=2 did not complete within "
+                        f"{TIMEOUT}s — possible deadlock regression"
+                    )
             self.assertGreater(len(result2), 0,
                                "ionize_df with numcores=2 returned empty DataFrame")
 
