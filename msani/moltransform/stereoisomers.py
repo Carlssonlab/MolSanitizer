@@ -119,8 +119,9 @@ class Stereoisomerizer:
         Enumerate stereoisomers for a dataframe of molecules.
 
         Both single-core and multi-core execution share the same code path through
-        mp.Pool, which provides per-molecule timeout support regardless of the
-        number of cores requested.
+        mp.Pool for parallel execution. Any per-molecule timeout behavior is handled
+        by the underlying stereoisomer enumeration routine (via its timeout option),
+        not by Python-side timeouts in this method.
 
         Parameters
         ----------
