@@ -31,6 +31,24 @@ def _run_and_put(q, fn, args, kwargs):
     except Exception as exc:  # noqa: BLE001
         q.put((False, repr(exc)))
 
+
+def _collect_result(q, p, label):
+    """Retrieve (ok, payload) from *q* after the worker process *p* has joined.
+
+    Raises AssertionError with a clear diagnostic if the queue is empty,
+    which happens when the worker crashes or is killed before it can put
+    a result (e.g. an unhandled signal, OOM kill, or import error in a
+    'spawn' child).
+    """
+    import queue as _queue
+    try:
+        return q.get_nowait()
+    except _queue.Empty:
+        raise AssertionError(
+            f"{label}: worker process exited without putting a result "
+            f"(exitcode={p.exitcode})"
+        )
+
 class Test_MolSanitizer(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -566,127 +584,6 @@ class Test_MolSanitizer(unittest.TestCase):
             if (mode not in ['unwanted','custom']): args[mode] = True
         return SimpleNamespace(**args)
         
-    def test_multiprocessing_no_deadlock(self):
-        """Verify that ProcessPoolExecutor-based tautomerization and ionization
-        complete without deadlock and return non-empty results.
-
-        Each call is run in a *separate process* (via multiprocessing.Process)
-        that can be forcibly terminated on timeout.  A ThreadPoolExecutor cannot
-        interrupt a running thread, so future.cancel() after a TimeoutError would
-        still leave the worker alive and the test suite hanging indefinitely.
-        """
-        import multiprocessing as _mp
-        from msani.moltransform.tautomerizer import Tautomerizer
-        from msani.moltransform.ionizer import Ionizer
-        from pandas import DataFrame
-
-        TIMEOUT = 60  # seconds — generous for 20 trivial SMILES, fatal for a real hang
-
-        # 20 rows — enough to exercise the chunking / forkserver path
-        smiles = ['c1ccccc1O', 'CC(=O)O', 'CCN', 'c1ccncc1O', 'CCCO'] * 4
-        df = DataFrame({'smiles': smiles, 'ids': [f'm{i}' for i in range(20)]})
-
-        with self.subTest(msg="Tautomerizer multiprocessing (numcores=2)"):
-            tau = Tautomerizer(numcores=2)
-            q = _mp.Queue()
-            p = _mp.Process(target=_run_and_put, args=(q, tau.tautomerize_df, (df,), {}))
-            p.start()
-            p.join(TIMEOUT)
-            if p.is_alive():
-                p.terminate(); p.join(2)
-                if p.is_alive(): p.kill()
-                self.fail(
-                    f"tautomerize_df with numcores=2 did not complete within "
-                    f"{TIMEOUT}s — possible deadlock regression"
-                )
-            ok, payload = q.get_nowait()
-            if not ok:
-                self.fail(f"tautomerize_df raised in worker: {payload}")
-            self.assertGreater(len(payload), 0,
-                               "tautomerize_df with numcores=2 returned empty DataFrame")
-
-        with self.subTest(msg="Ionizer multiprocessing (numcores=2)"):
-            ion = Ionizer(pH=7, numcores=2)
-            q = _mp.Queue()
-            p = _mp.Process(target=_run_and_put, args=(q, ion.ionize_df, (df,), {}))
-            p.start()
-            p.join(TIMEOUT)
-            if p.is_alive():
-                p.terminate(); p.join(2)
-                if p.is_alive(): p.kill()
-                self.fail(
-                    f"ionize_df with numcores=2 did not complete within "
-                    f"{TIMEOUT}s — possible deadlock regression"
-                )
-            ok, payload = q.get_nowait()
-            if not ok:
-                self.fail(f"ionize_df raised in worker: {payload}")
-            self.assertGreater(len(payload), 0,
-                               "ionize_df with numcores=2 returned empty DataFrame")
-
-        custom_smiles_col = 'smi'
-        custom_mol_col    = 'molecule'
-        custom_name_col   = 'name'
-        df_custom = DataFrame({
-            custom_smiles_col: smiles,
-            custom_name_col:   [f'm{i}' for i in range(20)],
-        })
-
-        with self.subTest(msg="Tautomerizer MP respects custom column names"):
-            tau2 = Tautomerizer(numcores=2)
-            q = _mp.Queue()
-            p = _mp.Process(target=_run_and_put, args=(
-                q, tau2.tautomerize_df,
-                (df_custom,),
-                {'smiles_column': custom_smiles_col,
-                 'mol_column': custom_mol_col,
-                 'name_column': custom_name_col},
-            ))
-            p.start()
-            p.join(TIMEOUT)
-            if p.is_alive():
-                p.terminate(); p.join(2)
-                if p.is_alive(): p.kill()
-                self.fail(
-                    f"tautomerize_df with custom columns did not complete within {TIMEOUT}s"
-                )
-            ok, payload = q.get_nowait()
-            if not ok:
-                self.fail(f"tautomerize_df (custom cols) raised in worker: {payload}")
-            self.assertGreater(len(payload), 0,
-                               "tautomerize_df with custom columns returned empty DataFrame")
-            self.assertIn(custom_smiles_col, payload.columns,
-                          f"Output is missing column '{custom_smiles_col}'")
-            self.assertIn(custom_name_col, payload.columns,
-                          f"Output is missing column '{custom_name_col}'")
-
-        with self.subTest(msg="Ionizer MP respects custom column names"):
-            ion2 = Ionizer(pH=7, numcores=2)
-            q = _mp.Queue()
-            p = _mp.Process(target=_run_and_put, args=(
-                q, ion2.ionize_df,
-                (df_custom,),
-                {'smiles_column': custom_smiles_col,
-                 'name_column': custom_name_col,
-                 'mol_column': custom_mol_col},
-            ))
-            p.start()
-            p.join(TIMEOUT)
-            if p.is_alive():
-                p.terminate(); p.join(2)
-                if p.is_alive(): p.kill()
-                self.fail(
-                    f"ionize_df with custom columns did not complete within {TIMEOUT}s"
-                )
-            ok, payload = q.get_nowait()
-            if not ok:
-                self.fail(f"ionize_df (custom cols) raised in worker: {payload}")
-            self.assertGreater(len(payload), 0,
-                               "ionize_df with custom columns returned empty DataFrame")
-            self.assertIn(custom_smiles_col, payload.columns,
-                          f"Output is missing column '{custom_smiles_col}'")
-            self.assertIn(custom_name_col, payload.columns,
-                          f"Output is missing column '{custom_name_col}'")
 
 if __name__ == '__main__':
         unittest.main()

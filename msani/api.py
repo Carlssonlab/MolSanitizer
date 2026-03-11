@@ -54,7 +54,6 @@ class Msani:
                 pH_range = 0,
                 numcores = 1,
                 randomSeed = 42,
-                timeout = 60,
                 stereo_timeout = 60,
                 standardize = False,
                 protonation_library = None,
@@ -94,7 +93,6 @@ class Msani:
         self.pH = pH
         self.pH_range = pH_range
         self.randomSeed = randomSeed
-        self.timeout = timeout
         self.stereo_timeout = stereo_timeout
         self.standardize = standardize    
         self.debug = debug
