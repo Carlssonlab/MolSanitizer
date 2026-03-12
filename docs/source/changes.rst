@@ -9,6 +9,16 @@ All notable changes to this project will be documented in this file.
 🚀 Features
 ~~~~~~~~~~~
 
+-  Implement C++ wall-clock timeout for stereoisomer enumeration,
+   removing Python-level timeout and adding fallback for empty results.
+   -
+   (`547b676 <https://github.com/phonglam3103/MolSanitizer/commit/547b6765d79d4e56f65d9ce29eb2e632dc1afe9e>`__)
+-  Add ``stereo_timeout`` parameter to control per-molecule timeout for
+   stereoisomer enumeration. -
+   (`65886d1 <https://github.com/phonglam3103/MolSanitizer/commit/65886d1c3e6b2acf99ae769866479a0c1ebeaaed>`__)
+-  Dynamically configure multiprocessing start method to ‘forkserver’ on
+   Linux and ‘spawn’ on other OS for ``Ionizer`` and ``Tautomerizer``. -
+   (`4c6995d <https://github.com/phonglam3103/MolSanitizer/commit/4c6995db87dda466bcd7a7710f920e390bba3170>`__)
 -  Update new rules for aminals and tautomerization of furanones (PR
    #39) -
    (`3f408bb <https://github.com/phonglam3103/MolSanitizer/commit/3f408bbb716a536a44536974aa38b49d5d6b6985>`__)
@@ -30,6 +40,10 @@ All notable changes to this project will be documented in this file.
 🐛 Bug Fixes
 ~~~~~~~~~~~~
 
+-  Fix a bug that the timed-out compound from stereoisomer enumeration
+   is completely skipped. The current implementation will retain the
+   input SMILES and let the 3D generation decide randomly. -
+   (`7f9847d <https://github.com/phonglam3103/MolSanitizer/commit/7f9847ded1533f615b7c26df460c5856192d056a>`__)
 -  Ensure multiprocessing imap_unordered iteration correctly handles
    worker exceptions by wrapping iteration in a try/except block. -
    (`4d4dd97 <https://github.com/phonglam3103/MolSanitizer/commit/4d4dd9773cc8f4ba5041176b7ee6207f636c58bc>`__)
@@ -57,6 +71,14 @@ All notable changes to this project will be documented in this file.
 🚜 Refactor
 ~~~~~~~~~~~
 
+-  Switch ``ionizer`` and ``tautomerizer`` multiprocessing from
+   ``ProcessPoolExecutor`` to ``multiprocessing.Pool`` for row-based
+   processing, and clarify ``stereoisomers`` docstring. -
+   (`af67cf3 <https://github.com/phonglam3103/MolSanitizer/commit/af67cf3370fabaa3a0eedc5ce001f4d58e6e0783>`__)
+-  Optimize multiprocessing result collection for reduced memory usage
+   and improved deadlock robustness, and add timeouts to related tests.
+   -
+   (`93d901c <https://github.com/phonglam3103/MolSanitizer/commit/93d901c08ebb658f07839741464318970cc5d128>`__)
 -  Pre-load custom and unwanted substructures in the Filters class. No
    changes in the syntax of either API or Filters. -
    (`c30224b <https://github.com/phonglam3103/MolSanitizer/commit/c30224b5aa6e660b9f50d9ab3e5832d048ba1650>`__)
