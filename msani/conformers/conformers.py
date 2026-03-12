@@ -1250,11 +1250,15 @@ def gen_conf_chunk(df: DataFrame, args, input_file='0'):
                     except Exception:
                         pass  # Timeout or error — process may have crashed
                     process.join(timeout=5)  # Short join: child should have exited by now
-                    # Check if process is still alive (meaning it exceeded timeout or crashed)
-                    if process.is_alive() or result_data is None:
-                        logger.warning(f"Timeout occurred while generating conformation for {name}, using OpenBabel.")
+                    
+                    # If process is still alive, forcefully terminate it for cleanup
+                    # (it may be hanging on RDKit destructors or logging)
+                    if process.is_alive():
                         process.terminate()
                         process.join()
+
+                    if result_data is None:
+                        logger.warning(f"Timeout occurred while generating conformation for {name}, using OpenBabel.")
                         try:
                             confgen = ConformerGenerator(smiles, name, num_ring_confs=nr, method='obabel', tolerance=tolerance, rmsd=args.rmsd, VERBOSE=VERBOSE)
                         except Exception as e:
