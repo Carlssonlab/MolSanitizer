@@ -1,11 +1,10 @@
 import argparse
 import multiprocessing as mp
+import platform
 import logging
 import shutil
-from functools import partial
 from itertools import tee
 
-from numpy import array_split, arange
 from pandas import DataFrame, read_csv
 from pathlib import Path
 from rdkit import Chem, RDLogger
@@ -14,6 +13,10 @@ from rdkit.Chem.MolStandardize import rdMolStandardize
 
 from msani.moltransform.neutralizer import Neutralizer
 from msani.io.parsers import CustomHelpFormatter
+
+# forkserver avoids inheriting parent locks (RDKit allocator, logging) on Linux.
+# Windows only supports 'spawn'; macOS prefers 'spawn' too (fork is deprecated).
+_MP_START_METHOD = 'forkserver' if platform.system() == 'Linux' else 'spawn'
 
 RDLogger.DisableLog('rdApp.*') # To disable error messages with kekulizing tautomers from RDKit
 logger = logging.getLogger('msani')
@@ -388,8 +391,8 @@ class Tautomerizer:
                 if error == 0:
                     mol = new_mol
                 else:
-                    if self.debug: print(f"\tError sanitizing molecule: {Chem.MolToSmiles(mol)}")
-                    logger.info(f"Error sanitizing molecule: {Chem.MolToSmiles(mol)}")
+                    if self.debug: 
+                        print(f"\tError sanitizing molecule: {Chem.MolToSmiles(mol)}")
                     break
                 runs += 1
 
@@ -457,8 +460,6 @@ class Tautomerizer:
         
         if mol is None and smiles:
             mol = Chem.MolFromSmiles(smiles)
-        else:
-            smiles = Chem.MolToSmiles(mol)
         if self.debug:
             print(f"Tautomerizing {name}...")
             logger.info(f"Tautomerizing {name}...")
@@ -483,38 +484,26 @@ class Tautomerizer:
                           mol_column: str = 'mol',
                           name_column: str = 'ids') -> DataFrame:
         """
-        Tautomerize a dataframe of molecules using multiprocessing with chunked processing.
+        Tautomerize a dataframe of molecules using multiprocessing Pool.
         """
         if mol_column not in df.columns:
-            df = df.copy() # Make a single shallow copy to safely add mol_column
+            df = df.copy()
             df[mol_column] = df[smiles_column].apply(Chem.MolFromSmiles)
 
-        num_cores = min(self.numcores, len(df))  # Avoid using more cores than data chunks
+        num_cores = min(self.numcores, len(df))
+        ctx = mp.get_context(_MP_START_METHOD)
+        # Package the row data efficiently using python dicts to avoid memory bloat of large Pandas Series
+        keys = df.columns.tolist()
+        rows = ((dict(zip(keys, r)), smiles_column, mol_column, name_column) for r in df.itertuples(index=False, name=None))
         
-        # Use numpy array split indexing to create contiguous row chunks (better cache/memory locality than strided df.iloc[i::num_cores])
-        chunk_indices = array_split(arange(len(df)), num_cores)
-        chunks = [df.iloc[indices] for indices in chunk_indices]
-
-        process_func = partial(_process_tautomer_rows, tautomerizer=self,
-                               smiles_column=smiles_column,
-                               mol_column=mol_column,
-                               name_column=name_column)
-
         results = []
-        with mp.Pool(processes=num_cores) as pool:
-            # imap or map is typically more memory efficient than apply_async + list extend
-            # The try/except must wrap the iteration (not just extend), because imap_unordered
-            # re-raises worker exceptions at the point where the iterator is advanced.
-            imap_iter = pool.imap_unordered(process_func, chunks)
-            while True:
-                try:
-                    async_result = next(imap_iter)
-                    results.extend(async_result)
-                except StopIteration:
-                    break
-                except Exception as e:
-                    logger.error(f"Error processing a tautomer batch: {str(e)}")
-
+        with ctx.Pool(processes=num_cores,
+                      initializer=_init_tautomerizer_worker,
+                      initargs=(self,)) as pool:
+            for res in pool.imap_unordered(_process_single_tautomer_row, rows, chunksize=10):
+                if res:
+                    results.extend(res)
+                    
         return DataFrame(results)
 
     def tautomerize_df(self, 
@@ -524,48 +513,66 @@ class Tautomerizer:
                        name_column: str = 'ids') -> DataFrame:
         """
         Tautomerize a dataframe of molecules using multiprocessing or single-core based on `num_cores`.
-
-        Args:
-            df (DataFrame): The input DataFrame containing SMILES strings.
-            smiles_column (str): The column name containing SMILES strings (default: 'smiles').
-            mol_column (str): The column name for RDKit molecule objects (default: 'mol').
-            name_column (str): The column name for molecule identifiers (default: 'ids').
-        Returns:
-            DataFrame: A DataFrame with tautomerized molecules, including SMILES and identifiers.
         """
         if df.empty:
             return df
         if mol_column not in df.columns:
-            df = df.copy() # Make a shallow copy to safely add mol_column
+            df = df.copy()
             df[mol_column] = df[smiles_column].apply(Chem.MolFromSmiles)
             
         if self.numcores > 1:
             return self.tautomerize_df_mp(df, smiles_column, mol_column, name_column)
         else:
-            return DataFrame(_process_tautomer_rows(df, self, smiles_column, mol_column, name_column))
+            keys = df.columns.tolist()
+            rows = ((dict(zip(keys, r)), smiles_column, mol_column, name_column) for r in df.itertuples(index=False, name=None))
+            results = []
+            
+            # Set global worker for single-core execution to share the same function
+            _init_tautomerizer_worker(self)
+            
+            for row_args in rows:
+                res = _process_single_tautomer_row(row_args)
+                if res:
+                    results.extend(res)
+            return DataFrame(results)
 
-                       
+# ---------------------------------------------------------------------------
+# Module-level worker helpers for multiprocessing
+# ---------------------------------------------------------------------------
 
-def _process_tautomer_rows(df, tautomerizer, smiles_column, mol_column, name_column):
+_tautomerizer_worker = None
+
+def _init_tautomerizer_worker(tautomerizer):
+    """Initializer run once per worker process to prevent memory spikes from pickling."""
+    global _tautomerizer_worker
+    _tautomerizer_worker = tautomerizer
+
+def _process_single_tautomer_row(args):
     """
-    Common function to process tautomerization for both single-core and multiprocessing.
+    Worker function to process tautomerization for a single row.
+    Caught exceptions simply log an error and return an empty list so the job continues.
     """
+    row, smiles_column, mol_column, name_column = args
     results = []
-    for _, row in df.iterrows():
+    
+    try:
         mol = row[mol_column]
         longname = row.get('longname', None)
-        original_idx = row.get('original_idx', None)  # For debugging purposes
-        tautomers_smiles = tautomerizer.tautomerize(mol=mol, name = row[name_column])
-
+        original_idx = row.get('original_idx', None)
         
-        for _, tautomer in enumerate(tautomers_smiles):
-            results.append({name_column: row[name_column],
-                            mol_column: Chem.MolFromSmiles(tautomer),
-                            smiles_column: tautomer,
-                            'longname': longname,
-                            'original_idx': original_idx
-                            })
+        tautomers_smiles = _tautomerizer_worker.tautomerize(mol=mol, name=row[name_column])
 
+        for _, tautomer in enumerate(tautomers_smiles):
+            results.append({
+                name_column: row[name_column],
+                mol_column: Chem.MolFromSmiles(tautomer),
+                smiles_column: tautomer,
+                'longname': longname,
+                'original_idx': original_idx
+            })
+    except Exception as e:
+        logger.error(f"Error during tautomerization for {row[name_column]}: {str(e)}")
+        
     return results
 
 

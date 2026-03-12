@@ -31,11 +31,11 @@ PH_RANGE: 0 # 0 means choose specific pH=7 (default), 2 means will sample pH 5 a
 #                 (for Tetralith is 2000. Check by: 'scontrol show config | grep MaxArraySize')
 # MAX_JOBS: Maximum number of jobs running at the same time
 # MAX_LIMIT_PROJECT: Maximum number of jobs allowed for a project account (for example: naiss2023-3-39 is 5000 jobs)
-SLURM_ACCOUNT: 'naiss2024-3-45'
+SLURM_ACCOUNT: 'naiss2025-3-21'
 LINES_PER_JOB: 200
 TIME_LIMIT: 96
 MAX_ARRAY_SIZE: 2000
-MAX_JOBS: 1000
+MAX_JOBS: 2000
 MAX_LIMIT_PROJECT: 5000
 
 

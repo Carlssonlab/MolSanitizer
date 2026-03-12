@@ -2,10 +2,7 @@
 MolSanitizer in a standalone mode.
 """
 
-__author__ = "Thua-Phong Lam, Szymon Pach, Israel Cabeza de Vaca"
-__place__ = "Jens Carlsson lab, Uppsala University, Sweden"
-__license__ = "GPLv2"
-__version__ = "0.5.0"
+from msani import __version__
 
 import pathlib
 import os
@@ -194,7 +191,8 @@ def clean_data(args):
         neutralize=args.neutralize, stereoisomers=args.stereoisomers, 
         max_stereoisomers=args.max_isomers, protonation=args.protonation, pH=args.pH, 
         pH_range=args.pH_range, numcores=args.numcores, randomSeed=args.randomSeed, 
-        standardize=args.standardize, protonation_library=args.protlib, tautomer_library=args.taulib,  
+        stereo_timeout=args.stereo_timeout, standardize=args.standardize,
+        protonation_library=args.protlib, tautomer_library=args.taulib,  
         debug=args.debug)       
     if args.smiles:
         process_smiles(processor, args)

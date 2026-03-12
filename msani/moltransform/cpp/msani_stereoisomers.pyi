@@ -38,6 +38,8 @@ class StereoEnumerationOptions:
         results (and execution time) it's important to keep an eye on this.
     randomSeed : int
         Seed for random number generator. Default=-1 means no seed.
+    timeout : float
+        Wall-clock timeout in seconds. 0 = no limit. Default=0
     """
 
     tryEmbedding: bool
@@ -46,6 +48,7 @@ class StereoEnumerationOptions:
     unique: bool
     maxIsomers: int
     randomSeed: int
+    timeout: float
 
     def __init__(self) -> None: ...
 
@@ -70,6 +73,7 @@ def enumerate_stereoisomers(
         - unique (bool): Return only unique stereoisomers. Default=True
         - tryEmbedding (bool): Validate stereoisomers via embedding. Default=False
         - randomSeed (int): Random seed for subset selection. Default=-1
+        - timeout (float): Wall-clock timeout in seconds. 0 = no limit. Default=0
 
     verbose : bool, optional
         Enable verbose output. Default=False

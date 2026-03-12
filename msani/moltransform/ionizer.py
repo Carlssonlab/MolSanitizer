@@ -1,11 +1,10 @@
 import argparse
 import logging
+import platform
 import shutil
 import multiprocessing as mp
 from io import StringIO
-from functools import partial
 
-from numpy import array_split, arange
 from pandas import DataFrame, read_csv, concat
 from pathlib import Path
 from rdkit import Chem, RDLogger
@@ -13,6 +12,10 @@ from rdkit.Chem import AllChem
 
 from msani.moltransform.neutralizer import Neutralizer
 from msani.io.parsers import CustomHelpFormatter
+
+# forkserver avoids inheriting parent locks (RDKit allocator, logging) on Linux.
+# Windows only supports 'spawn'; macOS prefers 'spawn' too (fork is deprecated).
+_MP_START_METHOD = 'forkserver' if platform.system() == 'Linux' else 'spawn'
 
 RDLogger.DisableLog('rdApp.*') # To disable error messages with kekulizing tautomers from RDKit
 logger = logging.getLogger('msani')
@@ -242,8 +245,8 @@ class Ionizer:
             if error == 0:
                 return self.recursive_reaction(product, rxn, set())
             else:
-                logger.info(f"Error sanitizing molecule: {Chem.MolToSmiles(product)}")
-                if self.debug: print(f"Error sanitizing molecule: {Chem.MolToSmiles(product)}")
+                if self.debug: 
+                    print(f"Error sanitizing molecule: {Chem.MolToSmiles(product)}")
                 return {fallback_smi}
         except Exception as e:
             logger.error(f"Exception during sanitization: {e}")
@@ -341,8 +344,12 @@ class Ionizer:
                      name_column: str = 'ids',
                      mol_column: str = 'mol') -> DataFrame:
         """
-        Protonate the input molecules using multiprocessing with chunked DataFrame processing.
-        
+        Protonate the input molecules using ProcessPoolExecutor with
+        forkserver start method and an initializer to avoid:
+          1. Pipe-buffer deadlocks from imap_unordered with large results.
+          2. RDKit/logging lock inheritance via os.fork() on Linux.
+          3. Re-pickling the Ionizer object for every chunk.
+
         Parameters:
             df (DataFrame): The input DataFrame containing SMILES strings.
             smiles_column (str): The column name containing SMILES strings (default: smiles).
@@ -354,37 +361,23 @@ class Ionizer:
         """
         # Ensure mol_column exists
         if mol_column not in df.columns:
-            df = df.copy() # Make a single shallow copy to safely add mol_column
+            df = df.copy()  # Make a single shallow copy to safely add mol_column
             df[mol_column] = df[smiles_column].apply(Chem.MolFromSmiles)
 
-        # Determine number of cores
-        numcores = min(self.numcores, len(df))  # Prevent using more cores than data chunks
-
-        # Use numpy array_split to create contiguous (sequential) chunks instead of the previous interleaved (stride-based) df.iloc[i::numcores] approach
-        chunk_indices = array_split(arange(len(df)), numcores)
-        chunks = [df.iloc[indices] for indices in chunk_indices]
-
-        # Create a partial function for multiprocessing
-        process_func = partial(_process_ionization_rows, ionizer=self,
-                               smiles_column=smiles_column,
-                               mol_column=mol_column,
-                               name_column=name_column)
-
+        numcores = min(self.numcores, len(df))
+        ctx = mp.get_context(_MP_START_METHOD)
+        # Package the row data efficiently using python dicts to avoid memory bloat of large Pandas Series
+        keys = df.columns.tolist()
+        rows = ((dict(zip(keys, r)), smiles_column, name_column, mol_column) for r in df.itertuples(index=False, name=None))
+        
         results = []
-        with mp.Pool(processes=numcores) as pool:
-            # imap is typically more memory efficient
-            # The try/except must wrap the iteration (not just extend), because imap_unordered
-            # re-raises worker exceptions at the point where the iterator is advanced.
-            imap_iter = pool.imap_unordered(process_func, chunks)
-            while True:
-                try:
-                    async_result = next(imap_iter)
-                    results.extend(async_result)
-                except StopIteration:
-                    break
-                except Exception as e:
-                    logger.error(f"Error processing a molecule batch: {str(e)}")
-
+        with ctx.Pool(processes=numcores,
+                      initializer=_init_ionizer_worker,
+                      initargs=(self,)) as pool:
+            for res in pool.imap_unordered(_process_single_ionization_row, rows, chunksize=10):
+                if res:
+                    results.extend(res)
+                    
         return DataFrame(results)
     
     def ionize_df(self, 
@@ -394,15 +387,6 @@ class Ionizer:
                   mol_column: str = 'mol') -> DataFrame: 
         """
         Protonate the input molecules using multiprocessing or single core based on `numcores`.
-        
-        Parameters:
-            df (DataFrame): The input DataFrame containing SMILES strings.
-            smiles_column (str): The column name containing SMILES strings (default: smiles).
-            name_column (str): The column name for molecule identifiers (default: ids).
-            mol_column (str): The column name for RDKit molecule objects (default: mol).
-
-        Returns:
-            DataFrame: A DataFrame with protonated molecules, including SMILES and identifiers.
         """
         if len(df) == 0:
             return df
@@ -413,26 +397,55 @@ class Ionizer:
         if self.numcores > 1:
             return self.ionize_df_mp(df, smiles_column, name_column, mol_column)
         else:
-            return DataFrame(_process_ionization_rows(df, self, smiles_column, mol_column, name_column))
+            keys = df.columns.tolist()
+            rows = ((dict(zip(keys, r)), smiles_column, name_column, mol_column) for r in df.itertuples(index=False, name=None))
+            results = []
+            
+            # Set global worker for single-core execution
+            _init_ionizer_worker(self)
+            
+            for row_args in rows:
+                res = _process_single_ionization_row(row_args)
+                if res:
+                    results.extend(res)
+            return DataFrame(results)
 
+# ---------------------------------------------------------------------------
+# Module-level worker helpers for multiprocessing
+# ---------------------------------------------------------------------------
 
-def _process_ionization_rows(df, ionizer, smiles_column, mol_column, name_column):
+_ionizer_worker = None
+
+def _init_ionizer_worker(ionizer):
+    """Initializer run once per worker process to prevent memory spikes from pickling."""
+    global _ionizer_worker
+    _ionizer_worker = ionizer
+
+def _process_single_ionization_row(args):
     """
-    Common function to process ionization for both single-core and multiprocessing.
+    Worker function to process ionization for a single row.
+    Caught exceptions simply log an error and return an empty list so the job continues.
     """
+    row, smiles_column, name_column, mol_column = args
     results = []
-    for _, row in df.iterrows():
+    
+    try:
         longname = row.get('longname', None)
-        original_idx = row.get('original_idx', None)  # For debugging purposes
-        protonated_smiles = ionizer.ionize(mol=row[mol_column])
+        original_idx = row.get('original_idx', None)
+        
+        protonated_smiles = _ionizer_worker.ionize(mol=row[mol_column])
 
         for _, smiles in enumerate(protonated_smiles):
-            results.append({name_column: row[name_column],
-                            mol_column: Chem.MolFromSmiles(smiles),
-                            smiles_column: smiles,
-                            'longname': longname,
-                            'original_idx': original_idx})
-    
+            results.append({
+                name_column: row[name_column],
+                mol_column: Chem.MolFromSmiles(smiles),
+                smiles_column: smiles,
+                'longname': longname,
+                'original_idx': original_idx
+            })
+    except Exception as e:
+        logger.error(f"Error during ionization for {row[name_column]}: {str(e)}")
+        
     return results
 
 def main():

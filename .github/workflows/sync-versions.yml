@@ -27,9 +27,10 @@ jobs:
 
     - name: Update version in files
       run: |
+        # pyproject.toml is the single source of truth for the version.
+        # cli.py and batchmode.py now read the version via importlib.metadata,
+        # so they no longer contain a __version__ = "..." line to update.
         sed -i "s/^version = \".*\"/version = \"$VERSION\"/" pyproject.toml
-        sed -i "s/^__version__ = \".*\"/__version__ = \"$VERSION\"/" msani/cli.py
-        sed -i "s/^__version__ = \".*\"/__version__ = \"$VERSION\"/" msani/batchmode.py
         sed -i "s/^release = .*/release = \"$VERSION\"/" docs/source/conf.py
         sed -i "s/^version = .*/version = \"$VERSION\"/" docs/source/conf.py
 
@@ -51,16 +52,6 @@ jobs:
 
         if ! git diff --quiet pyproject.toml; then
           git add pyproject.toml
-          CHANGED_FILES=1
-        fi
-
-        if ! git diff --quiet msani/cli.py; then
-          git add msani/cli.py
-          CHANGED_FILES=1
-        fi
-
-        if ! git diff --quiet msani/batchmode.py; then
-          git add msani/batchmode.py
           CHANGED_FILES=1
         fi
 

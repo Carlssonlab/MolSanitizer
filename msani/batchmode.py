@@ -2,11 +2,7 @@
 MolSanitizer in the batch mode.
 """
 
-__author__ = "Thua-Phong Lam, Israel Cabeza de Vaca Lopez, Szymon Pach"
-__place__ = "Jens Carlsson lab, Uppsala University, Sweden"
-__license__ = "GPLv2"
-__version__ = "0.5.0"
-
+from msani import __version__
 
 
 import os
@@ -49,7 +45,7 @@ ARRAY_ID=${SLURM_ARRAY_JOB_ID}
 log_prefix=$(basename "$smiles_file")
 log_prefix="${log_prefix%.*}"  # Remove the extension
 log_file="${log_prefix}.log"
-MSANI_PATH -i $smiles_file -j 2'''
+MSANI_PATH -i $smiles_file -j 1'''
 
 cleanup_script ="""
 task_count=$(ls *.lock 2>/dev/null | wc -l)

@@ -87,6 +87,9 @@ StereoEnumerationOptions options_from_dict(const py::dict &params) {
   if (params.contains("randomSeed")) {
     options.randomSeed = params["randomSeed"].cast<int>();
   }
+  if (params.contains("timeout")) {
+    options.timeout = params["timeout"].cast<double>();
+  }
   
   return options;
 }
@@ -143,7 +146,11 @@ PYBIND11_MODULE(msani_stereoisomers, m) {
                        " is no maximum. Since every additional stereocenter doubles the number of"
                        " results (and execution time) it's important to keep an eye on this.")
         .def_readwrite("randomSeed", &StereoEnumerationOptions::randomSeed,
-                       "Seed for random number generator. Default=-1 means no seed.");
+                       "Seed for random number generator. Default=-1 means no seed.")
+        .def_readwrite("timeout", &StereoEnumerationOptions::timeout,
+                       "Wall-clock timeout in seconds. 0 = no limit. Enumeration stops early"
+                       " and returns whatever isomers were collected within the time window."
+                       " Default=0.");
 
     // Expose dictionary-based enumeration function
     m.def("enumerate_stereoisomers", &enumerate_stereoisomers,

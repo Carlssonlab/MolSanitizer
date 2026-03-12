@@ -16,7 +16,6 @@ from msani.io import parsers
 
 OS = platform.system()
 machine = platform.machine().lower()
-
 class Test_MolSanitizer(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -256,6 +255,16 @@ class Test_MolSanitizer(unittest.TestCase):
             cli.clean_data(args)
             self.compare_relative(f'{temp_dir}/dummy_output_clean.txt',
                                   f'{self.path}/out_stereo.txt')
+    
+    def test_stereoisomers_complex(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            args = self.generate_mock_arguments([f'{self.path}/in_stereo_complex.txt'],
+                                                ['stereoisomers', 'test'], temp_dir)
+            args.stereo_timeout = 1
+            args.max_isomers = 128
+            cli.clean_data(args)
+            self.compare_relative(f'{temp_dir}/dummy_output_clean.txt',
+                                  f'{self.path}/out_stereo_complex.txt')
 
     def test_neutralize(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -535,11 +544,13 @@ class Test_MolSanitizer(unittest.TestCase):
             "create_protlib": False,
             "create_taulib": False,
             "torsion": None,
-            "config": None
+            "config": None,
+            "stereo_timeout": 60
          } 
         for mode in modes: 
             if (mode not in ['unwanted','custom']): args[mode] = True
         return SimpleNamespace(**args)
- 
+        
+
 if __name__ == '__main__':
         unittest.main()

@@ -23,6 +23,7 @@
 #include "Flippers.h"
 
 #include <random>
+#include <chrono>
 #include <unordered_set>
 
 #include <boost/dynamic_bitset/dynamic_bitset.hpp>
@@ -62,6 +63,9 @@ struct MSANI_ENUMERATESTEREOISOMERS_EXPORT StereoEnumerationOptions {
                                 // keep an eye on this.
   int randomSeed{-1};  // Seed for random number generator.  -1 means don't
                        // seed.
+  double timeout{0.0};  // Wall-clock timeout in seconds.  0 means no limit.
+                          // When the limit is reached, enumeration stops and
+                          // returns whatever isomers were found so far.
 };
 
 // Class that enumerates the stereoisomers of a molecule.  Acts like a
@@ -110,6 +114,9 @@ class MSANI_ENUMERATESTEREOISOMERS_EXPORT StereoisomerEnumerator {
 
   // The stereo orientations we've already made
   std::unordered_set<boost::dynamic_bitset<>> d_seen;
+
+  // Wall-clock start time, used to enforce d_options.timeout.
+  std::chrono::steady_clock::time_point d_startTime;
 
   void buildFlippers();
   std::unique_ptr<ROMol> generateRandomIsomer();
