@@ -233,8 +233,11 @@ def parseArguments(args = None, batch_mode = False):
         '--stereo_timeout', '-sto',
         type=int,
         default=defaults.get('stereo_timeout', 60),
-        help='Per-molecule timeout in seconds for stereoisomer enumeration (default: 60).\n'
-             'Molecules that exceed this limit keep their input SMILES unchanged.'
+        help=(
+            'Per-molecule timeout in seconds for stereoisomer enumeration (default: 60).\n'
+            'If the timeout is reached, any stereoisomers found up to that point are kept; '
+            'if none are found, the input SMILES is kept unchanged.'
+        )
     )
     smiles_group.add_argument(
         '--tautomers', '-tau',

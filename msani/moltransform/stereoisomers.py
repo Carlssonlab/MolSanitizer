@@ -1,14 +1,18 @@
 import argparse
 import multiprocessing as mp
+import platform
 import logging
 import time
-from functools import partial
 
 from pandas import DataFrame, read_csv
 from pathlib import Path
 from rdkit import Chem, RDLogger
 
 from msani.io.parsers import CustomHelpFormatter
+
+# forkserver avoids inheriting parent locks (RDKit allocator, logging) on Linux.
+# Windows only supports 'spawn'; macOS prefers 'spawn' too (fork is deprecated).
+_MP_START_METHOD = 'forkserver' if platform.system() == 'Linux' else 'spawn'
 
 RDLogger.DisableLog('rdApp.*') # To disable error messages with kekulizing tautomers from RDKit
 logger = logging.getLogger('msani')
@@ -41,7 +45,9 @@ class Stereoisomerizer:
     numcores: int, default = 1.
         Number of CPU cores to use for parallel processing.
     timeout: int, default = 60.
-        Maximum number of seconds to wait for a single molecule before skipping it and keeping the input SMILES.
+        Maximum number of seconds to spend enumerating stereoisomers for a single molecule. If the timeout is
+        reached, a partial set of stereoisomers may be returned; if no stereoisomers are generated (e.g., due to
+        timeout or an error), the original input SMILES is kept.
     debug: bool, default = False.
         Enable verbose debug output.
 
@@ -110,6 +116,34 @@ class Stereoisomerizer:
         
         return stereoisomers
        
+    def enumerate_df_mp(self, 
+                        df: DataFrame,
+                        smiles_column: str = 'smiles',
+                        mol_column: str = 'mol',
+                        name_column: str = 'ids') -> DataFrame:
+        """
+        Enumerate stereoisomers for a dataframe of molecules using multiprocessing Pool.
+        """
+        if mol_column not in df.columns:
+            df = df.copy()
+            df[mol_column] = df[smiles_column].apply(Chem.MolFromSmiles)
+
+        num_cores = min(self.numcores, len(df))
+        ctx = mp.get_context(_MP_START_METHOD)
+        # Package the row data efficiently using python dicts to avoid memory bloat of large Pandas Series
+        keys = df.columns.tolist()
+        rows = ((dict(zip(keys, r)), smiles_column, mol_column, name_column) for r in df.itertuples(index=False, name=None))
+        
+        results = []
+        with ctx.Pool(processes=num_cores,
+                      initializer=_init_stereoisomerizer_worker,
+                      initargs=(self,)) as pool:
+            for res in pool.imap_unordered(_process_single_stereoisomer_row, rows, chunksize=10):
+                if res:
+                    results.extend(res)
+                    
+        return DataFrame(results)
+
     def enumerate_df(self, 
                        df: DataFrame,
                        smiles_column: str = 'smiles',
@@ -117,11 +151,6 @@ class Stereoisomerizer:
                        name_column: str = 'ids') -> DataFrame:
         """
         Enumerate stereoisomers for a dataframe of molecules.
-
-        Both single-core and multi-core execution share the same code path through
-        mp.Pool for parallel execution. Any per-molecule timeout behavior is handled
-        by the underlying stereoisomer enumeration routine (via its timeout option),
-        not by Python-side timeouts in this method.
 
         Parameters
         ----------
@@ -145,130 +174,109 @@ class Stereoisomerizer:
             df = df.copy()
             df[mol_column] = df[smiles_column].apply(Chem.MolFromSmiles)
 
-        num_cores = min(self.numcores, len(df))
-
-        process_func = partial(_process_stereoisomers_row,
-                               stereo_params=self.options,
-                               smiles_column=smiles_column,
-                               mol_column=mol_column,
-                               name_column=name_column,
-                               debug=self.debug)
-
-        results = []
-        if num_cores <= 1:
-            for _, row in df.iterrows():
-                try:
-                    results.extend(process_func(row))
-                except Exception as e:
-                    logger.error(
-                        f"Error processing stereoisomer for {row[name_column]}: {str(e)}"
-                    )
-                    results.append({
-                        name_column: row[name_column],
-                        smiles_column: row[smiles_column],
-                        mol_column: row.get(mol_column),
-                    })
+        if self.numcores > 1:
+            return self.enumerate_df_mp(df, smiles_column, mol_column, name_column)
         else:
-            with mp.Pool(processes=num_cores) as pool:
-                async_results = [
-                    (row, pool.apply_async(process_func, (row,)))
-                    for _, row in df.iterrows()
-                ]
-                for row, async_result in async_results:
-                    try:
-                        results.extend(async_result.get())
-                    except Exception as e:
-                        logger.error(
-                            f"Error processing stereoisomer for {row[name_column]}: {str(e)}"
-                        )
-                        results.append({
-                            name_column: row[name_column],
-                            smiles_column: row[smiles_column],
-                            mol_column: row.get(mol_column),
-                        })
-
-        return DataFrame(results)
+            keys = df.columns.tolist()
+            rows = ((dict(zip(keys, r)), smiles_column, mol_column, name_column) for r in df.itertuples(index=False, name=None))
+            results = []
+            
+            # Set global worker for single-core execution to share the same function
+            _init_stereoisomerizer_worker(self)
+            
+            for row_args in rows:
+                res = _process_single_stereoisomer_row(row_args)
+                if res:
+                    results.extend(res)
+            return DataFrame(results)
 
 
-def _process_stereoisomers_row(row, stereo_params, smiles_column='smiles', mol_column='mol', name_column='ids', debug=False):
+# ---------------------------------------------------------------------------
+# Module-level worker helpers for multiprocessing
+# ---------------------------------------------------------------------------
+
+_stereoisomerizer_worker = None
+
+def _init_stereoisomerizer_worker(stereoisomerizer):
+    """Initializer run once per worker process to prevent memory spikes from pickling."""
+    global _stereoisomerizer_worker
+    _stereoisomerizer_worker = stereoisomerizer
+
+def _process_single_stereoisomer_row(args):
     """
-    Process a single row for stereoisomerization (used in multiprocessing).
-    
-    Parameters
-    ----------
-    row : Series
-        A single row from the dataframe
-    stereo_params : dict
-        Dictionary of parameters to pass to the C++ function
-    smiles_column : str
-        Column name for SMILES
-    mol_column : str
-        Column name for RDKit mol objects
-    name_column : str
-        Column name for molecule identifiers
-    debug : bool
-        Debug flag
-    
-    Returns
-    -------
-    list
-        List of result dictionaries for this molecule's stereoisomers
+    Worker function to process stereoisomerization for a single row.
+    Caught exceptions simply log an error and return a fallback list so the job continues.
     """
+    row, smiles_column, mol_column, name_column = args
     results = []
     
-    smiles = row[smiles_column]
-    mol = row.get(mol_column, None)
-    if mol is None:
-        mol = Chem.MolFromSmiles(smiles)
-    
-    longname = row.get('longname', None)
-    original_idx = row.get('original_idx', None)
     mol_name = row[name_column]
-
-    centers = Chem.FindMolChiralCenters(mol, includeUnassigned=True)
-    unassigned = [idx for idx, tag in centers if tag == '?']
-    num_possible_isomers = 2 ** len(unassigned)
-    max_isomers = stereo_params['maxIsomers']
-
-    # Use the dictionary-based C++ function
-    stereoisomers_smiles = ms.enumerate_stereoisomers(smiles, stereo_params, debug)
-
-    # Empty list means C++ hit the timeout before finding a single isomer.
-    # Fall back to the input SMILES so the molecule is not silently dropped.
-    if not stereoisomers_smiles:
-        logger.warning(
-            f"{mol_name}: Stereoisomerization timed out, the input SMILES is kept."
-        )
-        return [{
-            smiles_column: smiles,
-            name_column: mol_name,
-            mol_column: mol,
-            'longname': longname,
-            'original_idx': original_idx,
-        }]
-
-    if len(stereoisomers_smiles) == 1:
-        results.append({
-            smiles_column: stereoisomers_smiles[0],
-            name_column: mol_name,
-            mol_column: Chem.MolFromSmiles(stereoisomers_smiles[0]),
-            'longname': longname,
-            'original_idx': original_idx
-        })
-    else:
-        if max_isomers > 0 and num_possible_isomers > max_isomers:
-            logger.info(f"{mol_name}: Not all the stereoisomers are written out (capped at {max_isomers}/{num_possible_isomers}).")
-            stereoisomers_smiles = stereoisomers_smiles[:max_isomers]
+    smiles = row[smiles_column]
+    
+    try:
+        mol = row.get(mol_column, None)
+        if mol is None:
+            mol = Chem.MolFromSmiles(smiles)
         
-        two_digits = len(stereoisomers_smiles) >= 10
-        for idx, stereoisomer in enumerate(stereoisomers_smiles):
+        longname = row.get('longname', None)
+        original_idx = row.get('original_idx', None)
+
+        centers = Chem.FindMolChiralCenters(mol, includeUnassigned=True)
+        unassigned = [idx for idx, tag in centers if tag == '?']
+        num_possible_isomers = 2 ** len(unassigned)
+        max_isomers = _stereoisomerizer_worker.options['maxIsomers']
+
+        # Use the dictionary-based C++ function
+        stereoisomers_smiles = ms.enumerate_stereoisomers(smiles, _stereoisomerizer_worker.options, _stereoisomerizer_worker.debug)
+
+        # Empty list means C++ hit the timeout before finding a single isomer.
+        # Fall back to the input SMILES so the molecule is not silently dropped.
+        if not stereoisomers_smiles:
+            logger.warning(
+                f"{mol_name}: Stereoisomerization timed out, the input SMILES is kept."
+            )
+            return [{
+                smiles_column: smiles,
+                name_column: mol_name,
+                mol_column: mol,
+                'longname': longname,
+                'original_idx': original_idx,
+            }]
+
+        if len(stereoisomers_smiles) == 1:
             results.append({
-                smiles_column: stereoisomer,
-                mol_column: Chem.MolFromSmiles(stereoisomer),
-                name_column: mol_name + (f".{idx+1:02d}" if two_digits else f".{idx+1}"),
+                smiles_column: stereoisomers_smiles[0],
+                name_column: mol_name,
+                mol_column: Chem.MolFromSmiles(stereoisomers_smiles[0]),
                 'longname': longname,
                 'original_idx': original_idx
             })
+        else:
+            if max_isomers > 0 and num_possible_isomers > max_isomers:
+                logger.info(f"{mol_name}: Not all the stereoisomers are written out (capped at {max_isomers}/{num_possible_isomers}).")
+                stereoisomers_smiles = stereoisomers_smiles[:max_isomers]
+            
+            two_digits = len(stereoisomers_smiles) >= 10
+            for idx, stereoisomer in enumerate(stereoisomers_smiles):
+                results.append({
+                    smiles_column: stereoisomer,
+                    mol_column: Chem.MolFromSmiles(stereoisomer),
+                    name_column: mol_name + (f".{idx+1:02d}" if two_digits else f".{idx+1}"),
+                    'longname': longname,
+                    'original_idx': original_idx
+                })
+
+    except Exception as e:
+        logger.error(
+            f"Error processing stereoisomer for {mol_name}: {str(e)}"
+        )
+        results.append({
+            name_column: mol_name,
+            smiles_column: smiles,
+            mol_column: row.get(mol_column),
+            'longname': row.get('longname', None),
+            'original_idx': row.get('original_idx', None)
+        })
 
     return results
 
