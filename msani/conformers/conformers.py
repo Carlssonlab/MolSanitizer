@@ -19,7 +19,6 @@ import sys
 import tarfile, io
 import time
 import argparse
-import queue
 
 from pandas import DataFrame, read_csv  # only what you use
 from pathlib import Path
@@ -945,7 +944,6 @@ class ConformerGenerator:
             pdbqt_string, success, error_msg = PDBQTWriterLegacy.write_string(prepared_mol[0])
             if success:
                 #print(pdbqt_string)
-                import os
                 os.makedirs("pdbqt", exist_ok=True)
                 if is_multi:
                     with open(f"pdbqt/{filename}.nr{i}.pdbqt", 'w') as f:
