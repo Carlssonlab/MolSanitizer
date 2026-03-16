@@ -413,7 +413,7 @@ class Test_MolSanitizer(unittest.TestCase):
     def test_batch(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             args, parser = parsers.parseArguments([], batch_mode=True)
-            applied_flags = ['protonation', 'tautomers', 'gen3d', 'test']
+            applied_flags = ['protonation', 'tautomers', 'gen3d', 'test', 'no-neutralize', 'no-stereoisomers']
 
             # Generate arguments
             args = self.generate_mock_arguments([f'{self.path}/in_data100.txt'],
@@ -455,7 +455,6 @@ class Test_MolSanitizer(unittest.TestCase):
                 # Extract and verify flags
                 command_line = file_contents[16].strip()
                 extracted_flags = command_line.split('/msani -i $smiles_file ')[-1].split(' --')
-
                 # Ensure applied_flags match extracted_flags
                 with self.subTest(msg="Checking applied flags"):
                     self.assertTrue(set(applied_flags).issubset(set(extracted_flags)),

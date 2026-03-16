@@ -150,9 +150,11 @@ def parse_flags_single_job(args: dict, parser):
         if isinstance(current_value, bool):
             # Boolean flags
             # Handle the counterintuitive flags
-            if arg in ["taurdkit", "cleanup", "neutralize"] and not current_value:
+            if arg in ("taurdkit", "cleanup") and not current_value:
                 flags.append(f"--no{arg}")
             # Handle the rest of the flags
+            elif arg in ("stereoisomers", "neutralize") and not current_value:
+                flags.append(f"--no-{arg}")
             elif current_value:
                 flags.append(f"--{arg}")
         elif isinstance(current_value, list):
