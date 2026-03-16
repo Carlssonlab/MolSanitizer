@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [unreleased - most recent changes come first]
+
+### 🐛 Bug Fixes
+
+- Fix a bug that the no-stereoisomers and no-neutralize are not passed correctly from msani_batch to subjobs. - ([7adb5ae](https://github.com/phonglam3103/MolSanitizer/commit/7adb5ae3348116d0499c34661af66c8c218c89c1))
+
 ## [0.6.0] - 2026-03-12
 
 ### 🚀 Features
