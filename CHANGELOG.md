@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### 🐛 Bug Fixes
 
+- Add a timeout mechanism for Openbabel-based conformer generator to prevent permanent stalling. - ([f9b55f1](https://github.com/phonglam3103/MolSanitizer/commit/f9b55f1a5f59ffc5d0ef990a09df0f1dab90fe90))
 - Fix a bug that the no-stereoisomers and no-neutralize are not passed correctly from msani_batch to subjobs. - ([7adb5ae](https://github.com/phonglam3103/MolSanitizer/commit/7adb5ae3348116d0499c34661af66c8c218c89c1))
 
 ## [0.6.0] - 2026-03-12
