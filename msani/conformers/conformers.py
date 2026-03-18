@@ -392,7 +392,12 @@ class ConformerGenerator:
         if len(conf_ring_descriptors_df) == 0:
             print(f"ETKDGv3 also failed for {self.name}, using OpenBabel")
             logger.warning(f"ETKDGv3 also failed for {self.name}, using OpenBabel")
-            self._embed_smiles_babel()
+            try:
+                self._embed_smiles_babel()
+            except RuntimeError as e:
+                logger.error(f"Error in generating initial conformation using OpenBabel for {self.name}, skipping it {e}")
+                log_error(self.smiles, self.name)
+                return
             return
         
         conf_ring_descriptors_df.sort_values(['equatorial_subs_Ns', 'equatorial_subs_Cs', 'Energy'],
@@ -473,16 +478,29 @@ class ConformerGenerator:
         mol2_obj = mol2writer.Mol2Writer(Chem.Mol(self.amsol_mol, confId = 0))
         self.mol2_str = mol2_obj.write_mol2()
 
-    def _embed_smiles_babel(self):
+    def _embed_smiles_babel(self, timeout: int = 30):
         '''
         Embed the SMILES string using Open Babel. CLI version is used as it is found more flexible 
-        than the RDKit version.'''
+        than the RDKit version.
+
+        Parameters
+        ----------
+        timeout : int
+            Maximum number of seconds to wait for OpenBabel before killing the process (default: 30).
+        '''
                                             # -h: add hs; gen3d
         cmd = [str(obabel_path), f"-:{self.smiles}", "-h", "--gen3d", "-osdf"]
 
         # Execute the command and capture stdout
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        stdout, stderr = proc.communicate()
+        try:
+            stdout, stderr = proc.communicate(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            proc.communicate()  # Drain buffers and prevent zombie process
+            raise RuntimeError(
+                f"(OpenBabel timed out)"
+            )
 
         # Convert the SDF output from stdout to an RDKit molecule
         mol_rdkit = Chem.MolFromMolBlock(stdout, removeHs=False)
@@ -944,7 +962,6 @@ class ConformerGenerator:
             pdbqt_string, success, error_msg = PDBQTWriterLegacy.write_string(prepared_mol[0])
             if success:
                 #print(pdbqt_string)
-                os.makedirs("pdbqt", exist_ok=True)
                 if is_multi:
                     with open(f"pdbqt/{filename}.nr{i}.pdbqt", 'w') as f:
                         for line in pdbqt_string:
@@ -1244,21 +1261,12 @@ def gen_conf_chunk(df: DataFrame, args, input_file='0'):
                     queue = multiprocessing.Queue()
                     process = multiprocessing.Process(target=initial_embedding, args=(queue, smiles, name, randomSeed, nr, numcores, VERBOSE))
                     process.start()
-                    result_data = None
-                    try:
-                        result_data = queue.get(timeout=timeout * 60)
-                    except Exception:
-                        pass  # Timeout or error — process may have crashed
-                    process.join(timeout=5)  # Short join: child should have exited by now
-                    
-                    # If process is still alive, forcefully terminate it for cleanup
-                    # (it may be hanging on RDKit destructors or logging)
+                    process.join(timeout=timeout*60)  # default 2 minutes timeout
+                    # Check if process is still alive (meaning it exceeded timeout)
                     if process.is_alive():
+                        logger.warning(f"Timeout occurred while generating conformation for {name}, using OpenBabel.")
                         process.terminate()
                         process.join()
-
-                    if result_data is None:
-                        logger.warning(f"Timeout occurred while generating conformation for {name}, using OpenBabel.")
                         try:
                             confgen = ConformerGenerator(smiles, name, num_ring_confs=nr, method='obabel', tolerance=tolerance, rmsd=args.rmsd, VERBOSE=VERBOSE)
                         except Exception as e:
@@ -1269,23 +1277,29 @@ def gen_conf_chunk(df: DataFrame, args, input_file='0'):
                             logger.error(f"Error in generating initial conformation using OpenBabel for {name}, skipping it")
                             log_error(smiles, name)
                             continue
-                    else:
-                        # Result was drained from the queue before join
-                        bin_amsol_mol, bin_conf_rings, mol2_str, error = result_data
+
+                    # Retrieve result from queue
+                    elif not queue.empty():
+                        bin_amsol_mol, bin_conf_rings, mol2_str, error = queue.get() 
+
                         if error:
-                            logger.error(f"Error in generating initial conformation using RDKit for {name}, skipping it: {error}")
+                            logger.error(f"Error in generating initial conformation using RDKit for {name}, skipping it {error}")
                             log_error(smiles, name)
                             continue
-                        confgen = ConformerGenerator.from_existing_data(smiles=smiles,
-                                                                        name=name,
-                                                                        amsol_mol=bin_amsol_mol,
-                                                                        ring_confs=bin_conf_rings,
-                                                                        mol2_str=mol2_str,
-                                                                        request_alignment=request_alignment,
+                        confgen = ConformerGenerator.from_existing_data(smiles=smiles, 
+                                                                        name=name, 
+                                                                        amsol_mol=bin_amsol_mol, 
+                                                                        ring_confs=bin_conf_rings, 
+                                                                        mol2_str=mol2_str, 
+                                                                        request_alignment=request_alignment, 
                                                                         mode=mode,
                                                                         tolerance=tolerance,
                                                                         rmsd=args.rmsd,
                                                                         VERBOSE=VERBOSE)
+                    else:
+                        logger.error(f"Unknown error in generating initial conformation for {name}, skipping it.")
+                        log_error(smiles, name)
+                        continue
             except Exception as e:
                 logger.error(f"Error in generating initial conformation for {name}, skipping it: {e}")
                 log_error(smiles, name)
