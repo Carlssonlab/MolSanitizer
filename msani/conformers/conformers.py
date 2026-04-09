@@ -821,6 +821,7 @@ class ConformerGenerator:
 
         if request_alignment and not self.atom_maps:
             log_error(self.smiles, self.name)
+            logger.error('No substructure found for the requested alignment. No conformers are generated')
             return
         else:
             # In case of sulfonamides and cycloheptatrienes, we divine the numConfs by the number of ring conformers
@@ -882,7 +883,11 @@ class ConformerGenerator:
                     if self.VERBOSE: print(f'Failed for stochastic sampling for {self.name}, use the original conformation')
                     continue
             
-            largest_ring = max(self.atom_maps, key=len)
+            
+            if request_alignment: 
+                largest_ring = self.atom_maps[0]
+            else:
+                largest_ring = max(self.atom_maps, key=len)
             for confId in range(result.GetNumConformers()):
                 rdMolAlign.AlignMol(result, original_mol, confId, 0, atomMap=[(i, i) for i in largest_ring])
             self.ring_confs[idx] = Chem.Mol(result)
