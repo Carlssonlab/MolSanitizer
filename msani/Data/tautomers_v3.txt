@@ -13,6 +13,7 @@ sulfones_correst-d2sp3	0	[O-&X1:1]-[S+2:2]-[O-&X1:3]>>[O+0:1]=[S+0:2]=[O+0:3]   
 mannich-like-amides_to_amides   0   [OH:1]-[C:2]=[N+:3]>>[O&H0:1]=[C:2]-[N+0:3]
 N+_amidine-NH1   0   [NH:1]-[C:2]=[NH0X3&+:3]>>[N&H0:1]=[C:2]-[N+0:3]
 N+_amidine-NH2   0   [NH2:1]-[C:2]=[NH0X3&+:3]>>[NH1:1]=[C:2]-[N+0:3]
+1-oxo-1,4-dihydropyrazin-1-ium_to_N-oxide	0	[O:1]=[n+:2]1[a:3][a:4][nH:5][a:6][a:7]1>>[O-:1][n+:2]1[a:3][a:4][n&H0:5][a:6][a:7]1
 #AROMATIZATIONS
 aromatize_3-imino-2H-5aro-CH0	0	[NX3H0,O,S:1]1[*H;!$(*~[OX1,OH,SX2H,SX1]):2][C:3](=[N&H0;!$(N-C=[C,N]):7])[*;!$(*~[OX1,OH,SX2H,SX1]):4]=,:[*;!$(*~[OX1,OH,SX2H,SX1]):5]1>>[nH0,o,s:1]1[a&H0:2][c:3]([NH:7])[a:4][a:5]1	exceptions:10.1039/C0OB00867B,10.1021/acs.orglett.7b03390
 aromatize_3-imino-2H2-5aro-CH0	0	[NX3H0,O,S:1]1[*H2:2][C:3](=[N&H0;!$(N-C=[C,N]):7])[*;!$(*~[OX1,OH,SX2H,SX1]):4]=,:[*;!$(*~[OX1,OH,SX2H,SX1]):5]1>>[nH0,o,s:1]1[aH:2][c:3]([NH:7])[a:4][a:5]1	exceptions:10.1039/C0OB00867B,10.1021/acs.orglett.7b03390
@@ -235,7 +236,7 @@ isoquinolin-6(2H)-one_to_OH	0	[a;!$(c~[OX1,OH]):1]1[c;!$(c~[OX1,OH]):2][c:3](=[O
 pyrimidine-4(1H)-one_to_4(3H)-one	0	[a;!$(a~[OX1,OH]):1]1[nX2:2][c:3](=[O,SX1:4])[a;!$(a~[OX1,OH]):5][a;!$(a~[OX1,OH]):6][nH:7]1>>[a:1]1[nH:2][c:3](=[O,S:4])[a:5][a:6][n&H0:7]1
 6-OH-pyrimidine-4(1H)-one_to_4(3H)-one	0	[c;!$(c~[OX1,OH]):1]1[nX2:2][c:3](=[O,N:4])[c;!$(c~[OX1,OH]):5][c:6]([O,N:8])[nH:7]1>>[c:1]1[nH:2][c:3](=[O,N:4])[c:5][c:6]([O,N:8])[n&H0:7]1
 2-pyrimidinones	1	[O:1]=[c:2]1[nH:3][c;!$(c~[OX1,OH])!$(c(:a)(:a):a):4][c;!$(c~[OX1,OH])!$(c(:a)(:a):a):5][c;!$(c~[OX1,OH])!$(c(:a)(:a):a)!$(c-[NX3&+0]):6][nX2:7]1>>[O:1]=[c:2]1[n&H0:3][c:4][c:5][c:6][nH:7]1	10.1002/anie.201801485
-3H-cytosine_to_1H	0	[c;$(c=O):1]1[nH:2][c:3](-[NX3&+0:4])[c;!$(c~[OX1,OH]):5][c;!$(c~[OX1,OH]):6][nX2:7]1>>[c:1]1[n&H0:2][c:3](-[N:4])[c:5][c:6][nH:7]1
+3H-cytosine_to_1H	0	[c;$(c=[O,SX1]):1]1[nH:2][c:3](-[NX3&+0:4])[c;!$(c~[OX1,OH,SX2H,SX1]):5][c;!$(c~[OX1,OH,SX2H,SX1]):6][nX2:7]1>>[c:1]1[n&H0:2][c:3](-[N:4])[c:5][c:6][nH:7]1
 pyridazine-3,4-dione_to_4-OH-3-one	0	[nX3:1]1[nH:2][c,nX2;!$(c~[OX1,OH]):3][c,nX2;!$(c~[OX1,OH]):4][c:5](=[O:6])[c:7]1=[O:8]>>[n:1]1[n&H0:2][c,n:3][c,n:4][c:5]([OH:6])[c:7]1=[O:8]	10.1007/BF00809443
 3H-quinazoline_to_1H	0	[nX2&H0:1][c:2]1[c;!$(c~[OX1,OH,SX2H,SX1]):3][c;!$(c~[OX1,OH,SX2H,SX1]):4][c;!$(c~[OX1,OH,SX2H,SX1]):5][c;!$(c~[OX1,OH,SX2H,SX1]):6][c:7]1[a;!$(c~[OX1,OH,SX2H,SX1]):8][nH:9]>>[nH:1][c:2]1[c:3][c:4][c:5][c:6][c:7]1[a:8][n&H0:9]
 5-OH-pyrazin-2-one_to_aklylidendiketopiperazine-CH1-CH0	0	[CH1:1]-[c:2]([nX3:3]1)[c:4]([OH:5])[nX2:6][cH0;!$(c(:n)~[!#6]):7][c:8]1=[O:9]>>[CH0:1]=[C:2]([N:3]1)[C:4](=[O&H0:5])[NH:6][CH1:7][C:8]1=[O:9]	10.1039/C9RA10306F

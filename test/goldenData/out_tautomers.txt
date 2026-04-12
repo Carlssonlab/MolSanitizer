@@ -4,6 +4,7 @@ CCSC H-lambda4-sulphane_to_lambda2-CH2
 CC(=O)N(C)C mannich-like-amides_to_amides
 CN=C1c2ccccc2CN1C N+_amidine-NH1
 CN1Cc2ccccc2C1=N N+_amidine-NH2
+[O-][n+]1ccncc1 1-oxo-1,4-dihydropyrazin-1-ium_to_N-oxide
 CNc1ccn(C)c1C aromatize_3-imino-2H-5aro-CH0
 CNc1ccn(C)c1 aromatize_3-imino-2H2-5aro-CH0
 CC1=C(C)C(=O)c2ccccc2C1=O exo-methylidene-quinone_to_Me-quinone-CH1
