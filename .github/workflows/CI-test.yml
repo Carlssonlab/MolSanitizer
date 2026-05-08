@@ -37,6 +37,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       CMAKE_GENERATOR: Ninja
+      CMAKE_GENERATOR_PLATFORM: ""
+      CMAKE_GENERATOR_TOOLSET: ""
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
