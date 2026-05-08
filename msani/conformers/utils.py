@@ -52,7 +52,8 @@ const_rule = [(-120, 30, 30, 1), (-60, 30, 30, 1), (0, 30, 30, 1), (60, 30, 30, 
 rigid_rule_files = Path(__file__).parent.parent / 'Data' / 'rigid_part_rules.txt'
 rigid_rules = read_csv(rigid_rule_files, header=None, sep =r'\s+', names=['SMARTS','label'])
 rigid_rules['mol'] = rigid_rules['SMARTS'].apply(lambda x: Chem.MolFromSmarts(x))
-rotatable_pattern=r'*~[!$(*#*)&!D1]-!@[!$(*#*)&!D1]~*'
+rotatable_pattern=r'*~[!$(*(#*)-!@*#*)&!D1]-!@[!$(*(#*)-!@*#*)&!D1]~*'
+rot_bond_mol = Chem.MolFromSmarts(rotatable_pattern)
 
 with open(Path(__file__).parent.parent / 'msani_configurations.yaml') as confFile:
     msani_configurations = yaml.safe_load(confFile)
@@ -647,9 +648,9 @@ def get_importance_order(mol, rot_bonds, debug = False):
 
 def getDihedralMatches(mol):
     '''return list of atom indices of dihedrals'''
-    global rotatable_pattern
-    qmol = Chem.MolFromSmarts(rotatable_pattern)
-    matches = mol.GetSubstructMatches(qmol)
+
+    global rot_bond_mol
+    matches = mol.GetSubstructMatches(rot_bond_mol)
     #these are all sets of 4 atoms, uniquify by middle two
     uniqmatches = []
     seen = set()

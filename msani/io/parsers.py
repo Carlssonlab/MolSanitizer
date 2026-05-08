@@ -8,10 +8,13 @@ from yaml import safe_load
 
 with open(Path(__file__).parent.parent / 'msani_configurations.yaml') as confFile:
     configurations = safe_load(confFile)
-    slurm_account = configurations.get('SLURM_ACCOUNT', 'naiss2024-3-45')
+    slurm_account = configurations.get('SLURM_ACCOUNT', None)
+    slurm_partition = configurations.get('SLURM_PARTITION', None)
     time_limit = configurations.get('TIME_LIMIT', 96)
     lines_per_job = configurations.get('LINES_PER_JOB', 200)
     max_jobs = configurations.get('MAX_JOBS', 1000)
+    whole_node = configurations.get('WHOLE_NODE', False)
+    whole_node_cores = configurations.get('WHOLE_NODE_CORES', 72)
     timeout = configurations.get('TIMEOUT', 2)
     embed_method = configurations.get('EMBED_METHOD', 'rdkit')
     corina_exe = configurations.get('CORINA', 'corina_executable')
@@ -71,7 +74,11 @@ class CustomHelpFormatter(argparse.RawTextHelpFormatter):
 
         return ', '.join(filtered_opts)
 
-    
+def none_or_str(value):
+    if value.lower() in ("none", "null", ""):
+        return None
+    return value
+
 def parseArguments(args = None, batch_mode = False):
     # Support the parsing of a YAML configuration file
     pre_parser = argparse.ArgumentParser(add_help=False)
@@ -441,8 +448,14 @@ def parseArguments(args = None, batch_mode = False):
             '--projectName', '-A',
             default=defaults.get('projectName', slurm_account),
             dest='proj_name', 
-            type=str, 
-            help=f'Project name for the SLURM script (default: {slurm_account})')
+            type=none_or_str, 
+            help=f'Project name for the SLURM script (default: {slurm_account}).\nUse "none" or "null" to not use a project name')
+        batch_group.add_argument(
+            '--partition',
+            default=defaults.get('partition', slurm_partition),
+            dest='partition', 
+            type=none_or_str, 
+            help=f'Partition for the SLURM script (default: {slurm_partition})')
         batch_group.add_argument(
             '--lines_per_job', '-l',
             dest='lines', 
@@ -459,6 +472,16 @@ def parseArguments(args = None, batch_mode = False):
             type=int, 
             default=defaults.get('max_jobs', max_jobs), 
             help=f'Maximum number of jobs to run simultaneously (default: {max_jobs})')
+        batch_group.add_argument(
+            '--whole_node', 
+            action='store_true', 
+            default=defaults.get('whole_node', False), 
+            help='Run the job on a whole node (default: False)')
+        batch_group.add_argument(
+            '--whole_node_cores', 
+            type=int, 
+            default=defaults.get('whole_node_cores', whole_node_cores), 
+            help=f'Number of CPU cores per node (default: {whole_node_cores}). Only to set when WHOLE_NODE is true.')
 
     
     # Parse the arguments

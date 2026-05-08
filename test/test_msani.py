@@ -420,6 +420,9 @@ class Test_MolSanitizer(unittest.TestCase):
                                                 applied_flags, temp_dir)
             args.prefix = Path(temp_dir)
             args.proj_name = 'dummy_output'
+            args.partition = None
+            args.whole_node = False
+            args.whole_node_cores = 1
             args.max_jobs = 2
             args.lines = 50
             args.timelimit = 96
@@ -441,6 +444,7 @@ class Test_MolSanitizer(unittest.TestCase):
             expected_template = [
                 '#!/bin/bash\n',
                 '#SBATCH -A dummy_output\n',
+                '\n',
                 '#SBATCH -n 1\n',
                 '#SBATCH -J msani_3d\n',
                 '#SBATCH -t 96:00:00\n',
@@ -449,16 +453,90 @@ class Test_MolSanitizer(unittest.TestCase):
 
             with open('submit_msani.sh', 'r') as f:
                 file_contents = f.readlines()
-                self.assertEqual(file_contents[:6], expected_template,
+                self.assertEqual(file_contents[:7], expected_template,
                                  "submit_msani.sh header is incorrect.")
 
                 # Extract and verify flags
-                command_line = file_contents[16].strip()
+                command_line = file_contents[17].strip()
                 extracted_flags = command_line.split('/msani -i $smiles_file ')[-1].split(' --')
                 # Ensure applied_flags match extracted_flags
                 with self.subTest(msg="Checking applied flags"):
                     self.assertTrue(set(applied_flags).issubset(set(extracted_flags)),
                                     "Flags were not passed correctly.")            
+            os.chdir(self.path)
+
+    @unittest.skipIf(OS in ["Windows","Darwin"],
+                     "Skipping test on Windows due to incompatible `split` command.")
+    def test_batch_whole_node(self):
+        """Test whole-node mode: header uses tetralith partition + nodes/ntasks,
+        and the script body contains the chunked for-loop with & and wait."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            args, parser = parsers.parseArguments([], batch_mode=True)
+            applied_flags = ['protonation', 'tautomers', 'gen3d', 'test', 'no-neutralize', 'no-stereoisomers']
+
+            # Generate arguments — 100 lines / 50 per job = 2 jobs
+            # whole_node_cores=2 → ceil(2/2) = 1 array task
+            args = self.generate_mock_arguments([f'{self.path}/in_data100.txt'],
+                                                applied_flags, temp_dir)
+            args.prefix = Path(temp_dir)
+            args.proj_name = 'dummy_output'
+            args.partition = 'tetralith'
+            args.whole_node = True
+            args.whole_node_cores = 2
+            args.max_jobs = 2
+            args.lines = 50
+            args.timelimit = 96
+
+            # Run batch submission
+            Split_Submit_jobs(args, parser)
+
+            batch_dir = Path(temp_dir) / 'in_data100'
+            os.chdir(batch_dir)
+
+            # Check for required files
+            required_files = ['submit_msani.sh', 'in0000.smi', 'in0001.smi']
+            for file in required_files:
+                with self.subTest(file=file):
+                    self.assertTrue(os.path.exists(file),
+                                    f"{file} was not created.")
+
+            # Validate submit_msani.sh content
+            with open('submit_msani.sh', 'r') as f:
+                contents = f.read()
+                lines = contents.splitlines(keepends=True)
+
+            # --- Header checks ---
+            expected_header_lines = [
+                '#!/bin/bash\n',
+                '#SBATCH -A dummy_output\n',
+                '#SBATCH --partition=tetralith\n',
+                '#SBATCH --nodes=1\n',
+                '#SBATCH --ntasks=2\n',
+                '#SBATCH -J msani_3d\n',
+                '#SBATCH -t 96:00:00\n',
+                '#SBATCH --mail-type=FAIL\n',
+            ]
+            with self.subTest(msg="Checking whole-node header"):
+                self.assertEqual(lines[:8], expected_header_lines,
+                                 "submit_msani.sh whole-node header is incorrect.")
+
+            # --- Script body checks ---
+            with self.subTest(msg="Checking chunked for-loop"):
+                self.assertIn('START_IDX=$(( TASK_ID * 2 ))', contents,
+                              "START_IDX calculation missing or incorrect.")
+                self.assertIn('END_IDX=$(( START_IDX + 2 - 1 ))', contents,
+                              "END_IDX calculation missing or incorrect.")
+                self.assertIn('for i in $(seq $START_IDX $END_IDX); do', contents,
+                              "Chunked for-loop missing.")
+
+            with self.subTest(msg="Checking background & operator"):
+                self.assertIn(' &', contents,
+                              "Background '&' operator missing from script.")
+
+            with self.subTest(msg="Checking wait command"):
+                self.assertIn('\nwait\n', contents,
+                              "'wait' command missing from script.")
+
             os.chdir(self.path)
 
     def compare_relative(self, newfile: str, goldenfile: str):
