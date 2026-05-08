@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [unreleased - most recent changes come first]
 
+### 🚀 Features
+
+- Add whole-node batch submission support to SLURM configurations - ([8084e0c](https://github.com/phonglam3103/MolSanitizer/commit/8084e0c332f6a04df9e9e407283f13a165ab0310))
+
 ### 🐛 Bug Fixes
 
 - Add a timeout mechanism for Openbabel-based conformer generator to prevent permanent stalling. - ([f9b55f1](https://github.com/phonglam3103/MolSanitizer/commit/f9b55f1a5f59ffc5d0ef990a09df0f1dab90fe90))

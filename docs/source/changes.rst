@@ -6,6 +6,12 @@ All notable changes to this project will be documented in this file.
 [unreleased - most recent changes come first]
 ---------------------------------------------
 
+🚀 Features
+~~~~~~~~~~~
+
+-  Add whole-node batch submission support to SLURM configurations -
+   (`8084e0c <https://github.com/phonglam3103/MolSanitizer/commit/8084e0c332f6a04df9e9e407283f13a165ab0310>`__)
+
 🐛 Bug Fixes
 ~~~~~~~~~~~~
 
@@ -18,6 +24,8 @@ All notable changes to this project will be documented in this file.
 
 [0.6.0] - 2026-03-12
 --------------------
+
+.. _features-1:
 
 🚀 Features
 ~~~~~~~~~~~
@@ -152,7 +160,7 @@ All notable changes to this project will be documented in this file.
 [0.4.0] - 2025-08-18
 --------------------
 
-.. _features-1:
+.. _features-2:
 
 🚀 Features
 ~~~~~~~~~~~
@@ -246,7 +254,7 @@ All notable changes to this project will be documented in this file.
 [0.3.0] - 2025-06-19
 --------------------
 
-.. _features-2:
+.. _features-3:
 
 🚀 Features
 ~~~~~~~~~~~
@@ -357,7 +365,7 @@ All notable changes to this project will be documented in this file.
 [0.2.3] - 2025-02-04
 --------------------
 
-.. _features-3:
+.. _features-4:
 
 🚀 Features
 ~~~~~~~~~~~
@@ -483,7 +491,7 @@ All notable changes to this project will be documented in this file.
 [0.2.2] - 2024-11-30
 --------------------
 
-.. _features-4:
+.. _features-5:
 
 🚀 Features
 ~~~~~~~~~~~
@@ -539,7 +547,7 @@ All notable changes to this project will be documented in this file.
 [0.2.1] - 2024-11-18
 --------------------
 
-.. _features-5:
+.. _features-6:
 
 🚀 Features
 ~~~~~~~~~~~
@@ -637,7 +645,7 @@ All notable changes to this project will be documented in this file.
 [0.2.0] - 2024-11-06
 --------------------
 
-.. _features-6:
+.. _features-7:
 
 🚀 Features
 ~~~~~~~~~~~
@@ -703,7 +711,7 @@ All notable changes to this project will be documented in this file.
 [0.1.3] - 2024-10-05
 --------------------
 
-.. _features-7:
+.. _features-8:
 
 🚀 Features
 ~~~~~~~~~~~
@@ -773,7 +781,7 @@ All notable changes to this project will be documented in this file.
 [0.1.2] - 2024-09-26
 --------------------
 
-.. _features-8:
+.. _features-9:
 
 🚀 Features
 ~~~~~~~~~~~
@@ -830,7 +838,7 @@ All notable changes to this project will be documented in this file.
 [0.1.1] - 2024-09-22
 --------------------
 
-.. _features-9:
+.. _features-10:
 
 🚀 Features
 ~~~~~~~~~~~
@@ -885,7 +893,7 @@ All notable changes to this project will be documented in this file.
 [0.1.0] - 2024-09-17
 --------------------
 
-.. _features-10:
+.. _features-11:
 
 🚀 Features
 ~~~~~~~~~~~
@@ -932,7 +940,7 @@ All notable changes to this project will be documented in this file.
 [0.0.7] - 2024-09-01
 --------------------
 
-.. _features-11:
+.. _features-12:
 
 🚀 Features
 ~~~~~~~~~~~
@@ -972,7 +980,7 @@ All notable changes to this project will be documented in this file.
 [0.0.6] - 2024-08-22
 --------------------
 
-.. _features-12:
+.. _features-13:
 
 🚀 Features
 ~~~~~~~~~~~
@@ -1009,7 +1017,7 @@ All notable changes to this project will be documented in this file.
 [0.0.5] - 2024-08-21
 --------------------
 
-.. _features-13:
+.. _features-14:
 
 🚀 Features
 ~~~~~~~~~~~
@@ -1033,7 +1041,7 @@ All notable changes to this project will be documented in this file.
 [0.0.4] - 2024-08-21
 --------------------
 
-.. _features-14:
+.. _features-15:
 
 🚀 Features
 ~~~~~~~~~~~
@@ -1057,7 +1065,7 @@ All notable changes to this project will be documented in this file.
 [0.0.3] - 2024-08-20
 --------------------
 
-.. _features-15:
+.. _features-16:
 
 🚀 Features
 ~~~~~~~~~~~
@@ -1080,7 +1088,7 @@ All notable changes to this project will be documented in this file.
 [0.0.2] - 2024-08-19
 --------------------
 
-.. _features-16:
+.. _features-17:
 
 🚀 Features
 ~~~~~~~~~~~
