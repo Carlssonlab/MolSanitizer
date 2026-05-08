@@ -35,6 +35,8 @@ jobs:
           - os: windows-latest
             python-version: "3.11"
     runs-on: ${{ matrix.os }}
+    env:
+      CMAKE_GENERATOR: Ninja
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
