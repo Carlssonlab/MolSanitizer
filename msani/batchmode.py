@@ -2,11 +2,7 @@
 MolSanitizer in the batch mode.
 """
 
-__author__ = "Thua-Phong Lam, Israel Cabeza de Vaca Lopez, Szymon Pach"
-__place__ = "Jens Carlsson lab, Uppsala University, Sweden"
-__license__ = "GPLv2"
-__version__ = "0.5.0"
-
+from msani import __version__
 
 
 import os
@@ -32,12 +28,23 @@ logo=r""" __  __         _  _____                _  _    _
 """
 
 slurm_header = '''#!/bin/bash
-#SBATCH -A PROJECT_NAME
+PROJECT_NAME
+PARTITION_NAME
 #SBATCH -n 1
 #SBATCH -J msani_3d
 #SBATCH -t TIME_LIMIT
 #SBATCH --mail-type=FAIL
 #SBATCH --mem=MEMORY
+'''
+
+slurm_header_whole_node = '''#!/bin/bash
+PROJECT_NAME
+PARTITION_NAME
+#SBATCH --nodes=1
+#SBATCH --ntasks=NODE_CORES
+#SBATCH -J msani_3d
+#SBATCH -t TIME_LIMIT
+#SBATCH --mail-type=FAIL
 '''
 
 slurm_script='''
@@ -49,7 +56,26 @@ ARRAY_ID=${SLURM_ARRAY_JOB_ID}
 log_prefix=$(basename "$smiles_file")
 log_prefix="${log_prefix%.*}"  # Remove the extension
 log_file="${log_prefix}.log"
-MSANI_PATH -i $smiles_file -j 2'''
+MSANI_PATH -i $smiles_file -j 1'''
+
+slurm_script_whole_node='''
+dirs=( $(cat dirlista) )
+n_total=${#dirs[@]}
+ARRAY_ID=${SLURM_ARRAY_JOB_ID}
+TASK_ID=${SLURM_ARRAY_TASK_ID}
+
+START_IDX=$(( TASK_ID * NODE_CORES ))
+END_IDX=$(( START_IDX + NODE_CORES - 1 ))
+if [ $END_IDX -ge $n_total ]; then
+    END_IDX=$(( n_total - 1 ))
+fi
+
+for i in $(seq $START_IDX $END_IDX); do
+    smiles_file=${dirs[$i]}
+    log_prefix=$(basename "$smiles_file")
+    log_prefix="${log_prefix%.*}"
+    log_file="${log_prefix}.log"
+    MSANI_PATH -i $smiles_file -j 1'''
 
 cleanup_script ="""
 task_count=$(ls *.lock 2>/dev/null | wc -l)
@@ -105,6 +131,15 @@ fi
 remove_lock_files = '''
 rm -f "${log_prefix}.lock"
 '''
+
+remove_lock_files_whole_node = '''
+for i in $(seq $START_IDX $END_IDX); do
+    smiles_file=${dirs[$i]}
+    log_prefix=$(basename "$smiles_file")
+    log_prefix="${log_prefix%.*}"
+    rm -f "${log_prefix}.lock"
+done
+'''
 with open(os.path.join(os.path.dirname(__file__), 'msani_configurations.yaml')) as confFile:
     configurations = safe_load(confFile)
     slurm_account = configurations['SLURM_ACCOUNT']
@@ -128,7 +163,7 @@ def parse_flags_single_job(args: dict, parser):
         str: The flags for a single job
     """
     flags = []
-    omitted_args = ["input_files", "input_list", "config", "smiles", "proj_name", "timelimit", "lines", "max_jobs", "help"]
+    omitted_args = ["input_files", "input_list", "config", "smiles", "proj_name", "timelimit", "lines", "max_jobs", "help", "whole_node", "whole_node_cores", "partition"]
     # Load the config file to see if the defaults are really the defaults by intention or already set
     # by the config file
     config_defaults = {}
@@ -154,9 +189,11 @@ def parse_flags_single_job(args: dict, parser):
         if isinstance(current_value, bool):
             # Boolean flags
             # Handle the counterintuitive flags
-            if arg in ["taurdkit", "cleanup", "neutralize"] and not current_value:
+            if arg in ("taurdkit", "cleanup") and not current_value:
                 flags.append(f"--no{arg}")
             # Handle the rest of the flags
+            elif arg in ("stereoisomers", "neutralize") and not current_value:
+                flags.append(f"--no-{arg}")
             elif current_value:
                 flags.append(f"--{arg}")
         elif isinstance(current_value, list):
@@ -192,9 +229,7 @@ def write_single_job_script(slurm_header: str, slurm_script: str):
         f.write(slurm_header)
         f.write(slurm_script)
 
-def test_batch_mode(args: dict):
-    global slurm_header
-    global slurm_script
+def test_batch_mode(args: dict, header: str, script: str):
     file = Path(args.prefix) / args.input_files[0]
     prefix = Path(args.prefix) / file.stem  # Ensure prefix is within temp_dir
 
@@ -202,7 +237,7 @@ def test_batch_mode(args: dict):
     subprocess.run(f"split -l {args.lines} -d -a 4 --additional-suffix=.smi {file} {prefix}/in", shell=True)
     os.chdir(prefix)
     subprocess.run(f"ls in* > dirlista", shell=True)
-    write_single_job_script(slurm_header, slurm_script)
+    write_single_job_script(header, script)
 
 def Split_Submit_jobs(args: dict, parser):
     """Split the input files into chunks and submit jobs to the cluster
@@ -215,26 +250,67 @@ def Split_Submit_jobs(args: dict, parser):
     """
     # Replace the PROJECT_NAME with the project name and time limit for SLURM
     
-    global slurm_header
-    slurm_header = slurm_header.replace('PROJECT_NAME', args.proj_name)
-    slurm_header = slurm_header.replace('TIME_LIMIT', f'{args.timelimit}:00:00')
-    if not(args.gen3d): slurm_header = slurm_header.replace('msani_3d', 'msani_2d')
-    if args.lines >= 250_000: slurm_header = slurm_header.replace('MEMORY', '12G')
-    elif args.lines >= 100_000: slurm_header = slurm_header.replace('MEMORY', '6G')
-    else: slurm_header = slurm_header.replace('MEMORY', '4G')
+    cores = args.whole_node_cores
 
-    # Turn the arguments into a string of flags
-    flags = parse_flags_single_job(args, parser)
+    if args.whole_node:
+        # --- Whole-node header (work on a local copy) ---
+        active_header = slurm_header_whole_node
+        if args.proj_name is not None:
+            active_header = active_header.replace('PROJECT_NAME', f'#SBATCH -A {args.proj_name}')
+        else:
+            active_header = active_header.replace('PROJECT_NAME', '')
+        if args.partition is not None:
+            active_header = active_header.replace('PARTITION_NAME', f'#SBATCH --partition={args.partition}')
+        else:
+            active_header = active_header.replace('PARTITION_NAME', '')
+        active_header = active_header.replace('NODE_CORES', str(cores))
+        active_header = active_header.replace('TIME_LIMIT', f'{args.timelimit}:00:00')
+        if not args.gen3d:
+            active_header = active_header.replace('msani_3d', 'msani_2d')
 
-    global slurm_script
-    slurm_script = slurm_script + flags + remove_lock_files
+        # --- Whole-node execution script (local copy) ---
+        # Inject NODE_CORES and append flags + background launch + wait
+        flags = parse_flags_single_job(args, parser)
+        active_script = slurm_script_whole_node.replace('NODE_CORES', str(cores))
+        active_script = active_script + flags + ' >> "$log_file" 2>&1 &\ndone\nwait\n' + remove_lock_files_whole_node
+        if args.cleanup:
+            active_script += '\nlog_file="node_slurm_${ARRAY_ID}_${TASK_ID}.log"\n' + cleanup_script
+    else:
+        # --- Standard (1-core-per-task) header (local copy) ---
+        active_header = slurm_header
+        if args.proj_name is not None:
+            active_header = active_header.replace('PROJECT_NAME', f'#SBATCH -A {args.proj_name}')
+        else:
+            active_header = active_header.replace('PROJECT_NAME', '')
 
-    if args.cleanup: slurm_script += cleanup_script
+        if args.partition is not None:
+            active_header = active_header.replace('PARTITION_NAME', f'#SBATCH --partition={args.partition}')
+        else:
+            active_header = active_header.replace('PARTITION_NAME', '')
+        active_header = active_header.replace('TIME_LIMIT', f'{args.timelimit}:00:00')
+        if not args.gen3d:
+            active_header = active_header.replace('msani_3d', 'msani_2d')
+        if args.lines >= 100_000: active_header = active_header.replace('MEMORY', '8G')
+        elif args.lines >= 50_000: active_header = active_header.replace('MEMORY', '6G')
+        elif args.lines >= 25_000: active_header = active_header.replace('MEMORY', '4G')
+        else: active_header = active_header.replace('MEMORY', '2G')
+
+        # --- Standard execution script (local copy) ---
+        flags = parse_flags_single_job(args, parser)
+        active_script = slurm_script + flags + remove_lock_files
+        if args.cleanup:
+            active_script += cleanup_script
+
+
     if args.test: 
-        test_batch_mode(args)
+        test_batch_mode(args, active_header, active_script)
     else:
         print(logo)
-        print(f"Using project name (-A): {args.proj_name}")
+        if args.proj_name is not None: print(f"Using project name (-A): {args.proj_name}")
+        if args.whole_node:
+            print(f"Using whole-node mode:   partition = {args.partition}, {cores} cores per node")
+        else:
+            if args.partition is not None: print(f"Using partition = {args.partition}")
         print(f"Time limit for each job (-tl): {args.timelimit} hours")
         print(f"Maximum number of jobs in an array: {max_array_size} jobs")
         print(f"Maximum number of jobs running parallelly (-mj): {args.max_jobs} jobs")
@@ -260,15 +336,23 @@ def Split_Submit_jobs(args: dict, parser):
             print(f"\tFile {file} will be split into {job_for_this_file} jobs.")
             n_jobs += job_for_this_file
             submitting_max_array_size = max(submitting_max_array_size, job_for_this_file)
-        print(f"Total number of jobs to submit: {n_jobs}\n")
+        print(f"Total number of jobs to submit: {n_jobs}")
+
+        if args.whole_node:
+            n_array_tasks = math.ceil(n_jobs / cores)
+            print(f"Whole-node mode: {n_jobs} jobs chunked into {n_array_tasks} array tasks ({cores} jobs/node)\n")
+        else:
+            n_array_tasks = n_jobs
+            print()
+
         if submitting_max_array_size > max_array_size:
             print(f"Too many jobs in an array to submit ({submitting_max_array_size}). Please increase the number of lines per job or decrease the number of input files")
             print(f"Exitting MolSanitizer...")
             return
         
-        if current_running_jobs + n_jobs > max_limit_project:
+        if current_running_jobs + n_array_tasks > max_limit_project:
             print(f"Current number of jobs running in the project {args.proj_name}: {current_running_jobs}")
-            print(f"Total number of jobs to submit: {n_jobs}")
+            print(f"Total number of array tasks to submit: {n_array_tasks}")
             print(f"Total number of jobs will exceed the limit of {max_limit_project} jobs in the project {args.proj_name}")
             print(f"Please wait for the current jobs to finish before submitting new jobs.")
             print(f"Exitting MolSanitizer...")
@@ -298,9 +382,15 @@ def Split_Submit_jobs(args: dict, parser):
                     jobname = line.strip().split('.')[0]
                     with open(f'{jobname}.lock', 'w') as lock:
                         lock.write('')
-            print(f"Submitting {n_jobs} jobs\n")
-            write_single_job_script(slurm_header, slurm_script)
-            subprocess.run(f"sbatch --array=0-{n_jobs-1}%{args.max_jobs} submit_msani.sh", shell=True)
+            if args.whole_node:
+                n_array_tasks = math.ceil(n_jobs / cores)
+                print(f"Submitting {n_array_tasks} array tasks ({n_jobs} jobs, {cores} per node)\n")
+                write_single_job_script(active_header, active_script)
+                subprocess.run(f"sbatch --array=0-{n_array_tasks-1}%{args.max_jobs} submit_msani.sh", shell=True)
+            else:
+                print(f"Submitting {n_jobs} jobs\n")
+                write_single_job_script(active_header, active_script)
+                subprocess.run(f"sbatch --array=0-{n_jobs-1}%{args.max_jobs} submit_msani.sh", shell=True)
             os.chdir('..')
         
 def main():

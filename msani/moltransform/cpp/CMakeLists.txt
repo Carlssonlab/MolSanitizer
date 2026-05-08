@@ -201,7 +201,7 @@ if(NOT RDKit_FOUND)
 endif()
 
 # Find Boost (required by RDKit)
-find_package(Boost REQUIRED COMPONENTS system filesystem serialization)
+find_package(Boost REQUIRED)
 
 # Create static library for stereoisomer enumeration
 add_library(stereoisomer_lib STATIC
@@ -246,12 +246,7 @@ else()
     target_link_libraries(stereoisomer_lib PUBLIC ${RDKIT_LIBRARIES})
 endif()
 
-# Link Boost
-target_link_libraries(stereoisomer_lib PUBLIC
-    Boost::system
-    Boost::filesystem
-    Boost::serialization
-)
+# We only use header-only Boost parts; RDKit DLLs handle transitive Boost deps.
 
 # Create the Python module
 pybind11_add_module(msani_stereoisomers
@@ -285,11 +280,7 @@ else()
     endif()
 endif()
 
-target_link_libraries(msani_stereoisomers PRIVATE
-    Boost::system
-    Boost::filesystem
-    Boost::serialization
-)
+# Transitive Boost linkage handled by RDKit.
 
 # On Windows, copy RDKit DLLs next to the built extension for reliable loading
 if(MSVC)

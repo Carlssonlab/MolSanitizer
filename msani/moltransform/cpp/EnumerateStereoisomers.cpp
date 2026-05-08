@@ -9,6 +9,7 @@
 //
 
 #include <cmath>
+#include <chrono>
 #include <limits>
 
 #include <boost/numeric/conversion/cast.hpp>
@@ -61,6 +62,7 @@ StereoisomerEnumerator::StereoisomerEnumerator(
   } else {
     d_randGen.reset(new std::mt19937(d_options.randomSeed));
   }
+  d_startTime = std::chrono::steady_clock::now();
 }
 
 std::uint64_t StereoisomerEnumerator::getStereoisomerCount() const {
@@ -115,6 +117,16 @@ void StereoisomerEnumerator::buildFlippers() {
 std::unique_ptr<ROMol> StereoisomerEnumerator::generateRandomIsomer() {
   boost::dynamic_bitset<> nextConfig{d_flippers.size()};
   while (d_seen.size() < d_totalPoss) {
+    // Check wall-clock timeout at the start of every iteration.
+    if (d_options.timeout > 0.0) {
+      auto elapsed = std::chrono::duration<double>(
+          std::chrono::steady_clock::now() - d_startTime).count();
+      if (elapsed >= d_options.timeout) {
+        // Return empty ptr — same signal as "all isomers exhausted".
+        // The caller (enumerate_stereoisomers) will stop iterating.
+        return std::unique_ptr<ROMol>();
+      }
+    }
     for (size_t i = 0; i < d_flippers.size(); i++) {
       bool config = d_randDis(*d_randGen);
       nextConfig[i] = config;

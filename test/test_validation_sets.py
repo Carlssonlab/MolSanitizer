@@ -176,6 +176,7 @@ class Test_ValidationSets(unittest.TestCase):
             "taulib": None,
             "create_protlib": False,
             "create_taulib": False,
+            "stereo_timeout": 60
          } 
         for mode in modes: 
             if (mode not in ['unwanted','custom']): args[mode] = True

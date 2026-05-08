@@ -392,7 +392,12 @@ class ConformerGenerator:
         if len(conf_ring_descriptors_df) == 0:
             print(f"ETKDGv3 also failed for {self.name}, using OpenBabel")
             logger.warning(f"ETKDGv3 also failed for {self.name}, using OpenBabel")
-            self._embed_smiles_babel()
+            try:
+                self._embed_smiles_babel()
+            except RuntimeError as e:
+                logger.error(f"Error in generating initial conformation using OpenBabel for {self.name}, skipping it {e}")
+                log_error(self.smiles, self.name)
+                return
             return
         
         conf_ring_descriptors_df.sort_values(['equatorial_subs_Ns', 'equatorial_subs_Cs', 'Energy'],
@@ -473,16 +478,29 @@ class ConformerGenerator:
         mol2_obj = mol2writer.Mol2Writer(Chem.Mol(self.amsol_mol, confId = 0))
         self.mol2_str = mol2_obj.write_mol2()
 
-    def _embed_smiles_babel(self):
+    def _embed_smiles_babel(self, timeout: int = 30):
         '''
         Embed the SMILES string using Open Babel. CLI version is used as it is found more flexible 
-        than the RDKit version.'''
+        than the RDKit version.
+
+        Parameters
+        ----------
+        timeout : int
+            Maximum number of seconds to wait for OpenBabel before killing the process (default: 30).
+        '''
                                             # -h: add hs; gen3d
         cmd = [str(obabel_path), f"-:{self.smiles}", "-h", "--gen3d", "-osdf"]
 
         # Execute the command and capture stdout
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        stdout, stderr = proc.communicate()
+        try:
+            stdout, stderr = proc.communicate(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            proc.communicate()  # Drain buffers and prevent zombie process
+            raise RuntimeError(
+                f"(OpenBabel timed out)"
+            )
 
         # Convert the SDF output from stdout to an RDKit molecule
         mol_rdkit = Chem.MolFromMolBlock(stdout, removeHs=False)
@@ -803,6 +821,7 @@ class ConformerGenerator:
 
         if request_alignment and not self.atom_maps:
             log_error(self.smiles, self.name)
+            logger.error('No substructure found for the requested alignment. No conformers are generated')
             return
         else:
             # In case of sulfonamides and cycloheptatrienes, we divine the numConfs by the number of ring conformers
@@ -864,7 +883,11 @@ class ConformerGenerator:
                     if self.VERBOSE: print(f'Failed for stochastic sampling for {self.name}, use the original conformation')
                     continue
             
-            largest_ring = max(self.atom_maps, key=len)
+            
+            if request_alignment: 
+                largest_ring = self.atom_maps[0]
+            else:
+                largest_ring = max(self.atom_maps, key=len)
             for confId in range(result.GetNumConformers()):
                 rdMolAlign.AlignMol(result, original_mol, confId, 0, atomMap=[(i, i) for i in largest_ring])
             self.ring_confs[idx] = Chem.Mol(result)
@@ -1265,7 +1288,7 @@ def gen_conf_chunk(df: DataFrame, args, input_file='0'):
                         bin_amsol_mol, bin_conf_rings, mol2_str, error = queue.get() 
 
                         if error:
-                            logger.error(f"Error in generating initial conformation using RDKit for {name}, skipping it: {error}")
+                            logger.error(f"Error in generating initial conformation using RDKit for {name}, skipping it {error}")
                             log_error(smiles, name)
                             continue
                         confgen = ConformerGenerator.from_existing_data(smiles=smiles, 

@@ -54,6 +54,7 @@ class Msani:
                 pH_range = 0,
                 numcores = 1,
                 randomSeed = 42,
+                stereo_timeout = 60,
                 standardize = False,
                 protonation_library = None,
                 tautomer_library = None,
@@ -92,6 +93,7 @@ class Msani:
         self.pH = pH
         self.pH_range = pH_range
         self.randomSeed = randomSeed
+        self.stereo_timeout = stereo_timeout
         self.standardize = standardize    
         self.debug = debug
         self.numcores = numcores
@@ -150,12 +152,15 @@ class Msani:
                                         neutralize = False,
                                         numcores = self.numcores) # Already neutralized
             df = tautomerizer.tautomerize_df(df)
-        if self.pains: df = Filters.painsFilter(df,
+        if self.pains: 
+            if self.debug: print("Filtering PAINS")
+            df = Filters.painsFilter(df,
                                                 rejectedFile = rejected_file,
                                                 debug = self.debug)
             
         # We already gathered the unwanted SMARTS patterns in the constructor
         if self.unwanted_df is not None: 
+            if self.debug: print("Filtering Unwanted")
             df = Filters.unwantedFilter(df,
                                         rejectedFile = rejected_file,
                                         unwanted_df = self.unwanted_df,
@@ -188,6 +193,7 @@ class Msani:
                                   tryEmbedding=True,
                                   randomSeed=self.randomSeed,
                                   numcores=self.numcores,
+                                  timeout=self.stereo_timeout,
                                   debug=self.debug)
             df = stereoisomerizer.enumerate_df(df)
 
