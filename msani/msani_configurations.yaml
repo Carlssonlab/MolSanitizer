@@ -31,11 +31,15 @@ PH_RANGE: 0 # 0 means choose specific pH=7 (default), 2 means will sample pH 5 a
 #                 (for Tetralith is 2000. Check by: 'scontrol show config | grep MaxArraySize')
 # MAX_JOBS: Maximum number of jobs running at the same time
 # MAX_LIMIT_PROJECT: Maximum number of jobs allowed for a project account (for example: naiss2023-3-39 is 5000 jobs)
-SLURM_ACCOUNT: 'naiss2025-3-21'
+SLURM_ACCOUNT: 'naiss2025-3-21' # Can be set to null if you don't need it in the submitting script.
+SLURM_PARTITION: null # If it is set to null, the default partition of the cluster will be used.
 LINES_PER_JOB: 200
 TIME_LIMIT: 96
 MAX_ARRAY_SIZE: 2000
 MAX_JOBS: 2000
 MAX_LIMIT_PROJECT: 5000
+WHOLE_NODE: false # Only for clusters supporting the only whole-node jobs
+WHOLE_NODE_CORES: 32 #Number of CPU cores per node. Only to set when WHOLE_NODE is true.
+
 
 
