@@ -256,8 +256,8 @@ if(NOT pybind11_FOUND)
     message(FATAL_ERROR "PyBind11 not found. Please ensure PyBind11 is installed.")
 endif()
 
-# Find Boost (required by RDKit) - Add more components for exception handling
-find_package(Boost REQUIRED COMPONENTS system filesystem serialization)
+# Find Boost (required by RDKit)
+find_package(Boost REQUIRED)
 
 # Find Eigen3 (required by RDKit)
 find_package(Eigen3 QUIET)
@@ -329,8 +329,8 @@ else()
     target_link_libraries(stochastic_sampling_lib PUBLIC ${RDKIT_LIBRARIES})
 endif()
 
-# Link Boost
-target_link_libraries(stochastic_sampling_lib PUBLIC Boost::system Boost::filesystem Boost::serialization)
+# We don't link Boost directly since we only use header-only parts.
+# RDKit DLLs handle their own transitive Boost dependencies.
 
 # Link Eigen3
 if(EIGEN3_INCLUDE_DIR)
@@ -377,8 +377,7 @@ else()
     endif()
 endif()
 
-# Also link Boost explicitly to avoid missing transitive linkage on MSVC
-target_link_libraries(msani_confgen_cpp PRIVATE Boost::system Boost::filesystem Boost::serialization)
+# Transitive linkage for Boost is handled by RDKit if needed.
 
 # Properties for the Python module
 target_compile_definitions(msani_confgen_cpp PRIVATE VERSION_INFO="1.0.0")
