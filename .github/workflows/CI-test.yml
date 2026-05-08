@@ -72,7 +72,7 @@ jobs:
       - name: Install in editable mode (Windows)
         if: runner.os == 'Windows'
         shell: powershell
-        run: micromamba run -n msani pip install -e . -v
+        run: micromamba run -n msani python -c "import os, sys, subprocess; [os.environ.pop(k, None) for k in ['CMAKE_GENERATOR_PLATFORM', 'CMAKE_GENERATOR_TOOLSET']]; subprocess.run([sys.executable, '-m', 'pip', 'install', '-e', '.', '-v'], check=True)"
 
       - name: Run unittests (Unix)
         if: runner.os != 'Windows'

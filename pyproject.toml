@@ -54,9 +54,9 @@ packages = ["msani"]
 cmake.source-dir = "."
 cmake.version = ">=3.16"
 cmake.args = [
-    "-DCMAKE_PREFIX_PATH={env.CONDA_PREFIX}",
-    "-DCMAKE_FIND_ROOT_PATH={env.CONDA_PREFIX}",
-    "-DCMAKE_INSTALL_PREFIX={env.CONDA_PREFIX}",
+    "-DCMAKE_PREFIX_PATH=$CONDA_PREFIX",
+    "-DCMAKE_FIND_ROOT_PATH=$CONDA_PREFIX",
+    "-DCMAKE_INSTALL_PREFIX=$CONDA_PREFIX",
     "-DCMAKE_CXX_FLAGS=-O3 -DNDEBUG",
     "-DBUILD_SHARED_LIBS=OFF"
 ]
