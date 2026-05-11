@@ -173,6 +173,7 @@ O=c1ncc2ccccc2[nH]1 3H-quinazoline_to_1H
 c1nc[nH]n1 4H-1,2,4-triazole_to_1H
 Clc1c[nH]cn1 EWG-imidazole
 Clc1cc[nH]n1 EWG-pyrazole
+O=C(O)c1cc([N+](=O)[O-])n[nH]1 pyrazole-3-acid
 Cc1cnc[nH]1 imidazole_1
 Cc1c[nH]cn1 imidazole_2
 Cc1ccc2nc[nH]c2c1 benzimidazole_1

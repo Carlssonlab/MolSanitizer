@@ -166,6 +166,7 @@ O=C1N=C2C=CC=CC2=CN1	3H-quinazoline_to_1H
 N1=CNC=N1	4H-1,2,4-triazole_to_1H
 ClC1=CN=CN1	EWG-imidazole
 ClC1=CC=NN1	EWG-pyrazole
+O=C(O)c1cc([N+](=O)[O-])[nH]n1 pyrazole-3-acid
 CC1=CN=CN1	imidazole
 CC1=CC2=C(N=CN2)C=C1	benzimidazole
 CC1=CC=NN1	pyrazole-like_H1-H2
