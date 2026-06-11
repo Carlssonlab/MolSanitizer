@@ -15,6 +15,8 @@ All notable changes to this project will be documented in this file.
 🐛 Bug Fixes
 ~~~~~~~~~~~~
 
+-  Improve SMARTS detection logic in canonicalization -
+   (`7382bfd <https://github.com/phonglam3103/MolSanitizer/commit/7382bfdc243e7cd75be656c3461de0bf2914817c>`__)
 -  Add a timeout mechanism for Openbabel-based conformer generator to
    prevent permanent stalling. -
    (`f9b55f1 <https://github.com/phonglam3103/MolSanitizer/commit/f9b55f1a5f59ffc5d0ef990a09df0f1dab90fe90>`__)
