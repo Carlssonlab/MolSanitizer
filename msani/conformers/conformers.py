@@ -221,7 +221,6 @@ class ConformerGenerator:
         instance.mol2_str = mol2_str
         instance.sulfo_matches = utils.find_sulfonamide_like_scaffolds(instance.amsol_mol)
         instance.request_alignment = request_alignment
-        instance.atom_maps, instance.label_map = utils.find_rigid_part(mol, request_alignment)
         instance.VERBOSE = VERBOSE
         instance.mode = mode
         instance.tolerance = tolerance

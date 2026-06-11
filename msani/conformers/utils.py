@@ -418,6 +418,9 @@ def remove_folders(folders_to_remove: list):
 
 def canonicalize_if_smiles(query: str):
     """Canonicalize only if it's a valid SMILES; return unchanged if SMARTS or invalid."""
+    # Heuristic: if the query contains SMARTS-specific characters, do not treat it as a standard SMILES
+    if any(char in query for char in ['~', '*', '$', '!', '&', ',']) or '[#' in query:
+        return query
     mol = Chem.MolFromSmiles(query)
     if mol:
         return Chem.CanonSmiles(query)
@@ -543,9 +546,9 @@ def find_rigid_part(mol, request_alignment=None):
     # If the user request for only a specific ring as rigid segment.
     if request_alignment:
         matches = mol.GetSubstructMatches((request_alignment))
-        smiles = Chem.MolToSmiles(Chem.RemoveHs(mol))
         if len(matches) != 0:
-            if len(matches) > 1: logger.warning(f"Multiple matches found for the requested alignment: {smiles}")
+            if len(matches) > 1: 
+                logger.warning(f"Multiple matches found for the requested alignment: {Chem.MolToSmiles(Chem.RemoveHs(mol))}. Will align by both.")
             for match in matches:
                 rigid_part.append(match)
             rule_label = None
