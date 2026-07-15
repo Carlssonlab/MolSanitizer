@@ -986,7 +986,8 @@ class ConformerGenerator:
                longname = "fake",
                env = None,
                cleanup = True,
-               tarfile = None
+               tarfile = None,
+               as_string = False
                ):
         """
         Convert the conformers to DB2 format and save them to a file.
@@ -1003,6 +1004,10 @@ class ConformerGenerator:
             env (str): Environment for AMSOL.
             cleanup (bool): Whether to clean up the temporary files.
             tarfile (tarball object): The tarball object to write the DB2 data to.
+            as_string (bool): Whether to return the DB2 data as a Python string.
+
+        Returns:
+            str: The DB2 data as a Python string.
         """
         if not AMSOL_AVAILABLE:
             raise ImportError("Please install the AMSOL to msani/amsol to use this function.")
@@ -1074,12 +1079,15 @@ class ConformerGenerator:
                 for rigid_scaffold in self.atom_maps:
                     db2_data = utils.Align_ConvertToDb2(ring_conf, rigid_scaffold, solv_obj, self.name, self.smiles, longname) 
                     db2_data_all += db2_data
-            if tarfile: write_to_tarball(tarfile, db2_data_all.encode('utf-8'), name=f"{self.name}.db2")
-            else: write_to_file(db2_data_all, f"../{self.name}.db2")
+            if not (as_string):
+                if tarfile: write_to_tarball(tarfile, db2_data_all.encode('utf-8'), name=f"{self.name}.db2")
+                else: write_to_file(db2_data_all, f"../{self.name}.db2")
             os.chdir("../..")
             if not self.VERBOSE: utils.remove_folders([f"solv/{self.name}"])
             if cleanup:
                 utils.remove_folders([f"db2/{self.name}"])
+            if as_string:
+                return db2_data_all
                 
         except Exception as e:
             logger.error(f"Error in converting {self.name} to DB2 format: {e}")
