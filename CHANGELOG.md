@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### 🚀 Features
 
+- Add as_string parameter to convert_to_db2 to allow returning DB2 data as a string - ([5b49383](https://github.com/phonglam3103/MolSanitizer/commit/5b49383c5d36ff3f44eca24bb5a37930ae67ab89))
 - Add whole-node batch submission support to SLURM configurations - ([8084e0c](https://github.com/phonglam3103/MolSanitizer/commit/8084e0c332f6a04df9e9e407283f13a165ab0310))
 
 ### 🐛 Bug Fixes
