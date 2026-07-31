@@ -63,20 +63,21 @@ public:
                          RDKit::MMFF::MMFFMolProperties* mmffMolProperties) const {
         // Construct force field only once
         if (!ff_valid || !cached_ff) {
-            cached_ff.reset(RDKit::MMFF::constructForceField(working_mol, mmffMolProperties, 0));
+            cached_ff.reset(RDKit::MMFF::constructForceField(working_mol, mmffMolProperties, 100.0));
             ff_valid = true;
             if (!cached_ff) {
                 throw std::runtime_error("Failed to construct force field");
             }
         }
         
-        // Update coordinates in existing force field (much faster than reconstruction)
-        const auto& conf = working_mol.getConformer(0);
+        // Rebind the force field to the current conformer and refresh its internal state.
+        // This mirrors RDKit's ForceFieldHelpers::OptimizeMoleculeConfs workflow.
+        auto& conf = working_mol.getConformer(0);
         auto& positions = cached_ff->positions();
         for (unsigned int i = 0; i < working_mol.getNumAtoms(); ++i) {
-            const auto& pos = conf.getAtomPos(i);
-            *positions[i] = RDGeom::Point3D(pos.x, pos.y, pos.z);
+            positions[i] = &conf.getAtomPos(i);
         }
+        cached_ff->initialize();
         
         return cached_ff->calcEnergy();
     }
