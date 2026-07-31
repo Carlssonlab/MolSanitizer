@@ -203,8 +203,10 @@ class ConformerGenerator:
                            ring_confs = None,
                            mol2_str = None,
                            request_alignment = None,
+                           forcefield = 'MMFF94s',
                            mode:str = 'vs',
                            tolerance = 30,
+                           clash_scale = 0.7,
                            rmsd = 0.5,
                            VERBOSE=False):
         """Alternative constructor that initializes from existing data"""
@@ -215,7 +217,7 @@ class ConformerGenerator:
         # Override the instance attributes
         mol = Chem.Mol(amsol_mol)
         instance.amsol_mol = mol
-        instance.mp = rdForceFieldHelpers.MMFFGetMoleculeProperties(instance.amsol_mol, mmffVariant="MMFF94s")
+        instance.mp = rdForceFieldHelpers.MMFFGetMoleculeProperties(instance.amsol_mol, mmffVariant=forcefield)
         instance.method = 'rdkit'
         instance.ring_confs = [Chem.Mol(ring_conf) for ring_conf in ring_confs] if ring_confs else []
         instance.mol2_str = mol2_str
@@ -224,7 +226,8 @@ class ConformerGenerator:
         instance.VERBOSE = VERBOSE
         instance.mode = mode
         instance.tolerance = tolerance
-        instance.rmsd = rmsd    
+        instance.rmsd = rmsd
+        instance.clash_scale = clash_scale
         return instance
     
     def _initialize_molecule(self):
@@ -911,16 +914,27 @@ class ConformerGenerator:
         for mol in self.ring_confs:
             if mol.HasProp('Failed_sampling'): mol.ClearProp('Failed_sampling')
 
+        def write_conformer(writer, mol, conf_id):
+            """Write one conformer, retaining its C++ force-field energy in debug mode."""
+            output_mol = Chem.Mol(mol)
+            if self.VERBOSE:
+                conformer = mol.GetConformer(conf_id)
+                if conformer.HasProp('Energy'):
+                    output_mol.SetProp('Energy', conformer.GetProp('Energy'))
+                elif conformer.HasProp('MMFF_Energy'):
+                    output_mol.SetProp('Energy', conformer.GetProp('MMFF_Energy'))
+            writer.write(output_mol, confId=conf_id)
+
         # Write the conformers to SDF file(s)
         if len(self.ring_confs) == 1:
             with Chem.SDWriter(f"sdf/{filename}.sdf") as writer:
                 for confid in range(self.ring_confs[0].GetNumConformers()):
-                    writer.write(self.ring_confs[0], confId=confid)
+                    write_conformer(writer, self.ring_confs[0], confid)
         else:
             for idx, ring_conf in enumerate((self.ring_confs)):
                 with Chem.SDWriter(f"sdf/{filename}.nr{idx}.sdf") as writer:
                     for confid in range(ring_conf.GetNumConformers()):
-                        writer.write(ring_conf, confId=confid)
+                        write_conformer(writer, ring_conf, confid)
 
     def to_mol2(self, filename = None):
         """
@@ -1100,7 +1114,7 @@ class ConformerGenerator:
             return
 
 
-def initial_embedding(queue, smiles, name, randomSeed, nr = 1, numcores = 1, VERBOSE = False):
+def initial_embedding(queue, smiles, name, forcefield, randomSeed, nr = 1, numcores = 1, clash_scale=0.7, VERBOSE = False):
     """
     A wrapper for multiprocessing to call so that timeout works.
     Embed the SMILES string using RDKit, then return the 3D coordinates in the binary format.
@@ -1109,9 +1123,11 @@ def initial_embedding(queue, smiles, name, randomSeed, nr = 1, numcores = 1, VER
         queue (multiprocessing.Queue): The queue to put the results into.
         smiles (str): The SMILES string to embed.
         name (str): The name of the molecule.
+        forcefield (str): The force field to use for energy calculations.
         randomSeed (int): The random seed for embedding.
         nr (int): The number of ring conformers to generate.
         numcores (int): The number of CPU cores to use for parallel processing.
+        clash_scale (float): Scale factor for clash detection.
         VERBOSE (bool): If True, print verbose output.
     returns:
         bin_amsol_mol (bytes): The binary representation of the AMSOL molecule.
@@ -1123,10 +1139,12 @@ def initial_embedding(queue, smiles, name, randomSeed, nr = 1, numcores = 1, VER
     try:
         confgen = ConformerGenerator(smiles, 
                                      name, 
+                                     forcefield=forcefield,
                                      numcores=numcores, 
                                      num_ring_confs=nr, 
                                      randomSeed=randomSeed,
                                      method='rdkit', 
+                                     clash_scale=clash_scale,
                                      VERBOSE=VERBOSE)
         property_flags = (
                 PropertyPickleOptions.MolProps |
@@ -1185,9 +1203,13 @@ def gen_conf_chunk(df: DataFrame, args, input_file='0'):
                 nringconfs (int): Number of ring conformers to generate.\n
                 numcores (int): Number of CPU cores to use for parallel processing.\n
                 method (str): Method for initial conformation generation ('rdkit', 'obabel', 'corina').\n
+                clash_scale (float): Scale factor for clash detection.\n
+                forcefield (str): Force field to use for energy calculations ('MMFF94', 'MMFF94s', etc.).\n
+                rmsd (float): RMSD threshold for filtering conformers.\n
                 timing (bool): If enabled, logs timing information for each step.\n
                 smiles (bool): If True, skips restarting logic.\n
                 format (list): Output formats to generate (e.g., 'pdbqt', 'sdf', 'mol2', 'db2').\n
+                timeout_conf (float): Timeout for torsional sampling in minutes.\n
         input_file (str): Name of the input file (default is '0').
     
     Returns:
@@ -1199,9 +1221,9 @@ def gen_conf_chunk(df: DataFrame, args, input_file='0'):
     if 'mol' not in df.columns:
         df.loc[:,'mol'] = df['smiles'].apply(Chem.MolFromSmiles)
     df = filters.Filters.remove_exotic_chem_to_db2(df)
-    randomSeed, numConfs, VERBOSE, cleanup, energywindow, timeout, request_alignment, nr, numcores, mode, tolerance, allowNonring = \
-        args.randomSeed, args.numconfs, args.debug, args.cleanup, args.energywindow, args.timeout, args.rigid, args.nringconfs, args.numcores, args.mode, args.tolerance, args.allowNonring
-    
+    randomSeed, numConfs, VERBOSE, cleanup, energywindow, timeout, request_alignment, nr, numcores, mode, tolerance, allowNonring, clash_scale, rmsd, timeout_conf, forcefield= \
+        args.randomSeed, args.numconfs, args.debug, args.cleanup, args.energywindow, args.timeout, args.rigid, args.nringconfs, args.numcores, args.mode, args.tolerance, args.allowNonring, args.clash_scale, args.rmsd, args.timeout_conf, args.forcefield
+
     ignoreTorlib = (args.mode == 'ignoretorlib')
     request_alignment = Chem.MolFromSmarts(utils.canonicalize_if_smiles(request_alignment)) if request_alignment else None
     if not(ignoreTorlib):
@@ -1266,12 +1288,28 @@ def gen_conf_chunk(df: DataFrame, args, input_file='0'):
             if args.timing: start = time.time() 
             try:
                 if args.method == 'corina':
-                    confgen = ConformerGenerator(smiles, name, method='corina', mode = mode, tolerance=tolerance, rmsd=args.rmsd, VERBOSE=VERBOSE)
+                    confgen = ConformerGenerator(smiles,
+                                                 name,
+                                                 forcefield=forcefield,
+                                                 method='corina',
+                                                 mode = mode,
+                                                 tolerance=tolerance,
+                                                 rmsd=rmsd,
+                                                 clash_scale=clash_scale,
+                                                 VERBOSE=VERBOSE)
                 elif args.method == 'obabel':
-                    confgen = ConformerGenerator(smiles, name, method='obabel', mode = mode, tolerance=tolerance, rmsd=args.rmsd, VERBOSE=VERBOSE)
+                    confgen = ConformerGenerator(smiles, 
+                                                 name, 
+                                                 forcefield=forcefield,
+                                                 method='obabel', 
+                                                 mode = mode, 
+                                                 tolerance=tolerance, 
+                                                 rmsd=rmsd, 
+                                                 clash_scale=clash_scale,
+                                                 VERBOSE=VERBOSE)
                 else:
                     queue = multiprocessing.Queue()
-                    process = multiprocessing.Process(target=initial_embedding, args=(queue, smiles, name, randomSeed, nr, numcores, VERBOSE))
+                    process = multiprocessing.Process(target=initial_embedding, args=(queue, smiles, name, forcefield, randomSeed, nr, numcores, clash_scale, VERBOSE))
                     process.start()
                     process.join(timeout=timeout*60)  # default 2 minutes timeout
                     # Check if process is still alive (meaning it exceeded timeout)
@@ -1280,7 +1318,14 @@ def gen_conf_chunk(df: DataFrame, args, input_file='0'):
                         process.terminate()
                         process.join()
                         try:
-                            confgen = ConformerGenerator(smiles, name, num_ring_confs=nr, method='obabel', tolerance=tolerance, rmsd=args.rmsd, VERBOSE=VERBOSE)
+                            confgen = ConformerGenerator(smiles,
+                                                         name, 
+                                                         forcefield=forcefield,
+                                                         method='obabel', 
+                                                         tolerance=tolerance, 
+                                                         rmsd=rmsd, 
+                                                         clash_scale=clash_scale,
+                                                         VERBOSE=VERBOSE)
                         except Exception as e:
                             logger.error(f"Error in generating initial conformation using OpenBabel for {name}, skipping it {e}")
                             log_error(smiles, name)
@@ -1304,9 +1349,11 @@ def gen_conf_chunk(df: DataFrame, args, input_file='0'):
                                                                         ring_confs=bin_conf_rings, 
                                                                         mol2_str=mol2_str, 
                                                                         request_alignment=request_alignment, 
+                                                                        forcefield=forcefield,
                                                                         mode=mode,
                                                                         tolerance=tolerance,
-                                                                        rmsd=args.rmsd,
+                                                                        rmsd=rmsd,
+                                                                        clash_scale=clash_scale,
                                                                         VERBOSE=VERBOSE)
                     else:
                         logger.error(f"Unknown error in generating initial conformation for {name}, skipping it.")
@@ -1328,8 +1375,8 @@ def gen_conf_chunk(df: DataFrame, args, input_file='0'):
                                         ignoreTorlib=ignoreTorlib,
                                         AllowNonRing=allowNonring,
                                         eps = args.eps,
-                                        timeout_conf=args.timeout_conf,
-                                        request_alignment=request_alignment,
+                                        timeout_conf=timeout_conf,
+                                        request_alignment=request_alignment
                                         )
                 except Exception as e:
                     logger.error(f"Error in conformational sampling for {name}: {e}")

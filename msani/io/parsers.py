@@ -368,6 +368,16 @@ def parseArguments(args = None, batch_mode = False):
         type=float, 
         default=defaults.get('timeout_conf', 1), 
         help='Timeout for conformational sampling stage (default: 1 minute).' if show_advanced_help else argparse.SUPPRESS)
+    gen3d.add_argument(
+        '--clash_scale', '-clash',
+        type=float,
+        default=defaults.get('clash_scale', 0.7),
+        help='Scale applied to the sum of atomic van der Waals radii for clash detection (default: 0.7).' if show_advanced_help else argparse.SUPPRESS)
+    gen3d.add_argument(
+        '--forcefield', '-ff',
+        type=str,
+        default=defaults.get('forcefield', 'MMFF94s'),
+        help='Force field to use (default: MMFF94s).' if show_advanced_help else argparse.SUPPRESS)
 
     # Group 5: Miscellaneous
     misc_group = parser.add_argument_group("Miscellaneous")
@@ -533,7 +543,7 @@ def parseArguments(args = None, batch_mode = False):
             parser.error(f'The torsion definition file: {args.torsion} does not exist.')
         else:
             args.torsion = Path(args.torsion).resolve() 
-
+    print(f"Clash scale: {args.clash_scale}, Force field: {args.forcefield}")
     if batch_mode: return args, parser
     else: return args
 
