@@ -6,6 +6,7 @@
 #include <GraphMol/ForceFieldHelpers/FFConvenience.h>
 #include <GraphMol/MolAlign/AlignMolecules.h>
 #include <GraphMol/MolOps.h>
+#include <GraphMol/PeriodicTable.h>
 #include <ForceField/ForceField.h>
 #include <Geometry/point.h>
 #include <cmath>
@@ -291,30 +292,35 @@ std::pair<AtomPairs, AtomPairs> SamplingUtils::precomputeBondedAndSameParentPair
     return std::make_pair(bonded_pairs, same_parent_pairs);
 }
 
-AtomPairs SamplingUtils::precomputeNonbondedPairs(const RDKit::ROMol& mol,
-                                                  const AtomPairs& bonded_pairs,
-                                                  const AtomPairs& same_parent_pairs) {
-    AtomPairs candidate_pairs;
+NonbondedClashPairs SamplingUtils::precomputeNonbondedPairs(const RDKit::ROMol& mol,
+                                                            const AtomPairs& bonded_pairs,
+                                                            const AtomPairs& same_parent_pairs,
+                                                            double clash_scale) {
+    NonbondedClashPairs candidate_pairs;
     std::set<std::pair<int, int>> excluded_pairs;
+    const auto* periodic_table = RDKit::PeriodicTable::getTable();
+    const auto canonical_pair = [](int atom1, int atom2) {
+        return std::make_pair(std::min(atom1, atom2), std::max(atom1, atom2));
+    };
     
     // Add bonded and same parent pairs to exclusion set
     for (const auto& pair : bonded_pairs) {
-        excluded_pairs.insert(pair);
+        excluded_pairs.insert(canonical_pair(pair.first, pair.second));
     }
     for (const auto& pair : same_parent_pairs) {
-        excluded_pairs.insert(pair);
+        excluded_pairs.insert(canonical_pair(pair.first, pair.second));
     }
     
     // Generate all possible pairs and exclude bonded/same parent pairs
     int num_atoms = mol.getNumAtoms();
     for (int i = 0; i < num_atoms; ++i) {
         for (int j = i + 1; j < num_atoms; ++j) {
-            // Check both directions since Python stores both
             std::pair<int, int> pair_ij = {i, j};
-            std::pair<int, int> pair_ji = {j, i};
-            if (excluded_pairs.find(pair_ij) == excluded_pairs.end() && 
-                excluded_pairs.find(pair_ji) == excluded_pairs.end()) {
-                candidate_pairs.push_back(pair_ij);
+            if (excluded_pairs.find(pair_ij) == excluded_pairs.end()) {
+                const double vdw_sum = periodic_table->getRvdw(mol.getAtomWithIdx(i)->getAtomicNum()) +
+                                       periodic_table->getRvdw(mol.getAtomWithIdx(j)->getAtomicNum());
+                const double cutoff = clash_scale * vdw_sum;
+                candidate_pairs.push_back({i, j, cutoff * cutoff});
             }
         }
     }
@@ -323,14 +329,10 @@ AtomPairs SamplingUtils::precomputeNonbondedPairs(const RDKit::ROMol& mol,
 }
 
 bool SamplingUtils::checkTooCloseNonbondedAtoms(const RDKit::Conformer& conf,
-                                                const AtomPairs& candidate_pairs,
-                                                double threshold) {
-    // OPTIMIZATION: Use squared threshold to avoid sqrt() calls
-    double threshold_sq = threshold * threshold;
-    
+                                                const NonbondedClashPairs& candidate_pairs) {
     for (const auto& pair : candidate_pairs) {
-        const RDGeom::Point3D& pos1 = conf.getAtomPos(pair.first);
-        const RDGeom::Point3D& pos2 = conf.getAtomPos(pair.second);
+        const RDGeom::Point3D& pos1 = conf.getAtomPos(pair.atom1);
+        const RDGeom::Point3D& pos2 = conf.getAtomPos(pair.atom2);
         
         // Calculate squared distance (avoid sqrt)
         double dx = pos1.x - pos2.x;
@@ -338,7 +340,7 @@ bool SamplingUtils::checkTooCloseNonbondedAtoms(const RDKit::Conformer& conf,
         double dz = pos1.z - pos2.z;
         double distance_sq = dx*dx + dy*dy + dz*dz;
         
-        if (distance_sq < threshold_sq) {
+        if (distance_sq < pair.cutoff_sq) {
             return true;  // Found clash
         }
     }

@@ -438,7 +438,7 @@ py::object stochasticSamplingDiscreteWrapper(py::object mol_obj,
                                              int timeout_conf,
                                              double rmsd,
                                              int numConfs,
-                                             double clash_threshold,
+                                             double clash_scale,
                                              bool verbose = false,
                                              const std::string& mmff_variant = "MMFF94s",
                                              double eps = 1.0,
@@ -481,7 +481,7 @@ py::object stochasticSamplingDiscreteWrapper(py::object mol_obj,
                                                          timeout_conf,
                                                          rmsd,
                                                          numConfs,
-                                                         clash_threshold,
+                                                         clash_scale,
                                                          verbose,
                                                          mmff_variant,
                                                          eps,
@@ -504,7 +504,7 @@ py::object stochasticSamplingContinuousWrapper(py::object mol_obj,
                                                int max_attempts,
                                                int timeout_conf,
                                                double rmsd,
-                                               double clash_threshold,
+                                               double clash_scale,
                                                const py::list& py_hetero_H_bonds,
                                                bool verbose = false,
                                                const std::string& mmff_variant = "MMFF94s",
@@ -537,7 +537,7 @@ py::object stochasticSamplingContinuousWrapper(py::object mol_obj,
                                max_attempts,
                                timeout_conf,
                                rmsd,
-                               clash_threshold,
+                               clash_scale,
                                hetero_H_bonds,
                                verbose,
                                mmff_variant,
@@ -757,7 +757,7 @@ PYBIND11_MODULE(msani_confgen_cpp, m) {
             timeout_conf (int): Timeout per conformer in seconds
             rmsd (float, optional): RMSD threshold for conformer pruning. Defaults to 0.5.
             numConfs (int, optional): Target number of output conformers. Defaults to 600.
-            clash_threshold (float, optional): Atomic clash distance threshold. Defaults to 1.6.
+            clash_scale (float, optional): Scale applied to the sum of atomic van der Waals radii for clash detection. Defaults to 0.7.
             verbose (bool, optional): Enable verbose output. Defaults to False.
             mmff_variant (str, optional): MMFF variant to use. Defaults to "MMFF94s".
             eps (float, optional): Numerical epsilon for calculations. Defaults to 1.0.
@@ -780,7 +780,7 @@ PYBIND11_MODULE(msani_confgen_cpp, m) {
         py::arg("timeout_conf"),
         py::arg("rmsd") = 0.5,
         py::arg("numConfs") = 600,
-        py::arg("clash_threshold") = 1.6,
+        py::arg("clash_scale") = 0.7,
         py::arg("verbose") = false,
         py::arg("mmff_variant") = "MMFF94s",
         py::arg("eps") = 1.0,
@@ -805,7 +805,7 @@ PYBIND11_MODULE(msani_confgen_cpp, m) {
             max_attempts (int, optional): Maximum sampling attempts. Defaults to 50000.
             timeout_conf (int): Timeout per conformer in seconds
             rmsd (float, optional): RMSD threshold for conformer pruning. Defaults to 0.5.
-            clash_threshold (float, optional): Atomic clash distance threshold. Defaults to 1.6.
+            clash_scale (float, optional): Scale applied to the sum of atomic van der Waals radii for clash detection. Defaults to 0.7.
             hetero_H_bonds (list): List of heterogeneous hydrogen bond pairs
                 Format: [(atom1, atom2), ...]
             verbose (bool, optional): Enable verbose output. Defaults to False.
@@ -828,7 +828,7 @@ PYBIND11_MODULE(msani_confgen_cpp, m) {
         py::arg("max_attempts") = 50000,
         py::arg("timeout_conf"),
         py::arg("rmsd") = 0.5,
-        py::arg("clash_threshold") = 1.6,
+        py::arg("clash_scale") = 0.7,
         py::arg("hetero_H_bonds"),
         py::arg("verbose") = false,
         py::arg("mmff_variant") = "MMFF94s",

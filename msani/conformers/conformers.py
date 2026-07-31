@@ -95,8 +95,8 @@ class ConformerGenerator:
         The ring alignment in SMILES or SMARTS to support constrained docking, by default None.
     ignoreTorlib : bool, optional
         Whether to ignore the torsion library, by default False.
-    threshold : float, optional
-        The threshold in Angstrom for non-bonded atom distance, by default 1.6.
+    clash_scale : float, optional
+        Scale applied to the sum of atomic van der Waals radii for clash detection. Defaults to 0.7.        
     mode : str, optional
         The mode for conformer sampling, by default 'fixed'.
     tolerance : float, optional
@@ -130,7 +130,7 @@ class ConformerGenerator:
                  numcores = 1, 
                  request_alignment = None,
                  ignoreTorlib = False,
-                 threshold = 1.6,
+                 clash_scale = 0.7,
                  rmsd = 0.5,
                  mode = 'fixed',
                  tolerance = 30,
@@ -150,7 +150,7 @@ class ConformerGenerator:
             numcores (int): Number of CPU cores to use
             request_alignment (str): Ring alignment in SMILES or SMARTS to support constrained docking
             ignoreTorlib (bool): Whether to ignore the torsion library
-            threshold (float): Threshold in Angstrom for non-bonded atom distance.
+            clash_scale (float): Scale applied to the sum of van der Waals radii when detecting non-bonded clashes.
             mode (str): Mode for conformer sampling ('fixed', 'random', 'ignoretorlib)
             tolerance (float): Tolerance for dihedral angle sampling.
             VERBOSE (bool): Whether to print verbose output
@@ -166,7 +166,7 @@ class ConformerGenerator:
         self.request_alignment = request_alignment
         self.ignoreTorlib = ignoreTorlib
         self.conf_sampled = False
-        self.threshold = threshold
+        self.clash_scale = clash_scale
         self.rmsd = rmsd
         self.mode = mode
         self.tolerance = tolerance
@@ -598,7 +598,7 @@ class ConformerGenerator:
                     window = window,
                     max_attempts = max_attempts,
                     rmsd = self.rmsd,
-                    clash_threshold = self.threshold,
+                    clash_scale = self.clash_scale,
                     hetero_H_bonds = self.hetero_H_bonds,
                     randomSeed = self.randomSeed,
                     random_method = random_method,
@@ -777,7 +777,7 @@ class ConformerGenerator:
                     timeout_conf = int(timeout_conf * 60),  # Convert minutes to seconds (int)
                     rmsd=self.rmsd,
                     randomSeed=self.randomSeed,
-                    clash_threshold = self.threshold,  
+                    clash_scale = self.clash_scale,
                     verbose = self.VERBOSE,
                     mmff_variant = self.forcefield,
                     eps = eps,

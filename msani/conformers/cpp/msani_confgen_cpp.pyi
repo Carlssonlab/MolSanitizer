@@ -23,7 +23,7 @@ def stochastic_sampling_discrete(
     timeout_conf: int = ...,
     rmsd: float = 0.5,
     numConfs: int = 600,
-    clash_threshold: float = 1.6,
+    clash_scale: float = 0.7,
     verbose: bool = False,
     mmff_variant: str = "MMFF94s",
     eps: float = 1.0,
@@ -62,8 +62,8 @@ def stochastic_sampling_discrete(
         RMSD threshold for conformer pruning. Defaults to 0.5.
     numConfs : int, optional
         Target number of output conformers. Defaults to 600.
-    clash_threshold : float, optional
-        Atomic clash distance threshold. Defaults to 1.6.
+    clash_scale : float, optional
+        Scale applied to the sum of atomic van der Waals radii for clash detection. Defaults to 0.7.
     verbose : bool, optional
         Enable verbose output. Defaults to False.
     mmff_variant : str, optional
@@ -94,7 +94,7 @@ def stochastic_sampling_continuous(
     max_attempts: int = 50000,
     timeout_conf: int = ...,
     rmsd: float = 0.5,
-    clash_threshold: float = 1.6,
+    clash_scale: float = 0.7,
     hetero_H_bonds: List[Tuple[int, int]] = ...,
     verbose: bool = False,
     mmff_variant: str = "MMFF94s",
@@ -128,8 +128,8 @@ def stochastic_sampling_continuous(
         Timeout per conformer in seconds
     rmsd : float, optional
         RMSD threshold for conformer pruning. Defaults to 0.5.
-    clash_threshold : float, optional
-        Atomic clash distance threshold. Defaults to 1.6.
+    clash_scale : float, optional
+        Scale applied to the sum of atomic van der Waals radii for clash detection. Defaults to 0.7.
     hetero_H_bonds : list
         List of heterogeneous hydrogen bond pairs
         Format: [(atom1, atom2), ...]

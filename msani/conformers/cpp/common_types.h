@@ -29,6 +29,14 @@ namespace AcceleratedRMSD {
 
 // Type aliases
 using AtomPairs = std::vector<std::pair<int, int>>;
+
+// A non-bonded atom pair with its clash cutoff calculated once for a molecule.
+struct NonbondedClashPair {
+    int atom1;
+    int atom2;
+    double cutoff_sq;
+};
+using NonbondedClashPairs = std::vector<NonbondedClashPair>;
 using ProductList = std::vector<struct ConformerResult>;
 using HeteroBonds = std::vector<std::pair<int, int>>;
 
@@ -184,14 +192,14 @@ public:
     static std::pair<AtomPairs, AtomPairs> precomputeBondedAndSameParentPairs(const RDKit::ROMol& mol);
     
     // Precompute non-bonded pairs for clash detection
-    static AtomPairs precomputeNonbondedPairs(const RDKit::ROMol& mol,
-                                              const AtomPairs& bonded_pairs,
-                                              const AtomPairs& same_parent_pairs);
+    static NonbondedClashPairs precomputeNonbondedPairs(const RDKit::ROMol& mol,
+                                                        const AtomPairs& bonded_pairs,
+                                                        const AtomPairs& same_parent_pairs,
+                                                        double clash_scale);
     
     // Check for clashes between non-bonded atoms
     static bool checkTooCloseNonbondedAtoms(const RDKit::Conformer& conf,
-                                            const AtomPairs& candidate_pairs,
-                                            double threshold);
+                                            const NonbondedClashPairs& candidate_pairs);
     
     // Check timeout condition
     static bool checkTimeout(std::chrono::steady_clock::time_point start_time,

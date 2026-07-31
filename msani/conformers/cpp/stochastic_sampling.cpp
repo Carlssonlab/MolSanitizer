@@ -102,7 +102,7 @@ ProductList stochasticSamplingDiscrete(RDKit::ROMol& mol,
                                        int timeout_conf,
                                        double rmsd,
                                        int numConfs,
-                                       double clash_threshold,
+                                       double clash_scale,
                                        bool verbose,
                                        const std::string& mmff_variant,
                                        double eps,
@@ -162,7 +162,7 @@ ProductList stochasticSamplingDiscrete(RDKit::ROMol& mol,
     
     // Precompute bonded and same parent pairs
     auto [bonded_pairs, same_parent_pairs] = SamplingUtils::precomputeBondedAndSameParentPairs(mol);
-    AtomPairs nonbonded_pairs = SamplingUtils::precomputeNonbondedPairs(mol, bonded_pairs, same_parent_pairs);
+    NonbondedClashPairs nonbonded_pairs = SamplingUtils::precomputeNonbondedPairs(mol, bonded_pairs, same_parent_pairs, clash_scale);
     
     // Track visited states and energy statistics
     VisitedStateSet visited_full;
@@ -304,7 +304,7 @@ ProductList stochasticSamplingDiscrete(RDKit::ROMol& mol,
                                             angle_combination[i]);
             }
             
-            if (SamplingUtils::checkTooCloseNonbondedAtoms(work_conf, nonbonded_pairs, clash_threshold)) {
+            if (SamplingUtils::checkTooCloseNonbondedAtoms(work_conf, nonbonded_pairs)) {
                 stagnation_counter++;
                 attempts++;
                 combination_index++;
@@ -472,7 +472,7 @@ ProductList stochasticSamplingDiscrete(RDKit::ROMol& mol,
             }
 
             // Check for clashes
-            if (SamplingUtils::checkTooCloseNonbondedAtoms(work_conf, nonbonded_pairs, clash_threshold)) {
+            if (SamplingUtils::checkTooCloseNonbondedAtoms(work_conf, nonbonded_pairs)) {
                 stagnation_counter++;
                 attempts++;
                 continue;
@@ -623,7 +623,7 @@ ProductList stochasticSamplingDiscrete(RDKit::ROMol& mol,
                     }
                     
                     // Check for clashes
-                    if (SamplingUtils::checkTooCloseNonbondedAtoms(work_conf, nonbonded_pairs, clash_threshold)) {
+                    if (SamplingUtils::checkTooCloseNonbondedAtoms(work_conf, nonbonded_pairs)) {
                         continue;
                     }
                     
@@ -684,7 +684,7 @@ ProductList stochasticSamplingContinuous(RDKit::ROMol& mol,
                                          int max_attempts,
                                          int timeout_conf,
                                          double rmsd,
-                                         double clash_threshold,
+                                         double clash_scale,
                                          const HeteroBonds& hetero_H_bonds,
                                          bool verbose,
                                          const std::string& mmff_variant,
@@ -740,7 +740,7 @@ ProductList stochasticSamplingContinuous(RDKit::ROMol& mol,
 
     // Precompute pairs for clash detection
     auto [bonded_pairs, same_parent_pairs] = SamplingUtils::precomputeBondedAndSameParentPairs(mol);
-    AtomPairs nonbonded_pairs = SamplingUtils::precomputeNonbondedPairs(mol, bonded_pairs, same_parent_pairs);
+    NonbondedClashPairs nonbonded_pairs = SamplingUtils::precomputeNonbondedPairs(mol, bonded_pairs, same_parent_pairs, clash_scale);
 
     
 
@@ -869,7 +869,7 @@ ProductList stochasticSamplingContinuous(RDKit::ROMol& mol,
         visited_core_angles.push_back(core_angles);
 
         // Check for clashes
-        bool has_clash = SamplingUtils::checkTooCloseNonbondedAtoms(work_conf, nonbonded_pairs, clash_threshold);
+        bool has_clash = SamplingUtils::checkTooCloseNonbondedAtoms(work_conf, nonbonded_pairs);
         if (has_clash) {
             attempts++;
             stagnation_counter++;
@@ -1005,7 +1005,7 @@ ProductList stochasticSamplingContinuous(RDKit::ROMol& mol,
                     }
                     
                     // Check for clashes
-                    if (SamplingUtils::checkTooCloseNonbondedAtoms(work_conf_hydroxyl, nonbonded_pairs, clash_threshold)) {
+                    if (SamplingUtils::checkTooCloseNonbondedAtoms(work_conf_hydroxyl, nonbonded_pairs)) {
                         continue;
                     }
                     
