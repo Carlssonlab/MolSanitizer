@@ -543,7 +543,6 @@ def parseArguments(args = None, batch_mode = False):
             parser.error(f'The torsion definition file: {args.torsion} does not exist.')
         else:
             args.torsion = Path(args.torsion).resolve() 
-    print(f"Clash scale: {args.clash_scale}, Force field: {args.forcefield}")
     if batch_mode: return args, parser
     else: return args
 
