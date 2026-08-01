@@ -242,8 +242,6 @@ double SameMoleculeRMSDCalculator::calculateAlignedRMSD(
         heavy_probe_pos[i] = &probe_conf.getAtomPos(atom_idx);
         heavy_ref_pos[i]   = &ref_conf.getAtomPos(atom_idx);
     }
-    double inv_n_heavy = 1.0 / static_cast<double>(n_heavy);
-
     // Precompute radii (distance from centroid)
     std::vector<double> probe_radii(n_heavy), ref_radii(n_heavy);
     // Use provided probe radii (distance from centroid) — caller guarantees this is populated
@@ -281,9 +279,6 @@ double SameMoleculeRMSDCalculator::calculateAlignedRMSD(
         const auto& mapping = *sm.mapping;
         ref_points_.clear();
         probe_points_.clear();
-
-        double npts = static_cast<double>(mapping.size());
-        double inv_n = (npts > 0.0) ? 1.0 / npts : inv_n_heavy;
 
         double lower_bound_msd = sm.heuristic; // use heuristic directly
 

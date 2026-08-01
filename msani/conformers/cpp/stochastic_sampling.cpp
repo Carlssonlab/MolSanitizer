@@ -222,8 +222,8 @@ ProductList stochasticSamplingDiscrete(RDKit::ROMol& mol,
         
         // Pregenerate all combinations
         std::vector<std::vector<double>> all_combinations;
-        std::function<void(int, std::vector<double>&)> generate_combinations;
-        generate_combinations = [&](int depth, std::vector<double>& current_angles) {
+        std::function<void(std::size_t, std::vector<double>&)> generate_combinations;
+        generate_combinations = [&](std::size_t depth, std::vector<double>& current_angles) {
             if (depth == angle_keys.size()) {
                 all_combinations.push_back(current_angles);
                 return;
@@ -799,8 +799,9 @@ ProductList stochasticSamplingContinuous(RDKit::ROMol& mol,
     if (num_hetero_H_bonds > 0) {
         for (int i = 0; i < num_hetero_H_bonds; ++i) {
             // Assuming hetero_H_bonds correspond to the last entries in torsion_library
-            int bond_idx_in_torsion_library = bond_indices.size() - 1 - i;
-            if (bond_idx_in_torsion_library >= 0 && bond_idx_in_torsion_library < bond_indices.size()) {
+            if (static_cast<std::size_t>(i) < bond_indices.size()) {
+                const std::size_t bond_idx_in_torsion_library =
+                    bond_indices.size() - 1 - static_cast<std::size_t>(i);
                 int actual_bond_id = bond_indices[bond_idx_in_torsion_library];
                 const auto& bond_info = torsion_library.at(actual_bond_id);
                 num_hydroxyl_combinations *= bond_info.peaks.size();
@@ -942,17 +943,17 @@ ProductList stochasticSamplingContinuous(RDKit::ROMol& mol,
         
         // Generate all possible hydroxyl combinations
         std::vector<std::vector<double>> hydroxyl_combinations;
-        std::function<void(int, std::vector<double>&)> generate_hydroxyl_combinations;
-        generate_hydroxyl_combinations = [&](int depth, std::vector<double>& current_angles) {
-            if (depth == num_hetero_H_bonds) {
+        std::function<void(std::size_t, std::vector<double>&)> generate_hydroxyl_combinations;
+        generate_hydroxyl_combinations = [&](std::size_t depth, std::vector<double>& current_angles) {
+            if (depth == static_cast<std::size_t>(num_hetero_H_bonds)) {
                 hydroxyl_combinations.push_back(current_angles);
                 return;
             }
             
-            int bond_idx_in_torsion_library = bond_indices.size() - 1 - depth;
-            if (bond_idx_in_torsion_library < 0 || bond_idx_in_torsion_library >= bond_indices.size()) {
+            if (depth >= bond_indices.size()) {
                 return; // Should not happen if hetero_H_bonds are correctly mapped
             }
+            const std::size_t bond_idx_in_torsion_library = bond_indices.size() - 1 - depth;
             int actual_bond_id = bond_indices[bond_idx_in_torsion_library];
             const auto& bond_info = torsion_library.at(actual_bond_id);
             

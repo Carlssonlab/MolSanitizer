@@ -217,9 +217,10 @@ struct TorsionConstraintData {
 
 std::vector<unsigned int> convertIndexSequence(const py::handle &seq_handle) {
     py::sequence seq = seq_handle.cast<py::sequence>();
+    const Py_ssize_t sequence_size = py::len(seq);
     std::vector<unsigned int> result;
-    result.reserve(py::len(seq));
-    for (Py_ssize_t i = 0; i < py::len(seq); ++i) {
+    result.reserve(static_cast<std::size_t>(sequence_size));
+    for (Py_ssize_t i = 0; i < sequence_size; ++i) {
         result.push_back(seq[i].cast<unsigned int>());
     }
     return result;
