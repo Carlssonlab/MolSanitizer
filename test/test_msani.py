@@ -4,7 +4,6 @@ import os
 import shutil
 
 from pathlib import Path
-from types import SimpleNamespace
 from os import system
 import platform
 
@@ -321,8 +320,6 @@ class Test_MolSanitizer(unittest.TestCase):
                                   f'{self.path}/out_enamine_rejected.txt')
         os.chdir(self.path)
     
-    @unittest.skipIf((OS == "Darwin" and ("arm" in machine or "aarch64" in machine)),
-        "Skipping test on MacOS_ARM64 due to no compatible AMSOL software.")
     def test_db2_generation(self):
         tmp_obj = tempfile.TemporaryDirectory()
         temp_dir = tmp_obj.name
@@ -347,8 +344,6 @@ class Test_MolSanitizer(unittest.TestCase):
         shutil.rmtree(f"{temp_dir}")
         tmp_obj.cleanup()
     
-    @unittest.skipIf((OS == "Darwin" and ("arm" in machine or "aarch64" in machine)),
-        "Skipping test on MacOS_ARM64 due to no compatible AMSOL software.")
     def test_db2_sulfonamide(self):
         tmp_obj = tempfile.TemporaryDirectory()
         temp_dir = tmp_obj.name
@@ -564,69 +559,19 @@ class Test_MolSanitizer(unittest.TestCase):
             self.assertEqual(goldenfile_content, newFile_content, "Files' contents differ")
 
     def generate_mock_arguments(self, in_files: list, modes: list, temp_dir: tempfile.TemporaryDirectory):
-    
-        output_prefix = Path(temp_dir) / 'dummy_output'
+        """Build test arguments from the production parser's current defaults."""
+        args = parsers.parseArguments([])
+        args.input_files = in_files
+        args.prefix = Path(temp_dir) / 'dummy_output'
 
-        args = {
-            'input_files': in_files,
-            'format': None,
-            'extended': False,
-            'lazy': False,
-            'removesalts' : False, 
-            'tautomers' : False, 
-            'pains': False,
-            'unwanted': None,
-            'create_custom': False,
-            'stereoisomers': False, 
-            'protonation': False,
-            'pH': 7,
-            'pH_range': 0,
-            "neutralize": False, 
-            "debug": False, 
-            "custom":None, 
-            "prefix":output_prefix, 
-            "max_isomers": 16,
-            "numcores": 4,
-            "test": False,
-            "smiles": None,
-            "gen3d": False,
-            "format": None,
-            "method": "rdkit",
-            "mode": "fixed",
-            "numconfs": 2000,
-            "cleanup": True,
-            "randomSeed": 42,
-            "energywindow": 25,
-            "timeout": 2,
-            "timeout_conf": 2,
-            "rmsd": 0.5,
-            "tolerance": 30,
-            "ignoretorlib":False,
-            "timing":False,
-            "synthon": False,
-            "taurdkit": True,
-            "standardize": False,
-            "ha": None,
-            "logp": None,
-            "hba": None,
-            "hbd": None,
-            "mw": None,
-            "chiral": None,
-            "nringconfs": 1,
-            "allowNonring": False,
-            "eps": 1,
-            "rigid": None,
-            "protlib": None,
-            "taulib": None,
-            "create_protlib": False,
-            "create_taulib": False,
-            "torsion": None,
-            "config": None,
-            "stereo_timeout": 60
-         } 
-        for mode in modes: 
-            if (mode not in ['unwanted','custom']): args[mode] = True
-        return SimpleNamespace(**args)
+        for mode in modes:
+            if mode in {'unwanted', 'custom'}:
+                continue
+            if mode.startswith('no-'):
+                setattr(args, mode.removeprefix('no-').replace('-', '_'), False)
+            else:
+                setattr(args, mode.replace('-', '_'), True)
+        return args
         
 
 if __name__ == '__main__':
