@@ -2,7 +2,7 @@
 # Lines start with # or empty lines are skipped.
 # The rules are constructed as: name    enumerate	smarts      reference
 # Only the first 3 columns are read.
-# Last update: February 21st, 2026
+# Last update: August 1st, 2026
 #HYPERVALENT-S
 H-lambda4-sulphane_to_lambda2-CH0	0	[SX3H:1]=[C&H0:2]>>[S&H0:1][CH:2]
 H-lambda4-sulphane_to_lambda2-CH1	0	[SX3H:1]=[CH:2]>>[S&H0:1][CH2:2]
@@ -107,6 +107,9 @@ furan-3,4-diole_to_furaneol_CH1	0	[OH:1][c:2]1[cH0;!$(c[OH]):3][o:4][c;!$(c[OH])
 barbiturate-enol_to_barbiturate-CH0	0	[O:1]=[c:2]1[cH0;!$(c~[OX1,OH])!$(c-C#N)!$(c(-C=O)):3][c:4]([OH1:9])[n:7][c:5](=[O,SX1:6])[n:8]1>>[O:1]=[C:2]1[CH:3][C:4](=[O&H0:9])[N:7][C:5](=[O,S:6])[N:8]1
 acyl-barbiturate-endo-enol_to_exo	0	[O:1]=[c:2]1[c:3](-[C:10]=[O:11])[c:4]([OH1:9])[n:7][c:5](=[O,SX1:6])[n:8]1>>[O:1]=[C:2]1[C:3](=[C:10][OH:11])[C:4](=[O&H0:9])[N:7][C:5](=[O,S:6])[N:8]1
 barbiturate-enol_to_barbiturate-CH1	0	[O:1]=[c:2]1[cH1;!$(c~[OX1,OH])!$(c-C#N)!$(c(-C=O)):3][c:4]([OH1:9])[n:7][c:5](=[O,SX1:6])[n:8]1>>[O:1]=[C:2]1[CH2:3][C:4](=[O&H0:9])[N:7][C:5](=[O,S:6])[N:8]1
+2,6-di-OH-pyridine-4-one_to_4-OH-3H-pyridine-2,6-dione-CH0	0	[OH:1]-[c:2]1[c;!$(c-[*H0&+,*&-,O,S])!$(c-C#N)!$(c(:a)(:a)!@-*=[O,N]):3][c:4](=[O:5])[nX3:6][c:7]([OH+0:8])[cH0;!$(c-[*H0&+,*&-,O,S])!$(c-C#N)!$(c(:a)(:a)!@-*=[O,N]):9]1>>[OH:1][C:2]1=[C:3][C:4](=[OH0:5])[N:6][C:7](=[OH0:8])[CH:9]1	10.1021/jo00902a031
+2,6-di-OH-pyridine-4-one_to_4-OH-3H-pyridine-2,6-dione-CH1	0	[O:1]=[c:2]1[c;!$(c-[*H0&+,*&-,O,S])!$(c-C#N)!$(c(:a)(:a)!@-*=[O,N]):3][c:4]([OH+0:5])[nX3:6][c:7]([OH+0:8])[cH;!$(c-[*H0&+,*&-,O,S])!$(c-C#N)!$(c(:a)(:a)!@-*=[O,N]):9]1>>[OH:1][C:2]1=[C:3][C:4](=[OH0:5])[N:6][C:7](=[OH0:8])[CH2:9]1	10.1021/jo00902a031
+3-EWG-2,6-di-OH-pyridine-4-one_to_4,6-di-OH-pyridine-2-one	0	[O:1]=[c:2]1[c;$(c-[*H0&+,*&-,O,S]),$(c-C#N),$(c(:a)(:a)!@-*=[O,N]):3][c:4]([OH+0:5])[nX3:6][c:7]([OH+0:8])[c:9]1>>[OH:1][c:2]1[c:3][c:4](=[OH0:5])[n:6][c:7]([OH:8])[c:9]1	10.1016/0040-4020(66)80010-8
 furan/thiophene/pyrrole-2,5-diol_to_2,5-dione-CH0	0	[#6H0;!$(c~[OX1,OH])!$(c(:a)(:a):a):1]1~[#6;!$(c~[OX1,OH])!$(c(:a)(:a):a):2]~[#6;$([#6]~[OH,OX1]):3]~[#7,#8,#16:4]~[#6:5]:,=1-[OH1:6]>>[CH:1]1~[C:2]~[C;$(C~[OH,OX1]):3]~[N,O,S:4]~[C:5]1=[O&H0:6]
 furan/thiophene/pyrrole-2,5-diol_to_2,5-dione-CH1	0	[#6H1;!$(c~[OX1,OH])!$(c(:a)(:a):a):1]1~[#6;!$(c~[OX1,OH])!$(c(:a)(:a):a):2]~[#6;$([#6]~[OH,OX1]):3]~[#7,#8,#16:4]~[#6:5]:,=1-[OH1:6]>>[CH2:1]1~[C:2]~[C;$(C~[OH,OX1]):3]~[N,O,S:4]~[C:5]1=[O&H0:6]
 hydantoin-enol_to_hydantoin-CH0	0	[cH0;!$(c~[OX1,OH])!$(c(:a)(:a):a):1]1[c:2](-[OH1,SX2H1:7])[nX3:3][c:4](=[O,SX1:5])[nX3;!$(n(:a)(:a):a):6]1>>[CH1:1]1[C:2](=[O&H0,S&H0:7])[N:3][C:4](=[O,S:5])[N:6]1
@@ -259,7 +262,8 @@ SH/4H-purine_to_2H-thion	0	[c:1]1[nX2:2][c:3](~[SH,SX1:10])[c:4]2[n:5][c;!$(c~[O
 7H-purine_to_9H	0	[c:1]1[n,c:2][c:3][n&H0:4][c:5]2[nX2:6][a;!$(a~[OX1,OH]):7][nH:8][c:9]12>>[c:1]1[n,c:2][c:3][n:4][c:5]2[nH:6][a;!$(a~[OX1,OH]):7][n&H0:8][c:9]12
 3,6-dihydropurine_to_3,7	0	[c:1]1[n,c:2][c:3][nH:4][c:5]2[nH:6][a;!$(a~[OX1,OH]):7][nX2:8][c:9]12>>[c:1]1[n,c:2][c:3][n:4][c:5]2[n&H0:6][a;!$(a~[OX1,OH]):7][nH:8][c:9]12
 2H-triazole-4-one_to_4-ole	0	[O:1]=[c:2]1[n&H0:3][nH:4][n:5][a:6]1>>[OH:1][c:2]1[n&H0:3][n&H0:4][n:5][a:6]1
-NH-isoxazole/heterodiazole-4-one_to_4-ole	0	[O:1]=[c:2][nH;$(n1oa[a;!$(a-[OH])]c1),$(n1[a;!$(c)]n[a;!$(a-[OH])]c1):3]>>[OH:1][c:2][n&H0:3]
+NH-isoxazole/heterodiazole-4-one_to_4-ole	0	[O:1]=[c:2][nH;$(n1oa[a;!$(a-[OH])]c1),$(n1[a;!$(c)]n[a;!$(a-[OH])!$([n])]c1):3]>>[OH:1][c:2][n&H0:3]	10.1021/ja01521a041,10.1002/zaac.202100175
+1,2-dihydrotriazolone_to_1,4	0	[c;!$(a~[OX1,OH,SX2H,SX1]):1]1[nX2+0:2][c;$(c=[O,SX1]):3][nH+0:4][nH+0:5]1>>[c:1]1[nH:2][c:3][nH:4][nH0:5]1	10.1021/ja01620a033,10.1021/jo00882a003
 1H-imidazo[1,2-a]pyrimidine_to_8H	0	[a:1]1[a;!$(n):2][a:3][nX2:4][a:5]2[nH:6][a;!$(a~[OX1,OH]):7][a;!$(a~[OX1,OH]):8][n:9]21>>[a:1]1[a:2][a:3][nH:4][a:5]2[n&H0:6][a:7][a:8][n:9]21
 8H-imidazo[1,2-a]triazine_to_3H	0	[a:1]1[nX2:2][a;!$(a~[OX1,OH]):3][a:4][a:5]2[nH:6][a;!$(a~[OX1,OH]):7][a;!$(a~[OX1,OH]):8][n:9]21>>[a:1]1[nH:2][a:3][a:4][a:5]2[n&H0:6][a:7][a:8][n:9]21
 1H-pyrazolo[1,5-a]pyrimidine_to_8H	0	[a:1]1[a;!$(n):2][a:3][nX2:4][a:5]2[a;!$(a~[OX1,OH]):6][a;!$(a~[OX1,OH]):7][nH:8][n:9]21>>[a:1]1[a:2][a:3][nH:4][a:5]2[a:6][a:7][n&H0:8][n:9]21
@@ -337,4 +341,12 @@ N-acyldiazo-o-phenol_to_ketohydrazide	0	[OH:1][c:2][c:3]-[N:4]=[N;$(N*=[O,S]):5]
 N-acyldiazo-p-phenol_to_ketohydrazide	0	[OH:1][c:2][c:6][c:7][c:3]-[N:4]=[N;$(N*=[O,S]):5]>>[O&H0:1]=[c:2][c:6][c:7][c:3]=[N:4][NH:5]
 o-ketohydrazone_to_diazophenol  0       [O:1]=[C:2]1[C:3](=[N&+0:8]-[NH;!$(N*=[O,S]):9])[#6:4]=,:[#6:5][#6:6]=,:[#6:7]1>>[OH:1][c:2]1[c:3]([N:8]=[N&H0:9])[c:4][c:5][c:6][c:7]1
 #p-azophenol_to_ketohydrazone	1	x	10.1039/P29930002223
-
+#ENUMERATE-NH-NX2/OX1
+#1H-1,2-diaza	1	[nH:1]:[nX2H0:2]>>[nH0:1][nH:2]
+#1H-1,3-diaza	1	[nH:1]:[c:2]:[nX2H0:3]>>[nH0:1][c:2][nH:3]
+#2-pyridone-like	1	[nH:1]:[c:2]=[O,SX1:3]>>[nH0:1][c:2][OH,SH:3]
+#4-pyridone-like	1	[nH:1]:[a:2]:[a:3]:[c:4]=[O,SX1:4]>>[nH0:1][a:2][a:3][c:4][OH,SH:5]
+#amidine-like-NH=NH0	1	[NX2H0:1]=[C:2]-[NH:3]>>[NH:1]-[C:2]=[NH0:3]
+#amidine-like-NH2=NH0	1	[NX2H0:1]=[C:2]-[NH2:3]>>[NH:1]-[C:2]=[NH:3]
+#amidine-like-NH=NH	1	[NX2H:1]=[C:2]-[NH:3]>>[NH2:1]-[C:2]=[NH0:3]
+#amidine-like-NH2=NH	1	[NX2H:1]=[C:2]-[NH2:3]>>[NH2:1]-[C:2]=[NH:3]

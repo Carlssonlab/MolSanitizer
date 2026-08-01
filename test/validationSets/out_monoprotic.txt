@@ -2500,7 +2500,7 @@ COc1ccc(NS(=O)(=O)c2ccccc2)cc1 serjeant5913_2
 CC(C)(C)c1cc(=O)[nH]c(SCC(=O)c2ccc(Cl)c(S([NH-])(=O)=O)c2)n1 22646651_1
 CC(C)(C)c1cc(=O)[nH]c(SCC(=O)c2ccc(Cl)c(S(N)(=O)=O)c2)n1 22646651_2
 CCOC(=O)c1cnc(SCC(=O)c2ccc(Cl)c(S(N)(=O)=O)c2)[nH]c1=O 22646653_1
-CCOC(=O)c1cnc(SCC(=O)c2ccc(Cl)c(S([NH-])(=O)=O)c2)[nH]c1=O 22646653_2
+CCOC(=O)c1cnc(SCC(=O)c2ccc(Cl)c(S([NH-])(=O)=O)c2)[n-]c1=O 22646653_2
 [NH-]S(=O)(=O)c1cc(C2(O)CSC3=[NH+]CCN32)ccc1Cl 1032963_1
 [NH-]S(=O)(=O)c1cc(C2(O)CSC3=NCCN32)ccc1Cl 1032963_2
 NS(=O)(=O)c1cc(C2(O)CSC3=[NH+]CCN32)ccc1Cl 1032963_3

@@ -275,3 +275,6 @@ O=c1cccc2o[nH]cc1-2	2H-benzo[d]isoxazol-4-one_to_OH
 O=c1cccc2[nH]occ1-2	1H-benzo[c]isoxazol-4-one_to_OH
 Cc1oc(C)c(O)c1O furan-3,4-diole_to_furaneol_CH1
 Oc1cocc1O furan-3,4-diole_to_furaneol_CH2
+C1C(=O)N(C)C(=O)CC1=O 2,6-di-OH-pyridine-4-one_to_4-OH-3H-pyridine-2,6-dione-CH1
+CC1=C(O)C(C)C(=O)NC1=O 2,6-di-OH-pyridine-4-one_to_4-OH-3H-pyridine-2,6-dione-CH0
+C1(=O)N=C(CC)NN1 1,2-dihydrotriazolone_to_1,4
