@@ -248,7 +248,7 @@ ProductList stochasticSamplingDiscrete(RDKit::ROMol& mol,
 
         // Process combinations
         int attempts = 0;
-        int max_stagnation = std::max(std::min(max_attempts / 10, 2000), 50);
+        int max_stagnation = std::max(std::min(max_attempts / 10, 3000), 50);
         int stagnation_counter = 0;
         int last_product_size = 0;
         auto start_time = std::chrono::steady_clock::now();
