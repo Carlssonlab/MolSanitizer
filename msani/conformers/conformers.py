@@ -440,9 +440,11 @@ class ConformerGenerator:
                 log_error(self.smiles, self.name)
                 return
             return
-        
-        conf_ring_descriptors_df.sort_values(['equatorial_subs_Ns', 'equatorial_subs_Cs', 'Energy'],
-                                            ascending=[False, False, True], inplace=True) 
+
+        # Improvement for entry Platinum L0B_4AFH
+        conf_ring_descriptors_df['sum_equatorial_subs'] = conf_ring_descriptors_df['equatorial_subs_Ns'] + conf_ring_descriptors_df['equatorial_subs_Cs']
+        conf_ring_descriptors_df.sort_values(['sum_equatorial_subs', 'equatorial_subs_Ns', 'equatorial_subs_Cs', 'Energy'],
+                                            ascending=[False, False, False, True], inplace=True) 
         
 
         # Keep a reservoir as the lowest energy possible conformer in case no good ring conformers are found.

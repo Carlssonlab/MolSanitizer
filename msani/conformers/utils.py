@@ -11,10 +11,9 @@ from pandas import DataFrame, concat, read_csv  # only what you use
 from rdkit import Chem
 from rdkit.Chem import rdMolTransforms, rdMolAlign
 from rdkit.Chem.rdchem import Mol, Conformer
-# from scipy.spatial.distance import pdist, squareform
+
 from pathlib import Path
 
-# from msani.filtering import strain_filter
 from msani.db2 import mol2db2, mol2
 
 
@@ -22,7 +21,8 @@ logger = logging.getLogger('msani')
 
 # Define SMARTS patterns for various functional groups
 sulfonamide_like_substructure = Chem.MolFromSmarts("[*:1][S;$(S(=*)=*):2]-!@[N&+0;!$([NH2]):3](-[*,#1;!$(C=A):4])-[*,#1;!$(C=A):5]")
-substituted_C_cyclohexane = Chem.MolFromSmarts('[!#1]-!@[CH]1-[*]~[*]~[*]~[*]-[A]-1')
+substituted_C_cyclohexane = Chem.MolFromSmarts('[!#1;!$(*-!@[CH]1-[*^2;!O]~[*^2;!O]~*~[*^2;!O]~[*^2;!O]-1)]-!@[CH]1-[*]~[*]~[*]~[*]-[A]-1') # Ignore check for theoretically planar cyclohexanes
+substituted_C_cyclohepta1_3_diene = Chem.MolFromSmarts('[!#1]-!@[CH]1-[*^2]~[*^2]-[*^2]~[*^2]-[A]-[A]-1') # Prioritize substitutents to cyclohepta-1,3-diene to be equatorial over axial ones. For example, PDB 4O2B
 flippable_Ns_1 = Chem.MolFromSmarts("[!#1:1]-!@[NH+;!$(N-*=*):2]1-[A:3]-[A:4]-[A]-[A:6]-[A:5]-1")
 flippable_Ns_2 = Chem.MolFromSmarts("[*:1]-!@[N+0;!$(N-*=*):2]1-[A:3]-[A:4]-[A]-[A:6]-[A:5]-1")
 # substituted_C_cyclohexane = Chem.MolFromSmarts('[!#1:1]-!@[CH:2]1-[A^3:3]-[A^3:4]-[A]-[A^3:6]-[A^3:5]-1')
@@ -134,8 +134,9 @@ def find_flipped_carbon(mol_H: Mol):
     '''
     Find the flippable carbon in the molecule. Mainly for substituted cyclohexane
     '''
-    return mol_H.GetSubstructMatches(substituted_C_cyclohexane) #+ \
-        # mol_H.GetSubstructMatches(substituted_C_cyclohex_23_enyl) +\
+    return mol_H.GetSubstructMatches(substituted_C_cyclohexane) + \
+        mol_H.GetSubstructMatches(substituted_C_cyclohepta1_3_diene) #+ \
+            # mol_H.GetSubstructMatches(substituted_C_cyclohex_23_enyl) +\
             # mol_H.GetSubstructMatches(substituted_C_cyclohex_34_enyl)
 
 def find_conjugated_substituted_nitrogen_5aro(mol_H: Mol):
@@ -312,7 +313,7 @@ def is_equatorial(conf, atom_idx):
         List of atom indices defining the relevant atoms for dihedral calculations.
         Requires at least 7 indices:
         - atom_idx[0], atom_idx[1], atom_idx[2], atom_idx[3]: First dihedral angle
-        - atom_idx[0], atom_idx[1], atom_idx[6], atom_idx[5]: Second dihedral angle
+        - atom_idx[0], atom_idx[1], atom_idx[-1], atom_idx[-2]: Second dihedral angle
 
     Returns
     -------
@@ -322,7 +323,7 @@ def is_equatorial(conf, atom_idx):
     """
     
     dihedral1 = rdMolTransforms.GetDihedralDeg(conf, atom_idx[0], atom_idx[1], atom_idx[2], atom_idx[3])
-    dihedral2 = rdMolTransforms.GetDihedralDeg(conf, atom_idx[0], atom_idx[1], atom_idx[6], atom_idx[5])
+    dihedral2 = rdMolTransforms.GetDihedralDeg(conf, atom_idx[0], atom_idx[1], atom_idx[-1], atom_idx[-2])
     if 150 <= abs(dihedral1) <= 180 and 150 <= abs(dihedral2) <= 180:
             return True
     return False

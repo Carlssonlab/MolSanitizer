@@ -180,7 +180,8 @@ Date: 2025-08-05
   </ring> 
 
   <ring name="cyclohexene_sp2-1,2,3_">
-    <smarts smarts="[*^2]1~[*^2]~[*^2]-[A^3]-[A^3]-[A^3]-1"/>
+    <note note="Improvements for 2FZ_4P6G_A, O in conjugated system is wrongly assigned as sp2"/>
+    <smarts smarts="[*^2;!O]1~[*^2;!O]~[*^2;!O]-[A^3]-[A^3]-[A^3]-1"/>
     <ref ref=""/>
     <dihedral_sets>
       <set dihedral="'0', '-30', '60', '-45', '20', '0'" value="1"/> <!--CCDC CUPVAO CUPTUG JOBDIQ-->
@@ -190,8 +191,8 @@ Date: 2025-08-05
     </dihedral_sets>
   </ring> 
   <ring name="cyclohexene">
-    <note note=""/>
-    <smarts smarts="*1=,:*-[A^3]-[A^3]-[A^3]-[A^3]-1"/>
+    <note note="Improvements for 2FZ_4P6G_A, O in conjugated system is wrongly assigned as sp2"/>
+    <smarts smarts="*1=,:*-[A^3,O^2]-[A^3]-[A^3]-[A^3]-1"/>
     <ref ref="https://doi.org/10.1016/0022-2860(68)87035-8"/>
     <dihedral_sets>
       <set dihedral="'-15', '45', '-60', '45', '-15', '0'" value="1"/>
@@ -274,11 +275,20 @@ Date: 2025-08-05
   </ring>
   <ring name="cyclohepta-1,3-diene-5-sp2">
     <note note="boat like forms; example: ABOTOE DALRUH EQALOA; PDB: 1RH_4KJU_A"/>
-    <smarts smarts="[*^2]1~[*^2]-[*^2]~[*^2]-[C^2,$(N-!@C=O)]-A-A-1"/>
+    <smarts smarts="[*^2]1~[*^2]-[*^2]~[*^2]-[C^2,$(N-!@C=O),O^2,N^2]-A-A-1"/>
     <ref ref=""/>
     <dihedral_sets>
       <set dihedral="'45', '0', '-60', '15', '60', '-70', '0'" value="1"/>
       <set dihedral="'-45', '0', '60', '-15', '-60', '70', '0'" value="2"/>
+    </dihedral_sets>
+  </ring>
+  <ring name="cyclohepta-1,3-diene-5-O,N-sp2">
+    <note note="boat like forms; PDB 559_4Z1S_A"/>
+    <smarts smarts="[*^2]1~[*^2]-[*^2]~[*^2]-[O^2,N^2]-A-A-1"/>
+    <ref ref=""/>
+    <dihedral_sets>
+      <set dihedral="'-45', '0', '70', '-45', '-45', '70', '0'" value="1"/> 
+      <set dihedral="'45', '0', '-70', '45', '45', '-70', '0'" value="2"/> 
     </dihedral_sets>
   </ring>
   <ring name="cyclohepta-1,3-diene-6-sp2">
