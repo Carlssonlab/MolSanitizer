@@ -371,8 +371,8 @@ def parseArguments(args = None, batch_mode = False):
     gen3d.add_argument(
         '--clash_scale', '-clash',
         type=float,
-        default=defaults.get('clash_scale', 0.7),
-        help='Scale applied to the sum of atomic van der Waals radii for clash detection (default: 0.7).' if show_advanced_help else argparse.SUPPRESS)
+        default=defaults.get('clash_scale', 0.6),
+        help='Scale applied to the sum of atomic van der Waals radii for clash detection (default: 0.6).' if show_advanced_help else argparse.SUPPRESS)
     gen3d.add_argument(
         '--forcefield', '-ff',
         type=str,
