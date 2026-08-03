@@ -22,7 +22,6 @@ logger = logging.getLogger('msani')
 # Define SMARTS patterns for various functional groups
 sulfonamide_like_substructure = Chem.MolFromSmarts("[*:1][S;$(S(=*)=*):2]-!@[N&+0;!$([NH2]):3](-[*,#1;!$(C=A):4])-[*,#1;!$(C=A):5]")
 substituted_C_cyclohexane = Chem.MolFromSmarts('[!#1;!$(*-!@[CH]1-[*^2;!O]~[*^2;!O]~*~[*^2;!O]~[*^2;!O]-1)]-!@[CH]1-[*]~[*]~[*]~[*]-[A]-1') # Ignore check for theoretically planar cyclohexanes
-substituted_C_cyclohepta1_3_diene = Chem.MolFromSmarts('[!#1]-!@[CH]1-[*^2]~[*^2]-[*^2]~[*^2]-[A]-[A]-1') # Prioritize substitutents to cyclohepta-1,3-diene to be equatorial over axial ones. For example, PDB 4O2B
 flippable_Ns_1 = Chem.MolFromSmarts("[!#1:1]-!@[NH+;!$(N-*=*):2]1-[A:3]-[A:4]-[A]-[A:6]-[A:5]-1")
 flippable_Ns_2 = Chem.MolFromSmarts("[*:1]-!@[N+0;!$(N-*=*):2]1-[A:3]-[A:4]-[A]-[A:6]-[A:5]-1")
 # substituted_C_cyclohexane = Chem.MolFromSmarts('[!#1:1]-!@[CH:2]1-[A^3:3]-[A^3:4]-[A]-[A^3:6]-[A^3:5]-1')
@@ -134,8 +133,7 @@ def find_flipped_carbon(mol_H: Mol):
     '''
     Find the flippable carbon in the molecule. Mainly for substituted cyclohexane
     '''
-    return mol_H.GetSubstructMatches(substituted_C_cyclohexane) + \
-        mol_H.GetSubstructMatches(substituted_C_cyclohepta1_3_diene) #+ \
+    return mol_H.GetSubstructMatches(substituted_C_cyclohexane) 
             # mol_H.GetSubstructMatches(substituted_C_cyclohex_23_enyl) +\
             # mol_H.GetSubstructMatches(substituted_C_cyclohex_34_enyl)
 
