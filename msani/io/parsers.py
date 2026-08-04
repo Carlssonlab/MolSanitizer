@@ -356,8 +356,8 @@ def parseArguments(args = None, batch_mode = False):
     gen3d.add_argument(
         '--eps', 
         type=float, 
-        default=defaults.get('eps', 1), 
-        help='The dielectric constant for electrostatic calculations (default: 1 - vacuum).' if show_advanced_help else argparse.SUPPRESS)
+        default=defaults.get('eps', 4), 
+        help='The dielectric constant for electrostatic calculations (default: 4).' if show_advanced_help else argparse.SUPPRESS)
     gen3d.add_argument(
         '--rmsd', '-rmsd', 
         type=float, 
