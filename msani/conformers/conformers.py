@@ -994,8 +994,8 @@ class ConformerGenerator:
             mol2_obj = mol2writer.Mol2Writer(self.ring_confs[0], mol2_template=self.mol2_str)
             mol2_obj.write_mol2(filename=f"mol2/{filename}.mol2")
         else:
-            for idx, ring_conf in enumerate(self.ring_confs, mol2_template=self.mol2_str):
-                mol2_obj = mol2writer.Mol2Writer(ring_conf)
+            for idx, ring_conf in enumerate(self.ring_confs):
+                mol2_obj = mol2writer.Mol2Writer(ring_conf, mol2_template=self.mol2_str)
                 mol2_obj.write_mol2(filename=f"mol2/{filename}.nr{idx}.mol2")
 
     def to_pdbqt(self, filename = None):
