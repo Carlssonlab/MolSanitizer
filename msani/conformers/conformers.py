@@ -211,6 +211,7 @@ class ConformerGenerator:
         self.tolerance = tolerance
         self.torlib = torlib
         self.VERBOSE = VERBOSE
+        self.failed = False
 
         # Initialize molecule
         self._initialize_molecule()
@@ -438,6 +439,7 @@ class ConformerGenerator:
             except RuntimeError as e:
                 logger.error(f"Error in generating initial conformation using OpenBabel for {self.name}, skipping it {e}")
                 log_error(self.smiles, self.name)
+                self.failed = True
                 return
             return
 
@@ -541,6 +543,7 @@ class ConformerGenerator:
         except subprocess.TimeoutExpired:
             proc.kill()
             proc.communicate()  # Drain buffers and prevent zombie process
+            self.failed = True
             raise RuntimeError(
                 f"(OpenBabel timed out)"
             )
@@ -607,11 +610,16 @@ class ConformerGenerator:
         Embed the SMILES string using CORINA and return the mol, net_charge,
         rigid_scaffolds, and flexible_scaffolds
         '''
-        self.mol2_str, self.ring_confs = utils.embed_smiles_corina(self.smiles, self.name, self.num_ring_confs, self.VERBOSE)
-        self.mol_H = Chem.Mol(self.ring_confs[0])
-        self.mp = rdForceFieldHelpers.MMFFGetMoleculeProperties(self.ring_confs[0], mmffVariant="MMFF94s")
-        self.amsol_mol = Chem.Mol(self.ring_confs[0]) # An RDKit Mol Object with upto 10 confs for AMSOL
-        self.sulfo_matches = [] # No sulfonamide flipping in CORINA
+        self.ring_confs = utils.embed_smiles_corina(self.smiles, self.name, self.num_ring_confs, self.VERBOSE)
+        if self.ring_confs:
+            self.mol_H = Chem.Mol(self.ring_confs[0])
+            mol2_obj = mol2writer.Mol2Writer(self.mol_H)
+            self.mol2_str = mol2_obj.write_mol2()
+            self.mp = rdForceFieldHelpers.MMFFGetMoleculeProperties(self.ring_confs[0], mmffVariant="MMFF94s")
+            self.amsol_mol = Chem.Mol(self.ring_confs[0]) # An RDKit Mol Object with upto 10 confs for AMSOL
+            self.sulfo_matches = [] # No sulfonamide flipping in CORINA
+        else:
+            self.failed = True
 
     # ========== Torsional sampling =========================
     def stochastic_sampling(self,
@@ -1204,7 +1212,13 @@ def _embed_rdkit_worker(result_queue, smiles, name, config):
 
 
 def _create_conformer_generator(smiles, name, config, request_alignment):
-    """Create an embedder, enforcing the RDKit timeout with an OpenBabel fallback."""
+    """Create an embedder, enforcing the RDKit timeout with an OpenBabel fallback.
+
+    Returns
+    (
+        (ConformerGenerator, float) | (None, None) if rdkit embedding failed and corina embedding is not available
+    )
+    """
     start = time.perf_counter()
     common_kwargs = dict(
         forcefield=config.forcefield,
@@ -1293,6 +1307,9 @@ def _process_conformer_row(row, config, request_alignment, env, archive):
     started = time.perf_counter()
     try:
         confgen, embedding_time = _create_conformer_generator(smiles, name, config, request_alignment)
+        if confgen.failed:
+            _log_conformer_failure(smiles, name, 'Conformer generation', 'The given molecule could not be embedded')
+            return None
         if 'pdbqt' in config.formats:
             confgen.to_pdbqt()
         sampling_time = 0.0
