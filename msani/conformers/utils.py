@@ -80,7 +80,7 @@ def correct_ring_amidinium(mol):
             mol.GetAtomWithIdx(atom_ids[2]).SetFormalCharge(1)
             mol.GetBondBetweenAtoms(atom_ids[0], atom_ids[1]).SetBondType(Chem.BondType.SINGLE)
             mol.GetBondBetweenAtoms(atom_ids[1], atom_ids[2]).SetBondType(Chem.BondType.DOUBLE)
-    
+        mol.UpdatePropertyCache(strict=False)
     return mol
 
 
