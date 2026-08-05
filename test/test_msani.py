@@ -319,11 +319,112 @@ class Test_MolSanitizer(unittest.TestCase):
             self.compare_relative(f'{temp_dir}/dummy_output_rejected.txt',
                                   f'{self.path}/out_enamine_rejected.txt')
         os.chdir(self.path)
+
+    def test_sdf_generation(self):
+        tmp_obj = tempfile.TemporaryDirectory()
+        temp_dir = tmp_obj.name
+        with self.subTest(msg="Generating SDF file with 1 ring conformation:"):
+            args = self.generate_mock_arguments([f'{self.path}/in_confgen.smi'],
+                                                ['gen3d', 'test'], temp_dir)
+            args.prefix = Path(temp_dir)
+            args.format = ['sdf']
+            cli.clean_data(args)
+            self.assertTrue(Path(f"{temp_dir}/sdf/3,4-diclorophenol.sdf").exists(),
+                        "SDF file was not created.")
+            # If produce 2 conformers
+            with open(f"{temp_dir}/sdf/3,4-diclorophenol.sdf") as sdf_file:
+                conf = 0
+                for line in sdf_file:
+                    if line.strip().endswith('M  END'):
+                        conf += 1
+                del sdf_file
+            self.assertEqual(conf, 2, "SDF file was not created correctly.")
+
+        with self.subTest(msg="Generating SDF file with 2 ring conformations (sulfonamide/cyclohexane):"):
+            args = self.generate_mock_arguments([f'{self.path}/in_sulfonamide.smi'],
+                                                ['gen3d', 'test'], temp_dir)
+            args.prefix = Path(temp_dir)
+            args.format = ['sdf']
+            cli.clean_data(args)
+            self.assertTrue(Path(f"{temp_dir}/sdf/N-Methylbenzenesulfonamide.nr0.sdf").exists(),
+                        "SDF file was not created.")
+            self.assertTrue(Path(f"{temp_dir}/sdf/N-Methylbenzenesulfonamide.nr1.sdf").exists(),
+                        "SDF file was not created.")
+            # If produce 2 conformers
+            with open(f"{temp_dir}/sdf/N-Methylbenzenesulfonamide.nr0.sdf") as sdf_file:
+                conf = 0
+                for line in sdf_file:
+                    if line.strip().endswith('M  END'):
+                        conf += 1
+                del sdf_file
+            self.assertEqual(conf, 2, "SDF file was not created correctly.")
+
+            with open(f"{temp_dir}/sdf/N-Methylbenzenesulfonamide.nr1.sdf") as sdf_file:
+                conf = 0
+                for line in sdf_file:
+                    if line.strip().endswith('M  END'):
+                        conf += 1
+                del sdf_file
+            self.assertEqual(conf, 2, "SDF file was not created correctly.")
+        os.chdir(self.path)
+        shutil.rmtree(f"{temp_dir}")
+        tmp_obj.cleanup()
+
+    def test_mol2_generation(self):
+        tmp_obj = tempfile.TemporaryDirectory()
+        temp_dir = tmp_obj.name
+        with self.subTest(msg="Generating mol2 file with 1 ring conformation:"):
+            args = self.generate_mock_arguments([f'{self.path}/in_confgen.smi'],
+                                                ['gen3d', 'test'], temp_dir)
+            args.prefix = Path(temp_dir)
+            args.format = ['mol2']
+            cli.clean_data(args)
+            self.assertTrue(Path(f"{temp_dir}/mol2/3,4-diclorophenol.mol2").exists(),
+                        "mol2 file was not created.")
+            # If produce 2 conformers
+            with open(f"{temp_dir}/mol2/3,4-diclorophenol.mol2") as mol2_file:
+                conf = 0
+                for line in mol2_file:
+                    if line.strip().startswith('@<TRIPOS>MOLECULE'):
+                        conf += 1
+                del mol2_file
+            self.assertEqual(conf, 2, "mol2 file was not created correctly.")
+
+        with self.subTest(msg="Generating mol2 file with 2 ring conformations (sulfonamide/cyclohexane):"):
+            args = self.generate_mock_arguments([f'{self.path}/in_sulfonamide.smi'],
+                                                ['gen3d', 'test'], temp_dir)
+            args.prefix = Path(temp_dir)
+            args.format = ['mol2']
+            cli.clean_data(args)
+            self.assertTrue(Path(f"{temp_dir}/mol2/N-Methylbenzenesulfonamide.nr0.mol2").exists(),
+                        "mol2 file was not created.")
+            self.assertTrue(Path(f"{temp_dir}/mol2/N-Methylbenzenesulfonamide.nr1.mol2").exists(),
+                        "mol2 file was not created.")
+            # If produce 2 conformers
+            with open(f"{temp_dir}/mol2/N-Methylbenzenesulfonamide.nr0.mol2") as mol2_file:
+                conf = 0
+                for line in mol2_file:
+                    if line.strip().startswith('@<TRIPOS>MOLECULE'):
+                        conf += 1
+                del mol2_file
+            self.assertEqual(conf, 2, "mol2 file was not created correctly.")
+
+            with open(f"{temp_dir}/mol2/N-Methylbenzenesulfonamide.nr1.mol2") as mol2_file:
+                conf = 0
+                for line in mol2_file:
+                    if line.strip().startswith('@<TRIPOS>MOLECULE'):
+                        conf += 1
+                del mol2_file
+            self.assertEqual(conf, 2, "mol2 file was not created correctly.")
+        os.chdir(self.path)
+        shutil.rmtree(f"{temp_dir}")
+        tmp_obj.cleanup()
+
     
     def test_db2_generation(self):
         tmp_obj = tempfile.TemporaryDirectory()
         temp_dir = tmp_obj.name
-        args = self.generate_mock_arguments([f'{self.path}/in_db2.smi'],
+        args = self.generate_mock_arguments([f'{self.path}/in_confgen.smi'],
                                             ['protonation', 'gen3d', 'test'], temp_dir)
         args.format = ['db2']        
         args.prefix = Path(temp_dir)
@@ -546,7 +647,6 @@ class Test_MolSanitizer(unittest.TestCase):
         # Convert the first column of df1 and df2 into sets
         set1 = set(column1_df1)
         set2 = set(column1_df2)
-
         # Check if the sets are equal
         self.assertEqual(set1, set2, "Files' contents differ")
 
@@ -563,6 +663,7 @@ class Test_MolSanitizer(unittest.TestCase):
         args = parsers.parseArguments([])
         args.input_files = in_files
         args.prefix = Path(temp_dir) / 'dummy_output'
+        args.max_isomers = 16
 
         for mode in modes:
             if mode in {'unwanted', 'custom'}:
