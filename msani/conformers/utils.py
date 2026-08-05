@@ -44,7 +44,6 @@ aliphatic_hydroxyl_thiol = Chem.MolFromSmarts('C-[OX2H,SX2H]') #aliphatic hydrox
 phenol_thiolphenol = Chem.MolFromSmarts('a-[OX2H,SX2H]') #phenol and thiophenol
 hydroxamic_acid = Chem.MolFromSmarts('[NX3;$(N(-C=O))]-[OX2H1]') #hydroxamic acid and its tautomeric aci form
 hydroxyl_amine = Chem.MolFromSmarts('[NX3;!$(N~*=[O,S])!$(N=,#*):1]!@[OX2H1:2]') #hydroxylamine and its tautomeric aci form
-amidinium_ring_conjugation = Chem.MolFromSmarts('[NH2+]=!@[*]@[NH]')
 
 const_rule = [(-120, 30, 30, 1), (-60, 30, 30, 1), (0, 30, 30, 1), (60, 30, 30, 1), (120, 30, 30, 1), (180, 30, 30, 1)]
 
@@ -66,22 +65,6 @@ symmetric_patterns_df['mol'] = symmetric_patterns_df['pattern'].apply(lambda x: 
 prim_amidines_guanidines_pattern_mol = [Chem.MolFromSmarts('[#1:1][NH2,NX3H1:2]!@-[CX3+0;$(C(~[NH2])(~[NH2])~*):3]~[NH2:4]'), 
                                         Chem.MolFromSmarts('[#1:1][NX3H2:2]!@-[#6:2]~[#7&+1]')] #in ring
 
-def correct_ring_amidinium(mol):
-    '''
-    CORINA default puts bonds within the protonated amidine structure being ar (conjugation).
-    Once RDKit reads in the mol2, it will assign the bond order incorrectly, hence altering the bonding order compared to the original molecule.
-    This function recover the original bonding order.
-    amidinium_ring_conjugation: [NH2+]=!@[*]@[NH]>>[NH2]-!@[*]=[NH+]
-    '''
-    matches = mol.GetSubstructMatches(amidinium_ring_conjugation)
-    if matches:
-        for atom_ids in matches:
-            mol.GetAtomWithIdx(atom_ids[0]).SetFormalCharge(0)
-            mol.GetAtomWithIdx(atom_ids[2]).SetFormalCharge(1)
-            mol.GetBondBetweenAtoms(atom_ids[0], atom_ids[1]).SetBondType(Chem.BondType.SINGLE)
-            mol.GetBondBetweenAtoms(atom_ids[1], atom_ids[2]).SetBondType(Chem.BondType.DOUBLE)
-        mol.UpdatePropertyCache(strict=False)
-    return mol
 
 
 def embed_smiles_corina(smiles, name, numringconfs, VERBOSE):
@@ -98,7 +81,7 @@ def embed_smiles_corina(smiles, name, numringconfs, VERBOSE):
     command = [
         CORINA_EXE,
         "-i", "t=smiles,scn=1,ncn=2",
-        "-o", "t=mol2",
+        "-o", "t=sdf",
         "-d", f"rc,flapn,de=6,mc={numringconfs},wh,sanpyr"
     ]
 
@@ -115,7 +98,6 @@ def embed_smiles_corina(smiles, name, numringconfs, VERBOSE):
     else:
         # Decode and process output
         output = result.stdout.decode()
-
         # Remove comment lines (starting with #)
         lines = [line for line in output.splitlines() if not line.strip().startswith("#")]
 
@@ -123,24 +105,22 @@ def embed_smiles_corina(smiles, name, numringconfs, VERBOSE):
         cleaned_output = "\n".join(lines)
 
         # Split by the MOL2 section header (and keep it in each block)
-        raw_blocks = cleaned_output.split("@<TRIPOS>MOLECULE")
+        raw_blocks = cleaned_output.split("$$$$")
 
         # Add back the header to each block (except the first if it's empty)
-        mol2_blocks = [
-            "@<TRIPOS>MOLECULE\n" + block.strip() + "\n" 
+        sdf_blocks = [
+            block.strip() + "\n$$$$\n" 
             for block in raw_blocks if block.strip()
         ]
         if VERBOSE:
-            print(f"\tNumber of ring conformers: {len(mol2_blocks)}")
+            print(f"\tNumber of ring conformers: {len(sdf_blocks)}")
         ring_confs = []
         # Now you have a list of strings, each containing one MOL2 molecule
-        for i, mol in enumerate(mol2_blocks, 1):
-            rdkit_mol = Chem.MolFromMol2Block(mol, removeHs=False, sanitize=True)
+        for i, mol in enumerate(sdf_blocks, 1):
+            rdkit_mol = Chem.MolFromMolBlock(mol, removeHs=False, sanitize=True)
             if rdkit_mol:
-                rdkit_mol = correct_ring_amidinium(rdkit_mol)
                 ring_confs.append(rdkit_mol)
-        mol2_string = mol2_blocks[0] if len(mol2_blocks) > 0 else None
-        return mol2_string, ring_confs
+        return ring_confs
     
 
 def find_flipped_nitrogen(mol_H: Mol):
