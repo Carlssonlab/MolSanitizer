@@ -71302,7 +71302,7 @@ All the angles here were added to make the hydroxyl coplanar with the ring-->
    </torsionRule>
    <torsionRule smarts="[c:1][$(S(=O)=O):2]!@[NX3&amp;!+1:3](-[*;!$([C&amp;r3])!$(C=A):4])-[*;!$([C&amp;r3])!$(C=A):5]">
       <angleList>
-         <angle score="31.56" tolerance1="20" tolerance2="25" value="180" />
+         <angle score="31.56" tolerance1="20" tolerance2="30" value="180" />
      <!--added small peaks from CSD/PDB databases -->
          <angle score="3.15"  tolerance1="30.00" tolerance2="30.00" value="30.0"/>
          <angle score="3.15"  tolerance1="30.00" tolerance2="30.00" value="-30.0"/>
