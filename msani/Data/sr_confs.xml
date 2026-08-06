@@ -179,20 +179,22 @@ Date: 2025-08-05
     </dihedral_sets>
   </ring> 
 
-  <ring name="cyclohexene_sp2-1,2,3_">
-    <note note="Improvements for 2FZ_4P6G_A, O in conjugated system is wrongly assigned as sp2"/>
-    <smarts smarts="[*^2;!O]1~[*^2;!O]~[*^2;!O]-[A^3]-[A^3]-[A^3]-1"/>
+<ring name="cyclohexene_sp2-1,2,3_">
+    <smarts smarts="[*^2]1~[*^2]~[*^2]-[A^3]-[A^3]-[A^3]-1"/>
     <ref ref=""/>
     <dihedral_sets>
       <set dihedral="'0', '-30', '60', '-45', '20', '0'" value="1"/> <!--CCDC CUPVAO CUPTUG JOBDIQ-->
-      <set dihedral="'0', '30', '-60', '45', '-20', '0'" value="2"/> <!--CCDC JOBCOV-->
-      <set dihedral="'30', '-60', '60', '-30', '0', '0'" value="3"/> <!--CCDC AMAJED BOXMAG FAFDUO-->
-      <set dihedral="'-30', '60', '-60', '30', '0', '0'" value="4"/> 
+      <set dihedral="'0', '20', '-45', '65', '-30', '0'" value="2"/> <!--revert order of 1-->
+      <set dihedral="'0', '30', '-60', '45', '-20', '0'" value="3"/> <!--CCDC JOBCOV-->
+      <set dihedral="'0', '-20', '45', '-60', '30', '0'" value="4"/> <!--revert order of 3-->
+      <set dihedral="'30', '-60', '60', '-30', '0', '0'" value="5"/> <!--CCDC AMAJED BOXMAG FAFDUO-->
+      <set dihedral="'0', '0', '-30', '60', '-60', '30'" value="6"/> <!--revert order of 5-->
+      <set dihedral="'-30', '60', '-60', '30', '0', '0'" value="7"/>
+      <set dihedral="'0', '0', '30', '-60', '60', '-30'" value="6"/> <!--revert order of 5-->
     </dihedral_sets>
-  </ring> 
+  </ring>  
   <ring name="cyclohexene">
-    <note note="Improvements for 2FZ_4P6G_A, O in conjugated system is wrongly assigned as sp2"/>
-    <smarts smarts="*1=,:*-[A^3,O^2]-[A^3]-[A^3]-[A^3]-1"/>
+    <smarts smarts="*1=,:*-[A^3]-[A^3]-[A^3]-[A^3]-1"/>
     <ref ref="https://doi.org/10.1016/0022-2860(68)87035-8"/>
     <dihedral_sets>
       <set dihedral="'-15', '45', '-60', '45', '-15', '0'" value="1"/>
