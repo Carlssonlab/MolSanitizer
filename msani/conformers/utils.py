@@ -20,7 +20,8 @@ from msani.db2 import mol2db2, mol2
 logger = logging.getLogger('msani')
 
 # Define SMARTS patterns for various functional groups
-sulfonamide_like_substructure = Chem.MolFromSmarts("[*:1][S;$(S(=*)=*):2]-!@[N&+0;!$([NH2]):3](-[*,#1;!$(C=A):4])-[*,#1;!$(C=A):5]")
+sulfonamide_like_substructure = Chem.MolFromSmarts("[*:1][S;$(S(=*)=*):2]-!@[N&+0;!$([NH2])!r:3](-[*,#1;!$(C=A):4])-[*,#1;!$(C=A):5]")
+sulfonamide_cycloheptane = Chem.MolFromSmarts("[S;$(S(=*)=*)]-!@[N&+0&r7;!$([NH2])]1-[*;!$(C=A)]-[*]~[*]~[*]~[*]~[*;!$(C=A)]1")
 substituted_C_cyclohexane = Chem.MolFromSmarts('[!#1;!$(*-!@[CH]1-[*^2;!O]~[*^2;!O]~*~[*^2;!O]~[*^2;!O]-1)]-!@[CH]1-[*]~[*]~[*]~[*]-[A]-1') # Ignore check for theoretically planar cyclohexanes
 flippable_Ns_1 = Chem.MolFromSmarts("[!#1:1]-!@[NH+;!$(N-*=*):2]1-[A:3]-[A:4]-[A]-[A:6]-[A:5]-1")
 flippable_Ns_2 = Chem.MolFromSmarts("[*:1]-!@[N+0;!$(N-*=*):2]1-[A:3]-[A:4]-[A]-[A:6]-[A:5]-1")
@@ -175,6 +176,11 @@ def find_substituted_N_barbi_hydan_like(mol_H: Mol, barbiturate: tuple, hydantoi
                 filtered_matches.append(match)
     return filtered_matches
         
+def find_sulfonamide_cycloheptane(mol_H: Mol):
+    '''
+    Find the sulfonamide in the molecule with 7-membered ring
+    '''
+    return mol_H.GetSubstructMatches(sulfonamide_cycloheptane)
 
 def find_amide(mol_H: Mol):
     '''
@@ -298,7 +304,7 @@ def identical_substituents(mol, idx2, idx3, idx4, idx5):
 
 def is_equatorial(conf, atom_idx):
     """
-    Determines if a substituent is in an equatorial position on a cyclohexane ring.
+    Determines if a substituent is in an equatorial position on a ring.
 
     This function calculates two dihedral angles around a specific atom in the molecule
     and checks if they both fall within the range that indicates an equatorial position 
@@ -309,10 +315,10 @@ def is_equatorial(conf, atom_idx):
     conf : rdkit.Chem.rdchem.Conformer
     atom_idx : list or tuple
         List of atom indices defining the relevant atoms for dihedral calculations.
-        Requires at least 7 indices:
+        Requires at least 6 indices:
         - atom_idx[0], atom_idx[1], atom_idx[2], atom_idx[3]: First dihedral angle
         - atom_idx[0], atom_idx[1], atom_idx[-1], atom_idx[-2]: Second dihedral angle
-
+        
     Returns
     -------
     bool
@@ -322,10 +328,10 @@ def is_equatorial(conf, atom_idx):
     
     dihedral1 = rdMolTransforms.GetDihedralDeg(conf, atom_idx[0], atom_idx[1], atom_idx[2], atom_idx[3])
     dihedral2 = rdMolTransforms.GetDihedralDeg(conf, atom_idx[0], atom_idx[1], atom_idx[-1], atom_idx[-2])
-    if 150 <= abs(dihedral1) <= 180 and 150 <= abs(dihedral2) <= 180:
-            return True
+    if 140 <= abs(dihedral1) <= 180 and 140 <= abs(dihedral2) <= 180:
+        return True
     return False
-    
+
 
 def find_sulfonamide_like_scaffolds(mol_H: Mol):
     """Find all Sulfonamide-like scaffolds (S(O2)-N(R1)R2 or (S(O)(N)-N(R1)(R2))."""
@@ -347,7 +353,8 @@ def classify_confs(conf,
                     non_planar_rings, 
                     flippable_Ns, 
                     flippable_Cs, 
-                    sulfo_matches, 
+                    sulfo_matches,
+                    sulfo_7_ring=(), 
                     tolerance=25):
     """
     Classify a conformer based on ring conformations, flippable nitrogens,
@@ -388,6 +395,10 @@ def classify_confs(conf,
     sulfo_descriptors = tuple([1 if rdMolTransforms.GetDihedralDeg(conf, d, b, c, e) > 0 else 0 for (a, b, c, d, e) in sulfo_matches])
     temp_dict['sulfo_descriptors'] = sulfo_descriptors if sulfo_descriptors else [-1]
 
+    # Process flippable Nitrogens in sulfonamides within 7 membered rings, 
+    # we want both axial and equatorials
+    sulfo_7_descriptors = sum([1 if is_equatorial(conf, atom_idx) else 0 for atom_idx in sulfo_7_ring])
+    temp_dict['sulfo_7_descriptors'] = sulfo_7_descriptors if sulfo_7_ring else -1
     return temp_dict
 
 def remove_unfavorable_confs(conf_ring_descriptors_df: DataFrame, name: str ='0')-> DataFrame:
@@ -976,102 +987,6 @@ def within_tolerance(angle, center, tolerance):
     # Calculate the difference considering wrap-around
     diff = (angle - center + 180) % 360 - 180
     return abs(diff) <= tolerance
-
-def remove_nonpolar_hydrogens(mol: Chem.Mol) -> Chem.Mol:
-    """
-    Remove non-polar hydrogens from the molecule.
-    Non-polar hydrogens are those attached to carbon atoms.
-
-    Args:
-        mol (Chem.Mol): RDKit molecule object.
-
-    Returns:
-        Chem.Mol: New molecule with non-polar hydrogens removed.
-    """
-    editable = Chem.RWMol(mol)
-    to_remove = []
-    for atom in editable.GetAtoms():
-        if atom.GetAtomicNum() == 1:
-            neighbors = atom.GetNeighbors()
-            if len(neighbors) == 1 and neighbors[0].GetAtomicNum() == 6:
-                to_remove.append(atom.GetIdx())
-    for idx in sorted(to_remove, reverse=True):
-        editable.RemoveAtom(idx)
-    return editable.GetMol()
-
-
-def is_similar_rmsd(current_conformer, previous_conformers, cutoff, mol=None, numcores=1):
-    """
-    Cluster conformers based on BestRMS to determine if a new conformer is similar to existing ones.
-    
-    This function compares a current conformer against a list of previous conformers using
-    RDKit's GetBestRMS function, which calculates the root-mean-square deviation after
-    optimal alignment. Non-polar hydrogens are removed before RMSD calculation to focus
-    on the heavy atom framework and polar hydrogens that are important for interactions.
-    
-    Args:
-        current_conformer (Chem.Conformer): The new conformer to compare.
-        previous_conformers (list): List of tuples (conformer, energy) representing 
-                                   previously accepted conformers.
-        cutoff (float): RMSD cutoff value in Angstroms. If RMSD <= cutoff, conformers 
-                       are considered similar.
-        mol (Chem.Mol, optional): RDKit molecule object. If provided, will be used
-                                 for RMSD calculation. If None, a temporary molecule
-                                 will be created from the conformers.
-        numcores (int): number of cores for multiprocessing.
-    
-    Returns:
-        bool: True if the current conformer is similar to any previous conformer 
-              (RMSD <= cutoff), False otherwise.
-    
-    Example:
-        >>> current_conf = mol.GetConformer(0)
-        >>> prev_confs = [(mol.GetConformer(1), 10.5), (mol.GetConformer(2), 12.3)]
-        >>> is_similar = cluster_conformer_by_bestrmsd(current_conf, prev_confs, 0.5, mol)
-    """
-    if cutoff == 0:
-        return False
-    if not previous_conformers:
-        return False
-    
-    # We need the original molecule to work with
-    if mol is None:
-        raise ValueError("mol parameter is required for RMSD calculation")
-    
-    # Create a molecule with all conformers for comparison
-    temp_mol = Chem.Mol(mol)
-    temp_mol.RemoveAllConformers()
-    
-    # Add current conformer
-    current_conf_id = temp_mol.AddConformer(current_conformer, assignId=True)
-    
-    # Add all previous conformers
-    prev_conf_ids = []
-    for prev_conformer, _ in previous_conformers:
-        prev_conf_id = temp_mol.AddConformer(prev_conformer, assignId=True)
-        prev_conf_ids.append(prev_conf_id)
-    
-    # Remove non-polar hydrogens for RMSD calculation
-    # mol_no_h = remove_nonpolar_hydrogens(temp_mol)
-    mol_no_h = Chem.RemoveAllHs(temp_mol)
-    # Compare current conformer against each previous conformer
-    for prev_conf_id in prev_conf_ids:
-        try:
-            # Calculate BestRMS between the conformers
-            rmsd = rdMolAlign.GetBestRMS(mol_no_h, mol_no_h, 
-                                         prbId=current_conf_id, refId=prev_conf_id,
-                                         maxMatches=1000, numThreads=numcores)
-            # If RMSD is within cutoff, conformers are considered similar
-            if rmsd <= cutoff:
-                return True
-                
-        except Exception as e:
-            # In case of any errors in RMSD calculation, log warning and continue
-            logger.warning(f"Error calculating RMSD: {e}")
-            continue
-    
-    # If no similar conformer found, return False
-    return False
 
 
 def check_timeout(start_time, max_duration):

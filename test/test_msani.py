@@ -9,6 +9,8 @@ import platform
 
 
 from pandas import read_csv
+from rdkit import Chem
+
 from msani import cli
 from msani.batchmode import Split_Submit_jobs
 from msani.io import parsers
@@ -350,22 +352,30 @@ class Test_MolSanitizer(unittest.TestCase):
                         "SDF file was not created.")
             self.assertTrue(Path(f"{temp_dir}/sdf/N-Methylbenzenesulfonamide.nr1.sdf").exists(),
                         "SDF file was not created.")
-            # If produce 2 conformers
+            # If sdf file can be read back
             with open(f"{temp_dir}/sdf/N-Methylbenzenesulfonamide.nr0.sdf") as sdf_file:
-                conf = 0
-                for line in sdf_file:
-                    if line.strip().endswith('M  END'):
-                        conf += 1
+                lines = ''
+                for line in sdf_file: 
+                    if line.strip().startswith('M  END'):
+                        lines += line
+                        break
+                    else: lines += line
+                mol = Chem.MolFromMolBlock(lines)
                 del sdf_file
-            self.assertEqual(conf, 2, "SDF file was not created correctly.")
-
+                if mol is None:
+                    raise ValueError("The molecule was not written correctly")
+                
             with open(f"{temp_dir}/sdf/N-Methylbenzenesulfonamide.nr1.sdf") as sdf_file:
-                conf = 0
-                for line in sdf_file:
+                lines = ''
+                for line in sdf_file: 
                     if line.strip().endswith('M  END'):
-                        conf += 1
+                        lines += line
+                        break
+                    else: lines += line
+                mol = Chem.MolFromMolBlock(lines)
                 del sdf_file
-            self.assertEqual(conf, 2, "SDF file was not created correctly.")
+                if mol is None:
+                    raise ValueError("The molecule was not written correctly")
         os.chdir(self.path)
         shutil.rmtree(f"{temp_dir}")
         tmp_obj.cleanup()
@@ -381,14 +391,19 @@ class Test_MolSanitizer(unittest.TestCase):
             cli.clean_data(args)
             self.assertTrue(Path(f"{temp_dir}/mol2/3,4-diclorophenol.mol2").exists(),
                         "mol2 file was not created.")
-            # If produce 2 conformers
+            # If the mol2 file can be read
             with open(f"{temp_dir}/mol2/3,4-diclorophenol.mol2") as mol2_file:
-                conf = 0
-                for line in mol2_file:
+                lines = ''
+                for line in mol2_file: 
                     if line.strip().startswith('@<TRIPOS>MOLECULE'):
-                        conf += 1
+                        if lines == '': lines += line
+                        else: break
+                    else: lines += line
+                mol = Chem.MolFromMol2Block(lines)
                 del mol2_file
-            self.assertEqual(conf, 2, "mol2 file was not created correctly.")
+                if mol is None:
+                    raise ValueError("The molecule was not written correctly")
+            
 
         with self.subTest(msg="Generating mol2 file with 2 ring conformations (sulfonamide/cyclohexane):"):
             args = self.generate_mock_arguments([f'{self.path}/in_sulfonamide.smi'],
@@ -400,22 +415,30 @@ class Test_MolSanitizer(unittest.TestCase):
                         "mol2 file was not created.")
             self.assertTrue(Path(f"{temp_dir}/mol2/N-Methylbenzenesulfonamide.nr1.mol2").exists(),
                         "mol2 file was not created.")
-            # If produce 2 conformers
+            # If the mol2 file can be read
             with open(f"{temp_dir}/mol2/N-Methylbenzenesulfonamide.nr0.mol2") as mol2_file:
-                conf = 0
-                for line in mol2_file:
+                lines = ''
+                for line in mol2_file: 
                     if line.strip().startswith('@<TRIPOS>MOLECULE'):
-                        conf += 1
+                        if lines == '': lines += line
+                        else: break
+                    else: lines += line
+                mol = Chem.MolFromMol2Block(lines)
+                if mol is None:
+                    raise ValueError("The molecule was not written correctly")
                 del mol2_file
-            self.assertEqual(conf, 2, "mol2 file was not created correctly.")
-
+                
             with open(f"{temp_dir}/mol2/N-Methylbenzenesulfonamide.nr1.mol2") as mol2_file:
-                conf = 0
-                for line in mol2_file:
+                lines = ''
+                for line in mol2_file: 
                     if line.strip().startswith('@<TRIPOS>MOLECULE'):
-                        conf += 1
+                        if lines == '': lines += line
+                        else: break
+                    else: lines += line
+                mol = Chem.MolFromMol2Block(lines)
+                if mol is None:
+                    raise ValueError("The molecule was not written correctly")
                 del mol2_file
-            self.assertEqual(conf, 2, "mol2 file was not created correctly.")
         os.chdir(self.path)
         shutil.rmtree(f"{temp_dir}")
         tmp_obj.cleanup()

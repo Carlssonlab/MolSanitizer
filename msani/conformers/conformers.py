@@ -305,6 +305,7 @@ class ConformerGenerator:
         # Get other important substructures.
         # Some of them are for correctures of MMFF94s
         self.sulfo_matches = utils.find_sulfonamide_like_scaffolds(self.mol_H)
+        self.sulfo_7_ring = utils.find_sulfonamide_cycloheptane(self.mol_H)
         self.conjugated_substituted_nitrogen_5aro = utils.find_conjugated_substituted_nitrogen_5aro(self.mol_H)
         self.conjugated_substituted_nitrogen_6aro = utils.find_conjugated_substituted_nitrogen_6aro(self.mol_H)
         self.barbiturate_matches = utils.find_barbiturates(self.mol_H)
@@ -337,6 +338,10 @@ class ConformerGenerator:
             if self.sulfo_matches:
                 print('\tFound sulfonamide-like structures')
                 for match in self.sulfo_matches: 
+                    print(f'\t {match}')
+            if self.sulfo_7_ring:
+                print('\tFound sulfonamide 7-membered ring structures')
+                for match in self.sulfo_7_ring: 
                     print(f'\t {match}')
             if self.conjugated_substituted_nitrogen_5aro:
                 print('\tFound 5-membered nitrogen aromatic rings')
@@ -402,7 +407,8 @@ class ConformerGenerator:
                                                           self.non_planar_rings, 
                                                           self.flippable_Ns, 
                                                           self.flippable_Cs,
-                                                          self.sulfo_matches)
+                                                          self.sulfo_matches,
+                                                          self.sulfo_7_ring)
                     conformer_data_list.append(conf_data)
                 
                 # Create DataFrame once from all collected data
@@ -487,7 +493,7 @@ class ConformerGenerator:
                 num_confs_per_regioisomers = 0
                 while num_confs_per_regioisomers < self.num_ring_confs and temp_list:
                     lowest_energy_entry = temp_list.pop(0)
-                    conformer, current_descriptors = lowest_energy_entry[0], lowest_energy_entry[2:-1]
+                    conformer, current_descriptors = lowest_energy_entry[0], lowest_energy_entry[2:]
                     scaffold = Chem.Mol(self.empty_mol)
                     conf_id = scaffold.AddConformer(conformer, assignId=True)
                     # Need to align briefly so that coordinates are not too far apart and disrupt Mol2DB2
@@ -496,7 +502,49 @@ class ConformerGenerator:
                     num_confs_per_regioisomers += 1
                     temp_list = utils.ring_conf_clusters(current_descriptors, temp_list)
                 if self.VERBOSE: print(f'\tBefore: {initial_len}, after: {num_confs_per_regioisomers}')
+        elif self.sulfo_7_ring:
+            self.num_ring_confs = max(2, self.num_ring_confs)
+            print(f"Found sulfonamide within 7 ring in {self.name}, generate two both axial and equatorial conformers for the sulfonamide")
+            
+            temp_list = conf_ring_descriptors_df.values.tolist()
 
+            align_on = list(self.planar_rings)[0] if self.planar_rings else (1, 2, 3)
+            scaffold = Chem.Mol(self.empty_mol)
+
+            # First entry, lowest energy, store sulfo_7_descriptors descriptor
+            lowest_energy_entry = temp_list.pop(0)
+            conformer, current_descriptors = lowest_energy_entry[0], lowest_energy_entry[2:]
+            print(current_descriptors)
+            sulfo_7_descriptor_ref = current_descriptors[-1]
+            scaffold.AddConformer(conformer, assignId=True)
+            self.ring_confs.append(scaffold)
+            temp_list = utils.ring_conf_clusters(current_descriptors, temp_list) # Remove any confs that are identical to the first entry
+
+            # Look for the second one that has different sulfo_7_descriptor than ref
+            for entry in temp_list:
+                if entry[-1] != sulfo_7_descriptor_ref:
+                    conformer, current_descriptors = entry[0], entry[2:]
+                    scaffold = Chem.Mol(self.empty_mol)
+                    conf_id = scaffold.AddConformer(conformer, assignId=True)
+                    # Need to align briefly so that coordinates are not too far apart and disrupt Mol2DB2
+                    if self.ring_confs: rdMolAlign.AlignMol(scaffold, self.ring_confs[0], 0, 0, atomMap=[(i, i) for i in align_on])
+                    self.ring_confs.append(Chem.Mol(scaffold, conf_id))
+                    sulfo_7_descriptor_ref = current_descriptors[-1]
+                    temp_list = utils.ring_conf_clusters(current_descriptors, temp_list) # Remove any confs that are identical to the second entry
+                    break
+                
+            # Anything else until reaches the requirement
+            if len(self.ring_confs) < self.num_ring_confs:
+                for entry in temp_list:
+                    conformer, current_descriptors = entry[0], entry[2:]
+                    scaffold = Chem.Mol(self.empty_mol)
+                    conf_id = scaffold.AddConformer(conformer, assignId=True)
+                # Need to align briefly so that coordinates are not too far apart and disrupt Mol2DB2
+                if self.ring_confs: rdMolAlign.AlignMol(scaffold, self.ring_confs[0], 0, 0, atomMap=[(i, i) for i in align_on])
+                self.ring_confs.append(Chem.Mol(scaffold, conf_id))
+                sulfo_7_descriptor_ref = current_descriptors[-1]
+                temp_list = utils.ring_conf_clusters(current_descriptors, temp_list) # Remove any confs that are identical to the second entry            
+            
 
         else:
             align_on = list(self.planar_rings)[0] if self.planar_rings else (1, 2, 3)
@@ -508,7 +556,7 @@ class ConformerGenerator:
 
             while len(self.ring_confs) < self.num_ring_confs and temp_list:
                 lowest_energy_entry = temp_list.pop(0)
-                conformer, current_descriptors = lowest_energy_entry[0], lowest_energy_entry[2:-1]
+                conformer, current_descriptors = lowest_energy_entry[0], lowest_energy_entry[2:]
                 scaffold = Chem.Mol(self.empty_mol)
                 scaffold.AddConformer(conformer, assignId=True)
                 # Need to align briefly so that coordinates are not too far apart and disrupt Mol2DB2
