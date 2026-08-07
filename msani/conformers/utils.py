@@ -682,9 +682,9 @@ def discretinize_dihedrals(typical, tolerance, step = 30):
     step: the step size for discretinization
     '''
     if tolerance < step: return [typical]
-    # n_steps = int(tolerance / step)
-    # angles = [typical + i * step for i in range(-n_steps, n_steps + 1)]
-    angles = [typical, typical - step, typical + step] #Only sample 3 angles for each dihedral
+    n_steps = int(tolerance / step)
+    angles = [typical + i * step for i in range(-n_steps, n_steps + 1)]
+    #angles = [typical, typical - step, typical + step] #Only sample 3 angles for each dihedral
 
     normalized_angles = [round((angle + 180) % 360 - 180, 1) for angle in angles]
     return normalized_angles
