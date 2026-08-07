@@ -71,6 +71,15 @@ Date: 2025-08-05
       <set dihedral="'-20', '20', '-20', '20'" value="2"/>
     </dihedral_sets>
   </ring>
+    <ring name="cyclopentane-1/1-3-sp2">
+    <note note="Works for cyclopentanones; cyclopentane-1,3-diones"/>
+    <ref ref="ABEGOH ADEKAX TACMOE FIFDED"/>
+    <smarts smarts="[A^2]1-[A^3]-[A^2,A^3]-[A^3]-[A^3]-1"/>
+    <dihedral_sets>
+      <set dihedral="'30', '-30', '30', '0', '0'" value="1"/>
+      <set dihedral="'-30', '30', '-30', '0', '0'" value="2"/>
+    </dihedral_sets>
+  </ring>
   <ring name="5-membered lactam/lactone">
     <note note=""/>
     <smarts smarts="[C;$(C=[O,SX1])]1-[N,O]-[A^3]-[A^3]-[A^3]-1"/>
