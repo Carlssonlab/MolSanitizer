@@ -1,0 +1,249 @@
+#!/usr/bin/env python3
+"""Build a Solv-like object directly from RDKit + AMSOLcpp results.
+
+This script avoids writing an intermediate .solv file. It converts a 3D RDKit
+molecule into AMSOLcpp atom tuples, runs both water and hexadecane calculations,
+and constructs a Solv-compatible object with the same public attributes used by
+traditional .solv parsers.
+"""
+
+from __future__ import annotations
+
+import argparse
+import sys
+from typing import Any, Iterable, List, Optional, Sequence, Tuple
+
+import amsolcpp
+from rdkit import Chem
+from rdkit.Chem import AllChem
+
+
+class SolvError(RuntimeError):
+    """Raised when the in-memory Solv object cannot be assembled."""
+
+
+class MultiSolvException(ValueError):
+    """Raised for malformed multi-record solv data."""
+
+
+class Solv(object):
+    """Reads .solv files from AMSOL output, or builds from in-memory rows."""
+
+    def __init__(self, solvFileName: Optional[str] = None, rows: Optional[Sequence[Sequence[float]]] = None):
+        self.name = "fake"
+        self.charge: List[float] = []
+        self.polarSolv: List[float] = []
+        self.apolarSolv: List[float] = []
+        self.solv: List[float] = []
+        self.surface: List[float] = []
+        self.totalAtoms: int = 0
+        self.totalCharge: float = 0.0
+        self.totalPolarSolv: float = 0.0
+        self.totalSurface: float = 0.0
+        self.totalApolarSolv: float = 0.0
+        self.totalSolv: float = 0.0
+
+        if solvFileName is not None:
+            self._read_solv_file(solvFileName)
+        elif rows is not None:
+            self._load_rows(rows)
+
+    def _read_solv_file(self, solvFileName: str) -> None:
+        with open(solvFileName, "r", encoding="utf-8") as solvfile:
+            try:
+                for line in solvfile:
+                    tokens = line.split()
+                    if self.name == "fake":
+                        self.name = tokens[0]
+                        self.totalAtoms = int(tokens[1])
+                        self.totalCharge = float(tokens[2])
+                        self.totalPolarSolv = float(tokens[3])
+                        self.totalSurface = float(tokens[4])
+                        self.totalApolarSolv = float(tokens[5])
+                        self.totalSolv = float(tokens[6])
+                    else:
+                        try:
+                            self.charge.append(float(tokens[0]))
+                            self.polarSolv.append(float(tokens[1]))
+                            self.surface.append(float(tokens[2]))
+                            self.apolarSolv.append(float(tokens[3]))
+                            self.solv.append(float(tokens[4]))
+                        except ValueError as exc:
+                            raise MultiSolvException(line) from exc
+            except (StopIteration, MultiSolvException):
+                pass
+
+    def _load_rows(self, rows: Sequence[Sequence[float]]) -> None:
+        if not rows:
+            raise SolvError("rows must not be empty")
+        if len(rows) < 1:
+            raise SolvError("expected at least one atom row")
+        for row in rows:
+            if len(row) != 5:
+                raise SolvError("each row must contain five values: charge, polar, surface, apolar, solv")
+            self.charge.append(float(row[0]))
+            self.polarSolv.append(float(row[1]))
+            self.surface.append(float(row[2]))
+            self.apolarSolv.append(float(row[3]))
+            self.solv.append(float(row[4]))
+        self.totalAtoms = len(self.charge)
+        self.totalCharge = 0.0
+        self.totalPolarSolv = sum(self.polarSolv)
+        self.totalSurface = sum(self.surface)
+        self.totalApolarSolv = sum(self.apolarSolv)
+        self.totalSolv = sum(self.solv)
+
+    @classmethod
+    def from_results(
+        cls,
+        name: str,
+        total_charge: float,
+        totalPolarSolv: float,
+        totalSurface: float,
+        totalApolarSolv: float,
+        totalSolv: float,
+        charges: Sequence[float],
+        polar_diff: Sequence[float],
+        surface: Sequence[float],
+        apolar_diff: Sequence[float],
+        solv_diff: Sequence[float],
+    ) -> "Solv":
+        rows = [
+            (charge, polar, surf, apolar, solv)
+            for charge, polar, surf, apolar, solv in zip(charges, polar_diff, surface, apolar_diff, solv_diff)
+        ]
+        instance = cls(rows=rows)
+        instance.name = name
+        instance.totalCharge = total_charge
+        instance.totalPolarSolv = totalPolarSolv
+        instance.totalSurface = totalSurface
+        instance.totalApolarSolv = totalApolarSolv
+        instance.totalSolv = totalSolv
+        return instance
+
+
+def mol_to_amsol_atoms(mol: Chem.Mol) -> List[Tuple[int, float, float, float]]:
+    if mol.GetNumConformers() == 0:
+        mol = Chem.AddHs(mol)
+        try:
+            AllChem.EmbedMolecule(mol, randomSeed=0xF00D)
+        except Exception as exc:
+            raise SolvError(f"failed to generate a 3D conformer: {exc}") from exc
+
+    if mol.GetNumConformers() == 0:
+        raise SolvError("molecule has no conformers after embedding")
+
+    conf = mol.GetConformer()
+    atoms: List[Tuple[int, float, float, float]] = []
+    for atom in mol.GetAtoms():
+        pos = conf.GetAtomPosition(atom.GetIdx())
+        atoms.append((atom.GetAtomicNum(), pos.x, pos.y, pos.z))
+    return atoms
+
+
+def build_solv_from_rdkit(
+    mol: Chem.Mol,
+    name: Optional[str] = None,
+    charge: Optional[int] = None,
+    verbose: bool = False,
+) -> Solv:
+    if name is None:
+        name = mol.GetProp("_Name") if mol.HasProp("_Name") else "mol"
+
+    if charge is None:
+        charge = Chem.GetFormalCharge(mol)
+
+    atoms = mol_to_amsol_atoms(mol)
+    options = amsolcpp.CalculationOptions()
+    options.output_decimal_precision = 2
+    try:
+        water_result = amsolcpp.calculate(atoms, solvent="water", charge=charge, options=options)
+    except Exception as exc:
+        raise SolvError(f"water AMSOL calculation failed: {exc}") from exc
+
+    try:
+        hex_result = amsolcpp.calculate(atoms, solvent="hexadecane", charge=charge, options=options)
+    except Exception as exc:
+        raise SolvError(f"hexadecane AMSOL calculation failed: {exc}") from exc
+
+    if not water_result.converged or not hex_result.converged:
+        raise SolvError(
+            f"AMSOL calculation did not converge: water={water_result.converged}, hex={hex_result.converged}"
+        )
+
+    if len(water_result.atomic_solvation) != len(hex_result.atomic_solvation):
+        raise SolvError("water and hexadecane results have different atom counts")
+
+    atomic_charges_hex = hex_result.atomic_charges
+    polar_wat = [item.polarization_kcal_mol for item in water_result.atomic_solvation]
+    polar_hex = [item.polarization_kcal_mol for item in hex_result.atomic_solvation]
+    areas = [item.area_angstrom2 for item in hex_result.atomic_solvation]
+    apolar_wat = [item.cds_kcal_mol for item in water_result.atomic_solvation]
+    apolar_hex = [item.cds_kcal_mol for item in hex_result.atomic_solvation]
+
+    sum_apolar_hex = float(sum(apolar_hex))
+    total_area = hex_result.total_surface_area
+    if total_area == 0.0:
+        raise SolvError("total surface area is zero; cannot compute the apolar correction")
+
+    cs_coeff = (float(hex_result.cds_free_energy) - sum_apolar_hex) / total_area
+    print(f"New {round(hex_result.cds_free_energy, 2)}, {sum_apolar_hex}, {total_area}, {cs_coeff}")
+
+    diff_polar = [w - h for w, h in zip(polar_wat, polar_hex)]
+    diff_apolar = [w - (h + cs_coeff * a) for w, h, a in zip(apolar_wat, apolar_hex, areas)]
+    diff_solv = [p + a for p, a in zip(diff_polar, diff_apolar)]
+
+    if verbose:
+        print("water polarization total:", water_result.polarization_free_energy)
+        print("hex polarization total:", hex_result.polarization_free_energy)
+        print("hex cds total:", hex_result.cds_free_energy)
+        print("cs_coeff:", cs_coeff)
+
+    return Solv.from_results(
+        name=name,
+        total_charge=float(charge),
+        totalPolarSolv=water_result.polarization_free_energy,
+        totalSurface=total_area,
+        totalApolarSolv=sum_apolar_hex,
+        totalSolv=hex_result.total_solvation_free_energy,
+        charges=atomic_charges_hex,
+        polar_diff=diff_polar,
+        surface=areas,
+        apolar_diff=diff_apolar,
+        solv_diff=diff_solv,
+    )
+
+
+def main(argv: Optional[Sequence[str]] = None) -> int:
+    parser = argparse.ArgumentParser(description="Build a Solv-like object directly from RDKit and AMSOLcpp")
+    parser.add_argument("smiles", help="SMILES string or RDKit mol block")
+    parser.add_argument("--name", default=None, help="Name to attach to the Solv object")
+    parser.add_argument("--charge", type=int, default=None, help="Formal molecular charge")
+    parser.add_argument("--verbose", action="store_true", help="Print intermediate diagnostics")
+    args = parser.parse_args(argv)
+
+    try:
+        mol = Chem.MolFromSmiles(args.smiles)
+        if mol is None:
+            raise SolvError("RDKit could not parse the SMILES string")
+        mol = Chem.AddHs(mol)
+        solv = build_solv_from_rdkit(mol, name=args.name, charge=args.charge, verbose=args.verbose)
+    except Exception as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 1
+
+    print(f"name={solv.name}")
+    print(f"total_atoms={solv.totalAtoms}")
+    print(f"total_charge={solv.totalCharge}")
+    print(f"total_polar={solv.totalPolarSolv}")
+    print(f"total_surface={solv.totalSurface}")
+    print(f"total_apolar={solv.totalApolarSolv}")
+    print(f"total_solv={solv.totalSolv}")
+    print("atom_rows=")
+    for idx in range(solv.totalAtoms):
+        print(idx, solv.charge[idx], solv.polarSolv[idx], solv.surface[idx], solv.apolarSolv[idx], solv.solv[idx])
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

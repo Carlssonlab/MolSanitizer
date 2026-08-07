@@ -46,6 +46,7 @@ except:
 # Check if AMSOL is correctly installed
 try:
     from msani.amsol import run_amsol
+    from msani.amsol import rdkit_amsol_to_solv
     if run_amsol.AMSOLEXE: AMSOL_AVAILABLE = True
     else: AMSOL_AVAILABLE = False
 except ImportError:
@@ -1186,6 +1187,14 @@ class ConformerGenerator:
             os.chdir(f"db2/{self.name}")
             db2_data_all = ""
             solv_obj = solv.Solv(f"{self.name}.solv")
+            solv_obj2 = rdkit_amsol_to_solv.build_solv_from_rdkit(self.amsol_mol, self.name, self.netcharge)
+            if not compare_solv_objs(solv_obj, solv_obj2):
+                print(f"AMSOL solv values different from RDKit-based solv values for {self.name}")
+                print(f"RDKit solv: {solv_obj2}")
+                print(f"AMSOL solv: {solv_obj}")
+                print(f"{self.smiles} {self.name}\n")
+                with open(f"solv_diff.txt", 'a') as f:
+                    f.write(f"{self.smiles} {self.name}\n")
             for ring_conf in self.ring_confs:
                 for rigid_scaffold in self.atom_maps:
                     db2_data = utils.Align_ConvertToDb2(ring_conf, rigid_scaffold, solv_obj, self.name, self.smiles, longname) 
@@ -1210,6 +1219,16 @@ class ConformerGenerator:
             log_error(self.smiles, self.name)
             return
 
+def compare_solv_objs(solv_obj1, solv_obj2):
+    for attribute in ['totalAtoms', 'totalCharge', 'totalPolarSolv', 'totalSurface', 'totalApolarSolv', 'totalSolv']:
+        if getattr(solv_obj1, attribute) != getattr(solv_obj2, attribute):
+            print(f"Error in comparing solv objects: {attribute} {getattr(solv_obj1, attribute)} {getattr(solv_obj2, attribute)}")
+            return False
+    for i in range(len(solv_obj1.charge)):
+        if solv_obj1.charge[i] != solv_obj2.charge[i]:
+            print(f"Error in comparing solv objects: charge[{i}] {solv_obj1.charge[i]} {solv_obj2.charge[i]}")
+            return False
+    return True
 
 def setup_env():
     '''
