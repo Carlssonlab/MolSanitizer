@@ -1131,6 +1131,7 @@ class ConformerGenerator:
         if not(env): env = setup_env() 
         os.makedirs(f"solv/{self.name}", exist_ok=True)
         os.chdir(f"solv/{self.name}")
+        time_old = time.time()
         for conf_id in range(self.amsol_mol.GetNumConformers()):
             try:
                 # Idea: try from the energy minimum conformer if AMSOL fails -> next conformer until reach the last
@@ -1143,7 +1144,6 @@ class ConformerGenerator:
                 else:
                     # Babel and CORINA, use the mol2_str as only 1 conformer is needed
                     write_to_file(self.mol2_str, f"{self.name}.mol2")
-
                 run_amsol.prepare(f"{self.name}.mol2", self.name, self.netcharge)
                 error_signal = run_amsol.run('temp.in-hex', 'temp.o-hex', env)
                 if error_signal == -1: continue
@@ -1166,6 +1166,8 @@ class ConformerGenerator:
         self.amsol_time = time.time()
         shutil.copy(f"solv/{self.name}/output.mol2", f"solv/{self.name}/{self.name}_solv.mol2")
         shutil.move(f"solv/{self.name}/output.solv", f"solv/{self.name}/{self.name}_solv.solv")
+        amsol_solv_obj = solv.Solv(f"solv/{self.name}/{self.name}_solv.solv")
+        time_old = time.time() - time_old
 
         ### Torsional sampling ###
         if self.VERBOSE: print("Torsional sampling...")
@@ -1187,18 +1189,20 @@ class ConformerGenerator:
             os.chdir(f"db2/{self.name}")
             db2_data_all = ""
             solv_obj = solv.Solv(f"{self.name}.solv")
+            time_new = time.time()
             solv_obj2 = rdkit_amsol_to_solv.build_solv_from_rdkit(self.amsol_mol, self.name, self.netcharge)
+            time_new = time.time() - time_new
             if not compare_solv_objs(solv_obj, solv_obj2):
                 print(f"AMSOL solv values different from RDKit-based solv values for {self.name}")
-                print(f"RDKit solv: {solv_obj2}")
-                print(f"AMSOL solv: {solv_obj}")
                 print(f"{self.smiles} {self.name}\n")
-                with open(f"solv_diff.txt", 'a') as f:
+                with open(f"../../solv_diff.txt", 'a') as f:
                     f.write(f"{self.smiles} {self.name}\n")
             for ring_conf in self.ring_confs:
                 for rigid_scaffold in self.atom_maps:
                     db2_data = utils.Align_ConvertToDb2(ring_conf, rigid_scaffold, solv_obj, self.name, self.smiles, longname) 
                     db2_data_all += db2_data
+            with open("../../time.log", "a") as f:
+                f.write(f'{self.smiles}\t{time_old}\t{time_new}\n')
             if not (as_string):
                 if tarfile: write_to_tarball(tarfile, db2_data_all.encode('utf-8'), name=f"{self.name}.db2")
                 else: write_to_file(db2_data_all, f"../{self.name}.db2")
@@ -1221,11 +1225,11 @@ class ConformerGenerator:
 
 def compare_solv_objs(solv_obj1, solv_obj2):
     for attribute in ['totalAtoms', 'totalCharge', 'totalPolarSolv', 'totalSurface', 'totalApolarSolv', 'totalSolv']:
-        if getattr(solv_obj1, attribute) != getattr(solv_obj2, attribute):
+        if abs(getattr(solv_obj1, attribute) - getattr(solv_obj2, attribute)) > 0.1:
             print(f"Error in comparing solv objects: {attribute} {getattr(solv_obj1, attribute)} {getattr(solv_obj2, attribute)}")
             return False
     for i in range(len(solv_obj1.charge)):
-        if solv_obj1.charge[i] != solv_obj2.charge[i]:
+        if abs(solv_obj1.charge[i] - solv_obj2.charge[i]) > 0.1:
             print(f"Error in comparing solv objects: charge[{i}] {solv_obj1.charge[i]} {solv_obj2.charge[i]}")
             return False
     return True

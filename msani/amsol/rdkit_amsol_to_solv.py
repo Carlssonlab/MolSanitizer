@@ -93,33 +93,6 @@ class Solv(object):
         self.totalApolarSolv = sum(self.apolarSolv)
         self.totalSolv = sum(self.solv)
 
-    @classmethod
-    def from_results(
-        cls,
-        name: str,
-        total_charge: float,
-        totalPolarSolv: float,
-        totalSurface: float,
-        totalApolarSolv: float,
-        totalSolv: float,
-        charges: Sequence[float],
-        polar_diff: Sequence[float],
-        surface: Sequence[float],
-        apolar_diff: Sequence[float],
-        solv_diff: Sequence[float],
-    ) -> "Solv":
-        rows = [
-            (charge, polar, surf, apolar, solv)
-            for charge, polar, surf, apolar, solv in zip(charges, polar_diff, surface, apolar_diff, solv_diff)
-        ]
-        instance = cls(rows=rows)
-        instance.name = name
-        instance.totalCharge = total_charge
-        instance.totalPolarSolv = totalPolarSolv
-        instance.totalSurface = totalSurface
-        instance.totalApolarSolv = totalApolarSolv
-        instance.totalSolv = totalSolv
-        return instance
 
 
 def mol_to_amsol_atoms(mol: Chem.Mol) -> List[Tuple[int, float, float, float]]:
@@ -147,71 +120,56 @@ def build_solv_from_rdkit(
     charge: Optional[int] = None,
     verbose: bool = False,
 ) -> Solv:
+    """Build a Solv object from an RDKit Mol with 3-D coordinates.
+
+    The RDKit mol is passed directly to the C++ binding which handles both
+    atom extraction (via ToBinary/MolPickler) and the full dual-solvent
+    AM1/CM2/SM5.42R calculation in one call.  Per-field arrays returned by
+    the C++ SolvDescriptors object are assigned straight to Solv attributes
+    — no list comprehensions, no intermediate Python atom loop.
+
+    The molecule must already have explicit H atoms and at least one 3-D
+    conformer.  If no conformer is present, a SolvError is raised.
+    """
     if name is None:
         name = mol.GetProp("_Name") if mol.HasProp("_Name") else "mol"
 
     if charge is None:
         charge = Chem.GetFormalCharge(mol)
 
-    atoms = mol_to_amsol_atoms(mol)
     options = amsolcpp.CalculationOptions()
     options.output_decimal_precision = 2
-    try:
-        water_result = amsolcpp.calculate(atoms, solvent="water", charge=charge, options=options)
-    except Exception as exc:
-        raise SolvError(f"water AMSOL calculation failed: {exc}") from exc
+    options.molecular_charge = charge
 
     try:
-        hex_result = amsolcpp.calculate(atoms, solvent="hexadecane", charge=charge, options=options)
+        desc = amsolcpp.calculate_solv_descriptors_from_rdkit_mol(mol, options)
     except Exception as exc:
-        raise SolvError(f"hexadecane AMSOL calculation failed: {exc}") from exc
+        raise SolvError(f"AMSOL dual-solvent calculation failed: {exc}") from exc
 
-    if not water_result.converged or not hex_result.converged:
+    if not desc.converged_water or not desc.converged_hexadecane:
         raise SolvError(
-            f"AMSOL calculation did not converge: water={water_result.converged}, hex={hex_result.converged}"
+            f"AMSOL calculation did not converge: "
+            f"water={desc.converged_water}, hex={desc.converged_hexadecane}"
         )
 
-    if len(water_result.atomic_solvation) != len(hex_result.atomic_solvation):
-        raise SolvError("water and hexadecane results have different atom counts")
-
-    atomic_charges_hex = hex_result.atomic_charges
-    polar_wat = [item.polarization_kcal_mol for item in water_result.atomic_solvation]
-    polar_hex = [item.polarization_kcal_mol for item in hex_result.atomic_solvation]
-    areas = [item.area_angstrom2 for item in hex_result.atomic_solvation]
-    apolar_wat = [item.cds_kcal_mol for item in water_result.atomic_solvation]
-    apolar_hex = [item.cds_kcal_mol for item in hex_result.atomic_solvation]
-
-    sum_apolar_hex = float(sum(apolar_hex))
-    total_area = hex_result.total_surface_area
-    if total_area == 0.0:
-        raise SolvError("total surface area is zero; cannot compute the apolar correction")
-
-    cs_coeff = (float(hex_result.cds_free_energy) - sum_apolar_hex) / total_area
-    print(f"New {round(hex_result.cds_free_energy, 2)}, {sum_apolar_hex}, {total_area}, {cs_coeff}")
-
-    diff_polar = [w - h for w, h in zip(polar_wat, polar_hex)]
-    diff_apolar = [w - (h + cs_coeff * a) for w, h, a in zip(apolar_wat, apolar_hex, areas)]
-    diff_solv = [p + a for p, a in zip(diff_polar, diff_apolar)]
-
     if verbose:
-        print("water polarization total:", water_result.polarization_free_energy)
-        print("hex polarization total:", hex_result.polarization_free_energy)
-        print("hex cds total:", hex_result.cds_free_energy)
-        print("cs_coeff:", cs_coeff)
+        print("cs_coeff:", desc.cs_coeff)
 
-    return Solv.from_results(
-        name=name,
-        total_charge=float(charge),
-        totalPolarSolv=water_result.polarization_free_energy,
-        totalSurface=total_area,
-        totalApolarSolv=sum_apolar_hex,
-        totalSolv=hex_result.total_solvation_free_energy,
-        charges=atomic_charges_hex,
-        polar_diff=diff_polar,
-        surface=areas,
-        apolar_diff=diff_apolar,
-        solv_diff=diff_solv,
-    )
+    # Populate Solv directly from the C++ per-field arrays — no comprehensions.
+    solv = Solv()
+    solv.name = name
+    solv.charge = list(desc.charges)
+    solv.polarSolv = list(desc.polar_diffs)
+    solv.surface = list(desc.surfaces)
+    solv.apolarSolv = list(desc.apolar_diffs)
+    solv.solv = list(desc.solv_diffs)
+    solv.totalAtoms = len(solv.charge)
+    solv.totalCharge = float(charge)
+    solv.totalPolarSolv = desc.total_diff_polar
+    solv.totalSurface = desc.total_surface
+    solv.totalApolarSolv = desc.total_diff_apolar
+    solv.totalSolv = desc.total_solv_diff
+    return solv
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
