@@ -357,7 +357,6 @@ def diff_amsol71_files(atom_listwat,totwat,atom_listhex,tothex,name,numatom,outp
 
 
            # hexadecane:
-           print(atom_listhex[i])
            Chghex[i]  = float(atom_listhex[i][2])  # partial charges (CM2: Truhlar's charge model 2 charges) of each atom in hexadecane solvent
            Polhex[i]  = float(atom_listhex[i][3])  # atomic polar contributions to solvation free enthalpy in hexadecane: Polarization Free Energy (G_P) in kcal/mol
            SAA[i]     = float(atom_listhex[i][4])  # atomic surface area contibutions in Angstrom^2
@@ -401,8 +400,6 @@ def diff_amsol71_files(atom_listwat,totwat,atom_listhex,tothex,name,numatom,outp
     cs_coeff = (float(tothex[4]) - sum_Apolhex)/float(tothex[3])   # cs_coeff = total LS contribution / total AreaSAA
     #           (total SS G_CDS - sum of atomic all atomic apolar contributions to free energy of solvation)/ total Area
     #           = total CS/LS contribution divided by total Area
-    print(tothex)
-    print(f"Old {tothex[4]}, {sum_Apolhex}, {tothex[3]}, {cs_coeff}")
 
     sum_csTimesSAA = 0.0
 
