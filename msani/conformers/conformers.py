@@ -313,6 +313,7 @@ class ConformerGenerator:
         self.substituted_N_barbi_hydan_like = utils.find_substituted_N_barbi_hydan_like(self.mol_H, self.barbiturate_matches, self.hydantoin_matches)
         self.amide_linkages = utils.find_amide(self.mol_H)
         self.cycloheptatriene_like = utils.find_cycloheptatriene(self.mol_H)
+        self.cycloheptadiene_like = utils.find_cycloheptadiene(self.mol_H)
         
         # Only find flippable Ns if we need multiple conformations
         self.flippable_Ns = utils.find_flipped_nitrogen(self.mol_H)
@@ -514,7 +515,6 @@ class ConformerGenerator:
             # First entry, lowest energy, store sulfo_7_descriptors descriptor
             lowest_energy_entry = temp_list.pop(0)
             conformer, current_descriptors = lowest_energy_entry[0], lowest_energy_entry[2:]
-            print(current_descriptors)
             sulfo_7_descriptor_ref = current_descriptors[-1]
             scaffold.AddConformer(conformer, assignId=True)
             self.ring_confs.append(scaffold)
@@ -534,7 +534,7 @@ class ConformerGenerator:
                     break
                 
             # Anything else until reaches the requirement
-            if len(self.ring_confs) < self.num_ring_confs:
+            while len(self.ring_confs) < self.num_ring_confs:
                 for entry in temp_list:
                     conformer, current_descriptors = entry[0], entry[2:]
                     scaffold = Chem.Mol(self.empty_mol)
@@ -549,11 +549,37 @@ class ConformerGenerator:
         else:
             align_on = list(self.planar_rings)[0] if self.planar_rings else (1, 2, 3)
             temp_list = conf_ring_descriptors_df.values.tolist()
-            
-            if  self.cycloheptatriene_like: 
+            check_this_column = []
+            if  self.cycloheptatriene_like or self.cycloheptadiene_like: 
                 self.num_ring_confs = max(2, self.num_ring_confs) # Cycloheptatriene has two puckering ring conformations
-                print(f"Found cycloheptatriene in {self.name}, setting num_ring_confs to {self.num_ring_confs}")
+                print(f"Found cycloheptatriene/cyclohepta_1,3_diene in {self.name}, setting num_ring_confs to {self.num_ring_confs}")
+                check_this_column = [
+                    i for i, col in enumerate(conf_ring_descriptors_df.columns)
+                    if any(ring_type in col for ring_type in utils.ring_types)
+                ]
 
+                # First entry, lowest energy, store ring descriptors
+                lowest_energy_entry = temp_list.pop(0)
+                conformer, current_descriptors = lowest_energy_entry[0], lowest_energy_entry[2:]
+                current_ring_ref_descriptors = [lowest_energy_entry[i] for i in check_this_column]
+                scaffold = Chem.Mol(self.empty_mol)
+                scaffold.AddConformer(conformer, assignId=True)
+                self.ring_confs.append(scaffold)
+                temp_list = utils.ring_conf_clusters(current_descriptors, temp_list) # Remove any confs that are identical to the first entry
+                
+                # Second entry, the one that mirror to the first one (opposite ring descriptors)
+                for entry in temp_list:
+                    conformer, current_descriptors = entry[0], entry[2:]
+                    current_ring_descriptors = [entry[i] for i in check_this_column]
+                    # This XOR function will find the mirror to the current one by the order of sr_confs library
+                    if all(c == r^1 for c, r in zip(current_ring_descriptors, current_ring_ref_descriptors)): 
+                        scaffold = Chem.Mol(self.empty_mol)
+                        scaffold.AddConformer(conformer, assignId=True)
+                        self.ring_confs.append(scaffold)
+                        temp_list = utils.ring_conf_clusters(current_descriptors, temp_list) # Remove any confs that are identical to the second entry
+                        break
+
+            # Third entry and go on or start first entry on normal cases           
             while len(self.ring_confs) < self.num_ring_confs and temp_list:
                 lowest_energy_entry = temp_list.pop(0)
                 conformer, current_descriptors = lowest_energy_entry[0], lowest_energy_entry[2:]

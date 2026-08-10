@@ -188,7 +188,7 @@ Date: 2025-08-05
     </dihedral_sets>
   </ring> 
 
-<ring name="cyclohexene_sp2-1,2,3_">
+  <ring name="cyclohexene_sp2-1,2,3_">
     <smarts smarts="[*^2]1~[*^2]~[*^2]-[A^3]-[A^3]-[A^3]-1"/>
     <ref ref=""/>
     <dihedral_sets>
@@ -317,11 +317,11 @@ Date: 2025-08-05
     <ref ref="https://doi.org/10.1016/0166-1280(82)80039-0; https://pubs.acs.org/doi/10.1021/ci7002494; https://doi.org/10.1016/0040-4020(73)80199-1"/>
     <dihedral_sets>
       <set dihedral="'15', '0', '-45', '80', '-45', '0', '0'" value="1"/> <!-- envelope - Cs-->
-      <set dihedral="'15', '0', '0', '-45', '80', '-45', '0'" value="2"/> <!-- envelope - Cs - revese order of 1-->
-      <set dihedral="'-15', '0', '45', '-80', '45', '0', '0'" value="3"/> <!-- envelope - Cs-->
-      <set dihedral="'-15', '0', '0', '45', '-80', '45', '0'" value="4"/> <!-- envelope - Cs revese order of 3-->
+      <set dihedral="'-15', '0', '45', '-80', '45', '0', '0'" value="2"/> <!-- envelope - Cs, mirror to 1-->
+      <set dihedral="'15', '0', '0', '-45', '80', '-45', '0'" value="3"/> <!-- envelope - Cs revese order of 1-->
+      <set dihedral="'-15', '0', '0', '45', '-80', '45', '0'" value="4"/> <!-- envelope - Cs revese order of 2, mirror to 3-->
       <set dihedral="'-45', '0', '70', '-45', '-45', '70', '0'" value="5"/> <!-- twisted-boat - C2-->
-      <set dihedral="'45', '0', '-70', '45', '45', '-70', '0'" value="6"/> <!-- twisted-boat - C2-->
+      <set dihedral="'45', '0', '-70', '45', '45', '-70', '0'" value="6"/> <!-- twisted-boat - C2, mirror to 5-->
     </dihedral_sets>
   </ring>
 
