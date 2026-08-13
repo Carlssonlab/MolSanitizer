@@ -36,7 +36,7 @@ aro_5_patt = Chem.MolFromSmarts('*-[a:1]1[a:2][a:3][a:4][a:5]1')  # 5 aromatic a
 aro_6_patt = Chem.MolFromSmarts('*-[a:1]1[a:2][a:3][a:4][a:5][a:6]1')  # 6 aromatic atoms
 cycloheptatriene_smarts = Chem.MolFromSmarts('[*^2]1~[*^2]-[*^2]~[*^2]-[*^2]~[*^2]-[A;$([A^3]),$([N^2]),$(A=!@[*!X1])]-1')
 cyclohepta_1_4_diene_3_sp2_smarts = Chem.MolFromSmarts('[*^2]1~[*^2]-[A^3,O]-[A^3,O]-[*^2]~[*^2]-[C^2,O,NH0]-1')
-cyclohepta_1_3_diene_smarts = Chem.MolFromSmarts('[*^2]1~[*^2]-[*^2]~[*^2]-[A^3,O]-[A^3]-[A^3,O]-1')
+cyclohepta_1_3_diene_smarts = Chem.MolFromSmarts('[*^2]1~[*^2]-[*^2]~[*^2]-[A^3,O,N]-[A^3]-[A^3,O,N]-1')
 
 ring_types = (
     "cyclohepta-1,3-diene",
