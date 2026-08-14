@@ -201,7 +201,9 @@ class Tautomerizer:
                 if smarts:
                     try:
                         # Name, Enumerate, Reaction SMARTS
-                        reactions.append((smarts[0], bool(int(smarts[1])), AllChem.ReactionFromSmarts(smarts[2])))
+                        reaction = AllChem.ReactionFromSmarts(smarts[2])
+                        reaction.Initialize()
+                        reactions.append((smarts[0], bool(int(smarts[1])), reaction))
                     except: 
                         logger.error(f"Error loading reaction: {line}")
         if self.debug:
@@ -378,7 +380,6 @@ class Tautomerizer:
             None. The unique product SMILES strings are added to self.collection.
         """
         for name, _, rxn in self.standardizing_reactions:
-            rxn.Initialize()
             runs = 0
             # 10 is likely enough to avoid infinite loops. Minimum rule needs to match 3 atoms. 
             # If the molecule needs to apply more than 10 times the same rule, it is unlikely a leadlike molecule.
@@ -398,19 +399,20 @@ class Tautomerizer:
 
         return mol
 
-    def enumerate(self, mol: Chem.Mol, max_tautomers: int = 10):
+    def enumerate_mols(self, mol: Chem.Mol, max_tautomers: int = 10):
         """
-        Enumerate different combination of different tautomer substructures of a molecule.
+        Enumerate tautomers while retaining their RDKit molecule objects.
 
         Args:
             mol (rdkit.Chem.rdchem.Mol): The reactant molecule.
             max_tautomers (int): Hard limit on maximum tautomers to prevent combinatorial explosion.
         Returns:
-            list: A list of unique SMILES strings of the tautomer substructures.
+            dict: Canonical SMILES deduplication keys mapped to molecules.
         """
-        unique_smiles = [Chem.MolToSmiles(mol)]
+        initial_smiles = Chem.MolToSmiles(mol)
+        unique_smiles = [initial_smiles]
+        unique_mols = {initial_smiles: mol}
         for name, _, rxn in self.enumerating_reactions:
-            #rxn.Initialize()
             i = 0
             while i < len(unique_smiles):
                 if len(unique_smiles) >= max_tautomers:
@@ -418,7 +420,7 @@ class Tautomerizer:
                     break
                     
                 current_smiles = unique_smiles[i]
-                current_mol = Chem.MolFromSmiles(current_smiles)
+                current_mol = unique_mols[current_smiles]
                 products = rxn.RunReactants((current_mol,))
                 if products:
                     if self.debug: print(f"\tApplying {name} to {current_smiles}")
@@ -427,39 +429,36 @@ class Tautomerizer:
                         error = Chem.SanitizeMol(new_mol, catchErrors=True)
                         if error == 0:
                             new_smiles = Chem.MolToSmiles(new_mol)
-                            if new_smiles not in unique_smiles:
+                            if new_smiles not in unique_mols:
                                 unique_smiles.append(new_smiles)
+                                unique_mols[new_smiles] = new_mol
                                 if len(unique_smiles) >= max_tautomers:
                                     break # Instantly break inner loop if cap hit
                 i += 1
             if len(unique_smiles) >= max_tautomers:
                 break # Break outer reaction loop as well if cap hit
                 
-        return unique_smiles
+        return unique_mols
+
+    def enumerate(self, mol: Chem.Mol, max_tautomers: int = 10):
+        """Return the canonical SMILES keys from :meth:`enumerate_mols`."""
+        return list(self.enumerate_mols(mol, max_tautomers))
 
 
-    def tautomerize(self, 
-                    smiles:str = None, 
-                    mol: Chem.Mol = None,
-                    name: str = None) -> list:
-        """
-        Tautomerize the input molecule. (Either SMILES or RDKit molecule object must be provided)
-
-        Args: 
-            
-            smiles (str): SMILES string of the molecule.
-            mol (rdkit.Chem.rdchem.Mol): RDKit molecule object.
-            name (str): Name of the molecule. - mainly for debugging purposes.
-
-        Returns:
-            Returns a list SMILES strings of the tautomers.
-        """
-        
+    def _tautomerize_mols(self,
+                          smiles: str = None,
+                          mol: Chem.Mol = None,
+                          name: str = None) -> dict[str, Chem.Mol]:
+        """Tautomerize into canonical SMILES keys mapped to product molecules."""
         if (mol is None) and (smiles is None):
             raise ValueError("Either SMILES or RDKit molecule object must be provided.")
-        
+
         if mol is None and smiles:
             mol = Chem.MolFromSmiles(smiles)
+        else:
+            # Transformation products may be sanitized in place. Keep caller-owned
+            # molecules isolated from all work performed by this method.
+            mol = Chem.Mol(mol)
         if self.debug:
             print(f"Tautomerizing {name}...")
             logger.info(f"Tautomerizing {name}...")
@@ -472,11 +471,14 @@ class Tautomerizer:
         standardized_mol = self.standardize(mol)
         if self.debug:
             print(f"\tStandardized to {Chem.MolToSmiles(standardized_mol)}")
-        unique_tautomers = self.enumerate(standardized_mol)
-        # for _, tautomer in enumerate(unique_tautomers):
-        #     unique_tautomers[_] = tautomer.replace('[C]', 'C').replace('[H]', 'H').replace('[CH]', 'C')\
-        #         .replace('[N]', 'N').replace('[O]', 'O').replace('[S]', 'S').replace('[cH]', 'c').replace('[n]', 'n')
-        return unique_tautomers
+        return self.enumerate_mols(standardized_mol)
+
+    def tautomerize(self,
+                    smiles: str = None,
+                    mol: Chem.Mol = None,
+                    name: str = None) -> list:
+        """Tautomerize and return canonical product SMILES strings."""
+        return list(self._tautomerize_mols(smiles=smiles, mol=mol, name=name))
     
     def tautomerize_df_mp(self, 
                           df: DataFrame,
@@ -560,11 +562,17 @@ def _process_single_tautomer_row(args):
         longname = row.get('longname', None)
         original_idx = row.get('original_idx', None)
         
-        tautomers_smiles = _tautomerizer_worker.tautomerize(mol=mol, name=row[name_column])
+        tautomers = _tautomerizer_worker._tautomerize_mols(
+            mol=mol, name=row[name_column]
+        )
 
-        for _, tautomer in enumerate(tautomers_smiles):
+        for tautomer in tautomers:
             results.append({
                 name_column: row[name_column],
+                # Preserve the historical normalization boundary between the
+                # tautomer and ionization stages. Reaction products can retain
+                # RDKit NoImplicit flags that a SMILES round-trip intentionally
+                # normalizes before protonation.
                 mol_column: Chem.MolFromSmiles(tautomer),
                 smiles_column: tautomer,
                 'longname': longname,

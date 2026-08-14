@@ -5,7 +5,6 @@ import shutil
 
 from pathlib import Path
 from types import SimpleNamespace
-from os import system
 import platform
 
 
@@ -89,7 +88,7 @@ class Test_MolSanitizer(unittest.TestCase):
                                       f'{self.path}/out_unwanted_all_rejected.txt')
          
             args.unwanted = ['Regular','Optional']
-            system(f'rm {temp_dir}/*.txt')
+            self.clear_temp_txt(temp_dir)
             cli.clean_data(args)
             with self.subTest(msg="Checking unwanted Regular and Optional:"):
                 self.compare_relative(f'{temp_dir}/dummy_output_clean.txt',
@@ -99,7 +98,7 @@ class Test_MolSanitizer(unittest.TestCase):
 
             # Test if filters works together
             args.unwanted = ['Regular']
-            system(f'rm {temp_dir}/*.txt')
+            self.clear_temp_txt(temp_dir)
             cli.clean_data(args)
             with self.subTest(msg="Checking unwanted Regular:"):
                 self.compareFiles(f'{temp_dir}/dummy_output_clean.txt',
@@ -108,7 +107,7 @@ class Test_MolSanitizer(unittest.TestCase):
                                   f'{self.path}/out_unwanted_regular_rejected.txt')
 
             args.unwanted = ['Special']
-            system(f'rm {temp_dir}/*.txt')
+            self.clear_temp_txt(temp_dir)
             cli.clean_data(args)
             with self.subTest(msg="Checking unwanted Special:"):
                 self.compareFiles(f'{temp_dir}/dummy_output_clean.txt',
@@ -117,7 +116,7 @@ class Test_MolSanitizer(unittest.TestCase):
                                   f'{self.path}/out_unwanted_special_rejected.txt')
 
             args.unwanted = ['Optional']
-            system(f'rm {temp_dir}/*.txt')
+            self.clear_temp_txt(temp_dir)
             cli.clean_data(args)
             with self.subTest(msg="Checking unwanted Optional:"):
                 self.compareFiles(f'{temp_dir}/dummy_output_clean.txt',
@@ -139,7 +138,7 @@ class Test_MolSanitizer(unittest.TestCase):
                                       f'{self.path}/out_ha1725_rejected.txt')
             
             args.ha = '>24'
-            system(f'rm {temp_dir}/*.txt')
+            self.clear_temp_txt(temp_dir)
             cli.clean_data(args)
             with self.subTest(msg="Checking HA >24:"):
                 self.compare_relative(f'{temp_dir}/dummy_output_clean.txt',
@@ -148,7 +147,7 @@ class Test_MolSanitizer(unittest.TestCase):
                                       f'{self.path}/out_ha_over24_rejected.txt')
 
             args.ha = None
-            system(f'rm {temp_dir}/*.txt')
+            self.clear_temp_txt(temp_dir)
             args.logp = '100-200'
             cli.clean_data(args)
             with self.subTest(msg="Checking logP 100-200:"):
@@ -158,7 +157,7 @@ class Test_MolSanitizer(unittest.TestCase):
                                       f'{self.path}/out_logp_100200_rejected.txt')
 
             args.logp = '<=350'
-            system(f'rm {temp_dir}/*.txt')
+            self.clear_temp_txt(temp_dir)
             cli.clean_data(args)
             with self.subTest(msg="Checking logP <=350:"):
                 self.compare_relative(f'{temp_dir}/dummy_output_clean.txt',
@@ -168,7 +167,7 @@ class Test_MolSanitizer(unittest.TestCase):
             
             args.logp = None
             args.mw = '>=300'
-            system(f'rm {temp_dir}/*.txt')
+            self.clear_temp_txt(temp_dir)
             cli.clean_data(args)
             with self.subTest(msg="Checking MW >=300:"):
                 self.compare_relative(f'{temp_dir}/dummy_output_clean.txt',
@@ -179,7 +178,7 @@ class Test_MolSanitizer(unittest.TestCase):
             args.mw = None
             args.hba = '<=4'
             args.hbd = '<=2'
-            system(f'rm {temp_dir}/*.txt')
+            self.clear_temp_txt(temp_dir)
             cli.clean_data(args)
             with self.subTest(msg="Checking HBA <=4 HBD <=2:"):
                 self.compare_relative(f'{temp_dir}/dummy_output_clean.txt',
@@ -191,7 +190,7 @@ class Test_MolSanitizer(unittest.TestCase):
             args.hba = None
             args.hbd = None
             args.chiral = '<=2'
-            system(f'rm {temp_dir}/*.txt')
+            self.clear_temp_txt(temp_dir)
             cli.clean_data(args)
             with self.subTest(msg="Checking chiral <=2:"):
                 self.compare_relative(f'{temp_dir}/dummy_output_clean.txt',
@@ -284,21 +283,21 @@ class Test_MolSanitizer(unittest.TestCase):
                 self.compare_relative(f'{temp_dir}/dummy_output_clean.txt',
                                       f'{self.path}/ph7_clean.txt')
 
-            system(f'rm {temp_dir}/*.txt')
+            self.clear_temp_txt(temp_dir)
             
             args.pH = 5
             cli.clean_data(args)
             with self.subTest(msg="Checking pH 5:"):
                 self.compare_relative(f'{temp_dir}/dummy_output_clean.txt',
                                       f'{self.path}/ph5_clean.txt')
-            system(f'rm {temp_dir}/*.txt')
+            self.clear_temp_txt(temp_dir)
 
             args.pH = 9
             cli.clean_data(args)
             with self.subTest(msg="Checking pH 9:"):
                 self.compare_relative(f'{temp_dir}/dummy_output_clean.txt',
                                       f'{self.path}/ph9_clean.txt')
-            system(f'rm {temp_dir}/*.txt')
+            self.clear_temp_txt(temp_dir)
 
     def test_standardization(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -538,6 +537,10 @@ class Test_MolSanitizer(unittest.TestCase):
                               "'wait' command missing from script.")
 
             os.chdir(self.path)
+
+    def clear_temp_txt(self, temp_dir: str):
+        for path in Path(temp_dir).glob("*.txt"):
+            path.unlink()
 
     def compare_relative(self, newfile: str, goldenfile: str):
         # Read the files into dataframes
