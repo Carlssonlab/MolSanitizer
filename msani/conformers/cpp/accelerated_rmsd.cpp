@@ -12,7 +12,6 @@
 #include <stdexcept>
 #include <iostream>
 #include <algorithm>
-#include <random>
 #if __cplusplus >= 202002L
 #include <span>
 #endif
@@ -175,17 +174,15 @@ void SameMoleculeRMSDCalculator::generateSymmetricMappings(const RDKit::ROMol& m
         symmetric_mappings_.push_back(identity_mapping);
     }
     
-    // Debug output
-    // fprintf(stderr, "DEBUG: Generated %zu symmetric mappings for molecule\n", symmetric_mappings_.size());
-    // for (size_t i = 0; i < symmetric_mappings_.size(); ++i) {
-    //     fprintf(stderr, "  Mapping %zu: %zu atom pairs\n", i, symmetric_mappings_[i].size());
-    // }
 } 
 
 SameMoleculeRMSDCalculator::SameMoleculeRMSDCalculator(bool use_symmetry, bool symmetrize_conjugated_terminal_groups) 
     : initialized_(false), use_symmetry_(use_symmetry), symmetrize_conjugated_terminal_groups_(symmetrize_conjugated_terminal_groups), num_heavy_atoms_(0) {}
 
 void SameMoleculeRMSDCalculator::initialize(const RDKit::ROMol& mol) {
+    initialized_ = false;
+    scored_mappings_.clear();
+    candidates_.clear();
     heavy_atom_indices_.clear();
     symmetric_mappings_.clear();
     
@@ -198,8 +195,16 @@ void SameMoleculeRMSDCalculator::initialize(const RDKit::ROMol& mol) {
     }
     
     num_heavy_atoms_ = heavy_atom_indices_.size();
+    if (num_heavy_atoms_ == 0) {
+        throw std::invalid_argument(
+            "RMSD calculation requires at least one heavy atom");
+    }
     
-    // Reserve capacity for point vectors to avoid repeated allocations
+    // Size/reserve every calculateAlignedRMSD() scratch buffer up front.
+    heavy_probe_positions_.resize(num_heavy_atoms_);
+    heavy_ref_positions_.resize(num_heavy_atoms_);
+    ref_points_.clear();
+    probe_points_.clear();
     ref_points_.reserve(num_heavy_atoms_);
     probe_points_.reserve(num_heavy_atoms_);
     
@@ -214,6 +219,9 @@ void SameMoleculeRMSDCalculator::initialize(const RDKit::ROMol& mol) {
         }
         symmetric_mappings_.push_back(identity_mapping);
     }
+
+    scored_mappings_.clear();
+    scored_mappings_.reserve(symmetric_mappings_.size());
     
     initialized_ = true;
 }
@@ -233,50 +241,65 @@ double SameMoleculeRMSDCalculator::calculateAlignedRMSD(
 
     double best_msd = std::numeric_limits<double>::max();
 
-    // Precompute heavy atom positions and radii once
+    // Cache heavy-atom position pointers once per reference. Storage is owned
+    // by the calculator so this does not allocate on the hot path.
     const size_t n_heavy = num_heavy_atoms_;
-    std::vector<const RDGeom::Point3D*> heavy_probe_pos(n_heavy), heavy_ref_pos(n_heavy);
-    // Populate pointers to heavy atom positions (no centroid accumulation here — we assume cached centroids/radii exist)
+    const auto& probe_positions = probe_conf.getPositions();
+    const auto& ref_positions = ref_conf.getPositions();
+    if (cached_probe_radii == nullptr || cached_ref_radii == nullptr) {
+        throw std::invalid_argument(
+            "Precomputed probe and reference radii are required");
+    }
+    if (cached_probe_radii->size() < n_heavy ||
+        cached_ref_radii->size() < n_heavy) {
+        throw std::invalid_argument(
+            "Precomputed radii do not cover every heavy atom");
+    }
+    if (!heavy_atom_indices_.empty()) {
+        const size_t last_atom_index =
+            static_cast<size_t>(heavy_atom_indices_.back());
+        if (probe_positions.size() <= last_atom_index ||
+            ref_positions.size() <= last_atom_index) {
+            throw std::invalid_argument(
+                "Conformer atom count does not match the initialized molecule");
+        }
+    }
     for (size_t i = 0; i < n_heavy; ++i) {
         int atom_idx = heavy_atom_indices_[static_cast<int>(i)];
-        heavy_probe_pos[i] = &probe_conf.getAtomPos(atom_idx);
-        heavy_ref_pos[i]   = &ref_conf.getAtomPos(atom_idx);
+        heavy_probe_positions_[i] = &probe_positions[atom_idx];
+        heavy_ref_positions_[i] = &ref_positions[atom_idx];
     }
-    // Precompute radii (distance from centroid)
-    std::vector<double> probe_radii(n_heavy), ref_radii(n_heavy);
-    // Use provided probe radii (distance from centroid) — caller guarantees this is populated
-    for (size_t i = 0; i < n_heavy; ++i) {
-        probe_radii[i] = (*cached_probe_radii)[i];
-        ref_radii[i] = (*cached_ref_radii)[i];
-    }
+
+    // The caller owns descriptors for both conformers; alias them instead of
+    // allocating and copying two radius arrays for every reference.
+    const auto& probe_radii = *cached_probe_radii;
+    const auto& ref_radii = *cached_ref_radii;
 
     // Compute heuristic score (radial lower bound) for each mapping
-    struct ScoredMapping {
-        double heuristic;
-        const std::vector<std::pair<int,int>>* mapping;
-    };
-    std::vector<ScoredMapping> scored;
-    scored.reserve(symmetric_mappings_.size());
+    scored_mappings_.clear();
 
-    for (const auto& mapping : symmetric_mappings_) {
+    for (size_t mapping_index = 0;
+         mapping_index < symmetric_mappings_.size();
+         ++mapping_index) {
+        const auto& mapping = symmetric_mappings_[mapping_index];
         double sum_sq = 0.0;
         for (auto& pair : mapping) {
             double d = probe_radii[pair.first] - ref_radii[pair.second];
             sum_sq += d * d;
         }
         double heuristic = (mapping.empty() ? 0.0 : sum_sq / mapping.size());
-        scored.push_back({heuristic, &mapping});
+        scored_mappings_.push_back({heuristic, mapping_index});
     }
 
     // Sort by heuristic (smaller = more similar)
-    std::sort(scored.begin(), scored.end(),
+    std::sort(scored_mappings_.begin(), scored_mappings_.end(),
               [](const ScoredMapping& a, const ScoredMapping& b) {
                   return a.heuristic < b.heuristic;
               });
 
     // Try each symmetric mapping
-    for (const auto& sm : scored) {
-        const auto& mapping = *sm.mapping;
+    for (const auto& sm : scored_mappings_) {
+        const auto& mapping = symmetric_mappings_[sm.mapping_index];
         ref_points_.clear();
         probe_points_.clear();
 
@@ -286,13 +309,12 @@ double SameMoleculeRMSDCalculator::calculateAlignedRMSD(
         if (thres2 >= 0.0 && lower_bound_msd > thres2) { continue; }
 
         for (auto& pair : mapping) {
-            probe_points_.push_back(heavy_probe_pos[pair.first]);
-            ref_points_.push_back(heavy_ref_pos[pair.second]);
+            probe_points_.push_back(heavy_probe_positions_[pair.first]);
+            ref_points_.push_back(heavy_ref_positions_[pair.second]);
         }
 
-        RDGeom::Transform3D trans;
         double ssr = RDNumeric::Alignments::AlignPoints(
-            ref_points_, probe_points_, trans, nullptr, false, 25);
+            ref_points_, probe_points_, alignment_transform_, nullptr, false, 25);
 
         double msd = ssr / static_cast<double>(num_heavy_atoms_);
 
@@ -309,65 +331,70 @@ double SameMoleculeRMSDCalculator::calculateAlignedRMSD(
 }
 
 bool SameMoleculeRMSDCalculator::isSimilarToAny(const RDKit::ROMol& mol,
-                                               int probe_conf_id,
-                                               const std::vector<int>& ref_conf_ids,
+                                               const RDKit::Conformer& probe_conf,
+                                               const std::vector<double>& probe_radii,
                                                double rmsd_threshold,
                                                const std::vector<std::vector<double>>* cached_ref_radii,
                                                const std::vector<RDGeom::Point3D>* cached_ref_centroids) const {
     if (!initialized_) {
         throw std::runtime_error("Calculator not initialized");
     }
+
+    if (cached_ref_radii == nullptr) {
+        throw std::invalid_argument("Cached reference radii are required");
+    }
+    if (probe_radii.size() < num_heavy_atoms_) {
+        throw std::invalid_argument(
+            "Probe radii do not cover every heavy atom");
+    }
+    if (cached_ref_radii->size() != mol.getNumConformers()) {
+        throw std::invalid_argument(
+            "Cached reference radii do not match the conformer cache");
+    }
+    // Centroids are retained in the API for compatibility, but radial
+    // descriptors contain everything needed by the current lower bound.
+    (void)cached_ref_centroids;
     
-    const RDKit::Conformer& probe_conf = mol.getConformer(probe_conf_id);
     double thres2 = (rmsd_threshold >= 0.0) ? rmsd_threshold * rmsd_threshold : -1.0;
-    // Precompute probe centroid and squared radii once for the probe and reuse for heuristics and alignments
     const size_t n_heavy = num_heavy_atoms_;
-    std::vector<double> probe_radii(n_heavy);
-    RDGeom::Point3D probe_centroid_all(0.0, 0.0, 0.0);
-    for (size_t i = 0; i < n_heavy; ++i) {
-        int atom_idx = heavy_atom_indices_[static_cast<int>(i)];
-        const RDGeom::Point3D &p = probe_conf.getAtomPos(atom_idx);
-        probe_centroid_all += p;
-    }
-    probe_centroid_all *= (1.0 / static_cast<double>(n_heavy));
-    for (size_t i = 0; i < n_heavy; ++i) {
-        int atom_idx = heavy_atom_indices_[static_cast<int>(i)];
-        const RDGeom::Point3D &p = probe_conf.getAtomPos(atom_idx);
-        double dx = p.x - probe_centroid_all.x;
-        double dy = p.y - probe_centroid_all.y;
-        double dz = p.z - probe_centroid_all.z;
-        probe_radii[i] = std::sqrt(dx*dx + dy*dy + dz*dz);
-    }
 
     // Build candidate list with heuristic (mean squared difference of radii)
-    struct Candidate { int conf_id; double heuristic; };
-    std::vector<Candidate> candidates;
-    candidates.reserve(ref_conf_ids.size());
-
-    for (int ref_id : ref_conf_ids) {
-        // Assume cached_ref_radii is provided and contains squared radii for each reference conformer
-        const auto &ref_r = (*cached_ref_radii)[static_cast<size_t>(ref_id)];
+    candidates_.clear();
+    size_t cache_index = 0;
+    for (auto conformer = mol.beginConformers();
+         conformer != mol.endConformers();
+         ++conformer, ++cache_index) {
+        // Cached radii are indexed identically to the cache molecule's conformers.
+        const auto& ref_r = (*cached_ref_radii)[cache_index];
+        if (ref_r.size() < n_heavy) {
+            throw std::invalid_argument(
+                "Cached reference radii do not cover every heavy atom");
+        }
         double sum_sq = 0.0;
         for (size_t i = 0; i < n_heavy; ++i) {
             double d = probe_radii[i] - ref_r[i];
             sum_sq += d * d;
         }
         double heuristic = sum_sq / static_cast<double>(n_heavy);
-        candidates.push_back({ref_id, heuristic});
+        candidates_.push_back({conformer->get(), cache_index, heuristic});
     }
 
-    std::sort(candidates.begin(), candidates.end(), [](const Candidate &a, const Candidate &b){ return a.heuristic < b.heuristic; });
+    std::sort(candidates_.begin(), candidates_.end(),
+              [](const Candidate& a, const Candidate& b) {
+                  return a.heuristic < b.heuristic;
+              });
 
     // Evaluate candidates in heuristic order (most promising first)
-    for (const auto &cand : candidates) {
-        int ref_id = cand.conf_id;
-        const RDKit::Conformer& ref_conf = mol.getConformer(ref_id);
-    // Directly get references into the cached per-ref arrays (assumed present)
-    const std::vector<double>* ref_radii_ptr = &((*cached_ref_radii)[static_cast<size_t>(ref_id)]);
-    const RDGeom::Point3D* ref_centroid_ptr = &((*cached_ref_centroids)[static_cast<size_t>(ref_id)]);
+    for (const auto& candidate : candidates_) {
+        const std::vector<double>* ref_radii_ptr =
+            &((*cached_ref_radii)[candidate.cache_index]);
 
-    // Forward the precomputed probe squared radii to avoid recomputation inside calculateAlignedRMSD
-    double msd = calculateAlignedRMSD(probe_conf, ref_conf, nullptr, thres2, ref_radii_ptr, ref_centroid_ptr, &probe_radii);
+        // Forward both conformers' precomputed radial descriptors. Centroids
+        // are not needed once those descriptors have been built.
+        double msd = calculateAlignedRMSD(probe_conf, *candidate.conformer,
+                                          nullptr, thres2,
+                                          ref_radii_ptr, nullptr,
+                                          &probe_radii);
         if (thres2 >= 0.0) {
             if (msd <= thres2) return true;
         } else {
