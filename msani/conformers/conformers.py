@@ -1139,6 +1139,9 @@ class ConformerGenerator:
                 error_signal = 0
                 if self.method == 'rdkit':
                     cp = Chem.Mol(self.amsol_mol, confId=conf_id) #Retrieve the conf_id-th conformer of mol object
+                    time_new = time.time()
+                    solv_obj2 = rdkit_amsol_to_solv.build_solv_from_rdkit(cp, self.name, self.netcharge)
+                    time_new = time.time() - time_new
                     mol2_obj = mol2writer.Mol2Writer(cp, mol2_template = self.mol2_str, atom_attributes = True)
                     mol2_obj.write_mol2(f"{self.name}.mol2")
                 else:
@@ -1164,9 +1167,9 @@ class ConformerGenerator:
             except: pass
             return
         self.amsol_time = time.time()
-        shutil.copy(f"solv/{self.name}/output.mol2", f"solv/{self.name}/{self.name}_solv.mol2")
-        shutil.move(f"solv/{self.name}/output.solv", f"solv/{self.name}/{self.name}_solv.solv")
-        amsol_solv_obj = solv.Solv(f"solv/{self.name}/{self.name}_solv.solv")
+        # shutil.copy(f"solv/{self.name}/output.mol2", f"solv/{self.name}/{self.name}_solv.mol2")
+        if Path(f"solv/{self.name}/{self.name}_solv.solv").exists():
+            shutil.move(f"solv/{self.name}/output.solv", f"solv/{self.name}/{self.name}_solv.solv")
         time_old = time.time() - time_old
 
         ### Torsional sampling ###
@@ -1183,23 +1186,32 @@ class ConformerGenerator:
         if self.VERBOSE: print("Output to DB2...")
         os.makedirs(f"db2/{self.name}", exist_ok=True)
         try:
-            shutil.move(os.path.join("solv", self.name, f"{self.name}_solv.solv"), os.path.join("db2", self.name, f"{self.name}.solv"))
-            shutil.move(os.path.join("solv", self.name, f"{self.name}_solv.mol2"), os.path.join("db2", self.name, f"{self.name}.mol2"))
-
             os.chdir(f"db2/{self.name}")
             db2_data_all = ""
-            solv_obj = solv.Solv(f"{self.name}.solv")
-            time_new = time.time()
-            solv_obj2 = rdkit_amsol_to_solv.build_solv_from_rdkit(self.amsol_mol, self.name, self.netcharge)
-            time_new = time.time() - time_new
+            if Path(f"{self.name}.solv").exists(): solv_obj = solv.Solv(f"{self.name}.solv")
+            else: solv_obj = None
             if not compare_solv_objs(solv_obj, solv_obj2):
                 print(f"AMSOL solv values different from RDKit-based solv values for {self.name}")
                 print(f"{self.smiles} {self.name}\n")
                 with open(f"../../solv_diff.txt", 'a') as f:
                     f.write(f"{self.smiles} {self.name}\n")
+            topology_writer = mol2writer.Mol2Writer(
+                self.ring_confs[0],
+                mol2_template=self.mol2_str,
+            )
+            mol2_topology = topology_writer.to_db2_topology(
+                name=self.name,
+                smiles=self.smiles,
+                longname=longname,
+            )
             for ring_conf in self.ring_confs:
                 for rigid_scaffold in self.atom_maps:
-                    db2_data = utils.Align_ConvertToDb2(ring_conf, rigid_scaffold, solv_obj, self.name, self.smiles, longname) 
+                    db2_data = utils.Align_ConvertToDb2(
+                        ring_conf,
+                        rigid_scaffold,
+                        solv_obj2,
+                        mol2_topology,
+                    )
                     db2_data_all += db2_data
             with open("../../time.log", "a") as f:
                 f.write(f'{self.smiles}\t{time_old}\t{time_new}\n')
@@ -1213,8 +1225,8 @@ class ConformerGenerator:
             if as_string:
                 return db2_data_all
                 
-        except Exception as e:
-            logger.error(f"Error in converting {self.name} to DB2 format: {e}")
+        except Exception:
+            logger.exception(f"Error in converting {self.name} to DB2 format")
             os.chdir("../..")
             try: # Clean up the folders if error occurs. This help to not overfill the disk
                 shutil.rmtree(f"solv/{self.name}", ignore_errors=True)
@@ -1224,15 +1236,18 @@ class ConformerGenerator:
             return
 
 def compare_solv_objs(solv_obj1, solv_obj2):
+    if solv_obj1 is None or solv_obj2 is None:
+        return False
+    equal = True
     for attribute in ['totalAtoms', 'totalCharge', 'totalPolarSolv', 'totalSurface', 'totalApolarSolv', 'totalSolv']:
         if abs(getattr(solv_obj1, attribute) - getattr(solv_obj2, attribute)) > 0.1:
             print(f"Error in comparing solv objects: {attribute} {getattr(solv_obj1, attribute)} {getattr(solv_obj2, attribute)}")
-            return False
+            equal = False
     for i in range(len(solv_obj1.charge)):
         if abs(solv_obj1.charge[i] - solv_obj2.charge[i]) > 0.1:
             print(f"Error in comparing solv objects: charge[{i}] {solv_obj1.charge[i]} {solv_obj2.charge[i]}")
-            return False
-    return True
+            equal = False
+    return equal
 
 def setup_env():
     '''
