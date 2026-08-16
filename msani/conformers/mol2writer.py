@@ -428,12 +428,12 @@ class Mol2Writer:
 
         # ATOM section header
         lines.append("@<TRIPOS>ATOM")
-        atom_fmt = "{:>4d} {:<11s} {:>9.4f} {:>10.4f} {:>10.4f} {:<8s} {:>10.4f}"
+        atom_fmt = "{:>4d} {:<11s} {:>9.4f} {:>10.4f} {:>10.4f} {:<8s}"
         for i, atom in enumerate(mol.GetAtoms(), start=1):
             x, y, z = conf.GetAtomPosition(atom.GetIdx()).x, conf.GetAtomPosition(atom.GetIdx()).y, conf.GetAtomPosition(atom.GetIdx()).z
             at_type = self.atom_types[atom.GetIdx()]
             atom_name = f"{atom.GetSymbol()}{i}"
-            line = atom_fmt.format(i, atom_name, x, y, z, at_type, 0.0)
+            line = atom_fmt.format(i, atom_name, x, y, z, at_type)
             lines.append(line)
             
         # ATOM attributes if request:

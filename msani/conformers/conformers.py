@@ -1132,6 +1132,7 @@ class ConformerGenerator:
         os.makedirs(f"solv/{self.name}", exist_ok=True)
         os.chdir(f"solv/{self.name}")
         time_old = time.time()
+        solv_obj2 = None
         for conf_id in range(self.amsol_mol.GetNumConformers()):
             try:
                 # Idea: try from the energy minimum conformer if AMSOL fails -> next conformer until reach the last
@@ -1139,20 +1140,21 @@ class ConformerGenerator:
                 error_signal = 0
                 if self.method == 'rdkit':
                     cp = Chem.Mol(self.amsol_mol, confId=conf_id) #Retrieve the conf_id-th conformer of mol object
-                    time_new = time.time()
-                    solv_obj2 = rdkit_amsol_to_solv.build_solv_from_rdkit(cp, self.name, self.netcharge)
-                    time_new = time.time() - time_new
                     mol2_obj = mol2writer.Mol2Writer(cp, mol2_template = self.mol2_str, atom_attributes = True)
                     mol2_obj.write_mol2(f"{self.name}.mol2")
                 else:
                     # Babel and CORINA, use the mol2_str as only 1 conformer is needed
+                    cp = Chem.Mol(self.amsol_mol, confId=conf_id) #Retrieve the conf_id-th conformer of mol object
                     write_to_file(self.mol2_str, f"{self.name}.mol2")
+                time_new = time.time()
+                solv_obj2 = rdkit_amsol_to_solv.build_solv_from_rdkit(cp, self.name, self.netcharge)
+                time_new = time.time() - time_new
                 run_amsol.prepare(f"{self.name}.mol2", self.name, self.netcharge)
                 error_signal = run_amsol.run('temp.in-hex', 'temp.o-hex', env)
                 if error_signal == -1: continue
                 error_signal = run_amsol.run('temp.in-wat', 'temp.o-wat', env)
                 if error_signal == -1: continue
-                error_signal = run_amsol.process_output('temp.o-wat', 'temp.o-hex', "temp.mol2", "output")#, VERBOSE=VERBOSE)
+                error_signal = run_amsol.process_output('temp.o-wat', 'temp.o-hex', "temp.mol2", "output")#, VERBOSE=True)
                 if error_signal == -1: continue
                 break
             except Exception as e:
@@ -1162,14 +1164,13 @@ class ConformerGenerator:
         if error_signal == -1 and conf_id + 1 == self.amsol_mol.GetNumConformers(): # AMSOL failed
             logger.error(f"AMSOL failed for {self.name}, skipping it")
             log_error(self.smiles, self.name)
-            try: # Clean up the folders if error occurs. This help to not overfill the disk
-                shutil.rmtree(f"solv/{self.name}", ignore_errors=True)
-            except: pass
+            # try: # Clean up the folders if error occurs. This help to not overfill the disk
+            #     shutil.rmtree(f"solv/{self.name}", ignore_errors=True)
+            # except: pass
             return
         self.amsol_time = time.time()
-        # shutil.copy(f"solv/{self.name}/output.mol2", f"solv/{self.name}/{self.name}_solv.mol2")
-        if Path(f"solv/{self.name}/{self.name}_solv.solv").exists():
-            shutil.move(f"solv/{self.name}/output.solv", f"solv/{self.name}/{self.name}_solv.solv")
+        shutil.copy(f"solv/{self.name}/output.mol2", f"solv/{self.name}/{self.name}_solv.mol2")
+        shutil.move(f"solv/{self.name}/output.solv", f"solv/{self.name}/{self.name}.solv")
         time_old = time.time() - time_old
 
         ### Torsional sampling ###
@@ -1186,6 +1187,7 @@ class ConformerGenerator:
         if self.VERBOSE: print("Output to DB2...")
         os.makedirs(f"db2/{self.name}", exist_ok=True)
         try:
+            shutil.move(os.path.join("solv", self.name, f"{self.name}.solv"), os.path.join("db2", self.name, f"{self.name}.solv"))
             os.chdir(f"db2/{self.name}")
             db2_data_all = ""
             if Path(f"{self.name}.solv").exists(): solv_obj = solv.Solv(f"{self.name}.solv")
@@ -1237,6 +1239,7 @@ class ConformerGenerator:
 
 def compare_solv_objs(solv_obj1, solv_obj2):
     if solv_obj1 is None or solv_obj2 is None:
+        print(f"Error in comparing solv objects: One of the solv objects is None: {solv_obj1} {solv_obj2}")
         return False
     equal = True
     for attribute in ['totalAtoms', 'totalCharge', 'totalPolarSolv', 'totalSurface', 'totalApolarSolv', 'totalSolv']:

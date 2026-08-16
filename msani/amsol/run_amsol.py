@@ -5,6 +5,7 @@ import platform
 from pathlib import Path
 import gzip
 
+from rdkit import Chem
 from msani.amsol import mol2amsol
 
 # Refactored by Thua-Phong Lam, Jens Carlsson lab, Uppsala University (July, 2024)
@@ -41,54 +42,14 @@ if AMSOLEXE is not None:
             "Check the amsol directory for instructions to install AMSOL."
         )
 
-def convert_to_ZmatMOPAC(input_file, output_file, VERBOSE=False):
-    result = subprocess.run([ZMOPACEXE, input_file, output_file], 
-                                capture_output=True, text=True, check=True)
-    if VERBOSE:
-        if result.stdout:
-            print("ZMOPAC Converter stdout:\n", result.stdout)
-        if result.stderr:
-            print("ZMOPAC Converter stderr:\n", result.stderr)
+def convert_to_cartesian(input_file):
+    mol = Chem.MolFromMol2File(input_file, sanitize=False, removeHs=False)
+    xyz = {}
+    for i, atom in enumerate(mol.GetAtoms()):
+        pos = mol.GetConformer().GetAtomPosition(atom.GetIdx())
+        xyz[i] = f"{atom.GetSymbol()} {pos.x:.6f} 1 {pos.y:.6f} 1 {pos.z:.6f} 1\n"
+    return xyz
 
-def read_ZmatMOPAC(Zmat_file, VERBOSE=False):
-    if VERBOSE:
-        print("\njust entered read_ZmatMOPAC()\n")
-
-    ZmatMOPAC_lines = {}
-
-    with open(Zmat_file, 'r') as infile_ZmatMOPAC:
-        lines = infile_ZmatMOPAC.readlines()
-
-    # Process lines, skipping the first three
-    for line_key_infile, line in enumerate(lines[3:], start=4):
-        line_key_out = line_key_infile - 3
-
-        # Modify the first three Z-matrix lines to avoid non-fatal errors in amsol7.1
-        if line_key_out == 1:
-            spl = line.split()
-            spl[2], spl[4], spl[6] = "0", "0", "0"
-        elif line_key_out == 2:
-            spl = line.split()
-            spl[4], spl[6] = "0", "0"
-        elif line_key_out == 3:
-            spl = line.split()
-            spl[6] = "0"
-        else:
-            spl = line.split()
-
-        # Reconstruct the line with the necessary modifications
-        line = "%-2s %10.6f %2d %11.6f %2d %11.6f %2d %5d %3d %3d\n" % (
-            spl[0], float(spl[1]), int(spl[2]), float(spl[3]),
-            int(spl[4]), float(spl[5]), int(spl[6]),
-            int(spl[7]), int(spl[8]), int(spl[9])
-        )
-
-        ZmatMOPAC_lines[line_key_out] = line
-
-    if VERBOSE:
-        print("read_ZmatMOPAC() has finished.")
-
-    return ZmatMOPAC_lines
 
 def create_amsol71_inputfile(output_prefix, MoleculeName, ZmatMOPAC_Data, netcharge, VERBOSE=False):
 
@@ -110,11 +71,11 @@ def create_amsol71_inputfile(output_prefix, MoleculeName, ZmatMOPAC_Data, netcha
         print("netcharge of molecule in temp.mol2 (sum of partial charges):", netcharge)
     
     # write the AMSOL7.1 keywords for a SM5.42R point calculation in water to the AMSOL7.1 water input-file:
-    Water_Amsol71_SM542R_Keywords = """CHARGE=%s AM1 1SCF TLIMIT=15 GEO-OK SM5.42R\n& SOLVNT=WATER\n""" % netcharge
+    Water_Amsol71_SM542R_Keywords = """CHARGE=%s AM1 1SCF TLIMIT=15 GEO-OK CART SM5.42R\n& SOLVNT=WATER \n""" % netcharge
     Actual_Amsol71_InputFile_Water.write(Water_Amsol71_SM542R_Keywords)
 
     # write the AMSOL7.1 keywords for a SM5.42R point calculation in hexadecane to the AMSOL7.1 hexadecane input-file:
-    Hexadecane_Amsol71_SM542R_Keywords = """CHARGE=%s AM1 1SCF TLIMIT=15 GEO-OK SM5.42R\n& SOLVNT=GENORG IOFR=1.4345 ALPHA=0.00 BETA=0.00 GAMMA=38.93\n& DIELEC=2.06 FACARB=0.00 FEHALO=0.00 DEV\n""" % netcharge
+    Hexadecane_Amsol71_SM542R_Keywords = """CHARGE=%s AM1 1SCF TLIMIT=15 GEO-OK CART SM5.42R\n& SOLVNT=GENORG IOFR=1.4345 ALPHA=0.00 BETA=0.00 GAMMA=38.93\n& DIELEC=2.06 FACARB=0.00 FEHALO=0.00 DEV \n""" % netcharge
     Actual_Amsol71_InputFile_Hexadecane.write(Hexadecane_Amsol71_SM542R_Keywords)
 
     # write the name of the currently treated protonated state of the molecule into the AMSOL7.1 file
@@ -157,9 +118,10 @@ def prepare(mol2file, name, netcharge, VERBOSE=False):
 
     subprocess.run(["cp", "--", mol2file, "temp.mol2"])
 
-    convert_to_ZmatMOPAC("temp.mol2", "temp.ZmatMOPAC", VERBOSE)
-    ZmatMOPAC_data = read_ZmatMOPAC("temp.ZmatMOPAC", VERBOSE)
-    create_amsol71_inputfile('temp', name, ZmatMOPAC_data, netcharge, VERBOSE)
+    # convert_to_ZmatMOPAC("temp.mol2", "temp.ZmatMOPAC", VERBOSE)
+    # ZmatMOPAC_data = read_ZmatMOPAC("temp.ZmatMOPAC", VERBOSE)
+    xyz_data = convert_to_cartesian("temp.mol2")
+    create_amsol71_inputfile('temp', name, xyz_data, netcharge, VERBOSE)
 
 def check_output_from_amsol71(output_file, VERBOSE=False):
     with open(output_file, 'r') as f:
@@ -224,7 +186,7 @@ def process_amsol_file(file, outputprefix, solvent, VERBOSE=False):
         numatoms = 0
         alist = []
         total_line = []
-
+        start = False
         for line in lines:
             linesplit = line.split()  # Split on whitespace
 
@@ -233,9 +195,10 @@ def process_amsol_file(file, outputprefix, solvent, VERBOSE=False):
                 output.write(line)
                 name = linesplit[0]
                 numatoms = int(linesplit[1])
+            if line.startswith(" In the following"): start = True
             # Extract the large table near the end of the AMSOL7.1 output (9 columns)
             # Extract per-atom breakdown of solvation calculation
-            if len(linesplit) == 9 and is_int(linesplit[0]) and linesplit[4] != "*":
+            if start and len(linesplit) == 9 and is_int(linesplit[0]) and linesplit[4] != "*":
                 output.write(line)
                 #alist[i] contains information about the atom i
                 alist.append(linesplit) 
@@ -451,7 +414,6 @@ def modify_charges_mol2_file(mol2file, atom_list_hex, outputprefix, VERBOSE=Fals
         print("     are written to mol2-file. Former charges are overwritten.")
 
     mol = mol2amsol.read_Mol2_file(mol2file)[0] 
-
     n = len(atom_list_hex)
     if n != len(mol.atom_list):
        if VERBOSE: print("Error: n != len(mol.atom_list) : " + str(n) + " !=" + str(len(mol.atom_list)))
@@ -477,7 +439,6 @@ def modify_charges_mol2_file(mol2file, atom_list_hex, outputprefix, VERBOSE=Fals
 def process_output(wat_file, hex_file, mol2file, output_prefix, VERBOSE=False):
     atom_list_wat,tot_wat,name_wat,numat_wat = process_amsol_file(wat_file,output_prefix,"wat")
     atom_list_hex,tot_hex,name_hex,numat_hex = process_amsol_file(hex_file,output_prefix,"hex", VERBOSE = VERBOSE)
-    
 
     # tot_wat and tot_hex are lists:
     # ( see def process_amsol_file(...) above)
@@ -512,7 +473,6 @@ def process_output(wat_file, hex_file, mol2file, output_prefix, VERBOSE=False):
         print("just before modify_charges_mol2_file() function")
         print("")
     if error_signal == 0: modify_charges_mol2_file(mol2file, atom_list_hex, output_prefix) 
-
     if VERBOSE:
         print("")
         print("**** The main program in process_amsol71_mol2.py was finished for ****")
