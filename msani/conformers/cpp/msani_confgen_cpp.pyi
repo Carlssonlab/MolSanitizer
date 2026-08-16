@@ -192,6 +192,8 @@ def embed_multiple_confs(
         - hydantoin_matches: List of variable-length atom index arrays
         - substituted_N_barbi_hydan_like: List of 4-atom index arrays
         - planar_rings: List of variable-length atom index arrays (≥4 atoms)
+        - alkyne: List of 4-atom index arrays with a linear torsion constraint and
+          170-180 degree bending constraints on atoms 0-1-2 and 1-2-3
         
     Returns
     -------

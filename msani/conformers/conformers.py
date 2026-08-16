@@ -314,6 +314,7 @@ class ConformerGenerator:
         self.substituted_N_barbi_hydan_like = utils.find_substituted_N_barbi_hydan_like(self.mol_H, self.barbiturate_matches, self.hydantoin_matches)
         self.amide_linkages = utils.find_amide(self.mol_H)
         self.cycloheptatriene_like = utils.find_cycloheptatriene(self.mol_H)
+        self.alkyne = utils.find_alkyne(self.mol_H)
         
         # Only find flippable Ns if we need multiple conformations
         self.flippable_Ns = utils.find_flipped_nitrogen(self.mol_H)
@@ -363,6 +364,10 @@ class ConformerGenerator:
             if self.substituted_N_barbi_hydan_like:
                 print('\tFound substituted N barbiturate/hydantoin-like structures')
                 for match in self.substituted_N_barbi_hydan_like:
+                    print(f'\t {match}')
+            if self.alkyne:
+                print('\tFound alkyne structures')
+                for match in self.alkyne:
                     print(f'\t {match}')
             
         # Determine number of initial conformations needed

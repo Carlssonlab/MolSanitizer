@@ -38,6 +38,7 @@ aro_6_patt = Chem.MolFromSmarts('*-[a:1]1[a:2][a:3][a:4][a:5][a:6]1')  # 6 aroma
 cycloheptatriene_smarts = Chem.MolFromSmarts('[*^2]1~[*^2]-[*^2]~[*^2]-[*^2]~[*^2]-[A;$([A^3]),$([N^2]),$(A=!@[*!X1])]-1')
 cyclohepta_1_4_diene_3_sp2_smarts = Chem.MolFromSmarts('[*^2]1~[*^2]-[A^3,O]-[A^3,O]-[*^2]~[*^2]-[C^2,O,NH0]-1')
 
+alkyne = Chem.MolFromSmarts('*-C#C-*') # To 0 iteratively two consecutive atoms
 barbiturate = Chem.MolFromSmarts('[C;$(C~[OX1,SX1]):1]1~[N:2]~[C;$(C~[OX1,SX1]):3]~[*^2:4]~[*^2:5]~[*:6]~1') # To 0 iteratively four consecutive atoms
 hydantoin = Chem.MolFromSmarts('[C;$(C~[OX1,SX1]):1]1~[N:2]~[C;$(C~[OX1,SX1]):3]~[*^2:4]~[A:5]~1') # To 0 iteratively four consecutive atoms
 substituted_N_barbi_hydan_like = Chem.MolFromSmarts('*~[C^2,N^2:1][C^2,N^2:2][C^2,N^2:3]')
@@ -189,6 +190,11 @@ def find_amide(mol_H: Mol):
     '''
     return mol_H.GetSubstructMatches(amide_substructure)
 
+def find_alkyne(mol_H: Mol):
+    '''
+        Find the alkyne in the molecule. C#C
+    '''
+    return mol_H.GetSubstructMatches(alkyne)
 
 def normalize_angle(angle):
     """Normalize the angle to the range -180 to 180 degrees."""
