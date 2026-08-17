@@ -719,6 +719,10 @@ class Test_MolSanitizer(unittest.TestCase):
 
             os.chdir(self.path)
 
+    def clear_temp_txt(self, temp_dir: str):
+        for path in Path(temp_dir).glob("*.txt"):
+            path.unlink()
+
     def compare_relative(self, newfile: str, goldenfile: str):
         # Read the files into dataframes
         df1 = read_csv(newfile, header=None, sep=r'\s+')
