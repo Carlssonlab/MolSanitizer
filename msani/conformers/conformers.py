@@ -31,7 +31,6 @@ from rdkit.Chem import rdDistGeom, rdForceFieldHelpers, rdMolAlign, PropertyPick
 from msani.io.parsers import CustomHelpFormatter
 from msani.conformers import utils, mol2writer, torsions
 from msani.filtering import filters
-from msani.db2 import solv
 from msani.io.utils import log_error
 
 # Check if Open Babel is installed
@@ -43,15 +42,12 @@ except:
     OBABEL_AVAILABLE = False
     pass
 
-# Check if AMSOL is correctly installed
+# Check if the in-memory AMSOLcpp binding is installed
 try:
-    from msani.amsol import run_amsol
     from msani.amsol import rdkit_amsol_to_solv
-    if run_amsol.AMSOLEXE: AMSOL_AVAILABLE = True
-    else: AMSOL_AVAILABLE = False
+    AMSOLCPP_AVAILABLE = True
 except ImportError:
-    AMSOL_AVAILABLE = False
-    pass
+    AMSOLCPP_AVAILABLE = False
 
 # Check if Meeko is installed
 try:
@@ -1097,11 +1093,12 @@ class ConformerGenerator:
     def to_db2(self, 
                numConfs = 2000,
                energywindow = 25,
+               eps = 1,
                ignoreTorlib = False,
                AllowNonRing = False,
+               timeout_conf = 1,
                request_alignment = None,
                longname = "fake",
-               env = None,
                cleanup = True,
                tarfile = None,
                as_string = False
@@ -1109,16 +1106,17 @@ class ConformerGenerator:
         """
         Convert the conformers to DB2 format and save them to a file.
         If the ConformerGenerator object has undergone conformational sampling (confgen.conf_sampled == True),
-        the arguments numConfs, energywindow, ignoreTorlib, AllowNonRing, and request_alignment are ignored.
+        the sampling arguments are ignored.
 
         Args:
             numConfs (int): Number of conformers to generate.
             energywindow (float): Energy window for conformer generation.
+            eps (float): Dielectric constant for electrostatic interactions.
             ignoreTorlib (bool): Whether to ignore the torsion library.
             AllowNonRing (bool): Whether to allow the full sampling of non-ring compounds.
+            timeout_conf (float): Timeout for conformational sampling in minutes.
             request_alignment (list): List of atom indices for alignment.
             longname (str): Long name for the molecule.
-            env (str): Environment for AMSOL.
             cleanup (bool): Whether to clean up the temporary files.
             tarfile (tarball object): The tarball object to write the DB2 data to.
             as_string (bool): Whether to return the DB2 data as a Python string.
@@ -1126,82 +1124,57 @@ class ConformerGenerator:
         Returns:
             str: The DB2 data as a Python string.
         """
-        if not AMSOL_AVAILABLE:
-            raise ImportError("Please install the AMSOL to msani/amsol to use this function.")
+        if not AMSOLCPP_AVAILABLE:
+            raise ImportError("Please install AMSOLcpp to generate DB2 files.")
         if self.VERBOSE: print("Solvating...")
         if self.request_alignment is None and request_alignment is not None:
             self.request_alignment = request_alignment
         else: request_alignment = self.request_alignment # Need this so that if not determined, use the class attributes.
         ### Solvation ###
-        if not(env): env = setup_env() 
-        os.makedirs(f"solv/{self.name}", exist_ok=True)
-        os.chdir(f"solv/{self.name}")
-        time_old = time.time()
-        solv_obj2 = None
+        solvation_started = time.time()
+        solv_obj = None
         for conf_id in range(self.amsol_mol.GetNumConformers()):
             try:
-                # Idea: try from the energy minimum conformer if AMSOL fails -> next conformer until reach the last
+                # Try conformers in energy order until AMSOLcpp converges.
                 if self.VERBOSE: print(f"\tTrying conformer: {conf_id}")
-                error_signal = 0
-                if self.method == 'rdkit':
-                    cp = Chem.Mol(self.amsol_mol, confId=conf_id) #Retrieve the conf_id-th conformer of mol object
-                    mol2_obj = mol2writer.Mol2Writer(cp, mol2_template = self.mol2_str, atom_attributes = True)
-                    mol2_obj.write_mol2(f"{self.name}.mol2")
-                else:
-                    # Babel and CORINA, use the mol2_str as only 1 conformer is needed
-                    cp = Chem.Mol(self.amsol_mol, confId=conf_id) #Retrieve the conf_id-th conformer of mol object
-                    write_to_file(self.mol2_str, f"{self.name}.mol2")
-                time_new = time.time()
-                solv_obj2 = rdkit_amsol_to_solv.build_solv_from_rdkit(cp, self.name, self.netcharge)
-                time_new = time.time() - time_new
-                run_amsol.prepare(f"{self.name}.mol2", self.name, self.netcharge)
-                error_signal = run_amsol.run('temp.in-hex', 'temp.o-hex', env)
-                if error_signal == -1: continue
-                error_signal = run_amsol.run('temp.in-wat', 'temp.o-wat', env)
-                if error_signal == -1: continue
-                error_signal = run_amsol.process_output('temp.o-wat', 'temp.o-hex', "temp.mol2", "output")#, VERBOSE=True)
-                if error_signal == -1: continue
+                cp = Chem.Mol(self.amsol_mol, confId=conf_id)
+                solv_obj = rdkit_amsol_to_solv.build_solv_from_rdkit(
+                    cp, self.name, self.netcharge, verbose=self.VERBOSE,
+                )
                 break
-            except Exception as e:
-                error_signal = -1
+            except Exception as error:
+                logger.warning(
+                    "AMSOLcpp failed for %s conformer %s: %s",
+                    self.name, conf_id, error,
+                )
                 continue
-        os.chdir("../..")
-        if error_signal == -1 and conf_id + 1 == self.amsol_mol.GetNumConformers(): # AMSOL failed
-            logger.error(f"AMSOL failed for {self.name}, skipping it")
+        if solv_obj is None:
+            logger.error(f"AMSOLcpp failed for {self.name}, skipping it")
             log_error(self.smiles, self.name)
-            # try: # Clean up the folders if error occurs. This help to not overfill the disk
-            #     shutil.rmtree(f"solv/{self.name}", ignore_errors=True)
-            # except: pass
             return
-        self.amsol_time = time.time()
-        shutil.copy(f"solv/{self.name}/output.mol2", f"solv/{self.name}/{self.name}_solv.mol2")
-        shutil.move(f"solv/{self.name}/output.solv", f"solv/{self.name}/{self.name}.solv")
-        time_old = time.time() - time_old
+        self.amsol_time = time.time() - solvation_started
 
         ### Torsional sampling ###
-        if self.VERBOSE: print("Torsional sampling...")
 
+        self.db2_sampling_time = getattr(self, 'db2_sampling_time', 0.0)
         if not(self.conf_sampled):
+            if self.VERBOSE: print("Torsional sampling...")
+            sampling_started = time.perf_counter()
             self.conf_sampling(numConfs=numConfs,
                                energywindow = energywindow,
+                               eps = eps,
                                ignoreTorlib = ignoreTorlib,
                                AllowNonRing = AllowNonRing,
+                               timeout_conf = timeout_conf,
                                request_alignment = request_alignment)
+            self.db2_sampling_time += time.perf_counter() - sampling_started
 
         ### Output to DB2 ###
         if self.VERBOSE: print("Output to DB2...")
         os.makedirs(f"db2/{self.name}", exist_ok=True)
         try:
-            shutil.move(os.path.join("solv", self.name, f"{self.name}.solv"), os.path.join("db2", self.name, f"{self.name}.solv"))
             os.chdir(f"db2/{self.name}")
             db2_data_all = ""
-            if Path(f"{self.name}.solv").exists(): solv_obj = solv.Solv(f"{self.name}.solv")
-            else: solv_obj = None
-            if not compare_solv_objs(solv_obj, solv_obj2):
-                print(f"AMSOL solv values different from RDKit-based solv values for {self.name}")
-                print(f"{self.smiles} {self.name}\n")
-                with open(f"../../solv_diff.txt", 'a') as f:
-                    f.write(f"{self.smiles} {self.name}\n")
             topology_writer = mol2writer.Mol2Writer(
                 self.ring_confs[0],
                 mol2_template=self.mol2_str,
@@ -1216,17 +1189,14 @@ class ConformerGenerator:
                     db2_data = utils.Align_ConvertToDb2(
                         ring_conf,
                         rigid_scaffold,
-                        solv_obj2,
+                        solv_obj,
                         mol2_topology,
                     )
                     db2_data_all += db2_data
-            with open("../../time.log", "a") as f:
-                f.write(f'{self.smiles}\t{time_old}\t{time_new}\n')
             if not (as_string):
                 if tarfile: write_to_tarball(tarfile, db2_data_all.encode('utf-8'), name=f"{self.name}.db2")
                 else: write_to_file(db2_data_all, f"../{self.name}.db2")
             os.chdir("../..")
-            if not self.VERBOSE: utils.remove_folders([f"solv/{self.name}"])
             if cleanup:
                 utils.remove_folders([f"db2/{self.name}"])
             if as_string:
@@ -1236,40 +1206,10 @@ class ConformerGenerator:
             logger.exception(f"Error in converting {self.name} to DB2 format")
             os.chdir("../..")
             try: # Clean up the folders if error occurs. This help to not overfill the disk
-                shutil.rmtree(f"solv/{self.name}", ignore_errors=True)
                 shutil.rmtree(f"db2/{self.name}", ignore_errors=True)
             except: pass
             log_error(self.smiles, self.name)
             return
-
-def compare_solv_objs(solv_obj1, solv_obj2):
-    if solv_obj1 is None or solv_obj2 is None:
-        print(f"Error in comparing solv objects: One of the solv objects is None: {solv_obj1} {solv_obj2}")
-        return False
-    equal = True
-    for attribute in ['totalAtoms', 'totalCharge', 'totalPolarSolv', 'totalSurface', 'totalApolarSolv', 'totalSolv']:
-        if abs(getattr(solv_obj1, attribute) - getattr(solv_obj2, attribute)) > 0.1:
-            print(f"Error in comparing solv objects: {attribute} {getattr(solv_obj1, attribute)} {getattr(solv_obj2, attribute)}")
-            equal = False
-    for i in range(len(solv_obj1.charge)):
-        if abs(solv_obj1.charge[i] - solv_obj2.charge[i]) > 0.1:
-            print(f"Error in comparing solv objects: charge[{i}] {solv_obj1.charge[i]} {solv_obj2.charge[i]}")
-            equal = False
-    return equal
-
-def setup_env():
-    '''
-    Set up the environment variables for AMSOL libraries.
-    '''
-    env = os.environ.copy()
-    script_dir = Path(__file__).parent.parent
-    extra_libs_path = script_dir / "libs" / "extralibs-2"
-
-    if 'LD_LIBRARY_PATH' in env:
-        env['LD_LIBRARY_PATH'] += f":{script_dir}:{extra_libs_path}"
-    else:
-        env['LD_LIBRARY_PATH'] = f"{script_dir}:{extra_libs_path}"
-    return env
 
 def write_to_file(content, file):
     """Write content to a file."""
@@ -1353,16 +1293,26 @@ def _create_conformer_generator(smiles, name, config, request_alignment):
     return generator, time.perf_counter() - start
 
 
-def _write_conformer_outputs(confgen, longname, config, env, archive):
+def _write_conformer_outputs(confgen, longname, config, archive):
     start = time.perf_counter()
     if 'sdf' in config.formats:
         confgen.to_sdf()
     if 'mol2' in config.formats:
         confgen.to_mol2()
+    db2_options = {
+        'numConfs': config.num_confs,
+        'energywindow': config.energy_window,
+        'eps': config.eps,
+        'ignoreTorlib': config.ignore_torlib,
+        'AllowNonRing': config.allow_nonring,
+        'timeout_conf': config.timeout_conf,
+        'longname': longname,
+        'cleanup': config.cleanup,
+    }
     if 'db2' in config.formats:
-        confgen.to_db2(longname=longname, env=env, cleanup=config.cleanup)
+        confgen.to_db2(**db2_options)
     if 'db2.tgz' in config.formats:
-        confgen.to_db2(longname=longname, env=env, cleanup=config.cleanup, tarfile=archive)
+        confgen.to_db2(**db2_options, tarfile=archive)
     return time.perf_counter() - start
 
 
@@ -1391,7 +1341,7 @@ def _restore_db2_archive(archive, restart_tgz):
     return processed_mols
 
 
-def _process_conformer_row(row, config, request_alignment, env, archive):
+def _process_conformer_row(row, config, request_alignment, archive):
     smiles, name = row['smiles'], row['ids']
     longname = row.get('longname') if config.synthon else None
     random.seed(config.random_seed)
@@ -1407,7 +1357,7 @@ def _process_conformer_row(row, config, request_alignment, env, archive):
         if 'pdbqt' in config.formats:
             confgen.to_pdbqt()
         sampling_time = 0.0
-        if config.formats.intersection({'sdf', 'mol2', 'db2', 'db2.tgz'}):
+        if config.formats.intersection({'sdf', 'mol2'}):
             sampling_started = time.perf_counter()
             confgen.conf_sampling(
                 numConfs=config.num_confs, energywindow=config.energy_window,
@@ -1416,7 +1366,7 @@ def _process_conformer_row(row, config, request_alignment, env, archive):
                 request_alignment=request_alignment,
             )
             sampling_time = time.perf_counter() - sampling_started
-        output_time = _write_conformer_outputs(confgen, longname, config, env, archive)
+        output_time = _write_conformer_outputs(confgen, longname, config, archive)
     except Exception as error:
         _log_conformer_failure(smiles, name, 'Conformer generation', error)
         return None
@@ -1426,13 +1376,16 @@ def _process_conformer_row(row, config, request_alignment, env, archive):
     if 'sdf' in config.formats:
         return f'{name},{embedding_time},{sampling_time},{output_time},{total_time}\n'
     amsol_time = getattr(confgen, 'amsol_time', 0.0)
-    return f'{name},{embedding_time},{amsol_time - sampling_time},{sampling_time},{output_time - amsol_time},{total_time}\n'
+    db2_sampling_time = getattr(confgen, 'db2_sampling_time', 0.0)
+    sampling_time += db2_sampling_time
+    mol2db2_time = max(output_time - amsol_time - db2_sampling_time, 0.0)
+    return f'{name},{embedding_time},{amsol_time},{sampling_time},{mol2db2_time},{total_time}\n'
 
 
 def _cleanup_conformer_outputs(config):
     """Remove empty or temporary directories after a completed chunk."""
     if not utils.is_slurm_job():
-        directories = ['3d', 'solv'] if config.cleanup else ['solv']
+        directories = ['3d'] if config.cleanup else []
         for directory in directories:
             if os.path.isdir(directory):
                 try:
@@ -1458,9 +1411,6 @@ def gen_conf_chunk(df: DataFrame, args, input_file='0'):
     needs_db2 = bool(config.formats.intersection({'db2', 'db2.tgz'}))
     if needs_db2:
         df = filters.Filters.remove_exotic_chem_to_db2(df)
-        env = setup_env()
-    else:
-        env = None
     if df.empty:
         logger.warning('No supported molecules remain after filtering.')
         return
@@ -1492,7 +1442,7 @@ def gen_conf_chunk(df: DataFrame, args, input_file='0'):
             if row['ids'] in processed_mols:
                 logger.info('Skipping %s because it is already in %s', row['ids'], output_tgz)
                 continue
-            timing_row = _process_conformer_row(row, config, request_alignment, env, archive)
+            timing_row = _process_conformer_row(row, config, request_alignment, archive)
             if timing_row:
                 timing_rows.append(timing_row)
     if config.timing:

@@ -44,11 +44,11 @@ Documentation on the theory behind MolSanitizer and how to use it can be found [
 
 <img src="./docs/source/_static/Workflow.png" width="1000">
 
-## Notes about AMSOL
+## Notes about AMSOLcpp
 
-By default, all the dependencies are automatically installed by conda and pip, except for AMSOL. The user is asked to place the compiled version of (named `amsol7.1`) to [msani`/amsol](msani/amsol). In that folder, there will be a README on how to compile it on the modern Linux systems.
-
-*As for the current evaluation version, the precompiled AMSOL version is provided. It will be removed once the repository is publicly available.*
+DB2 partial charges and solvation descriptors are calculated in memory through
+the [AMSOLcpp](https://github.com/isra3l/AMSOLcpp) Python binding. The legacy
+AMSOL 7.1 executables and intermediate input/output files are no longer used.
 
 
 ## Contribution
