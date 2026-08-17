@@ -20,6 +20,7 @@
 #include <stdexcept>
 #include <functional>
 #include <unordered_set>
+#include <utility>
 
 namespace StochasticSampling {
 
@@ -260,7 +261,7 @@ ProductList stochasticSamplingDiscrete(RDKit::ROMol& mol,
         while (combination_index < all_combinations.size() && 
                current_valid_conformer_count < core_allocation && 
                attempts < max_attempts) {
-            
+
             // Check timeout every 10 iterations
             if (timeout_conf > 0 && timeout_check_counter % 10 == 0 && 
                 SamplingUtils::checkTimeout(start_time, timeout_conf)) {
@@ -279,9 +280,7 @@ ProductList stochasticSamplingDiscrete(RDKit::ROMol& mol,
                 }
                 break;
             }
-            
             const auto& angle_combination = all_combinations[combination_index];
-            
             std::vector<double> core_angles = SamplingUtils::extractCoreAngles(angle_combination, num_hetero_H_bonds);
             
             // Early exit: Check if this core has already been processed
@@ -304,8 +303,9 @@ ProductList stochasticSamplingDiscrete(RDKit::ROMol& mol,
                                             entry.dihedral_atoms[3],
                                             angle_combination[i]);
             }
-            
-            if (SamplingUtils::checkTooCloseNonbondedAtoms(work_conf, nonbonded_pairs)) {
+
+            const bool has_clash = SamplingUtils::checkTooCloseNonbondedAtoms(work_conf, nonbonded_pairs);
+            if (has_clash) {
                 stagnation_counter++;
                 attempts++;
                 combination_index++;
@@ -323,12 +323,13 @@ ProductList stochasticSamplingDiscrete(RDKit::ROMol& mol,
                     if (energy <= min_energy + window) {
                         bool should_add = false;
                         
-                        bool is_similar = conformer_cache.isSimilarFast(work_conf, mol, heavy_atom_mapping, rmsd);
+                        auto prepared = conformer_cache.prepareHeavyConformer(work_conf, heavy_atom_mapping);
+                        bool is_similar = conformer_cache.isSimilarFast(prepared, rmsd);
                         
                         if (!is_similar) {
                             should_add = true;
                             visited_core.insert(core_angles);
-                            conformer_cache.addConformerFast(work_conf, mol, heavy_atom_mapping, energy);
+                            conformer_cache.addPreparedConformer(std::move(prepared), energy);
                         }
                         
                         if (should_add) {
@@ -417,7 +418,6 @@ ProductList stochasticSamplingDiscrete(RDKit::ROMol& mol,
                 }
                 break;
             }
-            
             // Use importance-based weights for rotation selection
             std::vector<int> to_rotate_raw = rand_gen.weightedChoices(importance_order, k);
             
@@ -453,7 +453,7 @@ ProductList stochasticSamplingDiscrete(RDKit::ROMol& mol,
                                             entry.dihedral_atoms[3],
                                             angle);
             }
-            
+
             // Check if this state has been visited
             std::vector<double> state_tuple = visiting;
             std::vector<double> core_angles = SamplingUtils::extractCoreAngles(state_tuple, num_hetero_H_bonds);
@@ -471,9 +471,9 @@ ProductList stochasticSamplingDiscrete(RDKit::ROMol& mol,
                 attempts++;
                 continue;
             }
-
             // Check for clashes
-            if (SamplingUtils::checkTooCloseNonbondedAtoms(work_conf, nonbonded_pairs)) {
+            const bool has_clash = SamplingUtils::checkTooCloseNonbondedAtoms(work_conf, nonbonded_pairs);
+            if (has_clash) {
                 stagnation_counter++;
                 attempts++;
                 continue;
@@ -490,12 +490,13 @@ ProductList stochasticSamplingDiscrete(RDKit::ROMol& mol,
                 if (energy <= min_energy + window) {
                     bool should_add = false;
                     
-                    bool is_similar = conformer_cache.isSimilarFast(work_conf, mol, heavy_atom_mapping, rmsd);
+                    auto prepared = conformer_cache.prepareHeavyConformer(work_conf, heavy_atom_mapping);
+                    bool is_similar = conformer_cache.isSimilarFast(prepared, rmsd);
                     
                     if (!is_similar) {
                         should_add = true;
                         visited_core.insert(core_angles);
-                        conformer_cache.addConformerFast(work_conf, mol, heavy_atom_mapping, energy);
+                        conformer_cache.addPreparedConformer(std::move(prepared), energy);
                     }
                     
                     if (should_add) {
@@ -538,13 +539,11 @@ ProductList stochasticSamplingDiscrete(RDKit::ROMol& mol,
     if (!products.empty() && window > 0) {
         double min_energy_final = products[0].energy;
         std::vector<ConformerResult> filtered_products;
-        
         for (const auto& product : products) {
             if (product.energy - min_energy_final <= window) {
                 filtered_products.push_back(product);
             }
         }
-        
         products = std::move(filtered_products);
         if (verbose) {
             fprintf(stderr, "Energy window filter (%.2f kcal/mol): %zu conformers within window\n", window, products.size());
@@ -604,7 +603,6 @@ ProductList stochasticSamplingDiscrete(RDKit::ROMol& mol,
             for (int var = 0; var < variations_to_try; ++var) {
                 try {
                     RDKit::Conformer& work_conf = working_mol.getConformer(0);
-                    
                     // Copy coordinates from core conformer
                     for (unsigned int i = 0; i < core_product.conformer.getNumAtoms(); ++i) {
                         work_conf.setAtomPos(i, core_product.conformer.getAtomPos(i));
@@ -622,19 +620,19 @@ ProductList stochasticSamplingDiscrete(RDKit::ROMol& mol,
                                                     entry.dihedral_atoms[3],
                                                     hydroxyl_angles[h]);
                     }
-                    
+
                     // Check for clashes
-                    if (SamplingUtils::checkTooCloseNonbondedAtoms(work_conf, nonbonded_pairs)) {
+                    const bool has_clash = SamplingUtils::checkTooCloseNonbondedAtoms(work_conf, nonbonded_pairs);
+                    if (has_clash) {
                         continue;
                     }
-                    
+
                     // Calculate energy for this variation
                     double energy = ff_cache.calcEnergyFast(working_mol, const_cast<RDKit::MMFF::MMFFMolProperties*>(mmffMolProperties.get()));
-                    
+
                     if (energy > min_energy + window) {
                         continue;
                     }
-                    
                     ConformerResult hydroxyl_result(work_conf, energy);
                     final_products.push_back(hydroxyl_result);
                     
@@ -886,7 +884,8 @@ ProductList stochasticSamplingContinuous(RDKit::ROMol& mol,
             }
             if (energy <= min_energy + window) {
                 // Only check RMSD similarity for core conformers
-                bool is_similar_rmsd = conformer_cache.isSimilarFast(work_conf, mol, heavy_atom_mapping, rmsd);
+                auto prepared = conformer_cache.prepareHeavyConformer(work_conf, heavy_atom_mapping);
+                bool is_similar_rmsd = conformer_cache.isSimilarFast(prepared, rmsd);
                 if (!is_similar_rmsd) {
                     energy_tracker.addEnergy(energy);
                     if (energy == min_energy) {
@@ -896,7 +895,7 @@ ProductList stochasticSamplingContinuous(RDKit::ROMol& mol,
                     }
                     ConformerResult result(work_conf, energy);
                     products.push_back(result);
-                    conformer_cache.addConformerFast(work_conf, mol, heavy_atom_mapping, energy);
+                    conformer_cache.addPreparedConformer(std::move(prepared), energy);
                 }
             }
         } catch (const std::exception& e) {
