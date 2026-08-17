@@ -713,8 +713,7 @@ class Mol2(object):
             bondi = bondi - 1 
           bondi  = bondi + 1
 
-    #find the indices of the atoms to be removed, so we can 
-    #also remove them from the output.solv output
+    # Find the indices of atoms to remove from the solvation arrays too.
     natoms = len(self.atomNum)  
           
     #now actually go ahead and delete these atoms

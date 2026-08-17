@@ -14,7 +14,8 @@ from rdkit.Chem.rdchem import Mol, Conformer
 
 from pathlib import Path
 
-from msani.db2 import mol2db2, mol2
+from msani.db2 import mol2db2
+from msani.conformers import mol2writer
 
 
 logger = logging.getLogger('msani')
@@ -44,6 +45,7 @@ ring_types = (
     "cycloheptatriene",
 )
 
+alkyne = Chem.MolFromSmarts('*-C#C-*') # To 0 iteratively two consecutive atoms
 barbiturate = Chem.MolFromSmarts('[C;$(C~[OX1,SX1]):1]1~[N:2]~[C;$(C~[OX1,SX1]):3]~[*^2:4]~[*^2:5]~[*:6]~1') # To 0 iteratively four consecutive atoms
 hydantoin = Chem.MolFromSmarts('[C;$(C~[OX1,SX1]):1]1~[N:2]~[C;$(C~[OX1,SX1]):3]~[*^2:4]~[A:5]~1') # To 0 iteratively four consecutive atoms
 substituted_N_barbi_hydan_like = Chem.MolFromSmarts('*~[C^2,N^2:1][C^2,N^2:2][C^2,N^2:3]')
@@ -195,6 +197,11 @@ def find_amide(mol_H: Mol):
     '''
     return mol_H.GetSubstructMatches(amide_substructure)
 
+def find_alkyne(mol_H: Mol):
+    '''
+        Find the alkyne in the molecule. C#C
+    '''
+    return mol_H.GetSubstructMatches(alkyne)
 
 def normalize_angle(angle):
     """Normalize the angle to the range -180 to 180 degrees."""
@@ -602,33 +609,16 @@ def find_rigid_part(mol, request_alignment=None):
                 break
     return rigid_part, rule_label
     
-def Align_ConvertToDb2(ring_conf, rigid_scaffold, solv_obj, name, smiles, longname):
+def Align_ConvertToDb2(ring_conf, rigid_scaffold, solv_obj, mol2_topology):
     """
-    Align the all the conformers to the rigid scaffold (ring) and convert it to the DB2 string.
+    Align all conformers to the rigid scaffold and convert them to DB2 in memory.
     """
-    mol2_obj = mol2.Mol2(mol2fileName=f'{name}.mol2')
-    mol2_obj.cleanConfs()
-    mol2_obj.longname = longname if longname else "fake"
-    mol2_obj.smiles = smiles
-    for conf_id in range(ring_conf.GetNumConformers()):
-        mol2_obj.atomXyz.append([])  # Initialize a list for atom coordinates
-        rdMolAlign.AlignMol(ring_conf, ring_conf, conf_id, 0, atomMap=[(i, i) for i in rigid_scaffold])
-        conf = ring_conf.GetConformer(conf_id)
-        for atom_idx in range(ring_conf.GetNumAtoms()):
-            pos = conf.GetAtomPosition(atom_idx)
-            mol2_obj.atomXyz[-1].append((float(pos.x), float(pos.y), float(pos.z)))
-            # Set the number of conformations for this Mol2 object
-        mol2_obj.xyzCount = ring_conf.GetNumConformers()
-    return mol2db2.mol2db2_quick_ver2(mol2_obj, solv_obj)
+    aligned_mol = Chem.Mol(ring_conf)
+    rdMolAlign.AlignMolConformers(aligned_mol, atomIds=list(rigid_scaffold))
 
-def is_similar_conformer(new_dihedrals, exist, tol = 30.0):
-    if exist.shape[0] == 0:
-        return False
+    mol2_obj = mol2writer.Mol2Writer.with_db2_conformers(mol2_topology, aligned_mol)
 
-    diffs = np.abs(exist - new_dihedrals)
-    diffs = np.minimum(diffs, 360 - diffs)
-    is_similar = np.all(diffs <= tol, axis=1)
-    return np.any(is_similar)
+    return mol2db2.mol2db2(mol2_obj, solv_obj)
 
 
 # All deterministic version of torsional sampling will be available here

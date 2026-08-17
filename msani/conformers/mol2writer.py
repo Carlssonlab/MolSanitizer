@@ -72,18 +72,111 @@ class Mol2Writer:
 
         # Initialize a string to store the MOL2 content if no filename is provided
         mol2_string = ""
+        conformer_ids = [conf.GetId() for conf in self.mol.GetConformers()]
         if filename:
             with open(filename, 'w') as f:        
-                for confId in range(self.mol.GetNumConformers()):
+                for confId in conformer_ids:
                     # Generate the MOL2 string for the current conformer
                     conf_mol2_string = self._generate_mol2_string(self.mol, confId=confId)
                     # Write the MOL2 string to a file or return it
                     f.write(conf_mol2_string)
         else:
-            for confId in range(self.mol.GetNumConformers()):
+            for confId in conformer_ids:
                 conf_mol2_string = self._generate_mol2_string(self.mol, confId=confId)
                 mol2_string += conf_mol2_string
             return mol2_string
+
+    def to_db2_topology(self, name=None, smiles="fake", longname="fake"):
+        """Build reusable DB2 topology without conformer-specific data."""
+        from msani.db2.mol2 import Mol2
+
+        topology = Mol2()
+        topology.name = name or (self.mol.GetProp("_Name") if self.mol.HasProp("_Name") else "fake")
+        topology.protName = "fake"
+        topology.smiles = smiles
+        topology.longname = longname or "fake"
+
+        num_atoms = self.mol.GetNumAtoms()
+        if len(self.atom_types) != num_atoms:
+            raise ValueError(
+                f"MOL2 atom-type count ({len(self.atom_types)}) does not match "
+                f"RDKit atom count ({num_atoms})"
+            )
+
+        topology.atomNum = list(range(1, num_atoms + 1))
+        topology.atomName = [
+            f"{atom.GetSymbol()}{atom.GetIdx() + 1}" for atom in self.mol.GetAtoms()
+        ]
+        topology.atomType = list(self.atom_types)
+        topology.atomCharge = [0.0] * num_atoms
+        topology.atomBonds = [[] for _ in range(num_atoms)]
+
+        for bond_line in self.bond:
+            if bond_line.startswith("@<TRIPOS>BOND"):
+                continue
+            tokens = bond_line.split()
+            if len(tokens) < 4:
+                continue
+
+            bond_num, start, end = map(int, tokens[:3])
+            bond_type = tokens[3]
+            topology.bondNum.append(bond_num)
+            topology.bondStart.append(start)
+            topology.bondEnd.append(end)
+            topology.bondType.append(bond_type)
+            topology.atomBonds[start - 1].append((end - 1, bond_type))
+            topology.atomBonds[end - 1].append((start - 1, bond_type))
+
+        topology.xyzCount = 0
+        topology.origXyzCount = 0
+        return topology
+
+    @staticmethod
+    def with_db2_conformers(topology, mol):
+        """Copy cached topology and attach coordinates from an RDKit molecule."""
+        num_atoms = mol.GetNumAtoms()
+        if len(topology.atomNum) != num_atoms:
+            raise ValueError(
+                f"Cached topology atom count ({len(topology.atomNum)}) does not match "
+                f"RDKit atom count ({num_atoms})"
+            )
+
+        mol2_data = topology.copy()
+        # Mol2.copy() intentionally shares topology. Make these collections
+        # independent because later DB2 options (for example covalent mode)
+        # may mutate them.
+        mol2_data.atomNum = list(topology.atomNum)
+        mol2_data.atomName = list(topology.atomName)
+        mol2_data.atomType = list(topology.atomType)
+        mol2_data.atomCharge = list(topology.atomCharge)
+        mol2_data.atomBonds = [list(neighbors) for neighbors in topology.atomBonds]
+        mol2_data.bondNum = list(topology.bondNum)
+        mol2_data.bondStart = list(topology.bondStart)
+        mol2_data.bondEnd = list(topology.bondEnd)
+        mol2_data.bondType = list(topology.bondType)
+        mol2_data.bondDists = None
+
+        for conf in mol.GetConformers():
+            coordinates = []
+            for atom_idx in range(num_atoms):
+                position = conf.GetAtomPosition(atom_idx)
+                coordinates.append(
+                    (float(position.x), float(position.y), float(position.z))
+                )
+            mol2_data.atomXyz.append(coordinates)
+
+        mol2_data.xyzCount = len(mol2_data.atomXyz)
+        mol2_data.origXyzCount = mol2_data.xyzCount
+        mol2_data.inputEnergy = [9999.99] * mol2_data.xyzCount
+        mol2_data.inputTotalStrain = [0.0] * mol2_data.xyzCount
+        mol2_data.inputMaxStrain = [0.0] * mol2_data.xyzCount
+        mol2_data.inputHydrogens = [0] * mol2_data.xyzCount
+        return mol2_data
+
+    def to_db2_mol2(self, name=None, smiles="fake", longname="fake"):
+        """Build a complete DB2 Mol2 object directly from the RDKit molecule."""
+        topology = self.to_db2_topology(name=name, smiles=smiles, longname=longname)
+        return self.with_db2_conformers(topology, self.mol)
         
     def _read_mol2_template(self, mol2_template):
         """
@@ -340,8 +433,7 @@ class Mol2Writer:
             x, y, z = conf.GetAtomPosition(atom.GetIdx()).x, conf.GetAtomPosition(atom.GetIdx()).y, conf.GetAtomPosition(atom.GetIdx()).z
             at_type = self.atom_types[atom.GetIdx()]
             atom_name = f"{atom.GetSymbol()}{i}"
-            #charge = float(atom.GetFormalCharge())
-            line = atom_fmt.format(i, atom_name, x, y, z, at_type)#, "1", "LIG", charge)
+            line = atom_fmt.format(i, atom_name, x, y, z, at_type)
             lines.append(line)
             
         # ATOM attributes if request:
@@ -355,5 +447,3 @@ class Mol2Writer:
         lines += self.bond
 
         return "\n".join(lines) + "\n"
-
-    

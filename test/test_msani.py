@@ -4,7 +4,6 @@ import os
 import shutil
 
 from pathlib import Path
-from os import system
 import platform
 
 
@@ -90,7 +89,7 @@ class Test_MolSanitizer(unittest.TestCase):
                                       f'{self.path}/out_unwanted_all_rejected.txt')
          
             args.unwanted = ['Regular','Optional']
-            system(f'rm {temp_dir}/*.txt')
+            self.remove_temp_text_files(temp_dir)
             cli.clean_data(args)
             with self.subTest(msg="Checking unwanted Regular and Optional:"):
                 self.compare_relative(f'{temp_dir}/dummy_output_clean.txt',
@@ -100,7 +99,7 @@ class Test_MolSanitizer(unittest.TestCase):
 
             # Test if filters works together
             args.unwanted = ['Regular']
-            system(f'rm {temp_dir}/*.txt')
+            self.remove_temp_text_files(temp_dir)
             cli.clean_data(args)
             with self.subTest(msg="Checking unwanted Regular:"):
                 self.compareFiles(f'{temp_dir}/dummy_output_clean.txt',
@@ -109,7 +108,7 @@ class Test_MolSanitizer(unittest.TestCase):
                                   f'{self.path}/out_unwanted_regular_rejected.txt')
 
             args.unwanted = ['Special']
-            system(f'rm {temp_dir}/*.txt')
+            self.remove_temp_text_files(temp_dir)
             cli.clean_data(args)
             with self.subTest(msg="Checking unwanted Special:"):
                 self.compareFiles(f'{temp_dir}/dummy_output_clean.txt',
@@ -118,7 +117,7 @@ class Test_MolSanitizer(unittest.TestCase):
                                   f'{self.path}/out_unwanted_special_rejected.txt')
 
             args.unwanted = ['Optional']
-            system(f'rm {temp_dir}/*.txt')
+            self.remove_temp_text_files(temp_dir)
             cli.clean_data(args)
             with self.subTest(msg="Checking unwanted Optional:"):
                 self.compareFiles(f'{temp_dir}/dummy_output_clean.txt',
@@ -140,7 +139,7 @@ class Test_MolSanitizer(unittest.TestCase):
                                       f'{self.path}/out_ha1725_rejected.txt')
             
             args.ha = '>24'
-            system(f'rm {temp_dir}/*.txt')
+            self.remove_temp_text_files(temp_dir)
             cli.clean_data(args)
             with self.subTest(msg="Checking HA >24:"):
                 self.compare_relative(f'{temp_dir}/dummy_output_clean.txt',
@@ -149,7 +148,7 @@ class Test_MolSanitizer(unittest.TestCase):
                                       f'{self.path}/out_ha_over24_rejected.txt')
 
             args.ha = None
-            system(f'rm {temp_dir}/*.txt')
+            self.remove_temp_text_files(temp_dir)
             args.logp = '100-200'
             cli.clean_data(args)
             with self.subTest(msg="Checking logP 100-200:"):
@@ -159,7 +158,7 @@ class Test_MolSanitizer(unittest.TestCase):
                                       f'{self.path}/out_logp_100200_rejected.txt')
 
             args.logp = '<=350'
-            system(f'rm {temp_dir}/*.txt')
+            self.remove_temp_text_files(temp_dir)
             cli.clean_data(args)
             with self.subTest(msg="Checking logP <=350:"):
                 self.compare_relative(f'{temp_dir}/dummy_output_clean.txt',
@@ -169,7 +168,7 @@ class Test_MolSanitizer(unittest.TestCase):
             
             args.logp = None
             args.mw = '>=300'
-            system(f'rm {temp_dir}/*.txt')
+            self.remove_temp_text_files(temp_dir)
             cli.clean_data(args)
             with self.subTest(msg="Checking MW >=300:"):
                 self.compare_relative(f'{temp_dir}/dummy_output_clean.txt',
@@ -180,7 +179,7 @@ class Test_MolSanitizer(unittest.TestCase):
             args.mw = None
             args.hba = '<=4'
             args.hbd = '<=2'
-            system(f'rm {temp_dir}/*.txt')
+            self.remove_temp_text_files(temp_dir)
             cli.clean_data(args)
             with self.subTest(msg="Checking HBA <=4 HBD <=2:"):
                 self.compare_relative(f'{temp_dir}/dummy_output_clean.txt',
@@ -192,7 +191,7 @@ class Test_MolSanitizer(unittest.TestCase):
             args.hba = None
             args.hbd = None
             args.chiral = '<=2'
-            system(f'rm {temp_dir}/*.txt')
+            self.remove_temp_text_files(temp_dir)
             cli.clean_data(args)
             with self.subTest(msg="Checking chiral <=2:"):
                 self.compare_relative(f'{temp_dir}/dummy_output_clean.txt',
@@ -285,21 +284,21 @@ class Test_MolSanitizer(unittest.TestCase):
                 self.compare_relative(f'{temp_dir}/dummy_output_clean.txt',
                                       f'{self.path}/ph7_clean.txt')
 
-            system(f'rm {temp_dir}/*.txt')
+            self.remove_temp_text_files(temp_dir)
             
             args.pH = 5
             cli.clean_data(args)
             with self.subTest(msg="Checking pH 5:"):
                 self.compare_relative(f'{temp_dir}/dummy_output_clean.txt',
                                       f'{self.path}/ph5_clean.txt')
-            system(f'rm {temp_dir}/*.txt')
+            self.remove_temp_text_files(temp_dir)
 
             args.pH = 9
             cli.clean_data(args)
             with self.subTest(msg="Checking pH 9:"):
                 self.compare_relative(f'{temp_dir}/dummy_output_clean.txt',
                                       f'{self.path}/ph9_clean.txt')
-            system(f'rm {temp_dir}/*.txt')
+            self.remove_temp_text_files(temp_dir)
 
     def test_standardization(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -467,6 +466,68 @@ class Test_MolSanitizer(unittest.TestCase):
         os.chdir(self.path)
         shutil.rmtree(f"{temp_dir}")
         tmp_obj.cleanup()
+
+    def test_amsol(self):
+        """Compare generated DB2 partial charges with the AMSOL references."""
+        reference_dir = self.path / 'db2_zinc'
+
+        def read_atom_charges(db2_path):
+            charges = []
+            with open(db2_path) as db2_file:
+                for line in db2_file:
+                    columns = line.split()
+                    if columns and columns[0] == 'A':
+                        charges.append((columns[1], columns[2], float(columns[6])))
+            return charges
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            try:
+                args = self.generate_mock_arguments(
+                    [f'{self.path}/in_db2_zinc.txt'],
+                    ['gen3d', 'test', 'no-stereoisomers'],
+                    temp_dir,
+                )
+                args.format = ['db2']
+                args.numconfs = 1
+                args.prefix = Path(temp_dir)
+
+                cli.clean_data(args)
+                self.assertFalse(
+                    (Path(temp_dir) / 'solv').exists(),
+                    "AMSOLcpp should not create a legacy solv directory.",
+                )
+
+                reference_files = sorted(reference_dir.glob('*.db2'))
+                self.assertTrue(reference_files, "No AMSOLcpp reference DB2 files found.")
+
+                for reference_file in reference_files:
+                    with self.subTest(file=reference_file.name):
+                        generated_file = Path(temp_dir) / 'db2' / reference_file.name
+                        self.assertTrue(
+                            generated_file.exists(),
+                            f"DB2 file was not created: {reference_file.name}",
+                        )
+
+                        expected = read_atom_charges(reference_file)
+                        observed = read_atom_charges(generated_file)
+                        self.assertEqual(
+                            [(atom_id, atom_name) for atom_id, atom_name, _ in observed],
+                            [(atom_id, atom_name) for atom_id, atom_name, _ in expected],
+                            f"Atoms differ in {reference_file.name}",
+                        )
+                        charge_pairs = zip(expected, observed)
+                        for expected_atom, observed_atom in charge_pairs:
+                            atom_id, atom_name, expected_charge = expected_atom
+                            observed_charge = observed_atom[2]
+                            self.assertAlmostEqual(
+                                observed_charge,
+                                expected_charge,
+                                delta=0.15,
+                                msg=(f"Partial charge differs for atom {atom_id} "
+                                     f"({atom_name}) in {reference_file.name}"),
+                            )
+            finally:
+                os.chdir(self.path)
     
     def test_db2_sulfonamide(self):
         tmp_obj = tempfile.TemporaryDirectory()
@@ -672,6 +733,11 @@ class Test_MolSanitizer(unittest.TestCase):
         set2 = set(column1_df2)
         # Check if the sets are equal
         self.assertEqual(set1, set2, "Files' contents differ")
+
+    @staticmethod
+    def remove_temp_text_files(temp_dir):
+        for text_file in Path(temp_dir).glob('*.txt'):
+            text_file.unlink()
 
     def compareFiles(self, newfile: str, goldenfile: str):
         with open(goldenfile, 'rb') as goldenFile, open(newfile, 'rb') as newFile:
