@@ -608,7 +608,7 @@ def Align_ConvertToDb2(ring_conf, rigid_scaffold, solv_obj, mol2_topology):
 
     mol2_obj = mol2writer.Mol2Writer.with_db2_conformers(mol2_topology, aligned_mol)
 
-    return mol2db2.mol2db2_quick_ver2(mol2_obj, solv_obj)
+    return mol2db2.mol2db2(mol2_obj, solv_obj)
 
 
 # All deterministic version of torsional sampling will be available here
