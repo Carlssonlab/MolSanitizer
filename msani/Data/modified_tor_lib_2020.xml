@@ -101,6 +101,9 @@
 
      August 1 2025
       Modified the N_lp sulfonamide rules so that it won't match the SO2-NH with N being conjugated with the substituents and show no puckering effects.
+     
+     August 6 2026
+      Added small peaks +/- 30 for rule [c:1][$(S(=O)=O):2]!@[NX3&amp;!+1:3](-[*;!$([C&amp;r3])!$(C=A):4])-[*;!$([C&amp;r3])!$(C=A):5]
 --> 
 
 <library>
@@ -71299,7 +71302,10 @@ All the angles here were added to make the hydroxyl coplanar with the ring-->
    </torsionRule>
    <torsionRule smarts="[c:1][$(S(=O)=O):2]!@[NX3&amp;!+1:3](-[*;!$([C&amp;r3])!$(C=A):4])-[*;!$([C&amp;r3])!$(C=A):5]">
       <angleList>
-         <angle score="31.56" tolerance1="20" tolerance2="25" value="180" />
+         <angle score="31.56" tolerance1="20" tolerance2="30" value="180" />
+     <!--added small peaks from CSD/PDB databases -->
+         <angle score="3.15"  tolerance1="30.00" tolerance2="30.00" value="30.0"/>
+         <angle score="3.15"  tolerance1="30.00" tolerance2="30.00" value="-30.0"/>
       </angleList>
    </torsionRule>
    <torsionRule smarts="[!#1:1][$(S(=O)=O):2]!@[NX3&amp;!+1:3](-[*;!$([C&amp;r3])!$(C=A):4])-[*;!$([C&amp;r3])!$(C=A):5]">

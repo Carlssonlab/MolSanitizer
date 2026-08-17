@@ -41,10 +41,10 @@ jobs:
       CMAKE_GENERATOR_TOOLSET: ""
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6.0.2
 
       - name: Set up Micromamba
-        uses: mamba-org/setup-micromamba@v2
+        uses: mamba-org/setup-micromamba@v3
         with:
           micromamba-version: latest
           environment-file: environment.yml

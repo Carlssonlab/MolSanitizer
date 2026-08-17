@@ -45,7 +45,7 @@ class Msani:
                 mw = None,
                 chiral = None,
                 tautomers = False,
-                neutralize = True,
+                neutralize = False,
                 taurdkit = True,
                 stereoisomers = False,
                 max_stereoisomers = 8,

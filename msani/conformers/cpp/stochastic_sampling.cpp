@@ -20,6 +20,7 @@
 #include <stdexcept>
 #include <functional>
 #include <unordered_set>
+#include <utility>
 
 namespace StochasticSampling {
 
@@ -63,20 +64,21 @@ public:
                          RDKit::MMFF::MMFFMolProperties* mmffMolProperties) const {
         // Construct force field only once
         if (!ff_valid || !cached_ff) {
-            cached_ff.reset(RDKit::MMFF::constructForceField(working_mol, mmffMolProperties, 0));
+            cached_ff.reset(RDKit::MMFF::constructForceField(working_mol, mmffMolProperties, 100.0));
             ff_valid = true;
             if (!cached_ff) {
                 throw std::runtime_error("Failed to construct force field");
             }
         }
         
-        // Update coordinates in existing force field (much faster than reconstruction)
-        const auto& conf = working_mol.getConformer(0);
+        // Rebind the force field to the current conformer and refresh its internal state.
+        // This mirrors RDKit's ForceFieldHelpers::OptimizeMoleculeConfs workflow.
+        auto& conf = working_mol.getConformer(0);
         auto& positions = cached_ff->positions();
         for (unsigned int i = 0; i < working_mol.getNumAtoms(); ++i) {
-            const auto& pos = conf.getAtomPos(i);
-            *positions[i] = RDGeom::Point3D(pos.x, pos.y, pos.z);
+            positions[i] = &conf.getAtomPos(i);
         }
+        cached_ff->initialize();
         
         return cached_ff->calcEnergy();
     }
@@ -102,7 +104,7 @@ ProductList stochasticSamplingDiscrete(RDKit::ROMol& mol,
                                        int timeout_conf,
                                        double rmsd,
                                        int numConfs,
-                                       double clash_threshold,
+                                       double clash_scale,
                                        bool verbose,
                                        const std::string& mmff_variant,
                                        double eps,
@@ -162,7 +164,7 @@ ProductList stochasticSamplingDiscrete(RDKit::ROMol& mol,
     
     // Precompute bonded and same parent pairs
     auto [bonded_pairs, same_parent_pairs] = SamplingUtils::precomputeBondedAndSameParentPairs(mol);
-    AtomPairs nonbonded_pairs = SamplingUtils::precomputeNonbondedPairs(mol, bonded_pairs, same_parent_pairs);
+    NonbondedClashPairs nonbonded_pairs = SamplingUtils::precomputeNonbondedPairs(mol, bonded_pairs, same_parent_pairs, clash_scale);
     
     // Track visited states and energy statistics
     VisitedStateSet visited_full;
@@ -221,8 +223,8 @@ ProductList stochasticSamplingDiscrete(RDKit::ROMol& mol,
         
         // Pregenerate all combinations
         std::vector<std::vector<double>> all_combinations;
-        std::function<void(int, std::vector<double>&)> generate_combinations;
-        generate_combinations = [&](int depth, std::vector<double>& current_angles) {
+        std::function<void(std::size_t, std::vector<double>&)> generate_combinations;
+        generate_combinations = [&](std::size_t depth, std::vector<double>& current_angles) {
             if (depth == angle_keys.size()) {
                 all_combinations.push_back(current_angles);
                 return;
@@ -247,7 +249,7 @@ ProductList stochasticSamplingDiscrete(RDKit::ROMol& mol,
 
         // Process combinations
         int attempts = 0;
-        int max_stagnation = std::max(std::min(max_attempts / 10, 2000), 50);
+        int max_stagnation = std::max(std::min(max_attempts / 10, 3000), 50);
         int stagnation_counter = 0;
         int last_product_size = 0;
         auto start_time = std::chrono::steady_clock::now();
@@ -259,7 +261,7 @@ ProductList stochasticSamplingDiscrete(RDKit::ROMol& mol,
         while (combination_index < all_combinations.size() && 
                current_valid_conformer_count < core_allocation && 
                attempts < max_attempts) {
-            
+
             // Check timeout every 10 iterations
             if (timeout_conf > 0 && timeout_check_counter % 10 == 0 && 
                 SamplingUtils::checkTimeout(start_time, timeout_conf)) {
@@ -278,9 +280,7 @@ ProductList stochasticSamplingDiscrete(RDKit::ROMol& mol,
                 }
                 break;
             }
-            
             const auto& angle_combination = all_combinations[combination_index];
-            
             std::vector<double> core_angles = SamplingUtils::extractCoreAngles(angle_combination, num_hetero_H_bonds);
             
             // Early exit: Check if this core has already been processed
@@ -303,8 +303,9 @@ ProductList stochasticSamplingDiscrete(RDKit::ROMol& mol,
                                             entry.dihedral_atoms[3],
                                             angle_combination[i]);
             }
-            
-            if (SamplingUtils::checkTooCloseNonbondedAtoms(work_conf, nonbonded_pairs, clash_threshold)) {
+
+            const bool has_clash = SamplingUtils::checkTooCloseNonbondedAtoms(work_conf, nonbonded_pairs);
+            if (has_clash) {
                 stagnation_counter++;
                 attempts++;
                 combination_index++;
@@ -322,12 +323,13 @@ ProductList stochasticSamplingDiscrete(RDKit::ROMol& mol,
                     if (energy <= min_energy + window) {
                         bool should_add = false;
                         
-                        bool is_similar = conformer_cache.isSimilarFast(work_conf, mol, heavy_atom_mapping, rmsd);
+                        auto prepared = conformer_cache.prepareHeavyConformer(work_conf, heavy_atom_mapping);
+                        bool is_similar = conformer_cache.isSimilarFast(prepared, rmsd);
                         
                         if (!is_similar) {
                             should_add = true;
                             visited_core.insert(core_angles);
-                            conformer_cache.addConformerFast(work_conf, mol, heavy_atom_mapping, energy);
+                            conformer_cache.addPreparedConformer(std::move(prepared), energy);
                         }
                         
                         if (should_add) {
@@ -416,7 +418,6 @@ ProductList stochasticSamplingDiscrete(RDKit::ROMol& mol,
                 }
                 break;
             }
-            
             // Use importance-based weights for rotation selection
             std::vector<int> to_rotate_raw = rand_gen.weightedChoices(importance_order, k);
             
@@ -452,7 +453,7 @@ ProductList stochasticSamplingDiscrete(RDKit::ROMol& mol,
                                             entry.dihedral_atoms[3],
                                             angle);
             }
-            
+
             // Check if this state has been visited
             std::vector<double> state_tuple = visiting;
             std::vector<double> core_angles = SamplingUtils::extractCoreAngles(state_tuple, num_hetero_H_bonds);
@@ -470,9 +471,9 @@ ProductList stochasticSamplingDiscrete(RDKit::ROMol& mol,
                 attempts++;
                 continue;
             }
-
             // Check for clashes
-            if (SamplingUtils::checkTooCloseNonbondedAtoms(work_conf, nonbonded_pairs, clash_threshold)) {
+            const bool has_clash = SamplingUtils::checkTooCloseNonbondedAtoms(work_conf, nonbonded_pairs);
+            if (has_clash) {
                 stagnation_counter++;
                 attempts++;
                 continue;
@@ -489,12 +490,13 @@ ProductList stochasticSamplingDiscrete(RDKit::ROMol& mol,
                 if (energy <= min_energy + window) {
                     bool should_add = false;
                     
-                    bool is_similar = conformer_cache.isSimilarFast(work_conf, mol, heavy_atom_mapping, rmsd);
+                    auto prepared = conformer_cache.prepareHeavyConformer(work_conf, heavy_atom_mapping);
+                    bool is_similar = conformer_cache.isSimilarFast(prepared, rmsd);
                     
                     if (!is_similar) {
                         should_add = true;
                         visited_core.insert(core_angles);
-                        conformer_cache.addConformerFast(work_conf, mol, heavy_atom_mapping, energy);
+                        conformer_cache.addPreparedConformer(std::move(prepared), energy);
                     }
                     
                     if (should_add) {
@@ -537,13 +539,11 @@ ProductList stochasticSamplingDiscrete(RDKit::ROMol& mol,
     if (!products.empty() && window > 0) {
         double min_energy_final = products[0].energy;
         std::vector<ConformerResult> filtered_products;
-        
         for (const auto& product : products) {
             if (product.energy - min_energy_final <= window) {
                 filtered_products.push_back(product);
             }
         }
-        
         products = std::move(filtered_products);
         if (verbose) {
             fprintf(stderr, "Energy window filter (%.2f kcal/mol): %zu conformers within window\n", window, products.size());
@@ -603,7 +603,6 @@ ProductList stochasticSamplingDiscrete(RDKit::ROMol& mol,
             for (int var = 0; var < variations_to_try; ++var) {
                 try {
                     RDKit::Conformer& work_conf = working_mol.getConformer(0);
-                    
                     // Copy coordinates from core conformer
                     for (unsigned int i = 0; i < core_product.conformer.getNumAtoms(); ++i) {
                         work_conf.setAtomPos(i, core_product.conformer.getAtomPos(i));
@@ -621,19 +620,19 @@ ProductList stochasticSamplingDiscrete(RDKit::ROMol& mol,
                                                     entry.dihedral_atoms[3],
                                                     hydroxyl_angles[h]);
                     }
-                    
+
                     // Check for clashes
-                    if (SamplingUtils::checkTooCloseNonbondedAtoms(work_conf, nonbonded_pairs, clash_threshold)) {
+                    const bool has_clash = SamplingUtils::checkTooCloseNonbondedAtoms(work_conf, nonbonded_pairs);
+                    if (has_clash) {
                         continue;
                     }
-                    
+
                     // Calculate energy for this variation
                     double energy = ff_cache.calcEnergyFast(working_mol, const_cast<RDKit::MMFF::MMFFMolProperties*>(mmffMolProperties.get()));
-                    
+
                     if (energy > min_energy + window) {
                         continue;
                     }
-                    
                     ConformerResult hydroxyl_result(work_conf, energy);
                     final_products.push_back(hydroxyl_result);
                     
@@ -684,7 +683,7 @@ ProductList stochasticSamplingContinuous(RDKit::ROMol& mol,
                                          int max_attempts,
                                          int timeout_conf,
                                          double rmsd,
-                                         double clash_threshold,
+                                         double clash_scale,
                                          const HeteroBonds& hetero_H_bonds,
                                          bool verbose,
                                          const std::string& mmff_variant,
@@ -740,7 +739,7 @@ ProductList stochasticSamplingContinuous(RDKit::ROMol& mol,
 
     // Precompute pairs for clash detection
     auto [bonded_pairs, same_parent_pairs] = SamplingUtils::precomputeBondedAndSameParentPairs(mol);
-    AtomPairs nonbonded_pairs = SamplingUtils::precomputeNonbondedPairs(mol, bonded_pairs, same_parent_pairs);
+    NonbondedClashPairs nonbonded_pairs = SamplingUtils::precomputeNonbondedPairs(mol, bonded_pairs, same_parent_pairs, clash_scale);
 
     
 
@@ -798,8 +797,9 @@ ProductList stochasticSamplingContinuous(RDKit::ROMol& mol,
     if (num_hetero_H_bonds > 0) {
         for (int i = 0; i < num_hetero_H_bonds; ++i) {
             // Assuming hetero_H_bonds correspond to the last entries in torsion_library
-            int bond_idx_in_torsion_library = bond_indices.size() - 1 - i;
-            if (bond_idx_in_torsion_library >= 0 && bond_idx_in_torsion_library < bond_indices.size()) {
+            if (static_cast<std::size_t>(i) < bond_indices.size()) {
+                const std::size_t bond_idx_in_torsion_library =
+                    bond_indices.size() - 1 - static_cast<std::size_t>(i);
                 int actual_bond_id = bond_indices[bond_idx_in_torsion_library];
                 const auto& bond_info = torsion_library.at(actual_bond_id);
                 num_hydroxyl_combinations *= bond_info.peaks.size();
@@ -869,7 +869,7 @@ ProductList stochasticSamplingContinuous(RDKit::ROMol& mol,
         visited_core_angles.push_back(core_angles);
 
         // Check for clashes
-        bool has_clash = SamplingUtils::checkTooCloseNonbondedAtoms(work_conf, nonbonded_pairs, clash_threshold);
+        bool has_clash = SamplingUtils::checkTooCloseNonbondedAtoms(work_conf, nonbonded_pairs);
         if (has_clash) {
             attempts++;
             stagnation_counter++;
@@ -884,7 +884,8 @@ ProductList stochasticSamplingContinuous(RDKit::ROMol& mol,
             }
             if (energy <= min_energy + window) {
                 // Only check RMSD similarity for core conformers
-                bool is_similar_rmsd = conformer_cache.isSimilarFast(work_conf, mol, heavy_atom_mapping, rmsd);
+                auto prepared = conformer_cache.prepareHeavyConformer(work_conf, heavy_atom_mapping);
+                bool is_similar_rmsd = conformer_cache.isSimilarFast(prepared, rmsd);
                 if (!is_similar_rmsd) {
                     energy_tracker.addEnergy(energy);
                     if (energy == min_energy) {
@@ -894,7 +895,7 @@ ProductList stochasticSamplingContinuous(RDKit::ROMol& mol,
                     }
                     ConformerResult result(work_conf, energy);
                     products.push_back(result);
-                    conformer_cache.addConformerFast(work_conf, mol, heavy_atom_mapping, energy);
+                    conformer_cache.addPreparedConformer(std::move(prepared), energy);
                 }
             }
         } catch (const std::exception& e) {
@@ -941,17 +942,17 @@ ProductList stochasticSamplingContinuous(RDKit::ROMol& mol,
         
         // Generate all possible hydroxyl combinations
         std::vector<std::vector<double>> hydroxyl_combinations;
-        std::function<void(int, std::vector<double>&)> generate_hydroxyl_combinations;
-        generate_hydroxyl_combinations = [&](int depth, std::vector<double>& current_angles) {
-            if (depth == num_hetero_H_bonds) {
+        std::function<void(std::size_t, std::vector<double>&)> generate_hydroxyl_combinations;
+        generate_hydroxyl_combinations = [&](std::size_t depth, std::vector<double>& current_angles) {
+            if (depth == static_cast<std::size_t>(num_hetero_H_bonds)) {
                 hydroxyl_combinations.push_back(current_angles);
                 return;
             }
             
-            int bond_idx_in_torsion_library = bond_indices.size() - 1 - depth;
-            if (bond_idx_in_torsion_library < 0 || bond_idx_in_torsion_library >= bond_indices.size()) {
+            if (depth >= bond_indices.size()) {
                 return; // Should not happen if hetero_H_bonds are correctly mapped
             }
+            const std::size_t bond_idx_in_torsion_library = bond_indices.size() - 1 - depth;
             int actual_bond_id = bond_indices[bond_idx_in_torsion_library];
             const auto& bond_info = torsion_library.at(actual_bond_id);
             
@@ -1005,7 +1006,7 @@ ProductList stochasticSamplingContinuous(RDKit::ROMol& mol,
                     }
                     
                     // Check for clashes
-                    if (SamplingUtils::checkTooCloseNonbondedAtoms(work_conf_hydroxyl, nonbonded_pairs, clash_threshold)) {
+                    if (SamplingUtils::checkTooCloseNonbondedAtoms(work_conf_hydroxyl, nonbonded_pairs)) {
                         continue;
                     }
                     

@@ -6,6 +6,7 @@
 #include <GraphMol/ForceFieldHelpers/FFConvenience.h>
 #include <GraphMol/MolAlign/AlignMolecules.h>
 #include <GraphMol/MolOps.h>
+#include <GraphMol/PeriodicTable.h>
 #include <ForceField/ForceField.h>
 #include <Geometry/point.h>
 #include <cmath>
@@ -16,13 +17,6 @@
 #include <stdexcept>
 #include <functional>
 #include <unordered_set>
-#include <random>
-
-// thread-local RNG helper to avoid costly construction per-call
-static inline std::mt19937 &get_thread_rng_common() {
-    static thread_local std::mt19937 rng(std::random_device{}());
-    return rng;
-}
 
 namespace StochasticSampling {
 
@@ -67,111 +61,62 @@ void ConformerCache::initialize(const RDKit::ROMol& reference_mol) {
     rmsd_calculator->initialize(*cache_mol_no_h);
 }
 
-bool ConformerCache::isSimilarFast(const RDKit::Conformer& conf, 
-                                   const RDKit::ROMol& mol_with_h,
-                                   const std::vector<int>& heavy_atom_mapping,
+ConformerCache::PreparedHeavyConformer ConformerCache::prepareHeavyConformer(
+        const RDKit::Conformer& conf,
+        const std::vector<int>& heavy_atom_mapping) const {
+    if (!cache_mol_no_h) {
+        throw std::runtime_error("ConformerCache not initialized");
+    }
+
+    PreparedHeavyConformer prepared;
+    prepared.conformer = std::make_unique<RDKit::Conformer>(cache_mol_no_h->getNumAtoms());
+    for (unsigned int i = 0; i < conf.getNumAtoms(); ++i) {
+        const int heavy_idx = heavy_atom_mapping[i];
+        if (heavy_idx >= 0) {
+            prepared.conformer->setAtomPos(heavy_idx, conf.getAtomPos(i));
+        }
+    }
+
+    const size_t n_heavy = cache_mol_no_h->getNumAtoms();
+    prepared.radii.resize(n_heavy);
+    for (size_t i = 0; i < n_heavy; ++i) {
+        prepared.centroid += prepared.conformer->getAtomPos(static_cast<unsigned int>(i));
+    }
+    prepared.centroid *= 1.0 / static_cast<double>(n_heavy);
+    for (size_t i = 0; i < n_heavy; ++i) {
+        const auto& p = prepared.conformer->getAtomPos(static_cast<unsigned int>(i));
+        const double dx = p.x - prepared.centroid.x;
+        const double dy = p.y - prepared.centroid.y;
+        const double dz = p.z - prepared.centroid.z;
+        prepared.radii[i] = std::sqrt(dx * dx + dy * dy + dz * dz);
+    }
+    return prepared;
+}
+
+bool ConformerCache::isSimilarFast(const PreparedHeavyConformer& probe,
                                    double rmsd_threshold) const {
     if (rmsd_threshold == 0.0 || !cache_mol_no_h || cache_mol_no_h->getNumConformers() == 0) {
         return false;
     }
-    
     try {
-        // Create a temporary conformer with only heavy atoms
-        auto temp_conf = std::make_unique<RDKit::Conformer>(cache_mol_no_h->getNumAtoms());
-
-        // Map coordinates from full conformer to heavy-atom-only conformer
-        for (unsigned int i = 0; i < conf.getNumAtoms(); ++i) {
-            int heavy_idx = heavy_atom_mapping[i];
-            if (heavy_idx >= 0) { // Not a hydrogen
-                temp_conf->setAtomPos(heavy_idx, conf.getAtomPos(i));
-            }
-        }
-
-        // We no longer compute probe radii here; isSimilarToAny will compute probe radii once for the probe and
-        // forward it to calculateAlignedRMSD. This avoids duplicated work.
-
-        // Add temporarily to cache molecule
-        int temp_conf_id = cache_mol_no_h->addConformer(temp_conf.release(), true);
-
-        // Use accelerated RMSD calculation instead of RDKit's getBestRMS
-        std::vector<int> cached_conf_ids;
-        for (int i = static_cast<int>(cache_mol_no_h->getNumConformers()) - 2; i >= 0; --i) { // -2 to exclude temp conformer and start from last valid
-            cached_conf_ids.push_back(i);
-        }
-
-        // Shuffle cached_conf_ids for stochastic early exit
-        std::shuffle(cached_conf_ids.begin(), cached_conf_ids.end(), get_thread_rng_common());
-
-        bool is_similar = false;
-        if (!cached_conf_ids.empty() && rmsd_calculator) {
-            // Rely on the RMSD calculator which will compute probe radii once and use the provided cached per-ref data
-            is_similar = rmsd_calculator->isSimilarToAny(*cache_mol_no_h, temp_conf_id, cached_conf_ids, rmsd_threshold,
-                                                          &cache_ref_radii, &cache_ref_centroids);
-        }
-
-        // Remove temporary conformer
-        cache_mol_no_h->removeConformer(temp_conf_id);
-
-        return is_similar;
-        
+        return rmsd_calculator && rmsd_calculator->isSimilarToAny(
+            *cache_mol_no_h, *probe.conformer, probe.radii, rmsd_threshold,
+            &cache_ref_radii, &cache_ref_centroids);
     } catch (const std::exception& e) {
         std::cerr << "❌ Error in ConformerCache::isSimilarFast: " << e.what() << std::endl;
     }
-    
     return false;
 }
 
-void ConformerCache::addConformerFast(const RDKit::Conformer& conf,
-                                      const RDKit::ROMol& mol_with_h,
-                                      const std::vector<int>& heavy_atom_mapping,
-                                      double energy) {
-    if (!cache_mol_no_h) {
-        throw std::runtime_error("ConformerCache not initialized");
-    }
-    
-    try {
-        // Create conformer with only heavy atoms
-        auto stripped_conf = std::make_unique<RDKit::Conformer>(cache_mol_no_h->getNumAtoms());
-        
-        // Map coordinates from full conformer to heavy-atom-only conformer
-        for (unsigned int i = 0; i < conf.getNumAtoms(); ++i) {
-            int heavy_idx = heavy_atom_mapping[i];
-            if (heavy_idx >= 0) { // Not a hydrogen
-                stripped_conf->setAtomPos(heavy_idx, conf.getAtomPos(i));
-            }
-        }
-        
-        // Compute centroid and squared radii for the stripped conformer BEFORE adding (we still own the object)
-        size_t n_heavy = cache_mol_no_h->getNumAtoms();
-        RDGeom::Point3D centroid(0.0, 0.0, 0.0);
-        std::vector<double> radii(n_heavy);
-        for (size_t i = 0; i < n_heavy; ++i) {
-            const RDGeom::Point3D &p = stripped_conf->getAtomPos(static_cast<unsigned int>(i));
-            centroid += p;
-        }
-        double inv_n = 1.0 / static_cast<double>(n_heavy);
-        centroid *= inv_n;
-        for (size_t i = 0; i < n_heavy; ++i) {
-            const RDGeom::Point3D &p = stripped_conf->getAtomPos(static_cast<unsigned int>(i));
-            double dx = p.x - centroid.x;
-            double dy = p.y - centroid.y;
-            double dz = p.z - centroid.z;
-            // store radius (distance from centroid)
-            radii[i] = std::sqrt(dx*dx + dy*dy + dz*dz);
-        }
+void ConformerCache::addPreparedConformer(PreparedHeavyConformer&& prepared,
+                                          double energy) {
+    if (!cache_mol_no_h) throw std::runtime_error("ConformerCache not initialized");
+    if (!prepared.conformer) throw std::invalid_argument("Prepared conformer has no coordinates");
 
-        // Add to cache
-        cache_mol_no_h->addConformer(stripped_conf.release(), true);
-        energies.push_back(energy);
-
-        // Store cached per-conformer derived data (store radii)
-        cache_ref_radii.push_back(std::move(radii));
-        cache_ref_centroids.push_back(centroid);
-        
-    } catch (const std::exception& e) {
-        std::cerr << "Error in ConformerCache::addConformerFast: " << e.what() << std::endl;
-        throw;
-    }
+    cache_mol_no_h->addConformer(prepared.conformer.release(), true);
+    energies.push_back(energy);
+    cache_ref_radii.push_back(std::move(prepared.radii));
+    cache_ref_centroids.push_back(prepared.centroid);
 }
 
 size_t ConformerCache::size() const {
@@ -291,30 +236,35 @@ std::pair<AtomPairs, AtomPairs> SamplingUtils::precomputeBondedAndSameParentPair
     return std::make_pair(bonded_pairs, same_parent_pairs);
 }
 
-AtomPairs SamplingUtils::precomputeNonbondedPairs(const RDKit::ROMol& mol,
-                                                  const AtomPairs& bonded_pairs,
-                                                  const AtomPairs& same_parent_pairs) {
-    AtomPairs candidate_pairs;
+NonbondedClashPairs SamplingUtils::precomputeNonbondedPairs(const RDKit::ROMol& mol,
+                                                            const AtomPairs& bonded_pairs,
+                                                            const AtomPairs& same_parent_pairs,
+                                                            double clash_scale) {
+    NonbondedClashPairs candidate_pairs;
     std::set<std::pair<int, int>> excluded_pairs;
+    const auto* periodic_table = RDKit::PeriodicTable::getTable();
+    const auto canonical_pair = [](int atom1, int atom2) {
+        return std::make_pair(std::min(atom1, atom2), std::max(atom1, atom2));
+    };
     
     // Add bonded and same parent pairs to exclusion set
     for (const auto& pair : bonded_pairs) {
-        excluded_pairs.insert(pair);
+        excluded_pairs.insert(canonical_pair(pair.first, pair.second));
     }
     for (const auto& pair : same_parent_pairs) {
-        excluded_pairs.insert(pair);
+        excluded_pairs.insert(canonical_pair(pair.first, pair.second));
     }
     
     // Generate all possible pairs and exclude bonded/same parent pairs
     int num_atoms = mol.getNumAtoms();
     for (int i = 0; i < num_atoms; ++i) {
         for (int j = i + 1; j < num_atoms; ++j) {
-            // Check both directions since Python stores both
             std::pair<int, int> pair_ij = {i, j};
-            std::pair<int, int> pair_ji = {j, i};
-            if (excluded_pairs.find(pair_ij) == excluded_pairs.end() && 
-                excluded_pairs.find(pair_ji) == excluded_pairs.end()) {
-                candidate_pairs.push_back(pair_ij);
+            if (excluded_pairs.find(pair_ij) == excluded_pairs.end()) {
+                const double vdw_sum = periodic_table->getRvdw(mol.getAtomWithIdx(i)->getAtomicNum()) +
+                                       periodic_table->getRvdw(mol.getAtomWithIdx(j)->getAtomicNum());
+                const double cutoff = clash_scale * vdw_sum;
+                candidate_pairs.push_back({i, j, cutoff * cutoff});
             }
         }
     }
@@ -323,14 +273,10 @@ AtomPairs SamplingUtils::precomputeNonbondedPairs(const RDKit::ROMol& mol,
 }
 
 bool SamplingUtils::checkTooCloseNonbondedAtoms(const RDKit::Conformer& conf,
-                                                const AtomPairs& candidate_pairs,
-                                                double threshold) {
-    // OPTIMIZATION: Use squared threshold to avoid sqrt() calls
-    double threshold_sq = threshold * threshold;
-    
+                                                const NonbondedClashPairs& candidate_pairs) {
     for (const auto& pair : candidate_pairs) {
-        const RDGeom::Point3D& pos1 = conf.getAtomPos(pair.first);
-        const RDGeom::Point3D& pos2 = conf.getAtomPos(pair.second);
+        const RDGeom::Point3D& pos1 = conf.getAtomPos(pair.atom1);
+        const RDGeom::Point3D& pos2 = conf.getAtomPos(pair.atom2);
         
         // Calculate squared distance (avoid sqrt)
         double dx = pos1.x - pos2.x;
@@ -338,7 +284,7 @@ bool SamplingUtils::checkTooCloseNonbondedAtoms(const RDKit::Conformer& conf,
         double dz = pos1.z - pos2.z;
         double distance_sq = dx*dx + dy*dy + dz*dz;
         
-        if (distance_sq < threshold_sq) {
+        if (distance_sq < pair.cutoff_sq) {
             return true;  // Found clash
         }
     }
