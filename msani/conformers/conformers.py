@@ -33,14 +33,24 @@ from msani.conformers import utils, mol2writer, torsions
 from msani.filtering import filters
 from msani.io.utils import log_error
 
-# Check if Open Babel is installed
-try:
-    from openbabel.openbabel import OBMol
-    OBABEL_AVAILABLE = True
-    obabel_path = os.path.join(os.path.dirname(sys.executable), 'obabel') # Ensure that the exact obabel within the same conda environment is used
-except:
-    OBABEL_AVAILABLE = False
-    pass
+def _find_obabel_executable():
+    """Find the Open Babel CLI without requiring its optional Python bindings."""
+    executable_dir = Path(sys.executable).parent
+    names = ('obabel.exe', 'obabel') if os.name == 'nt' else ('obabel',)
+    candidates = [executable_dir / name for name in names]
+    if os.name == 'nt':
+        candidates.extend(executable_dir.parent / 'Library' / 'bin' / name for name in names)
+    path_obabel = shutil.which('obabel')
+    if path_obabel:
+        candidates.append(Path(path_obabel))
+    return next((
+        str(candidate) for candidate in candidates
+        if candidate.is_file() and (os.name == 'nt' or os.access(candidate, os.X_OK))
+    ), None)
+
+
+obabel_path = _find_obabel_executable()
+OBABEL_AVAILABLE = obabel_path is not None
 
 # Check if the in-memory AMSOLcpp binding is installed
 try:
@@ -56,6 +66,8 @@ try:
     MEEKO_AVAILABLE = True
 except ImportError:
     MEEKO_AVAILABLE = False
+    MoleculePreparation = None
+    PDBQTWriterLegacy = None
 
 # Check if the CPP-accelerated sampling module is available
 try:
@@ -226,6 +238,11 @@ class ConformerGenerator:
             if self.method == 'corina':
                 self._embed_smiles_corina()
             elif self.method == 'obabel':
+                if not OBABEL_AVAILABLE:
+                    raise ImportError(
+                        'Open Babel is required for method="obabel" but its obabel executable '
+                        'was not found. Install Open Babel or use method="rdkit".'
+                    )
                 self._embed_smiles_babel()
             elif self.method == 'rdkit':
                 self._embed_smiles_rdkit()
@@ -609,6 +626,12 @@ class ConformerGenerator:
         timeout : int
             Maximum number of seconds to wait for OpenBabel before killing the process (default: 30).
         '''
+        if not OBABEL_AVAILABLE:
+            raise ImportError(
+                'Open Babel is required for this embedding method but its obabel executable '
+                'was not found. Install Open Babel or use method="rdkit".'
+            )
+
                                             # -h: add hs; gen3d
         cmd = [str(obabel_path), f"-:{self.smiles}", "-h", "--gen3d", "-osdf"]
 
@@ -1090,7 +1113,10 @@ class ConformerGenerator:
             filename (str): The name of the output PDBQT file. If None, defaults to self.name.pdbqt.
         """
         if not MEEKO_AVAILABLE:
-            raise ImportError('Please install the meeko package using "pip install meeko" to use this script.\nIn case you are using Python >= 3.12, install it from the Github repository.')
+            raise ImportError(
+                'Meeko is required for PDBQT output. Install the optional dependency with '
+                '"pip install MolSanitizer[pdbqt]".'
+            )
 
         if filename is None:
             filename = self.name
@@ -1251,7 +1277,7 @@ def write_to_tarball(ball, data, name):
 
 def _log_conformer_failure(smiles, name, stage, error):
     logger.error('%s failed for %s: %s', stage, name, error)
-    log_error(smiles, name)
+    log_error(smiles, name, f'{stage}: {error}')
 
 
 def _embed_rdkit_worker(result_queue, smiles, name, config):
@@ -1299,7 +1325,12 @@ def _create_conformer_generator(smiles, name, config, request_alignment):
         process.join()
         result_queue.close()
         process.close()
-        logger.warning('RDKit embedding timed out for %s; falling back to OpenBabel.', name)
+        if not OBABEL_AVAILABLE:
+            raise RuntimeError(
+                f'RDKit embedding timed out for {name}, and Open Babel is not available '
+                'for fallback. Install Open Babel or select a different embedding method.'
+            )
+        logger.warning('RDKit embedding timed out for %s; falling back to Open Babel.', name)
         return ConformerGenerator(smiles, name, method='obabel', **common_kwargs), time.perf_counter() - start
     try:
         amsol_mol, ring_confs, mol2_str, error = result_queue.get(timeout=1)
@@ -1376,6 +1407,16 @@ def _process_conformer_row(row, config, request_alignment, archive):
         print(f'Handling {name}')
     started = time.perf_counter()
     try:
+        if 'pdbqt' in config.formats and not MEEKO_AVAILABLE:
+            raise ImportError(
+                'Meeko is not available for PDBQT output. Install it with '
+                '"pip install MolSanitizer[pdbqt]".'
+            )
+        if config.method == 'obabel' and not OBABEL_AVAILABLE:
+            raise ImportError(
+                'Open Babel was selected for embedding, but its obabel executable was not found. '
+                'Install Open Babel or use method="rdkit".'
+            )
         confgen, embedding_time = _create_conformer_generator(smiles, name, config, request_alignment)
         if confgen.failed:
             _log_conformer_failure(smiles, name, 'Conformer generation', 'The given molecule could not be embedded')

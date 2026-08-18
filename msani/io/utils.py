@@ -1,8 +1,12 @@
 from pandas import DataFrame
 
-def log_error(smiles, name):
+def log_error(smiles, name, reason=None):
+    """Append a failed molecule and an optional explanation to the error log."""
+    fields = [str(smiles), str(name)]
+    if reason is not None:
+        fields.append(" ".join(str(reason).splitlines()))
     with open('msani_error.err', 'a') as f:
-        f.write(f"{smiles} \t {name}\n")
+        f.write("\t".join(fields) + "\n")
 
 def log_error_mol2(current_comments_str, current_mol2_str):
     with open('strain_error.err', 'a') as f:
