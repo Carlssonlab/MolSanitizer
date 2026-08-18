@@ -6,14 +6,39 @@ All notable changes to this project will be documented in this file.
 
 ### 🚀 Features
 
+- New descriptors for filtering: TPSA and Fsp3, as suggested by @FlavioBallante - ([b4440f8](https://github.com/phonglam3103/MolSanitizer/commit/b4440f86adb9d2ff6947801e176dfb7d04edee76))
+- Added AMSOLcpp with memory-based partial charges and desolvation properties assignments. Thanks to @isra3l. No longer manual AMSOL installation needed. - ([31967d1](https://github.com/phonglam3103/MolSanitizer/commit/31967d1f20ca5411b8fe4f2791b9912350363768))
+- Default eps (dielectric constant) is now set to 4, as it compromised better between the numConfs and performance - ([fbe5e53](https://github.com/phonglam3103/MolSanitizer/commit/fbe5e538d6b32cd36456d9cd114836f7db75f48d))
+- Add correction for ring amidinium bond orders from CORINA - ([5476121](https://github.com/phonglam3103/MolSanitizer/commit/54761210175347720ebb50b7d39f93be880cb267))
+- Update clash detection parameters to use clash_scale with sum of vdw radii instead of general threshold for all atom pairs. - ([afbb200](https://github.com/phonglam3103/MolSanitizer/commit/afbb200a3d55db13425ade778e52ea7ee18a193f))
+- Update clash detection parameters to use clash_scale with sum of vdw radii instead of general threshold for all atom pairs. - ([062b2e6](https://github.com/phonglam3103/MolSanitizer/commit/062b2e6090db5e95bdb242801298e20a8754f55d))
 - Add as_string parameter to convert_to_db2 to allow returning DB2 data as a string - ([5b49383](https://github.com/phonglam3103/MolSanitizer/commit/5b49383c5d36ff3f44eca24bb5a37930ae67ab89))
 - Add whole-node batch submission support to SLURM configurations - ([8084e0c](https://github.com/phonglam3103/MolSanitizer/commit/8084e0c332f6a04df9e9e407283f13a165ab0310))
 
 ### 🐛 Bug Fixes
 
+- Fix a bug that Mol2Writer fail to produce multiple rigid ring conformer (especially for sulfonamides). Reported by @kolbp - ([596b521](https://github.com/phonglam3103/MolSanitizer/commit/596b52178aa5825ecbd0c2ffe1f4d094dab4e169))
+- Fix a bug that MMFF forcefield was not calculating correctly the MMFF energies with non-bonded terms since the porting to C++, refer to #49. Need to test more on this - ([d14dc39](https://github.com/phonglam3103/MolSanitizer/commit/d14dc397eb09db096814b3687a414e5a01eae159))
 - Improve SMARTS detection logic in canonicalization - ([7382bfd](https://github.com/phonglam3103/MolSanitizer/commit/7382bfdc243e7cd75be656c3461de0bf2914817c))
 - Add a timeout mechanism for Openbabel-based conformer generator to prevent permanent stalling. - ([f9b55f1](https://github.com/phonglam3103/MolSanitizer/commit/f9b55f1a5f59ffc5d0ef990a09df0f1dab90fe90))
 - Fix a bug that the no-stereoisomers and no-neutralize are not passed correctly from msani_batch to subjobs. - ([7adb5ae](https://github.com/phonglam3103/MolSanitizer/commit/7adb5ae3348116d0499c34661af66c8c218c89c1))
+
+### 🚜 Refactor
+
+- Refactor gen_conf_chunk function for better maintenance. - ([89e7cd9](https://github.com/phonglam3103/MolSanitizer/commit/89e7cd93d527f361358018480442b4a0d7354166))
+
+### ⚡ Performance
+
+- Two times faster protonation and tautomerization. Improving deprotonation for 6-membered NH-heterocycles & fix tautomer-exception - ([648e883](https://github.com/phonglam3103/MolSanitizer/commit/648e8834bebdfd19ff2c36c233a81c2d8d85da49))
+- Several small improvements to increase the accuracy of initial embedding stage (mainly in sr_confs library) - ([270524c](https://github.com/phonglam3103/MolSanitizer/commit/270524cf1d849327ba777f800b0f9ea39a57bd9b))
+
+### 🧪 Testing
+
+- Add unittests for Mol2 and SDF Writer - ([80a954a](https://github.com/phonglam3103/MolSanitizer/commit/80a954adaf2c9a26e6823ef55b83694cddbb61a7))
+
+### ◀️ Revert
+
+- Revert to the previous sr conf library, added revert order for cyclohexene_sp2-1,2,3_ - ([15774d9](https://github.com/phonglam3103/MolSanitizer/commit/15774d98a6f2d3ad9202b12050be3523fd3c8eb7))
 
 ## [0.6.0] - 2026-03-12
 
