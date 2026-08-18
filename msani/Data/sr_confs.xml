@@ -71,6 +71,15 @@ Date: 2025-08-05
       <set dihedral="'-20', '20', '-20', '20'" value="2"/>
     </dihedral_sets>
   </ring>
+    <ring name="cyclopentane-1/1-3-sp2">
+    <note note="Works for cyclopentanones; cyclopentane-1,3-diones"/>
+    <ref ref="ABEGOH ADEKAX TACMOE FIFDED"/>
+    <smarts smarts="[A^2]1-[A^3]-[A^2,A^3]-[A^3]-[A^3]-1"/>
+    <dihedral_sets>
+      <set dihedral="'30', '-30', '30', '0', '0'" value="1"/>
+      <set dihedral="'-30', '30', '-30', '0', '0'" value="2"/>
+    </dihedral_sets>
+  </ring>
   <ring name="5-membered lactam/lactone">
     <note note=""/>
     <smarts smarts="[C;$(C=[O,SX1])]1-[N,O]-[A^3]-[A^3]-[A^3]-1"/>
@@ -184,13 +193,16 @@ Date: 2025-08-05
     <ref ref=""/>
     <dihedral_sets>
       <set dihedral="'0', '-30', '60', '-45', '20', '0'" value="1"/> <!--CCDC CUPVAO CUPTUG JOBDIQ-->
-      <set dihedral="'0', '30', '-60', '45', '-20', '0'" value="2"/> <!--CCDC JOBCOV-->
-      <set dihedral="'30', '-60', '60', '-30', '0', '0'" value="3"/> <!--CCDC AMAJED BOXMAG FAFDUO-->
-      <set dihedral="'-30', '60', '-60', '30', '0', '0'" value="4"/> 
+      <set dihedral="'0', '20', '-45', '65', '-30', '0'" value="2"/> <!--revert order of 1-->
+      <set dihedral="'0', '30', '-60', '45', '-20', '0'" value="3"/> <!--CCDC JOBCOV-->
+      <set dihedral="'0', '-20', '45', '-60', '30', '0'" value="4"/> <!--revert order of 3-->
+      <set dihedral="'30', '-60', '60', '-30', '0', '0'" value="5"/> <!--CCDC AMAJED BOXMAG FAFDUO-->
+      <set dihedral="'0', '0', '-30', '60', '-60', '30'" value="6"/> <!--revert order of 5-->
+      <set dihedral="'-30', '60', '-60', '30', '0', '0'" value="7"/>
+      <set dihedral="'0', '0', '30', '-60', '60', '-30'" value="6"/> <!--revert order of 5-->
     </dihedral_sets>
-  </ring> 
+  </ring>  
   <ring name="cyclohexene">
-    <note note=""/>
     <smarts smarts="*1=,:*-[A^3]-[A^3]-[A^3]-[A^3]-1"/>
     <ref ref="https://doi.org/10.1016/0022-2860(68)87035-8"/>
     <dihedral_sets>
@@ -281,6 +293,15 @@ Date: 2025-08-05
       <set dihedral="'-45', '0', '60', '-15', '-60', '70', '0'" value="2"/>
     </dihedral_sets>
   </ring>
+  <ring name="cyclohepta-1,3-diene-5-O-sp2">
+    <note note="boat like forms; PDB 559_4Z1S_A"/>
+    <smarts smarts="[*^2]1~[*^2]-[*^2]~[*^2]-[O^2]-A-A-1"/>
+    <ref ref=""/>
+    <dihedral_sets>
+      <set dihedral="'-45', '0', '70', '-45', '-45', '70', '0'" value="1"/> 
+      <set dihedral="'45', '0', '-70', '45', '45', '-70', '0'" value="2"/> 
+    </dihedral_sets>
+  </ring>
   <ring name="cyclohepta-1,3-diene-6-sp2">
     <note note="twisted-boat like forms; example: DUQGOP EMUXIU HADTEP HADTIT HEWLEC VEHVOU YEPDAB"/>
     <smarts smarts="[*^2]1~[*^2]-[*^2]~[*^2]-A-[C^2,$(N-!@C=O)]-A-1"/>
@@ -296,11 +317,11 @@ Date: 2025-08-05
     <ref ref="https://doi.org/10.1016/0166-1280(82)80039-0; https://pubs.acs.org/doi/10.1021/ci7002494; https://doi.org/10.1016/0040-4020(73)80199-1"/>
     <dihedral_sets>
       <set dihedral="'15', '0', '-45', '80', '-45', '0', '0'" value="1"/> <!-- envelope - Cs-->
-      <set dihedral="'15', '0', '0', '-45', '80', '-45', '0'" value="2"/> <!-- envelope - Cs - revese order of 1-->
-      <set dihedral="'-15', '0', '45', '-80', '45', '0', '0'" value="3"/> <!-- envelope - Cs-->
-      <set dihedral="'-15', '0', '0', '45', '-80', '45', '0'" value="4"/> <!-- envelope - Cs revese order of 3-->
+      <set dihedral="'-15', '0', '45', '-80', '45', '0', '0'" value="2"/> <!-- envelope - Cs, mirror to 1-->
+      <set dihedral="'15', '0', '0', '-45', '80', '-45', '0'" value="3"/> <!-- envelope - Cs revese order of 1-->
+      <set dihedral="'-15', '0', '0', '45', '-80', '45', '0'" value="4"/> <!-- envelope - Cs revese order of 2, mirror to 3-->
       <set dihedral="'-45', '0', '70', '-45', '-45', '70', '0'" value="5"/> <!-- twisted-boat - C2-->
-      <set dihedral="'45', '0', '-70', '45', '45', '-70', '0'" value="6"/> <!-- twisted-boat - C2-->
+      <set dihedral="'45', '0', '-70', '45', '45', '-70', '0'" value="6"/> <!-- twisted-boat - C2, mirror to 5-->
     </dihedral_sets>
   </ring>
 

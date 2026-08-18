@@ -75,6 +75,8 @@ def arguments(args):
     if args.hba: logger.info(f"HBA filter: {args.hba}")
     if args.hbd: logger.info(f"HBD filter: {args.hbd}")
     if args.mw: logger.info(f"MW filter: {args.mw}")
+    if args.tpsa: logger.info(f"TPSA filter: {args.tpsa}")
+    if args.fsp3: logger.info(f"FSP3 filter: {args.fsp3}")
     if args.chiral: logger.info(f"Chiral filter: {args.chiral}")
 
     if args.gen3d:
@@ -86,6 +88,10 @@ def arguments(args):
         logger.info(f"Number of conformers: {args.numconfs}")
         logger.info(f"Cleanup: {args.cleanup}")
         logger.info(f"Random seed: {args.randomSeed}")
+        logger.info(f"Using clash scale value: {args.clash_scale}")
+        logger.info(f"RMSD threshold for clustering: {args.rmsd}")
+        logger.info(f"Using forcefield: {args.forcefield}")
+        logger.info(f"Dielectric constant: {args.eps}")
         logger.info(f"Energy window: {args.energywindow}")
         logger.info(f"Number of ring conformations: {args.nringconfs}")
         logger.info(f"Embedding method: {args.method}")

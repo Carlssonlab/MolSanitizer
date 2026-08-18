@@ -4,12 +4,12 @@ import os
 import shutil
 
 from pathlib import Path
-from types import SimpleNamespace
-from os import system
 import platform
 
 
 from pandas import read_csv
+from rdkit import Chem
+
 from msani import cli
 from msani.batchmode import Split_Submit_jobs
 from msani.io import parsers
@@ -89,7 +89,7 @@ class Test_MolSanitizer(unittest.TestCase):
                                       f'{self.path}/out_unwanted_all_rejected.txt')
          
             args.unwanted = ['Regular','Optional']
-            system(f'rm {temp_dir}/*.txt')
+            self.remove_temp_text_files(temp_dir)
             cli.clean_data(args)
             with self.subTest(msg="Checking unwanted Regular and Optional:"):
                 self.compare_relative(f'{temp_dir}/dummy_output_clean.txt',
@@ -99,7 +99,7 @@ class Test_MolSanitizer(unittest.TestCase):
 
             # Test if filters works together
             args.unwanted = ['Regular']
-            system(f'rm {temp_dir}/*.txt')
+            self.remove_temp_text_files(temp_dir)
             cli.clean_data(args)
             with self.subTest(msg="Checking unwanted Regular:"):
                 self.compareFiles(f'{temp_dir}/dummy_output_clean.txt',
@@ -108,7 +108,7 @@ class Test_MolSanitizer(unittest.TestCase):
                                   f'{self.path}/out_unwanted_regular_rejected.txt')
 
             args.unwanted = ['Special']
-            system(f'rm {temp_dir}/*.txt')
+            self.remove_temp_text_files(temp_dir)
             cli.clean_data(args)
             with self.subTest(msg="Checking unwanted Special:"):
                 self.compareFiles(f'{temp_dir}/dummy_output_clean.txt',
@@ -117,7 +117,7 @@ class Test_MolSanitizer(unittest.TestCase):
                                   f'{self.path}/out_unwanted_special_rejected.txt')
 
             args.unwanted = ['Optional']
-            system(f'rm {temp_dir}/*.txt')
+            self.remove_temp_text_files(temp_dir)
             cli.clean_data(args)
             with self.subTest(msg="Checking unwanted Optional:"):
                 self.compareFiles(f'{temp_dir}/dummy_output_clean.txt',
@@ -126,6 +126,7 @@ class Test_MolSanitizer(unittest.TestCase):
                                   f'{self.path}/out_unwanted_optional_rejected.txt')
 
     def test_descriptor_filter(self):
+        os.chdir(self.path)
         with tempfile.TemporaryDirectory() as temp_dir:
             args = self.generate_mock_arguments([f'{self.path}/in_data100.txt'],
                                                 ['test'], temp_dir)
@@ -139,7 +140,7 @@ class Test_MolSanitizer(unittest.TestCase):
                                       f'{self.path}/out_ha1725_rejected.txt')
             
             args.ha = '>24'
-            system(f'rm {temp_dir}/*.txt')
+            self.remove_temp_text_files(temp_dir)
             cli.clean_data(args)
             with self.subTest(msg="Checking HA >24:"):
                 self.compare_relative(f'{temp_dir}/dummy_output_clean.txt',
@@ -148,7 +149,7 @@ class Test_MolSanitizer(unittest.TestCase):
                                       f'{self.path}/out_ha_over24_rejected.txt')
 
             args.ha = None
-            system(f'rm {temp_dir}/*.txt')
+            self.remove_temp_text_files(temp_dir)
             args.logp = '100-200'
             cli.clean_data(args)
             with self.subTest(msg="Checking logP 100-200:"):
@@ -158,7 +159,7 @@ class Test_MolSanitizer(unittest.TestCase):
                                       f'{self.path}/out_logp_100200_rejected.txt')
 
             args.logp = '<=350'
-            system(f'rm {temp_dir}/*.txt')
+            self.remove_temp_text_files(temp_dir)
             cli.clean_data(args)
             with self.subTest(msg="Checking logP <=350:"):
                 self.compare_relative(f'{temp_dir}/dummy_output_clean.txt',
@@ -168,7 +169,7 @@ class Test_MolSanitizer(unittest.TestCase):
             
             args.logp = None
             args.mw = '>=300'
-            system(f'rm {temp_dir}/*.txt')
+            self.remove_temp_text_files(temp_dir)
             cli.clean_data(args)
             with self.subTest(msg="Checking MW >=300:"):
                 self.compare_relative(f'{temp_dir}/dummy_output_clean.txt',
@@ -179,7 +180,7 @@ class Test_MolSanitizer(unittest.TestCase):
             args.mw = None
             args.hba = '<=4'
             args.hbd = '<=2'
-            system(f'rm {temp_dir}/*.txt')
+            self.remove_temp_text_files(temp_dir)
             cli.clean_data(args)
             with self.subTest(msg="Checking HBA <=4 HBD <=2:"):
                 self.compare_relative(f'{temp_dir}/dummy_output_clean.txt',
@@ -187,11 +188,32 @@ class Test_MolSanitizer(unittest.TestCase):
                 self.compare_relative(f'{temp_dir}/dummy_output_rejected.txt',
                                       f'{self.path}/out_hba4_hbd2_rejected.txt')
 
+            args.hba = None
+            args.hbd = None
+            args.fsp3 = '0.2-0.7'
+            self.remove_temp_text_files(temp_dir)
+            cli.clean_data(args)
+            with self.subTest(msg="Checking FSP3 0.2-0.7:"):
+                self.compare_relative(f'{temp_dir}/dummy_output_clean.txt',
+                                      f'{self.path}/out_fsp3_0.2-0.7_clean.txt')
+                self.compare_relative(f'{temp_dir}/dummy_output_rejected.txt',
+                                      f'{self.path}/out_fsp3_0.2-0.7_rejected.txt')
+
+            args.fsp3 = None
+            args.tpsa = '50-100'
+            self.remove_temp_text_files(temp_dir)
+            cli.clean_data(args)
+            with self.subTest(msg="Checking TPSA 50-100:"):
+                self.compare_relative(f'{temp_dir}/dummy_output_clean.txt',
+                                      f'{self.path}/out_tpsa50-100_clean.txt')
+                self.compare_relative(f'{temp_dir}/dummy_output_rejected.txt',
+                                      f'{self.path}/out_tpsa50-100_rejected.txt')
+
             args = self.generate_mock_arguments([f'{self.path}/in_chiral.txt'], ['test'], temp_dir)
             args.hba = None
             args.hbd = None
             args.chiral = '<=2'
-            system(f'rm {temp_dir}/*.txt')
+            self.remove_temp_text_files(temp_dir)
             cli.clean_data(args)
             with self.subTest(msg="Checking chiral <=2:"):
                 self.compare_relative(f'{temp_dir}/dummy_output_clean.txt',
@@ -284,21 +306,21 @@ class Test_MolSanitizer(unittest.TestCase):
                 self.compare_relative(f'{temp_dir}/dummy_output_clean.txt',
                                       f'{self.path}/ph7_clean.txt')
 
-            system(f'rm {temp_dir}/*.txt')
+            self.remove_temp_text_files(temp_dir)
             
             args.pH = 5
             cli.clean_data(args)
             with self.subTest(msg="Checking pH 5:"):
                 self.compare_relative(f'{temp_dir}/dummy_output_clean.txt',
                                       f'{self.path}/ph5_clean.txt')
-            system(f'rm {temp_dir}/*.txt')
+            self.remove_temp_text_files(temp_dir)
 
             args.pH = 9
             cli.clean_data(args)
             with self.subTest(msg="Checking pH 9:"):
                 self.compare_relative(f'{temp_dir}/dummy_output_clean.txt',
                                       f'{self.path}/ph9_clean.txt')
-            system(f'rm {temp_dir}/*.txt')
+            self.remove_temp_text_files(temp_dir)
 
     def test_standardization(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -320,13 +342,133 @@ class Test_MolSanitizer(unittest.TestCase):
             self.compare_relative(f'{temp_dir}/dummy_output_rejected.txt',
                                   f'{self.path}/out_enamine_rejected.txt')
         os.chdir(self.path)
+
+    def test_sdf_generation(self):
+        tmp_obj = tempfile.TemporaryDirectory()
+        temp_dir = tmp_obj.name
+        with self.subTest(msg="Generating SDF file with 1 ring conformation:"):
+            args = self.generate_mock_arguments([f'{self.path}/in_confgen.smi'],
+                                                ['gen3d', 'test'], temp_dir)
+            args.prefix = Path(temp_dir)
+            args.format = ['sdf']
+            cli.clean_data(args)
+            self.assertTrue(Path(f"{temp_dir}/sdf/3,4-diclorophenol.sdf").exists(),
+                        "SDF file was not created.")
+            # If produce 2 conformers
+            with open(f"{temp_dir}/sdf/3,4-diclorophenol.sdf") as sdf_file:
+                conf = 0
+                for line in sdf_file:
+                    if line.strip().endswith('M  END'):
+                        conf += 1
+                del sdf_file
+            self.assertEqual(conf, 2, "SDF file was not created correctly.")
+
+        with self.subTest(msg="Generating SDF file with 2 ring conformations (sulfonamide/cyclohexane):"):
+            args = self.generate_mock_arguments([f'{self.path}/in_sulfonamide.smi'],
+                                                ['gen3d', 'test'], temp_dir)
+            args.prefix = Path(temp_dir)
+            args.format = ['sdf']
+            cli.clean_data(args)
+            self.assertTrue(Path(f"{temp_dir}/sdf/N-Methylbenzenesulfonamide.nr0.sdf").exists(),
+                        "SDF file was not created.")
+            self.assertTrue(Path(f"{temp_dir}/sdf/N-Methylbenzenesulfonamide.nr1.sdf").exists(),
+                        "SDF file was not created.")
+            # If sdf file can be read back
+            with open(f"{temp_dir}/sdf/N-Methylbenzenesulfonamide.nr0.sdf") as sdf_file:
+                lines = ''
+                for line in sdf_file: 
+                    if line.strip().startswith('M  END'):
+                        lines += line
+                        break
+                    else: lines += line
+                mol = Chem.MolFromMolBlock(lines)
+                del sdf_file
+                if mol is None:
+                    raise ValueError("The molecule was not written correctly")
+                
+            with open(f"{temp_dir}/sdf/N-Methylbenzenesulfonamide.nr1.sdf") as sdf_file:
+                lines = ''
+                for line in sdf_file: 
+                    if line.strip().endswith('M  END'):
+                        lines += line
+                        break
+                    else: lines += line
+                mol = Chem.MolFromMolBlock(lines)
+                del sdf_file
+                if mol is None:
+                    raise ValueError("The molecule was not written correctly")
+        os.chdir(self.path)
+        shutil.rmtree(f"{temp_dir}")
+        tmp_obj.cleanup()
+
+    def test_mol2_generation(self):
+        tmp_obj = tempfile.TemporaryDirectory()
+        temp_dir = tmp_obj.name
+        with self.subTest(msg="Generating mol2 file with 1 ring conformation:"):
+            args = self.generate_mock_arguments([f'{self.path}/in_confgen.smi'],
+                                                ['gen3d', 'test'], temp_dir)
+            args.prefix = Path(temp_dir)
+            args.format = ['mol2']
+            cli.clean_data(args)
+            self.assertTrue(Path(f"{temp_dir}/mol2/3,4-diclorophenol.mol2").exists(),
+                        "mol2 file was not created.")
+            # If the mol2 file can be read
+            with open(f"{temp_dir}/mol2/3,4-diclorophenol.mol2") as mol2_file:
+                lines = ''
+                for line in mol2_file: 
+                    if line.strip().startswith('@<TRIPOS>MOLECULE'):
+                        if lines == '': lines += line
+                        else: break
+                    else: lines += line
+                mol = Chem.MolFromMol2Block(lines)
+                del mol2_file
+                if mol is None:
+                    raise ValueError("The molecule was not written correctly")
+            
+
+        with self.subTest(msg="Generating mol2 file with 2 ring conformations (sulfonamide/cyclohexane):"):
+            args = self.generate_mock_arguments([f'{self.path}/in_sulfonamide.smi'],
+                                                ['gen3d', 'test'], temp_dir)
+            args.prefix = Path(temp_dir)
+            args.format = ['mol2']
+            cli.clean_data(args)
+            self.assertTrue(Path(f"{temp_dir}/mol2/N-Methylbenzenesulfonamide.nr0.mol2").exists(),
+                        "mol2 file was not created.")
+            self.assertTrue(Path(f"{temp_dir}/mol2/N-Methylbenzenesulfonamide.nr1.mol2").exists(),
+                        "mol2 file was not created.")
+            # If the mol2 file can be read
+            with open(f"{temp_dir}/mol2/N-Methylbenzenesulfonamide.nr0.mol2") as mol2_file:
+                lines = ''
+                for line in mol2_file: 
+                    if line.strip().startswith('@<TRIPOS>MOLECULE'):
+                        if lines == '': lines += line
+                        else: break
+                    else: lines += line
+                mol = Chem.MolFromMol2Block(lines)
+                if mol is None:
+                    raise ValueError("The molecule was not written correctly")
+                del mol2_file
+                
+            with open(f"{temp_dir}/mol2/N-Methylbenzenesulfonamide.nr1.mol2") as mol2_file:
+                lines = ''
+                for line in mol2_file: 
+                    if line.strip().startswith('@<TRIPOS>MOLECULE'):
+                        if lines == '': lines += line
+                        else: break
+                    else: lines += line
+                mol = Chem.MolFromMol2Block(lines)
+                if mol is None:
+                    raise ValueError("The molecule was not written correctly")
+                del mol2_file
+        os.chdir(self.path)
+        shutil.rmtree(f"{temp_dir}")
+        tmp_obj.cleanup()
+
     
-    @unittest.skipIf((OS == "Darwin" and ("arm" in machine or "aarch64" in machine)),
-        "Skipping test on MacOS_ARM64 due to no compatible AMSOL software.")
     def test_db2_generation(self):
         tmp_obj = tempfile.TemporaryDirectory()
         temp_dir = tmp_obj.name
-        args = self.generate_mock_arguments([f'{self.path}/in_db2.smi'],
+        args = self.generate_mock_arguments([f'{self.path}/in_confgen.smi'],
                                             ['protonation', 'gen3d', 'test'], temp_dir)
         args.format = ['db2']        
         args.prefix = Path(temp_dir)
@@ -346,9 +488,69 @@ class Test_MolSanitizer(unittest.TestCase):
         os.chdir(self.path)
         shutil.rmtree(f"{temp_dir}")
         tmp_obj.cleanup()
+
+    def test_amsol(self):
+        os.chdir(self.path)
+        reference_dir = self.path / 'db2_zinc'
+
+        def read_atom_charges(db2_path):
+            charges = []
+            with open(db2_path) as db2_file:
+                for line in db2_file:
+                    columns = line.split()
+                    if columns and columns[0] == 'A':
+                        charges.append((columns[1], columns[2], float(columns[6])))
+            return charges
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            try:
+                args = self.generate_mock_arguments(
+                    [f'{self.path}/in_db2_zinc.txt'],
+                    ['gen3d', 'test', 'no-stereoisomers'],
+                    temp_dir,
+                )
+                args.format = ['db2']
+                args.numconfs = 1
+                args.prefix = Path(temp_dir)
+
+                cli.clean_data(args)
+                self.assertFalse(
+                    (Path(temp_dir) / 'solv').exists(),
+                    "AMSOLcpp should not create a legacy solv directory.",
+                )
+
+                reference_files = sorted(reference_dir.glob('*.db2'))
+                self.assertTrue(reference_files, "No AMSOLcpp reference DB2 files found.")
+
+                for reference_file in reference_files:
+                    with self.subTest(file=reference_file.name):
+                        generated_file = Path(temp_dir) / 'db2' / reference_file.name
+                        self.assertTrue(
+                            generated_file.exists(),
+                            f"DB2 file was not created: {reference_file.name}",
+                        )
+
+                        expected = read_atom_charges(reference_file)
+                        observed = read_atom_charges(generated_file)
+                        self.assertEqual(
+                            [(atom_id, atom_name) for atom_id, atom_name, _ in observed],
+                            [(atom_id, atom_name) for atom_id, atom_name, _ in expected],
+                            f"Atoms differ in {reference_file.name}",
+                        )
+                        charge_pairs = zip(expected, observed)
+                        for expected_atom, observed_atom in charge_pairs:
+                            atom_id, atom_name, expected_charge = expected_atom
+                            observed_charge = observed_atom[2]
+                            self.assertAlmostEqual(
+                                observed_charge,
+                                expected_charge,
+                                delta=0.15,
+                                msg=(f"Partial charge differs for atom {atom_id} "
+                                     f"({atom_name}) in {reference_file.name}"),
+                            )
+            finally:
+                os.chdir(self.path)
     
-    @unittest.skipIf((OS == "Darwin" and ("arm" in machine or "aarch64" in machine)),
-        "Skipping test on MacOS_ARM64 due to no compatible AMSOL software.")
     def test_db2_sulfonamide(self):
         tmp_obj = tempfile.TemporaryDirectory()
         temp_dir = tmp_obj.name
@@ -539,6 +741,10 @@ class Test_MolSanitizer(unittest.TestCase):
 
             os.chdir(self.path)
 
+    def clear_temp_txt(self, temp_dir: str):
+        for path in Path(temp_dir).glob("*.txt"):
+            path.unlink()
+
     def compare_relative(self, newfile: str, goldenfile: str):
         # Read the files into dataframes
         df1 = read_csv(newfile, header=None, sep=r'\s+')
@@ -551,9 +757,13 @@ class Test_MolSanitizer(unittest.TestCase):
         # Convert the first column of df1 and df2 into sets
         set1 = set(column1_df1)
         set2 = set(column1_df2)
-
         # Check if the sets are equal
         self.assertEqual(set1, set2, "Files' contents differ")
+
+    @staticmethod
+    def remove_temp_text_files(temp_dir):
+        for text_file in Path(temp_dir).glob('*.txt'):
+            text_file.unlink()
 
     def compareFiles(self, newfile: str, goldenfile: str):
         with open(goldenfile, 'rb') as goldenFile, open(newfile, 'rb') as newFile:
@@ -564,69 +774,20 @@ class Test_MolSanitizer(unittest.TestCase):
             self.assertEqual(goldenfile_content, newFile_content, "Files' contents differ")
 
     def generate_mock_arguments(self, in_files: list, modes: list, temp_dir: tempfile.TemporaryDirectory):
-    
-        output_prefix = Path(temp_dir) / 'dummy_output'
+        """Build test arguments from the production parser's current defaults."""
+        args = parsers.parseArguments([])
+        args.input_files = in_files
+        args.prefix = Path(temp_dir) / 'dummy_output'
+        args.max_isomers = 16
 
-        args = {
-            'input_files': in_files,
-            'format': None,
-            'extended': False,
-            'lazy': False,
-            'removesalts' : False, 
-            'tautomers' : False, 
-            'pains': False,
-            'unwanted': None,
-            'create_custom': False,
-            'stereoisomers': False, 
-            'protonation': False,
-            'pH': 7,
-            'pH_range': 0,
-            "neutralize": False, 
-            "debug": False, 
-            "custom":None, 
-            "prefix":output_prefix, 
-            "max_isomers": 16,
-            "numcores": 4,
-            "test": False,
-            "smiles": None,
-            "gen3d": False,
-            "format": None,
-            "method": "rdkit",
-            "mode": "fixed",
-            "numconfs": 2000,
-            "cleanup": True,
-            "randomSeed": 42,
-            "energywindow": 25,
-            "timeout": 2,
-            "timeout_conf": 2,
-            "rmsd": 0.5,
-            "tolerance": 30,
-            "ignoretorlib":False,
-            "timing":False,
-            "synthon": False,
-            "taurdkit": True,
-            "standardize": False,
-            "ha": None,
-            "logp": None,
-            "hba": None,
-            "hbd": None,
-            "mw": None,
-            "chiral": None,
-            "nringconfs": 1,
-            "allowNonring": False,
-            "eps": 1,
-            "rigid": None,
-            "protlib": None,
-            "taulib": None,
-            "create_protlib": False,
-            "create_taulib": False,
-            "torsion": None,
-            "config": None,
-            "stereo_timeout": 60
-         } 
-        for mode in modes: 
-            if (mode not in ['unwanted','custom']): args[mode] = True
-        return SimpleNamespace(**args)
+        for mode in modes:
+            if mode in {'unwanted', 'custom'}:
+                continue
+            if mode.startswith('no-'):
+                setattr(args, mode.removeprefix('no-').replace('-', '_'), False)
+            else:
+                setattr(args, mode.replace('-', '_'), True)
+        return args
         
 
 if __name__ == '__main__':

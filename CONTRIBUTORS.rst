@@ -27,4 +27,7 @@ Scientific input
 
 * Ruth Brenk
 * Jens Carlsson
+* Trent Balius
+* Peter Kolb
+* Flavio Ballente 
 

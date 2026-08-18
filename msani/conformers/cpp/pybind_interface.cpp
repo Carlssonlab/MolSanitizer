@@ -16,6 +16,7 @@
 #include <GraphMol/ForceFieldHelpers/MMFF/MMFF.h>
 #include <GraphMol/ForceFieldHelpers/FFConvenience.h>
 #include <ForceField/ForceField.h>
+#include <ForceField/MMFF/AngleConstraint.h>
 #include <ForceField/MMFF/TorsionConstraint.h>
 #include <memory>
 #include <stdexcept>
@@ -204,6 +205,7 @@ struct TorsionConstraintData {
     std::vector<std::vector<unsigned int>> hydantoin_matches;
     std::vector<std::array<unsigned int, 4>> substituted_N_barbi_hydan_like;
     std::vector<std::vector<unsigned int>> planar_rings;
+    std::vector<std::array<unsigned int, 4>> alkyne;
 
     bool empty() const {
         return conjugated_substituted_nitrogen_5aro.empty() &&
@@ -211,15 +213,17 @@ struct TorsionConstraintData {
                barbiturate_matches.empty() &&
                hydantoin_matches.empty() &&
                substituted_N_barbi_hydan_like.empty() &&
-               planar_rings.empty();
+               planar_rings.empty() &&
+               alkyne.empty();
     }
 };
 
 std::vector<unsigned int> convertIndexSequence(const py::handle &seq_handle) {
     py::sequence seq = seq_handle.cast<py::sequence>();
+    const Py_ssize_t sequence_size = py::len(seq);
     std::vector<unsigned int> result;
-    result.reserve(py::len(seq));
-    for (Py_ssize_t i = 0; i < py::len(seq); ++i) {
+    result.reserve(static_cast<std::size_t>(sequence_size));
+    for (Py_ssize_t i = 0; i < sequence_size; ++i) {
         result.push_back(seq[i].cast<unsigned int>());
     }
     return result;
@@ -328,6 +332,17 @@ TorsionConstraintData parseTorsionConstraintData(const py::object& constraints_o
         }
     }
 
+    auto alkyne_obj = fetch("alkyne");
+    if (!alkyne_obj.is_none() && py::len(alkyne_obj)) {
+        py::list entries = alkyne_obj.cast<py::list>();
+        for (auto entry : entries) {
+            auto arr = convertFixedSizeArray<4>(entry);
+            if (arr) {
+                data.alkyne.push_back(*arr);
+            }
+        }
+    }
+
     return data;
 }
 
@@ -344,11 +359,31 @@ void addTorsionConstraint(ForceFields::ForceField &ff,
     ff.contribs().push_back(ForceFields::ContribPtr(constraint));
 }
 
+void addAngleConstraint(ForceFields::ForceField &ff,
+                        unsigned int a,
+                        unsigned int b,
+                        unsigned int c,
+                        double minDeg,
+                        double maxDeg,
+                        double forceConstant) {
+    auto *constraint = new ForceFields::MMFF::AngleConstraintContrib(
+        &ff, a, b, c, false, minDeg, maxDeg, forceConstant);
+    ff.contribs().push_back(ForceFields::ContribPtr(constraint));
+}
+
 void applyTorsionConstraints(ForceFields::ForceField &ff, const TorsionConstraintData &data) {
     constexpr double tightMin = -2.0;
     constexpr double tightMax = 2.0;
     constexpr double transMin = 178.0;
     constexpr double transMax = 182.0;
+    constexpr double alkyneMin = 179.5;
+    constexpr double alkyneMax = 180.5;
+    constexpr double alkyneForce = 5.0;
+    constexpr double alkyneBendMin = 170;
+    // RDKit bond angles cannot exceed 180 degrees, so 180.0 is the
+    // realizable upper bound of the requested 179.5-180.5 degree interval.
+    constexpr double alkyneBendMax = 180.0;
+    constexpr double alkyneBendForce = 5.0;
     constexpr double defaultForce = 1.0;
 
     for (const auto &entry : data.conjugated_substituted_nitrogen_5aro) {
@@ -423,6 +458,15 @@ void applyTorsionConstraints(ForceFields::ForceField &ff, const TorsionConstrain
             addTorsionConstraint(ff, a, b, c, d, tightMin, tightMax, defaultForce);
         }
     }
+
+    for (const auto &entry : data.alkyne) {
+        addTorsionConstraint(ff, entry[0], entry[1], entry[2], entry[3],
+                             alkyneMin, alkyneMax, alkyneForce);
+        addAngleConstraint(ff, entry[0], entry[1], entry[2],
+                           alkyneBendMin, alkyneBendMax, alkyneBendForce);
+        addAngleConstraint(ff, entry[1], entry[2], entry[3],
+                           alkyneBendMin, alkyneBendMax, alkyneBendForce);
+    }
 }
 
 // Main discrete sampling wrapper
@@ -438,7 +482,7 @@ py::object stochasticSamplingDiscreteWrapper(py::object mol_obj,
                                              int timeout_conf,
                                              double rmsd,
                                              int numConfs,
-                                             double clash_threshold,
+                                             double clash_scale,
                                              bool verbose = false,
                                              const std::string& mmff_variant = "MMFF94s",
                                              double eps = 1.0,
@@ -481,7 +525,7 @@ py::object stochasticSamplingDiscreteWrapper(py::object mol_obj,
                                                          timeout_conf,
                                                          rmsd,
                                                          numConfs,
-                                                         clash_threshold,
+                                                         clash_scale,
                                                          verbose,
                                                          mmff_variant,
                                                          eps,
@@ -504,7 +548,7 @@ py::object stochasticSamplingContinuousWrapper(py::object mol_obj,
                                                int max_attempts,
                                                int timeout_conf,
                                                double rmsd,
-                                               double clash_threshold,
+                                               double clash_scale,
                                                const py::list& py_hetero_H_bonds,
                                                bool verbose = false,
                                                const std::string& mmff_variant = "MMFF94s",
@@ -537,7 +581,7 @@ py::object stochasticSamplingContinuousWrapper(py::object mol_obj,
                                max_attempts,
                                timeout_conf,
                                rmsd,
-                               clash_threshold,
+                               clash_scale,
                                hetero_H_bonds,
                                verbose,
                                mmff_variant,
@@ -757,7 +801,7 @@ PYBIND11_MODULE(msani_confgen_cpp, m) {
             timeout_conf (int): Timeout per conformer in seconds
             rmsd (float, optional): RMSD threshold for conformer pruning. Defaults to 0.5.
             numConfs (int, optional): Target number of output conformers. Defaults to 600.
-            clash_threshold (float, optional): Atomic clash distance threshold. Defaults to 1.6.
+            clash_scale (float, optional): Scale applied to the sum of atomic van der Waals radii for clash detection. Defaults to 0.7.
             verbose (bool, optional): Enable verbose output. Defaults to False.
             mmff_variant (str, optional): MMFF variant to use. Defaults to "MMFF94s".
             eps (float, optional): Numerical epsilon for calculations. Defaults to 1.0.
@@ -780,7 +824,7 @@ PYBIND11_MODULE(msani_confgen_cpp, m) {
         py::arg("timeout_conf"),
         py::arg("rmsd") = 0.5,
         py::arg("numConfs") = 600,
-        py::arg("clash_threshold") = 1.6,
+        py::arg("clash_scale") = 0.6,
         py::arg("verbose") = false,
         py::arg("mmff_variant") = "MMFF94s",
         py::arg("eps") = 1.0,
@@ -805,7 +849,7 @@ PYBIND11_MODULE(msani_confgen_cpp, m) {
             max_attempts (int, optional): Maximum sampling attempts. Defaults to 50000.
             timeout_conf (int): Timeout per conformer in seconds
             rmsd (float, optional): RMSD threshold for conformer pruning. Defaults to 0.5.
-            clash_threshold (float, optional): Atomic clash distance threshold. Defaults to 1.6.
+            clash_scale (float, optional): Scale applied to the sum of atomic van der Waals radii for clash detection. Defaults to 0.7.
             hetero_H_bonds (list): List of heterogeneous hydrogen bond pairs
                 Format: [(atom1, atom2), ...]
             verbose (bool, optional): Enable verbose output. Defaults to False.
@@ -828,7 +872,7 @@ PYBIND11_MODULE(msani_confgen_cpp, m) {
         py::arg("max_attempts") = 50000,
         py::arg("timeout_conf"),
         py::arg("rmsd") = 0.5,
-        py::arg("clash_threshold") = 1.6,
+        py::arg("clash_scale") = 0.6,
         py::arg("hetero_H_bonds"),
         py::arg("verbose") = false,
         py::arg("mmff_variant") = "MMFF94s",
@@ -861,6 +905,8 @@ PYBIND11_MODULE(msani_confgen_cpp, m) {
                 - hydantoin_matches: List of variable-length atom index arrays
                 - substituted_N_barbi_hydan_like: List of 4-atom index arrays
                 - planar_rings: List of variable-length atom index arrays (≥4 atoms)
+                - alkyne: List of 4-atom index arrays with a linear torsion constraint and
+                  179.5–180 degree bending constraints on atoms 0-1-2 and 1-2-3
                 
         Returns:
             rdkit.Chem.Mol: Input molecule with conformers added, each having:

@@ -29,6 +29,14 @@ namespace AcceleratedRMSD {
 
 // Type aliases
 using AtomPairs = std::vector<std::pair<int, int>>;
+
+// A non-bonded atom pair with its clash cutoff calculated once for a molecule.
+struct NonbondedClashPair {
+    int atom1;
+    int atom2;
+    double cutoff_sq;
+};
+using NonbondedClashPairs = std::vector<NonbondedClashPair>;
 using ProductList = std::vector<struct ConformerResult>;
 using HeteroBonds = std::vector<std::pair<int, int>>;
 
@@ -95,26 +103,32 @@ private:
     std::vector<double> energies;  // Track energies for each cached conformer
     std::unique_ptr<AcceleratedRMSD::SameMoleculeRMSDCalculator> rmsd_calculator;  // Accelerated RMSD calculator
     // Per-conformer cached data for heavy-atom-only conformers (per-atom radial distances from centroid)
-    // cache_ref_radii[conf_id][atom_index] == radius (distance from that conformer's centroid)
-    std::vector<std::vector<double>> cache_ref_radii; // radii per conformer (indexed by conformer id)
+    // cache_ref_radii[cache_index][atom_index] == radius. The outer index follows
+    // the cache molecule's conformer-list/insertion order, not conformer IDs.
+    std::vector<std::vector<double>> cache_ref_radii;
     std::vector<RDGeom::Point3D> cache_ref_centroids;  // centroid per conformer
     
 public:
+    struct PreparedHeavyConformer {
+        std::unique_ptr<RDKit::Conformer> conformer;
+        std::vector<double> radii;
+        RDGeom::Point3D centroid{0.0, 0.0, 0.0};
+    };
+
     ConformerCache() = default;
     
     // Initialize cache with reference molecule (will be stripped of Hs once)
     void initialize(const RDKit::ROMol& reference_mol);
     
-    // FAST methods that avoid creating new molecules
-    bool isSimilarFast(const RDKit::Conformer& conf, 
-                       const RDKit::ROMol& mol_with_h,
-                       const std::vector<int>& heavy_atom_mapping,
+    PreparedHeavyConformer prepareHeavyConformer(
+                       const RDKit::Conformer& conf,
+                       const std::vector<int>& heavy_atom_mapping) const;
+
+    bool isSimilarFast(const PreparedHeavyConformer& probe,
                        double rmsd_threshold) const;
-    
-    void addConformerFast(const RDKit::Conformer& conf,
-                          const RDKit::ROMol& mol_with_h,
-                          const std::vector<int>& heavy_atom_mapping,
-                          double energy);
+
+    void addPreparedConformer(PreparedHeavyConformer&& prepared,
+                              double energy);
     
     // Get number of cached conformers
     size_t size() const;
@@ -184,14 +198,14 @@ public:
     static std::pair<AtomPairs, AtomPairs> precomputeBondedAndSameParentPairs(const RDKit::ROMol& mol);
     
     // Precompute non-bonded pairs for clash detection
-    static AtomPairs precomputeNonbondedPairs(const RDKit::ROMol& mol,
-                                              const AtomPairs& bonded_pairs,
-                                              const AtomPairs& same_parent_pairs);
+    static NonbondedClashPairs precomputeNonbondedPairs(const RDKit::ROMol& mol,
+                                                        const AtomPairs& bonded_pairs,
+                                                        const AtomPairs& same_parent_pairs,
+                                                        double clash_scale);
     
     // Check for clashes between non-bonded atoms
     static bool checkTooCloseNonbondedAtoms(const RDKit::Conformer& conf,
-                                            const AtomPairs& candidate_pairs,
-                                            double threshold);
+                                            const NonbondedClashPairs& candidate_pairs);
     
     // Check timeout condition
     static bool checkTimeout(std::chrono::steady_clock::time_point start_time,

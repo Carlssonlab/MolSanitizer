@@ -11,18 +11,19 @@ from pandas import DataFrame, concat, read_csv  # only what you use
 from rdkit import Chem
 from rdkit.Chem import rdMolTransforms, rdMolAlign
 from rdkit.Chem.rdchem import Mol, Conformer
-# from scipy.spatial.distance import pdist, squareform
+
 from pathlib import Path
 
-# from msani.filtering import strain_filter
-from msani.db2 import mol2db2, mol2
+from msani.db2 import mol2db2
+from msani.conformers import mol2writer
 
 
 logger = logging.getLogger('msani')
 
 # Define SMARTS patterns for various functional groups
-sulfonamide_like_substructure = Chem.MolFromSmarts("[*:1][S;$(S(=*)=*):2]-!@[N&+0;!$([NH2]):3](-[*,#1;!$(C=A):4])-[*,#1;!$(C=A):5]")
-substituted_C_cyclohexane = Chem.MolFromSmarts('[!#1]-!@[CH]1-[*]~[*]~[*]~[*]-[A]-1')
+sulfonamide_like_substructure = Chem.MolFromSmarts("[*:1][S;$(S(=*)=*):2]-!@[N&+0;!$([NH2])!r:3](-[*,#1;!$(C=A):4])-[*,#1;!$(C=A):5]")
+sulfonamide_cycloheptane = Chem.MolFromSmarts("[S;$(S(=*)=*)]-!@[N&+0&r7;!$([NH2])]1-[*;!$(C=A)]-[*]~[*]~[*]~[*]~[*;!$(C=A)]1")
+substituted_C_cyclohexane = Chem.MolFromSmarts('[!#1;!$(*-!@[CH]1-[*^2;!O]~[*^2;!O]~*~[*^2;!O]~[*^2;!O]-1)]-!@[CH]1-[*]~[*]~[*]~[*]-[A]-1') # Ignore check for theoretically planar cyclohexanes
 flippable_Ns_1 = Chem.MolFromSmarts("[!#1:1]-!@[NH+;!$(N-*=*):2]1-[A:3]-[A:4]-[A]-[A:6]-[A:5]-1")
 flippable_Ns_2 = Chem.MolFromSmarts("[*:1]-!@[N+0;!$(N-*=*):2]1-[A:3]-[A:4]-[A]-[A:6]-[A:5]-1")
 # substituted_C_cyclohexane = Chem.MolFromSmarts('[!#1:1]-!@[CH:2]1-[A^3:3]-[A^3:4]-[A]-[A^3:6]-[A^3:5]-1')
@@ -36,7 +37,15 @@ aro_5_patt = Chem.MolFromSmarts('*-[a:1]1[a:2][a:3][a:4][a:5]1')  # 5 aromatic a
 aro_6_patt = Chem.MolFromSmarts('*-[a:1]1[a:2][a:3][a:4][a:5][a:6]1')  # 6 aromatic atoms
 cycloheptatriene_smarts = Chem.MolFromSmarts('[*^2]1~[*^2]-[*^2]~[*^2]-[*^2]~[*^2]-[A;$([A^3]),$([N^2]),$(A=!@[*!X1])]-1')
 cyclohepta_1_4_diene_3_sp2_smarts = Chem.MolFromSmarts('[*^2]1~[*^2]-[A^3,O]-[A^3,O]-[*^2]~[*^2]-[C^2,O,NH0]-1')
+cyclohepta_1_3_diene_smarts = Chem.MolFromSmarts('[*^2]1~[*^2]-[*^2]~[*^2]-[A^3,O,N]-[A^3]-[A^3,O,N]-1')
 
+ring_types = (
+    "cyclohepta-1,3-diene",
+    "cyclohepta-1,4-diene-3-sp2",
+    "cycloheptatriene",
+)
+
+alkyne = Chem.MolFromSmarts('*-C#C-*') # To 0 iteratively two consecutive atoms
 barbiturate = Chem.MolFromSmarts('[C;$(C~[OX1,SX1]):1]1~[N:2]~[C;$(C~[OX1,SX1]):3]~[*^2:4]~[*^2:5]~[*:6]~1') # To 0 iteratively four consecutive atoms
 hydantoin = Chem.MolFromSmarts('[C;$(C~[OX1,SX1]):1]1~[N:2]~[C;$(C~[OX1,SX1]):3]~[*^2:4]~[A:5]~1') # To 0 iteratively four consecutive atoms
 substituted_N_barbi_hydan_like = Chem.MolFromSmarts('*~[C^2,N^2:1][C^2,N^2:2][C^2,N^2:3]')
@@ -66,6 +75,8 @@ symmetric_patterns_df['mol'] = symmetric_patterns_df['pattern'].apply(lambda x: 
 prim_amidines_guanidines_pattern_mol = [Chem.MolFromSmarts('[#1:1][NH2,NX3H1:2]!@-[CX3+0;$(C(~[NH2])(~[NH2])~*):3]~[NH2:4]'), 
                                         Chem.MolFromSmarts('[#1:1][NX3H2:2]!@-[#6:2]~[#7&+1]')] #in ring
 
+
+
 def embed_smiles_corina(smiles, name, numringconfs, VERBOSE):
     '''
     Embed the SMILES string using CORINA and return the mol, net_charge,
@@ -80,7 +91,7 @@ def embed_smiles_corina(smiles, name, numringconfs, VERBOSE):
     command = [
         CORINA_EXE,
         "-i", "t=smiles,scn=1,ncn=2",
-        "-o", "t=mol2",
+        "-o", "t=sdf",
         "-d", f"rc,flapn,de=6,mc={numringconfs},wh,sanpyr"
     ]
 
@@ -97,7 +108,6 @@ def embed_smiles_corina(smiles, name, numringconfs, VERBOSE):
     else:
         # Decode and process output
         output = result.stdout.decode()
-
         # Remove comment lines (starting with #)
         lines = [line for line in output.splitlines() if not line.strip().startswith("#")]
 
@@ -105,23 +115,22 @@ def embed_smiles_corina(smiles, name, numringconfs, VERBOSE):
         cleaned_output = "\n".join(lines)
 
         # Split by the MOL2 section header (and keep it in each block)
-        raw_blocks = cleaned_output.split("@<TRIPOS>MOLECULE")
+        raw_blocks = cleaned_output.split("$$$$")
 
         # Add back the header to each block (except the first if it's empty)
-        mol2_blocks = [
-            "@<TRIPOS>MOLECULE\n" + block.strip() + "\n" 
+        sdf_blocks = [
+            block.strip() + "\n$$$$\n" 
             for block in raw_blocks if block.strip()
         ]
         if VERBOSE:
-            print(f"\tNumber of ring conformers: {len(mol2_blocks)}")
+            print(f"\tNumber of ring conformers: {len(sdf_blocks)}")
         ring_confs = []
         # Now you have a list of strings, each containing one MOL2 molecule
-        for i, mol in enumerate(mol2_blocks, 1):
-            rdkit_mol = Chem.MolFromMol2Block(mol, removeHs=False, sanitize=True)
+        for i, mol in enumerate(sdf_blocks, 1):
+            rdkit_mol = Chem.MolFromMolBlock(mol, removeHs=False, sanitize=True)
             if rdkit_mol:
                 ring_confs.append(rdkit_mol)
-        mol2_string = mol2_blocks[0] if len(mol2_blocks) > 0 else None
-        return mol2_string, ring_confs
+        return ring_confs
     
 
 def find_flipped_nitrogen(mol_H: Mol):
@@ -134,8 +143,8 @@ def find_flipped_carbon(mol_H: Mol):
     '''
     Find the flippable carbon in the molecule. Mainly for substituted cyclohexane
     '''
-    return mol_H.GetSubstructMatches(substituted_C_cyclohexane) #+ \
-        # mol_H.GetSubstructMatches(substituted_C_cyclohex_23_enyl) +\
+    return mol_H.GetSubstructMatches(substituted_C_cyclohexane) 
+            # mol_H.GetSubstructMatches(substituted_C_cyclohex_23_enyl) +\
             # mol_H.GetSubstructMatches(substituted_C_cyclohex_34_enyl)
 
 def find_conjugated_substituted_nitrogen_5aro(mol_H: Mol):
@@ -176,6 +185,11 @@ def find_substituted_N_barbi_hydan_like(mol_H: Mol, barbiturate: tuple, hydantoi
                 filtered_matches.append(match)
     return filtered_matches
         
+def find_sulfonamide_cycloheptane(mol_H: Mol):
+    '''
+    Find the sulfonamide in the molecule with 7-membered ring
+    '''
+    return mol_H.GetSubstructMatches(sulfonamide_cycloheptane)
 
 def find_amide(mol_H: Mol):
     '''
@@ -183,6 +197,11 @@ def find_amide(mol_H: Mol):
     '''
     return mol_H.GetSubstructMatches(amide_substructure)
 
+def find_alkyne(mol_H: Mol):
+    '''
+        Find the alkyne in the molecule. C#C
+    '''
+    return mol_H.GetSubstructMatches(alkyne)
 
 def normalize_angle(angle):
     """Normalize the angle to the range -180 to 180 degrees."""
@@ -192,7 +211,7 @@ def normalize_angle(angle):
 def ring_conf_clusters(current_conf_ring_descriptors, remaining_confs):
     clusters = []
     for remaining_conf in remaining_confs:
-        if not current_conf_ring_descriptors == remaining_conf[2:-1]:
+        if not current_conf_ring_descriptors == remaining_conf[2:]:
             clusters.append(remaining_conf)
     return clusters
 
@@ -299,7 +318,7 @@ def identical_substituents(mol, idx2, idx3, idx4, idx5):
 
 def is_equatorial(conf, atom_idx):
     """
-    Determines if a substituent is in an equatorial position on a cyclohexane ring.
+    Determines if a substituent is in an equatorial position on a ring.
 
     This function calculates two dihedral angles around a specific atom in the molecule
     and checks if they both fall within the range that indicates an equatorial position 
@@ -310,10 +329,10 @@ def is_equatorial(conf, atom_idx):
     conf : rdkit.Chem.rdchem.Conformer
     atom_idx : list or tuple
         List of atom indices defining the relevant atoms for dihedral calculations.
-        Requires at least 7 indices:
+        Requires at least 6 indices:
         - atom_idx[0], atom_idx[1], atom_idx[2], atom_idx[3]: First dihedral angle
-        - atom_idx[0], atom_idx[1], atom_idx[6], atom_idx[5]: Second dihedral angle
-
+        - atom_idx[0], atom_idx[1], atom_idx[-1], atom_idx[-2]: Second dihedral angle
+        
     Returns
     -------
     bool
@@ -322,11 +341,11 @@ def is_equatorial(conf, atom_idx):
     """
     
     dihedral1 = rdMolTransforms.GetDihedralDeg(conf, atom_idx[0], atom_idx[1], atom_idx[2], atom_idx[3])
-    dihedral2 = rdMolTransforms.GetDihedralDeg(conf, atom_idx[0], atom_idx[1], atom_idx[6], atom_idx[5])
-    if 150 <= abs(dihedral1) <= 180 and 150 <= abs(dihedral2) <= 180:
-            return True
+    dihedral2 = rdMolTransforms.GetDihedralDeg(conf, atom_idx[0], atom_idx[1], atom_idx[-1], atom_idx[-2])
+    if 140 <= abs(dihedral1) <= 180 and 140 <= abs(dihedral2) <= 180:
+        return True
     return False
-    
+
 
 def find_sulfonamide_like_scaffolds(mol_H: Mol):
     """Find all Sulfonamide-like scaffolds (S(O2)-N(R1)R2 or (S(O)(N)-N(R1)(R2))."""
@@ -341,6 +360,9 @@ def find_cycloheptatriene(mol_H: Mol):
     """Find cycloheptatriene or cyclohepta-1,4-diene-3-sp2 substructure in the molecule."""
     return mol_H.GetSubstructMatches(cycloheptatriene_smarts) + mol_H.GetSubstructMatches(cyclohepta_1_4_diene_3_sp2_smarts)
 
+def find_cycloheptadiene(mol_H: Mol):
+    """Find cyclohepta-1,3-diene substructure in the molecule."""
+    return mol_H.GetSubstructMatches(cyclohepta_1_3_diene_smarts)
 
 
 def classify_confs(conf, 
@@ -348,7 +370,8 @@ def classify_confs(conf,
                     non_planar_rings, 
                     flippable_Ns, 
                     flippable_Cs, 
-                    sulfo_matches, 
+                    sulfo_matches,
+                    sulfo_7_ring=(), 
                     tolerance=25):
     """
     Classify a conformer based on ring conformations, flippable nitrogens,
@@ -389,6 +412,10 @@ def classify_confs(conf,
     sulfo_descriptors = tuple([1 if rdMolTransforms.GetDihedralDeg(conf, d, b, c, e) > 0 else 0 for (a, b, c, d, e) in sulfo_matches])
     temp_dict['sulfo_descriptors'] = sulfo_descriptors if sulfo_descriptors else [-1]
 
+    # Process flippable Nitrogens in sulfonamides within 7 membered rings, 
+    # we want both axial and equatorials
+    sulfo_7_descriptors = sum([1 if is_equatorial(conf, atom_idx) else 0 for atom_idx in sulfo_7_ring])
+    temp_dict['sulfo_7_descriptors'] = sulfo_7_descriptors if sulfo_7_ring else -1
     return temp_dict
 
 def remove_unfavorable_confs(conf_ring_descriptors_df: DataFrame, name: str ='0')-> DataFrame:
@@ -582,33 +609,16 @@ def find_rigid_part(mol, request_alignment=None):
                 break
     return rigid_part, rule_label
     
-def Align_ConvertToDb2(ring_conf, rigid_scaffold, solv_obj, name, smiles, longname):
+def Align_ConvertToDb2(ring_conf, rigid_scaffold, solv_obj, mol2_topology):
     """
-    Align the all the conformers to the rigid scaffold (ring) and convert it to the DB2 string.
+    Align all conformers to the rigid scaffold and convert them to DB2 in memory.
     """
-    mol2_obj = mol2.Mol2(mol2fileName=f'{name}.mol2')
-    mol2_obj.cleanConfs()
-    mol2_obj.longname = longname if longname else "fake"
-    mol2_obj.smiles = smiles
-    for conf_id in range(ring_conf.GetNumConformers()):
-        mol2_obj.atomXyz.append([])  # Initialize a list for atom coordinates
-        rdMolAlign.AlignMol(ring_conf, ring_conf, conf_id, 0, atomMap=[(i, i) for i in rigid_scaffold])
-        conf = ring_conf.GetConformer(conf_id)
-        for atom_idx in range(ring_conf.GetNumAtoms()):
-            pos = conf.GetAtomPosition(atom_idx)
-            mol2_obj.atomXyz[-1].append((float(pos.x), float(pos.y), float(pos.z)))
-            # Set the number of conformations for this Mol2 object
-        mol2_obj.xyzCount = ring_conf.GetNumConformers()
-    return mol2db2.mol2db2_quick_ver2(mol2_obj, solv_obj)
+    aligned_mol = Chem.Mol(ring_conf)
+    rdMolAlign.AlignMolConformers(aligned_mol, atomIds=list(rigid_scaffold))
 
-def is_similar_conformer(new_dihedrals, exist, tol = 30.0):
-    if exist.shape[0] == 0:
-        return False
+    mol2_obj = mol2writer.Mol2Writer.with_db2_conformers(mol2_topology, aligned_mol)
 
-    diffs = np.abs(exist - new_dihedrals)
-    diffs = np.minimum(diffs, 360 - diffs)
-    is_similar = np.all(diffs <= tol, axis=1)
-    return np.any(is_similar)
+    return mol2db2.mol2db2(mol2_obj, solv_obj)
 
 
 # All deterministic version of torsional sampling will be available here
@@ -672,9 +682,9 @@ def discretinize_dihedrals(typical, tolerance, step = 30):
     step: the step size for discretinization
     '''
     if tolerance < step: return [typical]
-    # n_steps = int(tolerance / step)
-    # angles = [typical + i * step for i in range(-n_steps, n_steps + 1)]
-    angles = [typical, typical - step, typical + step] #Only sample 3 angles for each dihedral
+    n_steps = int(tolerance / step)
+    angles = [typical + i * step for i in range(-n_steps, n_steps + 1)]
+    #angles = [typical, typical - step, typical + step] #Only sample 3 angles for each dihedral
 
     normalized_angles = [round((angle + 180) % 360 - 180, 1) for angle in angles]
     return normalized_angles
@@ -977,102 +987,6 @@ def within_tolerance(angle, center, tolerance):
     # Calculate the difference considering wrap-around
     diff = (angle - center + 180) % 360 - 180
     return abs(diff) <= tolerance
-
-def remove_nonpolar_hydrogens(mol: Chem.Mol) -> Chem.Mol:
-    """
-    Remove non-polar hydrogens from the molecule.
-    Non-polar hydrogens are those attached to carbon atoms.
-
-    Args:
-        mol (Chem.Mol): RDKit molecule object.
-
-    Returns:
-        Chem.Mol: New molecule with non-polar hydrogens removed.
-    """
-    editable = Chem.RWMol(mol)
-    to_remove = []
-    for atom in editable.GetAtoms():
-        if atom.GetAtomicNum() == 1:
-            neighbors = atom.GetNeighbors()
-            if len(neighbors) == 1 and neighbors[0].GetAtomicNum() == 6:
-                to_remove.append(atom.GetIdx())
-    for idx in sorted(to_remove, reverse=True):
-        editable.RemoveAtom(idx)
-    return editable.GetMol()
-
-
-def is_similar_rmsd(current_conformer, previous_conformers, cutoff, mol=None, numcores=1):
-    """
-    Cluster conformers based on BestRMS to determine if a new conformer is similar to existing ones.
-    
-    This function compares a current conformer against a list of previous conformers using
-    RDKit's GetBestRMS function, which calculates the root-mean-square deviation after
-    optimal alignment. Non-polar hydrogens are removed before RMSD calculation to focus
-    on the heavy atom framework and polar hydrogens that are important for interactions.
-    
-    Args:
-        current_conformer (Chem.Conformer): The new conformer to compare.
-        previous_conformers (list): List of tuples (conformer, energy) representing 
-                                   previously accepted conformers.
-        cutoff (float): RMSD cutoff value in Angstroms. If RMSD <= cutoff, conformers 
-                       are considered similar.
-        mol (Chem.Mol, optional): RDKit molecule object. If provided, will be used
-                                 for RMSD calculation. If None, a temporary molecule
-                                 will be created from the conformers.
-        numcores (int): number of cores for multiprocessing.
-    
-    Returns:
-        bool: True if the current conformer is similar to any previous conformer 
-              (RMSD <= cutoff), False otherwise.
-    
-    Example:
-        >>> current_conf = mol.GetConformer(0)
-        >>> prev_confs = [(mol.GetConformer(1), 10.5), (mol.GetConformer(2), 12.3)]
-        >>> is_similar = cluster_conformer_by_bestrmsd(current_conf, prev_confs, 0.5, mol)
-    """
-    if cutoff == 0:
-        return False
-    if not previous_conformers:
-        return False
-    
-    # We need the original molecule to work with
-    if mol is None:
-        raise ValueError("mol parameter is required for RMSD calculation")
-    
-    # Create a molecule with all conformers for comparison
-    temp_mol = Chem.Mol(mol)
-    temp_mol.RemoveAllConformers()
-    
-    # Add current conformer
-    current_conf_id = temp_mol.AddConformer(current_conformer, assignId=True)
-    
-    # Add all previous conformers
-    prev_conf_ids = []
-    for prev_conformer, _ in previous_conformers:
-        prev_conf_id = temp_mol.AddConformer(prev_conformer, assignId=True)
-        prev_conf_ids.append(prev_conf_id)
-    
-    # Remove non-polar hydrogens for RMSD calculation
-    # mol_no_h = remove_nonpolar_hydrogens(temp_mol)
-    mol_no_h = Chem.RemoveAllHs(temp_mol)
-    # Compare current conformer against each previous conformer
-    for prev_conf_id in prev_conf_ids:
-        try:
-            # Calculate BestRMS between the conformers
-            rmsd = rdMolAlign.GetBestRMS(mol_no_h, mol_no_h, 
-                                         prbId=current_conf_id, refId=prev_conf_id,
-                                         maxMatches=1000, numThreads=numcores)
-            # If RMSD is within cutoff, conformers are considered similar
-            if rmsd <= cutoff:
-                return True
-                
-        except Exception as e:
-            # In case of any errors in RMSD calculation, log warning and continue
-            logger.warning(f"Error calculating RMSD: {e}")
-            continue
-    
-    # If no similar conformer found, return False
-    return False
 
 
 def check_timeout(start_time, max_duration):

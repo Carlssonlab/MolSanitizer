@@ -20,6 +20,9 @@ _MP_START_METHOD = 'forkserver' if platform.system() == 'Linux' else 'spawn'
 RDLogger.DisableLog('rdApp.*') # To disable error messages with kekulizing tautomers from RDKit
 logger = logging.getLogger('msani')
 PROTONATION_RULES_PATH = Path(__file__).parent.parent / 'Data' / 'ionizations_v3.txt'
+PHOSPHATE_2STAGE_PATTERN = Chem.MolFromSmarts(
+    '[OH1&+0;$(O-P(=O)(-[OH])-[#6&+0,#8&+0])]'
+)
 
 logo=r""" _____            _              
 |_   _|          (_)             
@@ -163,7 +166,45 @@ class Ionizer:
             print(f'Parsed {len(reaction_list)} rules for pH {round(pH, 1)}')    
         return reaction_list
 
-    def recursive_reaction(self, mol, rxn, collection, visited = None):
+    def _recursive_reaction_mols(self, mol, rxn, collection, visited=None):
+        """Recursively apply one rule, retaining terminal product molecules."""
+        if visited is None:
+            visited = set()
+
+        mol_smiles = Chem.MolToSmiles(mol)
+        if mol_smiles in visited:
+            return collection
+
+        visited.add(mol_smiles)
+        reactive = False
+        outcomes = rxn.RunReactants((mol,))
+        if outcomes:
+            reactive = True
+            product = outcomes[0][0]
+            try:
+                error = Chem.SanitizeMol(product, catchErrors=True)
+                if error == 0:
+                    self._recursive_reaction_mols(
+                        product, rxn, collection, visited
+                    )
+                else:
+                    if self.debug:
+                        print(
+                            "Sanitization error for molecule: "
+                            f"{Chem.MolToSmiles(product)}"
+                        )
+                    reactive = False
+            except Exception as e:
+                logger.info(
+                    f"Error sanitizing molecule: {Chem.MolToSmiles(product)}. "
+                    f"Exception: {e}"
+                )
+
+        if not reactive:
+            collection[mol_smiles] = mol
+        return collection
+
+    def recursive_reaction(self, mol, rxn, collection, visited=None):
         """
         Recursively apply a reaction to a molecule and its products, collecting unique products.
 
@@ -172,40 +213,42 @@ class Ionizer:
             rxn (rdkit.Chem.rdChem.Reaction): The reaction to apply.
             collection (set): A set of unique products (in SMILES) generated from the reaction.
             visited (set): A set of SMILES strings for molecules already processed to avoid redundancy.
-            
+
         Returns:
             set: A set of unique products (in SMILES) generated from the reaction.
         """
-        if visited is None:
-            visited = set()
+        products = self._recursive_reaction_mols(mol, rxn, {}, visited)
+        collection.update(products)
+        return collection
 
-        mol_smiles = Chem.MolToSmiles(mol)
-        last_successful_smiles = mol_smiles  # Keep track of the last valid molecule
-        
-        # Check if the molecule has already been visited
-        if mol_smiles in visited:
-            return collection  # Skip redundant processing
+    def _process_reaction_outcome_mols(
+            self, outcomes, rxn, name, original_smi, original_mol):
+        """Sanitize reaction outcomes and retain their product molecules."""
+        products = {}
+        selected_outcomes = (
+            outcomes if name in self.enumerating_rules else outcomes[:1]
+        )
+        for outcome in selected_outcomes:
+            products.update(self._sanitize_and_process_product_mols(
+                outcome[0], rxn, original_smi, original_mol
+            ))
+        return products
 
-        visited.add(mol_smiles)  # Mark the molecule as visited
-        reactive = False
-        outcomes = rxn.RunReactants((mol,))
-        if outcomes:  # Check if there are any outcomes            
-            reactive = True
-            product = outcomes[0][0]
-            try:
-                error = Chem.SanitizeMol(product, catchErrors=True)
-                if error == 0:
-                    last_successful_smiles = Chem.MolToSmiles(product)
-                    self.recursive_reaction(product, rxn, collection, visited)
-                else:
-                    if self.debug: print(f"Sanitization error for molecule: {Chem.MolToSmiles(product)}")
-                    reactive = False
-            except Exception as e:
-                logger.info(f"Error sanitizing molecule: {Chem.MolToSmiles(product)}. Exception: {e}")
-        
-        if not reactive: 
-            collection.add(last_successful_smiles)  # Add the last valid molecule if it is not reactive
-        return collection  # Return the collection of products
+    def _sanitize_and_process_product_mols(
+            self, product, rxn, fallback_smi, fallback_mol):
+        """Return terminal product molecules or the unchanged fallback molecule."""
+        try:
+            error = Chem.SanitizeMol(product, catchErrors=True)
+            if error == 0:
+                return self._recursive_reaction_mols(product, rxn, {})
+            if self.debug:
+                print(f"Error sanitizing molecule: {Chem.MolToSmiles(product)}")
+            return {fallback_smi: fallback_mol}
+        except Exception as e:
+            logger.error(f"Exception during sanitization: {e}")
+            if self.debug:
+                print(f"Exception during sanitization: {e}")
+            return {fallback_smi: fallback_mol}
     
     def _process_reaction_outcomes(self, outcomes, rxn, name, original_smi):
         """
@@ -214,24 +257,10 @@ class Ionizer:
         Returns:
             set: Set of valid product SMILES.
         """
-        products = set()
-        
-        if name in self.enumerating_rules:
-            # Process all outcomes for enumerating rules
-            for outcome in outcomes:
-                product_smiles = self._sanitize_and_process_product(
-                    outcome[0], rxn, original_smi
-                )
-                products.update(product_smiles)
-        else:
-            # Process only first outcome for non-enumerating rules
-            if outcomes:
-                product_smiles = self._sanitize_and_process_product(
-                    outcomes[0][0], rxn, original_smi
-                )
-                products.update(product_smiles)
-        
-        return products
+        original_mol = Chem.MolFromSmiles(original_smi)
+        return set(self._process_reaction_outcome_mols(
+            outcomes, rxn, name, original_smi, original_mol
+        ))
 
     def _sanitize_and_process_product(self, product, rxn, fallback_smi):
         """
@@ -240,20 +269,40 @@ class Ionizer:
         Returns:
             set: Set containing either the processed products or fallback SMILES.
         """
+        fallback_mol = Chem.MolFromSmiles(fallback_smi)
+        return set(self._sanitize_and_process_product_mols(
+            product, rxn, fallback_smi, fallback_mol
+        ))
+
+    def apply_reactions_mols(self, input_mol, reactions):
+        """Apply ordered rules using canonical keys mapped to product molecules."""
+        initial_mol = Chem.Mol(input_mol)
+        initial_smiles = Chem.MolToSmiles(initial_mol)
+        current_mols = {initial_smiles: initial_mol}
         try:
-            error = Chem.SanitizeMol(product, catchErrors=True)
-            if error == 0:
-                return self.recursive_reaction(product, rxn, set())
-            else:
-                if self.debug: 
-                    print(f"Error sanitizing molecule: {Chem.MolToSmiles(product)}")
-                return {fallback_smi}
+            for rxn, name, additional_info in reactions:
+                next_mols = {}
+                for smi, mol in current_mols.items():
+                    if mol.HasSubstructMatch(rxn.GetReactantTemplate(0)):
+                        outcomes = rxn.RunReactants((mol,))
+                        if self.debug:
+                            print(
+                                f"\tApplying reaction {name} "
+                                f"{additional_info} to {smi}"
+                            )
+                        next_mols.update(self._process_reaction_outcome_mols(
+                            outcomes, rxn, name, smi, mol
+                        ))
+                    else:
+                        next_mols[smi] = mol
+                current_mols = next_mols
         except Exception as e:
-            logger.error(f"Exception during sanitization: {e}")
+            logger.error(f"Error applying reactions: {str(e)}")
             if self.debug:
-                print(f"Exception during sanitization: {e}")
-            return {fallback_smi}
-    
+                print(f"Error applying reactions: {str(e)}")
+            return {initial_smiles: initial_mol}
+        return current_mols
+
     def apply_reactions(self, input_mol, reactions):
         """
         Apply a list of reactions to a list of molecules and return the resulting products.
@@ -265,75 +314,95 @@ class Ionizer:
         Returns:
             set: A set of unique products (in SMILES) generated from the reaction.
         """
-        current_smiles = {Chem.MolToSmiles(input_mol)} # Start with the initial molecule
-        try:
-            for rxn, name, additional_info in reactions:
-                next_smiles = set()  # Reset output for the next reaction
-                for smi in current_smiles:
-                    mol = Chem.MolFromSmiles(smi)
-                    if mol.HasSubstructMatch(rxn.GetReactantTemplate(0)):
-                        outcomes = rxn.RunReactants((mol,))
-                        if self.debug: print(f"\tApplying reaction {name} {additional_info} to {smi}")
-                        products = self._process_reaction_outcomes(outcomes, rxn, name, smi)
-                        next_smiles.update(products)
-                    else:
-                        next_smiles.add(smi)  # No match, keep original
-                current_smiles = next_smiles
-        except Exception as e:
-            logger.error(f"Error applying reactions: {str(e)}")
-            if self.debug: print(f"Error applying reactions: {str(e)}")
-            return [Chem.MolToSmiles(input_mol)]
-        return current_smiles
+        return set(self.apply_reactions_mols(input_mol, reactions))
     
-    def check_duplicated_rule_combs(self, mol: Chem.Mol, pH: float) -> tuple:
+    def _cache_rule_matches(self, mol: Chem.Mol) -> tuple[dict[int, bool], bool]:
+        """Match each unique pH rule once against the original molecule."""
+        rule_matches = {}
+        matched_heteroacid_above_ph6 = False
+
+        for pH in self.pH_values:
+            for reaction, name, _ in self.rules_across_pH[pH]:
+                reaction_key = id(reaction)
+                if reaction_key not in rule_matches:
+                    rule_matches[reaction_key] = mol.HasSubstructMatch(
+                        reaction.GetReactantTemplate(0)
+                    )
+                if (name == 'heteroacid' and pH > 6.0 and
+                        rule_matches[reaction_key]):
+                    matched_heteroacid_above_ph6 = True
+
+        phosphate_match = (
+            matched_heteroacid_above_ph6 and
+            mol.HasSubstructMatch(PHOSPHATE_2STAGE_PATTERN)
+        )
+        return rule_matches, phosphate_match
+
+    def check_duplicated_rule_combs(
+            self,
+            mol: Chem.Mol,
+            pH: float,
+            rule_matches: dict[int, bool] | None = None,
+            phosphate_match: bool | None = None) -> tuple:
         """
         Check if the molecule matches any of the rules for a given pH
         and return the rule combinations.
         """
         rule_combinations = []
         for rule in self.rules_across_pH[pH]:
-            if mol.HasSubstructMatch(rule[0].GetReactantTemplate(0)):
+            reaction_key = id(rule[0])
+            matches = (
+                rule_matches[reaction_key]
+                if rule_matches is not None
+                else mol.HasSubstructMatch(rule[0].GetReactantTemplate(0))
+            )
+            if matches:
                 rule_combinations.append(rule[1])
-                if rule[1] == 'heteroacid' and pH > 6.0 and \
-                    mol.HasSubstructMatch(Chem.MolFromSmarts('[OH1&+0;$(O-P(=O)(-[OH])-[#6&+0,#8&+0])]')): # Special case for phosphates
-                        rule_combinations.append('phosphate-2stage')
+                if rule[1] == 'heteroacid' and pH > 6.0 and (
+                    phosphate_match
+                    if phosphate_match is not None
+                    else mol.HasSubstructMatch(PHOSPHATE_2STAGE_PATTERN)
+                ): # Special case for phosphates
+                    rule_combinations.append('phosphate-2stage')
         return tuple(rule_combinations)
     
-    def ionize(self, smiles: str = None, mol: Chem.Mol = None) -> list:
-        """
-        Protonate the input molecule using a set of predefined reactions.
-        
-        Parameters:
-
-            smiles (str): The SMILES string of the molecule.
-            
-            mol (Chem.Mol): The RDKit molecule object.
-            
-        Returns:
-
-            list: A list of protonated SMILES strings.
-        """
+    def _ionize_mols(
+            self,
+            smiles: str = None,
+            mol: Chem.Mol = None) -> dict[str, Chem.Mol]:
+        """Ionize into canonical SMILES keys mapped to product molecules."""
         if smiles is None and mol is None:
             raise ValueError("Either 'smiles' or 'mol' must be provided.")
         if mol is None:
             mol = Chem.MolFromSmiles(smiles)
+        else:
+            # Reactions sanitize their products in place, so isolate all work
+            # from a molecule owned by the caller or another DataFrame row.
+            mol = Chem.Mol(mol)
 
         if self.neutralize:
             mol = Neutralizer.neutralize_mol(mol)
 
-        variation_sets = set()
+        variation_mols = {}
         applied_rule_combinations = set()
+        rule_matches, phosphate_match = self._cache_rule_matches(mol)
         for pH in self.pH_values:
-            rule_combinations = self.check_duplicated_rule_combs(mol, pH)
+            rule_combinations = self.check_duplicated_rule_combs(
+                mol, pH, rule_matches, phosphate_match
+            )
             if rule_combinations in applied_rule_combinations:
                 if self.debug: print(f'Skipping pH {round(pH, 1)} due to the duplicated rule applied.')
                 continue
             applied_rule_combinations.add(rule_combinations)
             if self.debug: print('Processing pH:', round(pH, 1))
-            # variations = list(self.recursive_reaction(mol, self.rules_across_pH[pH], set()))
-            variations = list(self.apply_reactions(mol, self.rules_across_pH[pH]))
-            variation_sets.update(variations)
-        return list(variation_sets)
+            variation_mols.update(self.apply_reactions_mols(
+                mol, self.rules_across_pH[pH]
+            ))
+        return variation_mols
+
+    def ionize(self, smiles: str = None, mol: Chem.Mol = None) -> list:
+        """Protonate the input molecule and return canonical product SMILES."""
+        return list(self._ionize_mols(smiles=smiles, mol=mol))
 
 
 
@@ -433,12 +502,12 @@ def _process_single_ionization_row(args):
         longname = row.get('longname', None)
         original_idx = row.get('original_idx', None)
         
-        protonated_smiles = _ionizer_worker.ionize(mol=row[mol_column])
+        protonated_mols = _ionizer_worker._ionize_mols(mol=row[mol_column])
 
-        for _, smiles in enumerate(protonated_smiles):
+        for smiles, protonated_mol in protonated_mols.items():
             results.append({
                 name_column: row[name_column],
-                mol_column: Chem.MolFromSmiles(smiles),
+                mol_column: protonated_mol,
                 smiles_column: smiles,
                 'longname': longname,
                 'original_idx': original_idx

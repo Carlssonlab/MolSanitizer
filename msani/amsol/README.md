@@ -1,121 +1,92 @@
-# For Windows
+# AMSOLcpp in MolSanitizer
 
-Download the precompiled executable AMSOL from [here](https://comp.chem.umn.edu/sds/amsol/amsol.cgi) and renamed it as amsol7.1.exe. The program automatically detects if the OS is Windows and will use this for calculation of desolvation.
+This directory contains the AMSOLcpp source code vendored by MolSanitizer.
+MolSanitizer builds the native Python extension together with its other C++
+modules; users do not need to install AMSOLcpp separately.
 
+The upstream project is available at
+[isra3l/AMSOLcpp](https://github.com/isra3l/AMSOLcpp).
 
-# For Linux 
+## Purpose
 
-1. Install notes
+AMSOLcpp is a C++20 port of the
+[AMSOL 7.1](https://comp.chem.umn.edu/amsol/) FORTRAN 77 program. It implements
+the audited `AM1 1SCF SM5.42R` workflow used by MolSanitizer to calculate the
+partial charges and desolvation descriptors required for DB2 output.
 
-You need to download, compile & install AMSOL7.1 here. The executable should be named amsol7.1
+Calculations run directly from an in-memory RDKit molecule. MolSanitizer does
+not invoke an external AMSOL executable and does not create intermediate AMSOL
+input, output, or `.solv` files.
 
-The precompiled AMSOL should work fine if put it in this folder with the correct name.
+## Supported scientific scope
 
-2. Instruction on how to compile
+- Closed-shell restricted Hartree-Fock (RHF) with the AM1 Hamiltonian
+- CM2 atomic charges
+- SM5.42R water and the audited GENORG hexadecane parameter set
+- H, C, N, O, F, Si, P, S, Cl, Br, and I
+- Cartesian structured input and legacy MOPAC Z-matrix input
+- Deterministic sequential execution by default
 
-Download the source code from [here](https://comp.chem.umn.edu/sds/amsol/amsol.cgi)
+## MolSanitizer integration
 
-Extract the zip file and in terminal:
+The adapter in
+[`rdkit_amsol_to_solv.py`](rdkit_amsol_to_solv.py) converts the native
+AMSOLcpp result into the `Solv` object consumed by MolSanitizer's DB2 hierarchy
+writer.
 
-```bash
-cd amsol7.1
-sed -i '' "s/set F77  = 'g77 -c -finit-local-zero -fno-automatic -Iinclude -O -o'/set F77  = 'gfortran -c -finit-local-zero -fno-automatic -ffixed-line-length-72 -std=legacy -Iinclude -O -o'/g" amsol.compile && \
-sed -i '' "s/set F77o = 'g77 -c -finit-local-zero -fno-automatic -Iinclude -o'/set F77o = 'gfortran -c -finit-local-zero -fno-automatic -ffixed-line-length-72 -std=legacy -Iinclude -o'/g" amsol.compile && \
-sed -i '' "s/set LD   = 'g77 -o'/set LD   = 'gfortran -ffixed-line-length-72 -o'/g" amsol.compile && \
-sed -i 's/ OPEN(20,NAME=/ OPEN(20,FILE='/g new/amsol.f
-sed -i 's/ OPEN(19,NAME=/ OPEN(19,FILE='/g new/amsol.f
-csh amsol.compile<<EOF
-man
-linux
-amsol7.1
-s
-EOF
-chmod +x amsol7.1
-```
+For each molecule, the adapter:
 
-Move amsol7.1 to this folder. Enjoy sanitizing molecules ;)
+1. Requires an RDKit molecule with a three-dimensional conformer.
+2. Uses the molecule's formal charge unless a charge is supplied explicitly.
+3. Runs the water and hexadecane calculations from the same molecular geometry.
+4. Takes CM2 atomic charges and surface areas from the hexadecane calculation
+   (dielectric constant 2.06).
+5. Calculates polar and apolar desolvation descriptors as the water value minus
+   the corresponding hexadecane value.
+6. Rejects the result if either solvent calculation does not converge.
 
-# For MacOS - Intel based
+## Build and packaging
 
-## Prerequisites
+The top-level MolSanitizer `CMakeLists.txt` adds this directory as a CMake
+subdirectory. Its Python package and compiled `_amsolcpp` extension are then
+installed into the MolSanitizer wheel. This directory deliberately has no
+separate `pyproject.toml`.
 
-Install Homebrew if you don’t already have it:
+The native core is compiled with `-fno-fast-math` and `-ffp-contract=off` on
+GCC and Clang-family compilers to preserve the floating-point behavior used for
+scientific parity testing. CPU-specific native optimizations and OpenMP are not
+enabled in distributed builds.
 
-```bash
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-```
+CMake first looks for an RDKit CMake package and then checks common Conda and
+system locations for RDKit development files. If they are unavailable, the
+extension can still build, but its direct RDKit functions will report that
+RDKit support was not compiled in. MolSanitizer's DB2 workflow requires that
+support.
 
-Install the necessary build tools:
+Do not keep a separate editable installation of the standalone `amsolcpp`
+Python package in the same environment. Both installations provide the same
+top-level import name, so the standalone editable import hook can shadow the
+version bundled with MolSanitizer.
 
-```bash
-brew install gcc
-brew install make
-brew install tcsh
-```
+## Validation and performance
 
-This provides gfortran, gcc, and the C-shell (csh) needed to run AMSOL’s legacy build script.
+During development, a benchmark on a random sample of 10,000 Enamine molecules
+reported parity with the AMSOL 7.1 reference results for every evaluated
+molecule. The reported median per-molecule speedup was 27.42×, with individual
+speedups ranging from 19.89× to 32.26×.
 
-## Prepare the source code
+These figures describe that validation data set and environment; performance
+on other hardware and molecular data sets may differ.
 
-Download the source code from [here](https://comp.chem.umn.edu/sds/amsol/amsol.cgi)
+## Citation
 
-Extract the zip file and in terminal:
-```bash
-cd amsol7.1 && \
-sed -i '' "s/set F77  = 'g77 -c -finit-local-zero -fno-automatic -Iinclude -O -o'/set F77  = 'gfortran -std=legacy -c -finit-local-zero -fno-automatic -Iinclude -O -o'/g" amsol.compile && \
-sed -i '' "s/set F77o = 'g77 -c -finit-local-zero -fno-automatic -Iinclude -o'/set F77o = 'gfortran -std=legacy -c -finit-local-zero -fno-automatic -Iinclude -o'/g" amsol.compile && \
-sed -i '' "s/set LD   = 'g77 -o'/set LD   = 'gfortran -o'/g" amsol.compile && \
-sed -i '' "s/ OPEN(20,NAME=/ OPEN(20,FILE=/" new/amsol.f && \
-sed -i '' "s/ OPEN(19,NAME=/ OPEN(19,FILE=/" new/amsol.f && \
-csh amsol.compile <<EOF
-man
-linux
-amsol7.1_macos_x64
-s
-EOF
-chmod +x amsol7.1_macos_x64
-```
+If results produced through AMSOLcpp are used in research, cite AMSOL 7.1:
 
-Then move `amsol7.1_macos_x64` to this folder. The program will detect automatically the architecture of the machine and run the software accordingly.
+> Hawkins, G. D.; Giesen, D.; Lynch, G.; Chambers, C.; Rossi, I.; et al.
+> *AMSOL*, version 7.1. University of Minnesota, 2004.
 
-# For MacOS ARM64
+## License
 
-## Prerequisites
-
-Install Homebrew if you don’t already have it:
-
-```bash
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-```
-
-Install the necessary build tools:
-
-```bash
-brew install gcc
-brew install make
-brew install tcsh
-```
-
-## Prepare the source code
-
-Download the source code from [here](https://comp.chem.umn.edu/sds/amsol/amsol.cgi)
-
-Extract the zip file then in terminal, use:
-
-```bash
-cd amsol7.1 && \
-sed -i '' "s/set F77  = 'g77 -c -finit-local-zero -fno-automatic -Iinclude -O -o'/set F77  = 'gfortran -std=legacy -c -finit-local-zero -fno-automatic -Iinclude -O -o'/g" amsol.compile && \
-sed -i '' "s/set F77o = 'g77 -c -finit-local-zero -fno-automatic -Iinclude -o'/set F77o = 'gfortran -std=legacy -c -finit-local-zero -fno-automatic -Iinclude -o'/g" amsol.compile && \
-sed -i '' "s/set LD   = 'g77 -o'/set LD   = 'gfortran -o'/g" amsol.compile && \
-sed -i '' "s/ OPEN(20,NAME=/ OPEN(20,FILE=/" new/amsol.f && \
-sed -i '' "s/ OPEN(19,NAME=/ OPEN(19,FILE=/" new/amsol.f && \
-csh amsol.compile <<EOF
-man
-linux
-amsol7.1_macos_arm64
-s
-EOF
-chmod +x amsol7.1_macos_arm64
-```
-
-Then move `amsol7.1_macos_arm64` to this folder. The program will detect automatically the architecture of the machine and run the software accordingly.
+[AMSOL 7.1](https://comp.chem.umn.edu/amsol/) is distributed under the Apache
+License, Version 2.0. AMSOLcpp follows the same license, and the source vendored
+here is distributed under the terms in [`LICENSE`](LICENSE).

@@ -8,15 +8,20 @@ MolSanitizer is built upon the following packages:
 
 - RDKit 2024.09.3+ (`Reference <https://www.rdkit.org/docs/Install.html>`__)
 
-- OpenBabel 3.1.1 (`Reference <https://openbabel.org/docs/dev/Installation/install.html>`__)
-
 - Mol2DB2 (`Reference <https://github.com/ryancoleman/mol2db2>`__)
 
-- AMSOL 7.1 (`Reference <https://comp.chem.umn.edu/sds/>`__)
 
-By default, conda will install all the dependencies, except for AMSOL, which is required for the generation of DB2 files. The user is asked to download and compille the source code from the `official website <https://comp.chem.umn.edu/sds/>`_. Instruction on how to compile on modern systems is provided in the MolSanitizer/amsol directory.
+Optional dependencies
+---------------------
 
-For the early evaluation, the compiled version of AMSOL is provided in the MolSanitizer directory.
+- `Meeko <https://pypi.org/project/meeko/>`_ is required only for PDBQT output.
+  Install it with ``pip install "MolSanitizer[pdbqt]"``.
+
+- `Open Babel <https://openbabel.org/docs/dev/Installation/install.html>`_ is
+  required only when ``obabel`` is selected as the embedding method or used as
+  the fallback after an RDKit embedding timeout. If it is unavailable after a
+  timeout, MolSanitizer records the reason in ``msani_error.err`` and continues
+  with the remaining molecules.
 
 Installation
 ------------

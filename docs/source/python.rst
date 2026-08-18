@@ -104,6 +104,8 @@ the Filters class also has multiple static methods that can be used independentl
     df = Filters.filter_by_hba(df, '<=10', rejectedFile, debug)
     df = Filters.filter_by_hbd(df, '<=5', rejectedFile, debug)
     df = Filters.filter_by_mw(df, '300-500', rejectedFile, debug)
+    df = Filters.filter_by_tpsa(df, '<=100', rejectedFile, debug)
+    df = Filters.filter_by_fsp3(df, '>=0.25', rejectedFile, debug)
     df = Filters.filter_by_chiralcenters(df, '<2', rejectedFile, debug)
     df = Filters.unwantedFilter(df, rejectedFile, ['regular', 'optional'], debug)
     df = Filters.painsFilter(df, rejectedFile, debug)

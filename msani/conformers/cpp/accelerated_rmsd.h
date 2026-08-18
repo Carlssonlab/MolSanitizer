@@ -27,6 +27,17 @@ namespace AcceleratedRMSD {
  */
 class SameMoleculeRMSDCalculator {
 private:
+    struct ScoredMapping {
+        double heuristic;
+        size_t mapping_index;
+    };
+
+    struct Candidate {
+        const RDKit::Conformer* conformer;
+        size_t cache_index;
+        double heuristic;
+    };
+
     std::vector<int> heavy_atom_indices_;
     std::vector<std::vector<std::pair<int, int>>> symmetric_mappings_;
     bool initialized_;
@@ -34,9 +45,16 @@ private:
     bool symmetrize_conjugated_terminal_groups_;
     size_t num_heavy_atoms_;
     
-    // Reusable point vectors to avoid repeated allocations
+    // Scratch storage used by calculateAlignedRMSD() and isSimilarToAny(). A
+    // calculator instance is intentionally serial/non-reentrant; the point
+    // vectors already imposed this constraint before the additional buffers.
+    mutable RDGeom::Point3DConstPtrVect heavy_probe_positions_;
+    mutable RDGeom::Point3DConstPtrVect heavy_ref_positions_;
     mutable RDGeom::Point3DConstPtrVect ref_points_;
     mutable RDGeom::Point3DConstPtrVect probe_points_;
+    mutable std::vector<ScoredMapping> scored_mappings_;
+    mutable std::vector<Candidate> candidates_;
+    mutable RDGeom::Transform3D alignment_transform_;
     
     /**
      * Generate all symmetric mappings for the same molecule
@@ -62,7 +80,7 @@ public:
                                    const RDKit::Conformer& ref_conf,
                                    RDGeom::Transform3D* transform = nullptr,
                                    double rmsd_threshold = -1.0,
-                                   // Optional cached per-ref conformer data (squared radii and centroid)
+                                   // Optional cached per-ref conformer data (radii and centroid)
                                    const std::vector<double>* cached_ref_radii = nullptr,
                                    const RDGeom::Point3D* cached_ref_centroid = nullptr,
                                    // Optional precomputed probe radii (distance from probe centroid)
@@ -73,8 +91,8 @@ public:
      * Optimized version of the conformer filtering logic
      */
     bool isSimilarToAny(const RDKit::ROMol& mol,
-                       int probe_conf_id,
-                       const std::vector<int>& ref_conf_ids,
+                       const RDKit::Conformer& probe_conf,
+                       const std::vector<double>& probe_radii,
                        double rmsd_threshold,
                        // Optional cached per-ref data from ConformerCache
                        const std::vector<std::vector<double>>* cached_ref_radii = nullptr,

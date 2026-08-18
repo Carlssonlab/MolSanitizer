@@ -304,10 +304,39 @@ class Hierarchy(object):
     confNum = 0
 
     bucketer = buckets2.buckets2(tolerance)
+    allConformations = tuple(range(nmol2s))
+    tolerance2 = tolerance * tolerance
 
     for atom in range(natoms):
 
       xyzData_t = [xyzData[mol2][atom] for mol2 in range(nmol2s)]
+
+      # Alignment leaves scaffold atoms at one position across conformers.
+      # Register that common case directly instead of constructing and probing
+      # spatial buckets. This is only a sufficient-condition fast path; atoms
+      # outside the tolerance still use the original clustering algorithm.
+      reference = xyzData_t[0]
+      isFixed = True
+      for xyz in xyzData_t[1:]:
+        dx = reference[0] - xyz[0]
+        dy = reference[1] - xyz[1]
+        dz = reference[2] - xyz[2]
+        if dx * dx + dy * dy + dz * dz > tolerance2:
+          isFixed = False
+          break
+
+      if isFixed:
+        existingCluster = confClusters.get(allConformations)
+        if existingCluster is None:
+          confClusters[allConformations] = (confNum, [atom], [reference])
+          confNum += 1
+        else:
+          _, atomList, xyzList = existingCluster
+          atomList.append(atom)
+          xyzList.append(reference)
+        posTotal += 1
+        posCount.append(1)
+        continue
 
       # check out buckets2.py for the new clustering algorithm
       npos, confNum = bucketer.bucket(xyzData_t, atomId=atom, confNum=confNum, confClusters=confClusters)

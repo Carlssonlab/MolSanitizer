@@ -4,6 +4,7 @@ CCSC H-lambda4-sulphane_to_lambda2-CH2
 CC(=O)N(C)C mannich-like-amides_to_amides
 CN=C1c2ccccc2CN1C N+_amidine-NH1
 CN1Cc2ccccc2C1=N N+_amidine-NH2
+[O-][n+]1ccncc1 1-oxo-1,4-dihydropyrazin-1-ium_to_N-oxide
 CNc1ccn(C)c1C aromatize_3-imino-2H-5aro-CH0
 CNc1ccn(C)c1 aromatize_3-imino-2H2-5aro-CH0
 CC1=C(C)C(=O)c2ccccc2C1=O exo-methylidene-quinone_to_Me-quinone-CH1
@@ -172,6 +173,7 @@ O=c1ncc2ccccc2[nH]1 3H-quinazoline_to_1H
 c1nc[nH]n1 4H-1,2,4-triazole_to_1H
 Clc1c[nH]cn1 EWG-imidazole
 Clc1cc[nH]n1 EWG-pyrazole
+O=C(O)c1cc([N+](=O)[O-])n[nH]1 pyrazole-3-acid
 Cc1cnc[nH]1 imidazole_1
 Cc1c[nH]cn1 imidazole_2
 Cc1ccc2nc[nH]c2c1 benzimidazole_1
@@ -286,3 +288,6 @@ Oc1cccc2oncc12 2H-benzo[d]isoxazol-4-one_to_OH
 Oc1cccc2nocc12 1H-benzo[c]isoxazol-4-one_to_OH
 CC1=C(O)C(=O)C(C)O1 furan-3,4-diole_to_furaneol_CH1
 O=C1COC=C1O furan-3,4-diole_to_furaneol_CH2
+CN1C(=O)C=C(O)CC1=O 2,6-di-OH-pyridine-4-one_to_4-OH-3H-pyridine-2,6-dione-CH1
+CC1=C(O)C(C)C(=O)NC1=O 2,6-di-OH-pyridine-4-one_to_4-OH-3H-pyridine-2,6-dione-CH0
+CCc1n[nH]c(=O)[nH]1 1,2-dihydrotriazolone_to_1,4
