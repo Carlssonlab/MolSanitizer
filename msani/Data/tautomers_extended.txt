@@ -1,0 +1,16 @@
+# This tautomer extended transform file is part of the MolSanitizer project.
+# It contains the rule to enumerate to the less probable tautomer form.
+# Lines start with # or empty lines are skipped.
+# The rules are constructed as: name    enumerate	smarts      reference
+# Only the first 3 columns are read.
+# Last update: August 18th, 2026
+
+#ENUMERATE-NH-NX2/OX1
+1H-1,2-diaza	1	[nH:1]:[nX2H0:2]>>[nH0:1][nH:2]
+1H-1,3-diaza	1	[nH:1]:[c:2]:[nX2H0:3]>>[nH0:1][c:2][nH:3]
+2-pyridone-like	1	[nH:1]:[c:2]=[O,SX1:3]>>[nH0:1][c:2][OH,SH:3]
+4-pyridone-like	1	[nH:1]:[a:2]:[a:3]:[c:4]=[O,SX1:5]>>[nH0:1][a:2][a:3][c:4][OH,SH:5]
+amidine-like-NH=NH0	1	[NX2H0:1]=[C:2]-[NH:3]>>[NH:1]-[C:2]=[NH0:3]
+amidine-like-NH2=NH0	1	[NX2H0:1]=[C:2]-[NH2:3]>>[NH:1]-[C:2]=[NH:3]
+amidine-like-NH=NH	1	[NX2H:1]=[C:2]-[NH:3]>>[NH2:1]-[C:2]=[NH0:3]
+amidine-like-NH2=NH	1	[NX2H:1]=[C:2]-[NH2:3]>>[NH2:1]-[C:2]=[NH:3]

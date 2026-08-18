@@ -22,6 +22,7 @@ RDLogger.DisableLog('rdApp.*') # To disable error messages with kekulizing tauto
 logger = logging.getLogger('msani')
 
 TAUTOMER_RULES_PATH = Path(__file__).parent.parent / 'Data' / 'tautomers_v3.txt'
+TAUTOMER_EXTENDED_RULES_PATH = Path(__file__).parent.parent / 'Data' / 'tautomers_extended.txt'
 
 TAUTOMER_PARAMS = rdMolStandardize.CleanupParameters()
 TAUTOMER_PARAMS.tautomerRemoveSp3Stereo = False
@@ -164,17 +165,20 @@ class Tautomerizer:
                  taurdkit=True,
                  neutralize=True,
                  numcores = 1,
+                 extended_tautomers=False,
                  debug = False):
 
         self.debug = debug
         self.taurdkit = taurdkit
         self.neutralize = neutralize
         self.numcores = numcores
+        self.extended_tautomers = extended_tautomers
         if smartsFile is None: smartsFile = TAUTOMER_RULES_PATH
         self.reactions = self.load_reactions(smartsFile)
         self.integrity_substructs = integrity_substructs
         self.standardizing_reactions = [r for r in self.reactions if not r[1]]
         self.enumerating_reactions = [r for r in self.reactions if r[1]]
+        self.extended_enumerating_reactions = self.load_reactions(TAUTOMER_EXTENDED_RULES_PATH) if self.extended_tautomers else []
         self.debug = debug
 
     def __repr__(self):
@@ -399,7 +403,7 @@ class Tautomerizer:
 
         return mol
 
-    def enumerate_mols(self, mol: Chem.Mol, max_tautomers: int = 10):
+    def enumerate_mols(self, mol: Chem.Mol, max_tautomers: int = 20):
         """
         Enumerate tautomers while retaining their RDKit molecule objects.
 
@@ -412,7 +416,7 @@ class Tautomerizer:
         initial_smiles = Chem.MolToSmiles(mol)
         unique_smiles = [initial_smiles]
         unique_mols = {initial_smiles: mol}
-        for name, _, rxn in self.enumerating_reactions:
+        for name, _, rxn in self.enumerating_reactions + self.extended_enumerating_reactions:
             i = 0
             while i < len(unique_smiles):
                 if len(unique_smiles) >= max_tautomers:
@@ -440,7 +444,7 @@ class Tautomerizer:
                 
         return unique_mols
 
-    def enumerate(self, mol: Chem.Mol, max_tautomers: int = 10):
+    def enumerate(self, mol: Chem.Mol, max_tautomers: int = 20):
         """Return the canonical SMILES keys from :meth:`enumerate_mols`."""
         return list(self.enumerate_mols(mol, max_tautomers))
 

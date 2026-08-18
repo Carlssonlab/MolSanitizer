@@ -263,6 +263,13 @@ def parseArguments(args = None, batch_mode = False):
         help='Tautomers enumeration.'
     )
     smiles_group.add_argument(
+        '--extended-tautomers', '-et',
+        action='store_true',
+        default=defaults.get('extended_tautomers', False),
+        help="Extended tautomers enumeration using additional tautomerization rules (will also activate '--tautomers')\n" \
+              "This option will enumerate to less probable tautomeric forms."
+    )
+    smiles_group.add_argument(
         '--protonation', '-prot',
         action='store_true',
         default=defaults.get('protonation', False),
@@ -577,6 +584,9 @@ def Sanitycheck(args: dict):
         if not args.unwanted: args.unwanted=['regular']
         if 'all' in args.unwanted: args.unwanted=['regular','special','optional']
         args.unwanted=[word.title() for word in args.unwanted]
+    if args.extended_tautomers and not args.tautomers:
+        print("It seems like you forget the --tautomers flag. We turned it on for you.")
+        args.tautomers = True
 
     if (args.pH != 7 or args.pH_range != 0) and not args.protonation:
         print("It seems like you forget the --protonation flag. We turned it on for you.")

@@ -45,6 +45,7 @@ class Msani:
                 mw = None,
                 chiral = None,
                 tautomers = False,
+                extended_tautomers = False,
                 neutralize = False,
                 taurdkit = True,
                 stereoisomers = False,
@@ -90,6 +91,7 @@ class Msani:
         self.chiral = chiral
         
         self.tautomers = tautomers
+        self.extended_tautomers = extended_tautomers
         self.neutralize = neutralize
         self.taurdkit = taurdkit
         self.stereoisomers = stereoisomers
@@ -157,7 +159,8 @@ class Msani:
                                         taurdkit = self.taurdkit, 
                                         debug = self.debug, 
                                         neutralize = False,
-                                        numcores = self.numcores) # Already neutralized
+                                        numcores = self.numcores,
+                                        extended_tautomers = self.extended_tautomers) # Already neutralized
             df = tautomerizer.tautomerize_df(df)
         if self.pains: 
             if self.debug: print("Filtering PAINS")
@@ -204,7 +207,7 @@ class Msani:
                                   debug=self.debug)
             df = stereoisomerizer.enumerate_df(df)
 
-        if (not(self.protonation) and not(self.protonation) and not(self.stereoisomers)):
+        if (not(self.protonation) and not(self.tautomers) and not(self.stereoisomers)):
             # If no SMILES processing , just return a canonical SMILES of the input
             df.loc[:, 'smiles'] = df['mol'].apply(lambda x: Chem.MolToSmiles(x))
         return df

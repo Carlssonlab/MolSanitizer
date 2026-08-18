@@ -1,0 +1,6 @@
+O=C(O)c1cc([N+](=O)[O-])[nH]n1 pyrazole
+Cc1ccc(=O)[nH]c1 2-pyridone
+Cc1c[nH]ccc1=O 4-pyridone
+Nc1cc(=O)nc[nH]1 cytosine
+Cc1ccc2nc[nH]c2c1 benzimidazole
+CNC(=NCC)NCCC guanidine

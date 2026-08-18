@@ -59,7 +59,14 @@ class Test_MolSanitizer(unittest.TestCase):
             cli.clean_data(args)
             self.compare_relative(f'{temp_dir}/dummy_output_clean.txt',
                                   f'{self.path}/out_tautomers.txt')
-            
+    def test_tautomers_extended(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            args = self.generate_mock_arguments([f'{self.path}/in_extended_tautomers.txt'],
+                                                ['tautomers','extended-tautomers', 'test'], temp_dir)
+            cli.clean_data(args)
+            self.compare_relative(f'{temp_dir}/dummy_output_clean.txt',
+                                  f'{self.path}/out_extended_tautomers.txt')
+
     def test_tautomers_pseudo_chiralities(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             args = self.generate_mock_arguments([f'{self.path}/in_pseudochiral.txt'],
