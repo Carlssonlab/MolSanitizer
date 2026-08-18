@@ -126,6 +126,7 @@ class Test_MolSanitizer(unittest.TestCase):
                                   f'{self.path}/out_unwanted_optional_rejected.txt')
 
     def test_descriptor_filter(self):
+        os.chdir(self.path)
         with tempfile.TemporaryDirectory() as temp_dir:
             args = self.generate_mock_arguments([f'{self.path}/in_data100.txt'],
                                                 ['test'], temp_dir)
@@ -186,6 +187,27 @@ class Test_MolSanitizer(unittest.TestCase):
                                       f'{self.path}/out_hba4_hbd2_clean.txt')
                 self.compare_relative(f'{temp_dir}/dummy_output_rejected.txt',
                                       f'{self.path}/out_hba4_hbd2_rejected.txt')
+
+            args.hba = None
+            args.hbd = None
+            args.fsp3 = '0.2-0.7'
+            self.remove_temp_text_files(temp_dir)
+            cli.clean_data(args)
+            with self.subTest(msg="Checking FSP3 0.2-0.7:"):
+                self.compare_relative(f'{temp_dir}/dummy_output_clean.txt',
+                                      f'{self.path}/out_fsp3_0.2-0.7_clean.txt')
+                self.compare_relative(f'{temp_dir}/dummy_output_rejected.txt',
+                                      f'{self.path}/out_fsp3_0.2-0.7_rejected.txt')
+
+            args.fsp3 = None
+            args.tpsa = '50-100'
+            self.remove_temp_text_files(temp_dir)
+            cli.clean_data(args)
+            with self.subTest(msg="Checking TPSA 50-100:"):
+                self.compare_relative(f'{temp_dir}/dummy_output_clean.txt',
+                                      f'{self.path}/out_tpsa50-100_clean.txt')
+                self.compare_relative(f'{temp_dir}/dummy_output_rejected.txt',
+                                      f'{self.path}/out_tpsa50-100_rejected.txt')
 
             args = self.generate_mock_arguments([f'{self.path}/in_chiral.txt'], ['test'], temp_dir)
             args.hba = None
@@ -468,7 +490,7 @@ class Test_MolSanitizer(unittest.TestCase):
         tmp_obj.cleanup()
 
     def test_amsol(self):
-        """Compare generated DB2 partial charges with the AMSOL references."""
+        os.chdir(self.path)
         reference_dir = self.path / 'db2_zinc'
 
         def read_atom_charges(db2_path):

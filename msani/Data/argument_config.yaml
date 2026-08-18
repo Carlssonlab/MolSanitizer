@@ -20,7 +20,7 @@
 # input_files: [file1.smi, file2.smi]
 # extended: false
 
-# Filtering options (other options include hba, hbd, mw, chiral)
+# Filtering options (other options include hba, hbd, mw, tpsa, fsp3, chiral)
 removesalts: false
 unwanted: [regular, optional]
 pains: false

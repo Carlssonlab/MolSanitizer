@@ -151,14 +151,14 @@ def parseArguments(args = None, batch_mode = False):
     filter_group = parser.add_argument_group(
     title = "Filtering options", 
     description = 
-    """Supported formats for descriptor-based filters (ha, logp, hba, hbd, mw, chiral):
+    """Supported formats for descriptor-based filters (ha, logp, hba, hbd, mw, tpsa, fsp3, chiral):
     Range: Specify a range using two values (e.g., "17-25").
     Greater / Less than or equal to: Use >= or <= (e.g., ">=17", "<=25").
     Greater than / Less than: Use > or < (e.g., ">17", "<25").
     Exact match: Match a specific value (e.g., 17).
     For logP, the exact match format applies as 'less than or equal to'.
     
-    Use --ha, --logp, --hba, --hbd, --mw, --chiral to apply these filters."""
+    Use --ha, --logp, --hba, --hbd, --mw, --tpsa, --fsp3, --chiral to apply these filters."""
     )
     filter_group.add_argument(
         '--removesalts', 
@@ -210,6 +210,16 @@ def parseArguments(args = None, batch_mode = False):
         default=defaults.get('mw', None), 
         type=str, 
         help='Filter by molecular weight.' if show_advanced_help else argparse.SUPPRESS)
+    filter_group.add_argument(
+        '--tpsa',
+        default=defaults.get('tpsa', None),
+        type=str,
+        help='Filter by topological polar surface area (TPSA).' if show_advanced_help else argparse.SUPPRESS)
+    filter_group.add_argument(
+        '--fsp3',
+        default=defaults.get('fsp3', None),
+        type=str,
+        help='Filter by the fraction of sp3 carbon atoms (range 0-1).' if show_advanced_help else argparse.SUPPRESS)
     filter_group.add_argument(
         '--chiral', 
         default=defaults.get('chiral', None), 
@@ -587,4 +597,3 @@ def Sanitycheck(args: dict):
             args.stereoisomers = True
     
     return args
-
