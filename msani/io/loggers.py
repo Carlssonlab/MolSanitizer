@@ -75,6 +75,8 @@ def arguments(args):
     if args.hba: logger.info(f"HBA filter: {args.hba}")
     if args.hbd: logger.info(f"HBD filter: {args.hbd}")
     if args.mw: logger.info(f"MW filter: {args.mw}")
+    if args.tpsa: logger.info(f"TPSA filter: {args.tpsa}")
+    if args.fsp3: logger.info(f"FSP3 filter: {args.fsp3}")
     if args.chiral: logger.info(f"Chiral filter: {args.chiral}")
 
     if args.gen3d:

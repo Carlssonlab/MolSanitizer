@@ -187,7 +187,9 @@ def clean_data(args):
     processor = Msani(
         removesalts=args.removesalts, custom= args.custom, unwanted=args.unwanted,
         pains=args.pains, ha=args.ha, logp=args.logp, hba=args.hba, hbd=args.hbd, 
-        mw=args.mw, chiral = args.chiral, tautomers=args.tautomers, taurdkit=args.taurdkit, 
+        mw=args.mw, tpsa=getattr(args, 'tpsa', None), fsp3=getattr(args, 'fsp3', None),
+        chiral = args.chiral,
+        tautomers=args.tautomers, taurdkit=args.taurdkit,
         neutralize=args.neutralize, stereoisomers=args.stereoisomers, 
         max_stereoisomers=args.max_isomers, protonation=args.protonation, pH=args.pH, 
         pH_range=args.pH_range, numcores=args.numcores, randomSeed=args.randomSeed, 

@@ -39,6 +39,12 @@ class Filters():
         mw: str, default None.
             Filter molecules by the molecular weight. Accepts a string in the format '1-5', '>=5', '<=5', or '5'.
 
+        tpsa: str, default None.
+            Filter molecules by topological polar surface area (TPSA). Accepts a string in the format '20-80', '>=20', '<=80', or '50'.
+
+        fsp3: str, default None.
+            Filter molecules by the fraction of sp3 carbon atoms (FSP3). Accepts a string in the format '0.2-0.8', '>=0.2', '<=0.8', or '0.5'.
+
         chiral: str, default None.
             Filter molecules by the number of unspecified chiral centers. Accepts a string in the format '1-5', '>=5', '<=5', or '5'.
 
@@ -69,6 +75,8 @@ class Filters():
                             hba='1-3',
                             hbd='1-2',
                             mw='200-500',
+                            tpsa='20-100',
+                            fsp3='>=0.25',
                             chiral='0-2',
                             custom='path/to/custom.smarts',
                             unwanted=['regular'],
@@ -86,6 +94,8 @@ class Filters():
     >>> df = Filters.filter_by_hba(df, '1-3', rejectedFile, debug)
     >>> df = Filters.filter_by_hbd(df, '1-2', rejectedFile, debug)
     >>> df = Filters.filter_by_mw(df, '200-500', rejectedFile, debug)
+    >>> df = Filters.filter_by_tpsa(df, '20-100', rejectedFile, debug)
+    >>> df = Filters.filter_by_fsp3(df, '>=0.25', rejectedFile, debug)
     >>> df = Filters.filter_by_chiralcenters(df, '0-2', rejectedFile, debug)
     >>> df = Filters.customFilter(df, rejectedFile, 'custom_smarts.txt', debug)
     >>> df = Filters.unwantedFilter(df, rejectedFile, 'all', debug)
@@ -103,13 +113,17 @@ class Filters():
                  custom = None,
                  unwanted = None,
                  pains = None,
-                 rejectedFile = 'rejected_entries.txt'):
+                 rejectedFile = 'rejected_entries.txt',
+                 tpsa = None,
+                 fsp3 = None):
         self.removesalts = removesalts
         self.ha = ha
         self.logp = logp
         self.hba = hba
         self.hbd = hbd
         self.mw = mw
+        self.tpsa = tpsa
+        self.fsp3 = fsp3
         self.chiral = chiral
 
         self.custom = custom
@@ -281,7 +295,7 @@ class Filters():
     @staticmethod
     def convert_to_query(condition: str, column: str) -> str:
         if "-" in condition:  # Range condition
-            lower, upper = map(int, condition.split('-'))
+            lower, upper = map(float, condition.split('-'))
             return f"{column} >= {lower} and {column} <= {upper}"
         elif '>' in condition or '<' in condition:  # Single value condition
             return column + condition
@@ -441,6 +455,46 @@ class Filters():
                 print(f"Removed {len(rejected_df)} molecules with molecular weight requirements: {rejected_df['mw'].values}")
         
         return df.loc[mask].drop(columns=['mw'])
+
+    @staticmethod
+    def filter_by_tpsa(df, filter_query, rejectedFile, debug = False) -> DataFrame:
+        """Filter molecules by topological polar surface area (TPSA)."""
+        tpsa_series = df['mol'].apply(rdMolDescriptors.CalcTPSA)
+        df = df.assign(tpsa=tpsa_series)
+        query = Filters.convert_to_query(filter_query, 'tpsa')
+
+        mask = df.eval(query)
+        rejected_mask = ~mask
+
+        if rejected_mask.any():
+            rejected_df = df.loc[rejected_mask, ['smiles', 'ids', 'tpsa']].copy()
+            rejected_df['tpsa'] = rejected_df['tpsa'].apply(lambda x: f'tpsa {x:.2f}')
+            rejected_df.to_csv(rejectedFile, index=False, mode='a', sep=' ', header=False)
+            if debug:
+                logger.info(f"Removed {len(rejected_df)} molecules with TPSA requirements: {rejected_df['tpsa'].values}")
+                print(f"Removed {len(rejected_df)} molecules with TPSA requirements: {rejected_df['tpsa'].values}")
+
+        return df.loc[mask].drop(columns=['tpsa'])
+
+    @staticmethod
+    def filter_by_fsp3(df, filter_query, rejectedFile, debug = False) -> DataFrame:
+        """Filter molecules by the fraction of sp3 carbon atoms (FSP3)."""
+        fsp3_series = df['mol'].apply(rdMolDescriptors.CalcFractionCSP3)
+        df = df.assign(fsp3=fsp3_series)
+        query = Filters.convert_to_query(filter_query, 'fsp3')
+
+        mask = df.eval(query)
+        rejected_mask = ~mask
+
+        if rejected_mask.any():
+            rejected_df = df.loc[rejected_mask, ['smiles', 'ids', 'fsp3']].copy()
+            rejected_df['fsp3'] = rejected_df['fsp3'].apply(lambda x: f'fsp3 {x:.3f}')
+            rejected_df.to_csv(rejectedFile, index=False, mode='a', sep=' ', header=False)
+            if debug:
+                logger.info(f"Removed {len(rejected_df)} molecules with FSP3 requirements: {rejected_df['fsp3'].values}")
+                print(f"Removed {len(rejected_df)} molecules with FSP3 requirements: {rejected_df['fsp3'].values}")
+
+        return df.loc[mask].drop(columns=['fsp3'])
 
     @staticmethod
     def count_unspecified_chiralcenters(mol):
@@ -701,6 +755,10 @@ class Filters():
             df = Filters.filter_by_hbd(df, self.hbd, rejectedFile, debug)
         if self.mw:
             df = Filters.filter_by_mw(df, self.mw, rejectedFile, debug)
+        if self.tpsa:
+            df = Filters.filter_by_tpsa(df, self.tpsa, rejectedFile, debug)
+        if self.fsp3:
+            df = Filters.filter_by_fsp3(df, self.fsp3, rejectedFile, debug)
         if self.chiral:
             df = Filters.filter_by_chiralcenters(df, self.chiral, rejectedFile, debug)
         if self.unwanted_df is not None:

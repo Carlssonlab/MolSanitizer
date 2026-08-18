@@ -1,10 +1,10 @@
 [build-system]
-requires = ["scikit-build-core>=0.4.0"]
+requires = ["scikit-build-core>=0.9", "pybind11>=2.11"]
 build-backend = "scikit_build_core.build"
 
 [project]
 name = "MolSanitizer"
-version = "0.6.0"
+version = "0.7.0"
 description = "An Efficient In-silico Refinement pipeline for Virtual Screening (protonation, tautomers,...)"
 readme = "README.md"
 authors = [
@@ -15,13 +15,12 @@ authors = [
 license = {text = "GPL 2.0"}
 classifiers = [
     "Development Status :: 3 - Alpha",
-    "License :: OSI Approved :: GPL 2.0",
+    "License :: OSI Approved :: GNU General Public License v2 (GPLv2)",
     "Programming Language :: Python :: 3.10",
     'Programming Language :: Python :: 3.11',
     'Programming Language :: Python :: 3.12',
     "Operating System :: POSIX :: Linux",
     "Topic :: Scientific/Engineering :: Chemistry",
-    "Topic :: Scientific/Engineering :: Drug Discovery",
 ]
 keywords = ["docking", "drug design"]
 requires-python = ">=3.10,<3.13"
@@ -30,10 +29,12 @@ dependencies = [
     "numpy",
     "rdkit",
     "gemmi",
-    "meeko @ git+https://github.com/forlilab/meeko.git@develop",
     "scipy",
     "pyaml"
 ]
+
+[project.optional-dependencies]
+pdbqt = ["meeko>=0.7.1"]
 
 [project.urls]
 Homepage = "https://github.com/phonglam3103/MolSanitizer.git"
@@ -52,7 +53,7 @@ packages = ["msani"]
 [tool.scikit-build]
 # Configure CMake build for all C++ extensions
 cmake.source-dir = "."
-cmake.version = ">=3.16"
+cmake.version = ">=3.20"
 cmake.args = [
     "-DCMAKE_PREFIX_PATH=$CONDA_PREFIX",
     "-DCMAKE_FIND_ROOT_PATH=$CONDA_PREFIX",
@@ -63,5 +64,3 @@ cmake.args = [
 # Install the built .so files into the msani package
 install.components = ["python"]
 wheel.packages = ["msani"]
-
-

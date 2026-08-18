@@ -100,216 +100,78 @@ namespace InitialEmbedder {
 using EmbedParameters = DGeomHelpers::EmbedParameters;
 using EmbedFailureCauses = DGeomHelpers::EmbedFailureCauses;
 
+namespace {
+EmbedParameters makeEmbedParameters(bool enforceChirality,
+                                    bool useExpTorsionAnglePrefs,
+                                    bool useBasicKnowledge,
+                                    unsigned int ETversion,
+                                    bool useSmallRingTorsions = false,
+                                    bool useMacrocycleTorsions = false,
+                                    bool useMacrocycle14config = false) {
+  // Do not use EmbedParameters' positional constructor here. New RDKit
+  // releases may add optional parameters to it (for example,
+  // useLegacyImplementation was inserted before CPCI in 2026.03), which
+  // would make this code source-incompatible with either older or newer
+  // releases. Start from RDKit's defaults, then set the members shared by all
+  // supported releases by name. Version-specific members retain their RDKit
+  // defaults.
+  EmbedParameters params;
+  params.maxIterations = 0;
+  params.numThreads = 1;
+  params.randomSeed = -1;
+  params.clearConfs = true;
+  params.useRandomCoords = false;
+  params.boxSizeMult = 2.0;
+  params.randNegEig = true;
+  params.numZeroFail = 1;
+  params.coordMap = nullptr;
+  params.optimizerForceTol = 1e-3;
+  params.ignoreSmoothingFailures = false;
+  params.enforceChirality = enforceChirality;
+  params.useExpTorsionAnglePrefs = useExpTorsionAnglePrefs;
+  params.useBasicKnowledge = useBasicKnowledge;
+  params.verbose = false;
+  params.basinThresh = 5.0;
+  params.pruneRmsThresh = -1.0;
+  params.onlyHeavyAtomsForRMS = true;
+  params.ETversion = ETversion;
+  params.boundsMat = nullptr;
+  params.embedFragmentsSeparately = true;
+  params.useSmallRingTorsions = useSmallRingTorsions;
+  params.useMacrocycleTorsions = useMacrocycleTorsions;
+  params.useMacrocycle14config = useMacrocycle14config;
+  params.timeout = 0;
+  params.CPCI = nullptr;
+  params.callback = nullptr;
+  return params;
+}
+}  // namespace
+
 //! Parameters corresponding to Sereina Riniker's KDG approach
-const EmbedParameters KDG(0,        // maxIterations
-                          1,        // numThreads
-                          -1,       // randomSeed
-                          true,     // clearConfs
-                          false,    // useRandomCoords
-                          2.0,      // boxSizeMult
-                          true,     // randNegEig
-                          1,        // numZeroFail
-                          nullptr,  // coordMap
-                          1e-3,     // optimizerForceTol
-                          false,    // ignoreSmoothingFailures
-                          true,     // enforceChirality
-                          false,    // useExpTorsionAnglePrefs
-                          true,     // useBasicKnowledge
-                          false,    // verbose
-                          5.0,      // basinThresh
-                          -1.0,     // pruneRmsThresh
-                          true,     // onlyHeavyAtomsForRMS
-                          1,        // ETversion
-                          nullptr,  // boundsMat
-                          true,     // embedFragmentsSeparately
-                          false,    // useSmallRingTorsions
-                          false,    // useMacrocycleTorsions
-                          false,    // useMacrocycle14config
-                          0,        // timeout
-                          nullptr,  // CPCI
-                          nullptr   // callback
-);
+const EmbedParameters KDG = makeEmbedParameters(true, false, true, 1);
 
 //! Parameters corresponding to Sereina Riniker's ETDG approach
-const EmbedParameters ETDG(0,        // maxIterations
-                           1,        // numThreads
-                           -1,       // randomSeed
-                           true,     // clearConfs
-                           false,    // useRandomCoords
-                           2.0,      // boxSizeMult
-                           true,     // randNegEig
-                           1,        // numZeroFail
-                           nullptr,  // coordMap
-                           1e-3,     // optimizerForceTol
-                           false,    // ignoreSmoothingFailures
-                           false,    // enforceChirality
-                           true,     // useExpTorsionAnglePrefs
-                           false,    // useBasicKnowledge
-                           false,    // verbose
-                           5.0,      // basinThresh
-                           -1.0,     // pruneRmsThresh
-                           true,     // onlyHeavyAtomsForRMS
-                           1,        // ETversion
-                           nullptr,  // boundsMat
-                           true,     // embedFragmentsSeparately
-                           false,    // useSmallRingTorsions
-                           false,    // useMacrocycleTorsions
-                           false,    // useMacrocycle14config
-                           0,        // timeout
-                           nullptr,  // CPCI
-                           nullptr   // callback
-);
+const EmbedParameters ETDG = makeEmbedParameters(false, true, false, 1);
+
 //! Parameters corresponding to Sereina Riniker's ETDG approach with v2 of the
 //! torsion parameters
-const EmbedParameters ETDGv2(0,        // maxIterations
-                             1,        // numThreads
-                             -1,       // randomSeed
-                             true,     // clearConfs
-                             false,    // useRandomCoords
-                             2.0,      // boxSizeMult
-                             true,     // randNegEig
-                             1,        // numZeroFail
-                             nullptr,  // coordMap
-                             1e-3,     // optimizerForceTol
-                             false,    // ignoreSmoothingFailures
-                             false,    // enforceChirality
-                             true,     // useExpTorsionAnglePrefs
-                             false,    // useBasicKnowledge
-                             false,    // verbose
-                             5.0,      // basinThresh
-                             -1.0,     // pruneRmsThresh
-                             true,     // onlyHeavyAtomsForRMS
-                             2,        // ETversion
-                             nullptr,  // boundsMat
-                             true,     // embedFragmentsSeparately
-                             false,    // useSmallRingTorsions
-                             false,    // useMacrocycleTorsions
-                             false,    // useMacrocycle14config
-                             0,        // timeout
-                             nullptr,  // CPCI
-                             nullptr   // callback
-);
+const EmbedParameters ETDGv2 = makeEmbedParameters(false, true, false, 2);
+
 //! Parameters corresponding to Sereina Riniker's ETKDG approach
-const EmbedParameters ETKDG(0,        // maxIterations
-                            1,        // numThreads
-                            -1,       // randomSeed
-                            true,     // clearConfs
-                            false,    // useRandomCoords
-                            2.0,      // boxSizeMult
-                            true,     // randNegEig
-                            1,        // numZeroFail
-                            nullptr,  // coordMap
-                            1e-3,     // optimizerForceTol
-                            false,    // ignoreSmoothingFailures
-                            true,     // enforceChirality
-                            true,     // useExpTorsionAnglePrefs
-                            true,     // useBasicKnowledge
-                            false,    // verbose
-                            5.0,      // basinThresh
-                            -1.0,     // pruneRmsThresh
-                            true,     // onlyHeavyAtomsForRMS
-                            1,        // ETversion
-                            nullptr,  // boundsMat
-                            true,     // embedFragmentsSeparately
-                            false,    // useSmallRingTorsions
-                            false,    // useMacrocycleTorsions
-                            false,    // useMacrocycle14config
-                            0,        // timeout
-                            nullptr,  // CPCI
-                            nullptr   // callback
-);
+const EmbedParameters ETKDG = makeEmbedParameters(true, true, true, 1);
 
 //! Parameters corresponding to Sereina Riniker's ETKDG approach - version 2
-const EmbedParameters ETKDGv2(0,        // maxIterations
-                              1,        // numThreads
-                              -1,       // randomSeed
-                              true,     // clearConfs
-                              false,    // useRandomCoords
-                              2.0,      // boxSizeMult
-                              true,     // randNegEig
-                              1,        // numZeroFail
-                              nullptr,  // coordMap
-                              1e-3,     // optimizerForceTol
-                              false,    // ignoreSmoothingFailures
-                              true,     // enforceChirality
-                              true,     // useExpTorsionAnglePrefs
-                              true,     // useBasicKnowledge
-                              false,    // verbose
-                              5.0,      // basinThresh
-                              -1.0,     // pruneRmsThresh
-                              true,     // onlyHeavyAtomsForRMS
-                              2,        // ETversion
-                              nullptr,  // boundsMat
-                              true,     // embedFragmentsSeparately
-                              false,    // useSmallRingTorsions
-                              false,    // useMacrocycleTorsions
-                              false,    // useMacrocycle14config
-                              0,        // timeout
-                              nullptr,  // CPCI
-                              nullptr   // callback
-);
+const EmbedParameters ETKDGv2 = makeEmbedParameters(true, true, true, 2);
 
 //! Parameters corresponding improved ETKDG by Wang, Witek, Landrum and Riniker
 //! (10.1021/acs.jcim.0c00025) - the macrocycle part
-const EmbedParameters ETKDGv3(0,        // maxIterations
-                              1,        // numThreads
-                              -1,       // randomSeed
-                              true,     // clearConfs
-                              false,    // useRandomCoords
-                              2.0,      // boxSizeMult
-                              true,     // randNegEig
-                              1,        // numZeroFail
-                              nullptr,  // coordMap
-                              1e-3,     // optimizerForceTol
-                              false,    // ignoreSmoothingFailures
-                              true,     // enforceChirality
-                              true,     // useExpTorsionAnglePrefs
-                              true,     // useBasicKnowledge
-                              false,    // verbose
-                              5.0,      // basinThresh
-                              -1.0,     // pruneRmsThresh
-                              true,     // onlyHeavyAtomsForRMS
-                              2,        // ETversion
-                              nullptr,  // boundsMat
-                              true,     // embedFragmentsSeparately
-                              false,    // useSmallRingTorsions
-                              true,     // useMacrocycleTorsions
-                              true,     // useMacrocycle14config
-                              0,        // timeout
-                              nullptr,  // CPCI
-                              nullptr   // callback
-);
+const EmbedParameters ETKDGv3 =
+    makeEmbedParameters(true, true, true, 2, false, true, true);
 
 //! Parameters corresponding improved ETKDG by Wang, Witek, Landrum and Riniker
 //! (10.1021/acs.jcim.0c00025) - the small ring part
-const EmbedParameters srETKDGv3(0,        // maxIterations
-                                1,        // numThreads
-                                -1,       // randomSeed
-                                true,     // clearConfs
-                                false,    // useRandomCoords
-                                2.0,      // boxSizeMult
-                                true,     // randNegEig
-                                1,        // numZeroFail
-                                nullptr,  // coordMap
-                                1e-3,     // optimizerForceTol
-                                false,    // ignoreSmoothingFailures
-                                true,     // enforceChirality
-                                true,     // useExpTorsionAnglePrefs
-                                true,     // useBasicKnowledge
-                                false,    // verbose
-                                5.0,      // basinThresh
-                                -1.0,     // pruneRmsThresh
-                                true,     // onlyHeavyAtomsForRMS
-                                2,        // ETversion
-                                nullptr,  // boundsMat
-                                true,     // embedFragmentsSeparately
-                                true,     // useSmallRingTorsions
-                                false,    // useMacrocycleTorsions
-                                false,    // useMacrocycle14config
-                                0,        // timeout
-                                nullptr,  // CPCI
-                                nullptr   // callback
-);
+const EmbedParameters srETKDGv3 =
+    makeEmbedParameters(true, true, true, 2, true);
 
 namespace detail {
 struct EmbedArgs {

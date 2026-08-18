@@ -22,6 +22,15 @@ Example of how to set up a working conda environment to run the code on Mac OS a
     conda activate msani
     pip install -e MolSanitizer
 
+Meeko is optional and is needed only for PDBQT output. Install it with:
+
+    pip install -e "MolSanitizer[pdbqt]"
+
+Open Babel is also optional. It is used only when selected as the embedding
+method or as a fallback after an RDKit embedding timeout. If that fallback is
+needed but Open Babel is unavailable, the failure reason is written to
+`msani_error.err` and processing continues with the remaining molecules.
+
 For Windows users, we recommend them to follow the instruction [here](https://msani.readthedocs.io/en/latest/installation.html). More information on the installation and dependencies could be found in the same page
 
 ## New C++ implementation since October 18, 2025

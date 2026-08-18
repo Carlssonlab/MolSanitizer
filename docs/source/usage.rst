@@ -105,14 +105,14 @@ Help message
     --synthon, -stn       Synthon mode (Additional metadata about the capping groups required)
 
     Filtering options:
-    Supported formats for descriptor-based filters (ha, logp, hba, hbd, mw, chiral):
+    Supported formats for descriptor-based filters (ha, logp, hba, hbd, mw, tpsa, fsp3, chiral):
         Range: Specify a range using two values (e.g., "17-25").
         Greater / Less than or equal to: Use >= or <= (e.g., ">=17", "<=25").
         Greater than / Less than: Use > or < (e.g., ">17", "<25").
         Exact match: Match a specific value (e.g., 17).
         For logP, the exact match format applies as 'less than or equal to'.
         
-        Use --ha, --logp, --hba, --hbd, --mw, --chiral to apply these filters.
+        Use --ha, --logp, --hba, --hbd, --mw, --tpsa, --fsp3, --chiral to apply these filters.
 
     --removesalts         Remove salts from the structures.
                             Small fragments within the same molecule are also removed.
@@ -214,8 +214,8 @@ The tautomers could be generated using the ``--tautomers`` flag. msani uses a tw
 4. Descriptor-based filtering
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The following descriptors are supported for filtering: heavy atoms (HA), logP, hydrogen bond acceptors (HBA), hydrogen bond donors (HBD), molecular weight (MW), and number chiral centers. The descriptors can be filtered using the following flags:
-``--ha``, ``--logp``, ``--hba``, ``--hbd``, ``--mw``, and ``--chiral``. The filtering can be done using the following formats:
+The following descriptors are supported for filtering: heavy atoms (HA), logP, hydrogen bond acceptors (HBA), hydrogen bond donors (HBD), molecular weight (MW), topological polar surface area (TPSA), fraction of sp3 carbon atoms (FSP3), and number of unspecified chiral centers. The descriptors can be filtered using the following flags:
+``--ha``, ``--logp``, ``--hba``, ``--hbd``, ``--mw``, ``--tpsa``, ``--fsp3``, and ``--chiral``. FSP3 is expressed as a fraction from 0 to 1. The filtering can be done using the following formats:
 
 * Range: Specify a range using two values (e.g., "17-25").
 * Greater / Less than or equal to: Use >= or <= (e.g., ">=17", "<=25").
@@ -228,6 +228,12 @@ For example, to filter the logP values less than or equal to 3.5, use the follow
 .. code-block:: console
 
     $ msani -i example.smi --logp "<=3.5"
+
+For example, to retain molecules with TPSA up to 100 and FSP3 of at least 0.25:
+
+.. code-block:: console
+
+    $ msani -i example.smi --tpsa "<=100" --fsp3 ">=0.25"
 
 
 5. PAINS filtering
@@ -371,7 +377,9 @@ Three sampling modes are supported (``--mode`` or ``-mode`` flag):
 
 Multiple output formats are now supported, including DB2, PDBQT, SDF, and MOL2. The default output format is DB2, which could be modified by the ``--format`` or ``-f`` flag. Multiple formats at the same time is supported.
 
-For DB2 generation, the program employs AMSOL 7.1 for assigning the desolvation penalties and partial charges of the ligand's atoms. Finally, the information from the solvation file and the MOL2 file is aggregated using the `mol2db2.py <https://github.com/ryancoleman/mol2db2>`_ program.
+For DB2 generation, AMSOLcpp assigns desolvation penalties and partial charges
+directly from the in-memory RDKit molecule. These values are passed directly to
+the DB2 hierarchy writer without intermediate AMSOL or ``.solv`` files.
 
 .. code-block:: console
 
@@ -459,5 +467,3 @@ It is also possible to submit the batch jobs for multiple input files. The progr
 .. code-block:: console
 
     $ msani_batch -i example.smi example2.smi -3d -f db2 --protonation --stereoisomers
-
-

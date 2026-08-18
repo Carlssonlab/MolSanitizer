@@ -58,7 +58,10 @@ class Msani:
                 standardize = False,
                 protonation_library = None,
                 tautomer_library = None,
-                debug = False):
+                tpsa = None,
+                fsp3 = None,
+                debug = False
+                ):
 
         self.removesalts = removesalts
         self.ha = str(ha) if ha is not None else None
@@ -66,6 +69,8 @@ class Msani:
         self.hba = str(hba) if hba is not None else None
         self.hbd = str(hbd) if hbd is not None else None
         self.mw = str(mw) if mw is not None else None
+        self.tpsa = str(tpsa) if tpsa is not None else None
+        self.fsp3 = str(fsp3) if fsp3 is not None else None
 
         self.custom = custom
         self.unwanted = [word.title() for word in unwanted if isinstance(word, str)] if unwanted is not None else None
@@ -134,6 +139,8 @@ class Msani:
         if self.hba is not None: df = Filters.filter_by_hba(df, self.hba, rejectedFile=rejected_file, debug=self.debug)
         if self.hbd is not None: df = Filters.filter_by_hbd(df, self.hbd, rejectedFile=rejected_file, debug=self.debug)
         if self.mw is not None: df = Filters.filter_by_mw(df, self.mw, rejectedFile=rejected_file, debug=self.debug)
+        if self.tpsa is not None: df = Filters.filter_by_tpsa(df, self.tpsa, rejectedFile=rejected_file, debug=self.debug)
+        if self.fsp3 is not None: df = Filters.filter_by_fsp3(df, self.fsp3, rejectedFile=rejected_file, debug=self.debug)
         if self.chiral is not None: df = Filters.filter_by_chiralcenters(df, self.chiral, rejectedFile=rejected_file, debug=self.debug)
         if self.standardize: 
             df = Filters.standarizeFilters(df)
@@ -202,4 +209,3 @@ class Msani:
             df.loc[:, 'smiles'] = df['mol'].apply(lambda x: Chem.MolToSmiles(x))
         return df
     
-
