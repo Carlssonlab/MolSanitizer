@@ -67,8 +67,8 @@ execute_process(
 if(RESULT EQUAL 0)
     message(STATUS "Detected RDKit version via Python: ${RDKIT_VERSION}")
     # Set C++ standard based on RDKit version
-    # RDKit <= 2025.3.1: C++17, > 2025.3.1: C++20
-    if(RDKIT_VERSION VERSION_LESS_EQUAL "2025.3.1")
+    # RDKit < 2025.3.1: C++17, >= 2025.3.1: C++20
+    if(RDKIT_VERSION VERSION_LESS "2025.3.1")
         set(CMAKE_CXX_STANDARD 17)
         message(STATUS "Using C++17 for RDKit version ${RDKIT_VERSION}")
     else()
