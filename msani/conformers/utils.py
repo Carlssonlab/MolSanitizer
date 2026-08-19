@@ -125,7 +125,7 @@ def embed_smiles_corina(smiles, name, numringconfs, VERBOSE):
         if VERBOSE:
             print(f"\tNumber of ring conformers: {len(sdf_blocks)}")
         ring_confs = []
-        # Now you have a list of strings, each containing one MOL2 molecule
+        # Now you have a list of strings, each containing one SDF molecule
         for i, mol in enumerate(sdf_blocks, 1):
             rdkit_mol = Chem.MolFromMolBlock(mol, removeHs=False, sanitize=True)
             if rdkit_mol:
