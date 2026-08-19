@@ -80,13 +80,8 @@ else()
     set(CMAKE_CXX_STANDARD 20)
 endif()
 
-# For static linking and portability - MUST be set before any targets are created
+# Local static libraries must be usable from Python extension modules.
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-# On Windows (MSVC), we use dynamic linking with RDKit DLLs
-# On Linux/Mac, we use static linking for portability
-if(NOT MSVC)
-    set(BUILD_SHARED_LIBS OFF)
-endif()
 
 # Platform-specific compiler flags for optimization
 if(MSVC)
@@ -200,6 +195,11 @@ if(NOT RDKit_FOUND)
     endforeach()
 endif()
 
+msani_validate_rdkit_linkage(
+    RDKit::RDGeneral RDKit::SmilesParse RDKit::GraphMol
+    RDKit::ForceField RDKit::ForceFieldHelpers RDKit::DistGeomHelpers
+)
+
 # Find Boost (required by RDKit)
 find_package(Boost REQUIRED)
 
@@ -210,6 +210,7 @@ add_library(stereoisomer_lib STATIC
     $<$<PLATFORM_ID:Windows>:boost_throw_stub.cpp>
     $<$<PLATFORM_ID:Windows>:rdkit_romol_destroy_stub.cpp>
 )
+msani_configure_native_static_target(stereoisomer_lib)
 
 # Apply MSVC-specific compile flags to this target
 if(MSVC)
@@ -297,6 +298,7 @@ if(MSVC)
 endif()
 
 target_compile_definitions(msani_stereoisomers PRIVATE VERSION_INFO="0.4.0")
+msani_configure_native_extension(msani_stereoisomers)
 
 # On Windows with MSVC, ensure RDKit DLLs are in the PATH at runtime
 # The conda environment already has them in Library/bin
@@ -324,4 +326,3 @@ install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/../cpp/msani_stereoisomers.pyi
 # Print link libraries for diagnostics
 get_target_property(_msani_stereo_libs msani_stereoisomers LINK_LIBRARIES)
 message(STATUS "msani_stereoisomers link libs: ${_msani_stereo_libs}")
-

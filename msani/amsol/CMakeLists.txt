@@ -16,7 +16,7 @@ add_library(amsolcpp_core STATIC
     src/solvation.cpp
     src/writer.cpp
 )
-set_target_properties(amsolcpp_core PROPERTIES POSITION_INDEPENDENT_CODE ON)
+msani_configure_native_static_target(amsolcpp_core)
 target_compile_features(amsolcpp_core PUBLIC cxx_std_20)
 target_include_directories(amsolcpp_core
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
@@ -31,6 +31,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "^(GNU|Clang|AppleClang)$")
 endif()
 
 pybind11_add_module(_amsolcpp MODULE python/bindings.cpp)
+msani_configure_native_extension(_amsolcpp)
 target_compile_features(_amsolcpp PRIVATE cxx_std_20)
 target_link_libraries(_amsolcpp PRIVATE amsolcpp_core)
 
@@ -49,6 +50,9 @@ if(NOT RDKit_FOUND)
 endif()
 
 if(RDKit_FOUND)
+    msani_validate_rdkit_linkage(
+        RDKit::GraphMol RDKit::RDGeometryLib RDKit::RDGeneral
+    )
     target_compile_definitions(_amsolcpp PRIVATE AMSOLCPP_WITH_RDKIT)
     target_link_libraries(_amsolcpp PRIVATE
         RDKit::GraphMol

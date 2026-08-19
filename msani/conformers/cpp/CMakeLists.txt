@@ -99,13 +99,8 @@ else()
     message(STATUS "RDKit reports multithreaded embedding support: OFF")
 endif()
 
-# For static linking and portability
+# All local static libraries must be usable from Python extension modules.
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-# On Windows (MSVC), we use dynamic linking with RDKit DLLs
-# On Linux/Mac, we use static linking for portability
-if(NOT MSVC)
-    set(BUILD_SHARED_LIBS OFF)
-endif()
 
 # Platform-specific compiler flags for optimization
 if(MSVC)
@@ -134,12 +129,6 @@ if(MSVC)
             set(${flag_var} "${${flag_var}}" CACHE STRING "" FORCE)
         endif()
     endforeach()
-endif()
-
-# Set static linking flags for portable .so file (Linux/Mac only)
-if(UNIX AND NOT APPLE)
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++")
-    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -static-libgcc -static-libstdc++")
 endif()
 
 # Find required packages
@@ -216,6 +205,15 @@ if(NOT RDKit_FOUND)
     message(FATAL_ERROR "RDKit not found. Please ensure RDKit is installed and RDBASE or CONDA_PREFIX is set.")
 endif()
 
+# Wheel builds use a pinned static RDKit SDK; the shared/manual lookup path is
+# retained for local development only.
+msani_validate_rdkit_linkage(
+    RDKit::RDGeneral RDKit::RDGeometryLib RDKit::SubstructMatch
+    RDKit::SmilesParse RDKit::GraphMol RDKit::EigenSolvers RDKit::Alignment
+    RDKit::ForceField RDKit::ForceFieldHelpers RDKit::DistGeometry
+    RDKit::DistGeomHelpers RDKit::MolTransforms
+)
+
 # Find PyBind11
 find_package(pybind11 CONFIG QUIET)
 if(NOT pybind11_FOUND)
@@ -284,6 +282,7 @@ add_library(stochastic_sampling_lib STATIC
     $<$<PLATFORM_ID:Windows>:boost_throw_stub.cpp>
     $<$<PLATFORM_ID:Windows>:rdkit_romol_destroy_stub.cpp>
 )
+msani_configure_native_static_target(stochastic_sampling_lib)
 
 # Apply MSVC-specific compile flags to this target
 if(MSVC)
@@ -387,11 +386,7 @@ if(RDK_THREADSAFE_SSS)
     target_compile_definitions(msani_confgen_cpp PRIVATE RDK_BUILD_THREADSAFE_SSS)
 endif()
 
-# Set properties for portable .so file
-set_target_properties(msani_confgen_cpp PROPERTIES
-    CXX_VISIBILITY_PRESET "hidden"
-    VISIBILITY_INLINES_HIDDEN ON
-)
+msani_configure_native_extension(msani_confgen_cpp)
 
 # On Windows with MSVC, ensure RDKit DLLs are in the PATH at runtime
 # The conda environment already has them in Library/bin
@@ -415,23 +410,6 @@ if(MSVC)
     message(STATUS "")
 endif()
 
-# Set RPATH to find RDKit libraries
-if(RDKIT_LIBRARIES)
-    get_filename_component(RDKIT_LIB_DIR "${RDKIT_LIBRARIES}" DIRECTORY)
-    set_target_properties(msani_confgen_cpp PROPERTIES
-        INSTALL_RPATH "${RDKIT_LIB_DIR}"
-        BUILD_WITH_INSTALL_RPATH TRUE
-    )
-endif()
-
-# Force static linking of standard libraries
-if(UNIX AND NOT APPLE)
-    target_link_options(msani_confgen_cpp PRIVATE
-        -static-libgcc
-        -static-libstdc++
-    )
-endif()
-
 
 # Print configuration summary
 message(STATUS "")
@@ -449,11 +427,7 @@ message(STATUS "Boost found: ${Boost_FOUND}")
 message(STATUS "Eigen3 found: ${Eigen3_FOUND}")
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 message(STATUS "C++ compiler: ${CMAKE_CXX_COMPILER}")
-if(MSVC)
-    message(STATUS "Linking mode: Dynamic (using RDKit DLLs)")
-else()
-    message(STATUS "Linking mode: Static (for portability)")
-endif()
+message(STATUS "RDKit linkage mode: ${MSANI_RDKIT_LINKAGE}")
 message(STATUS "=============================")
 message(STATUS "")
 

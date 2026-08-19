@@ -27,7 +27,9 @@ requires-python = ">=3.10,<3.13"
 dependencies = [
     "pandas",
     "numpy",
-    "rdkit",
+    # The Python package remains the Python-level API provider. Native wheels
+    # are built against the matching private RDKit C++ SDK.
+    "rdkit==2025.9.5",
     "gemmi",
     "scipy",
     "pyaml"
@@ -51,16 +53,23 @@ gen3d = "msani.conformers.conformers:main"
 packages = ["msani"]
 
 [tool.scikit-build]
-# Configure CMake build for all C++ extensions
 cmake.source-dir = "."
 cmake.version = ">=3.20"
-cmake.args = [
-    "-DCMAKE_PREFIX_PATH=$CONDA_PREFIX",
-    "-DCMAKE_FIND_ROOT_PATH=$CONDA_PREFIX",
-    "-DCMAKE_INSTALL_PREFIX=$CONDA_PREFIX",
-    "-DCMAKE_CXX_FLAGS=-O3 -DNDEBUG",
-    "-DBUILD_SHARED_LIBS=OFF"
-]
+cmake.build-type = "Release"
 # Install the built .so files into the msani package
 install.components = ["python"]
 wheel.packages = ["msani"]
+# Native source and build artifacts belong in the sdist, not a binary wheel.
+wheel.exclude = [
+    "**/.DS_Store",
+    "**/__pycache__/**",
+    "msani/**/*.cpp",
+    "msani/**/*.h",
+    "msani/**/*.hpp",
+    "msani/**/CMakeLists.txt",
+    "msani/**/*.a",
+]
+wheel.license-files = ["LICENSE", "msani/amsol/LICENSE", "third_party/rdkit/LICENSE"]
+sdist.exclude = ["build/**", "dist/**", "**/.DS_Store", "**/__pycache__/**", "msani/**/*.a"]
+# Useful for development rebuilds
+build-dir = "build/{wheel_tag}"
