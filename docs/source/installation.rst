@@ -7,8 +7,8 @@ Dependencies
 MolSanitizer is built upon the following packages:
 
 - RDKit 2024.09.3+ (`Reference <https://www.rdkit.org/docs/Install.html>`__)
-
-- Mol2DB2 (`Reference <https://github.com/ryancoleman/mol2db2>`__)
+- pandas
+- numpy
 
 
 Optional dependencies

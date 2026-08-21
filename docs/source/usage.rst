@@ -379,7 +379,7 @@ Multiple output formats are now supported, including DB2, PDBQT, SDF, and MOL2. 
 
 For DB2 generation, AMSOLcpp assigns desolvation penalties and partial charges
 directly from the in-memory RDKit molecule. These values are passed directly to
-the DB2 hierarchy writer without intermediate AMSOL or ``.solv`` files.
+the DB2 layout writer without intermediate AMSOL or ``.solv`` files.
 
 .. code-block:: console
 
