@@ -3,7 +3,6 @@ CC(=O)Oc1ccccc1C(=O)[O-] ZINC53
 CC(C)(C#N)c1cc(Cn2cncn2)cc(C(C)(C)C#N)c1 ZINC941
 NNC(=O)c1ccncc1 ZINC1590
 Nc1ccc(S(N)(=O)=O)cc1 ZINC2101
-O=C1CC[C@@]2(O)[C@H]3Cc4ccc(O)c5c4[C@@]2(CC[N@H+]3CC2CC2)[C@H]1O5 ZINC1773
 CC(C)C#CC(=O)N[C@H]1C[C@H](Nc2nc(CC3CC3)ns2)C1 ENA0000198129_variant
 [NH3+][C@@H](CP(=O)([O-])[O-])C(=O)[O-] ZINC3873028
 C[C@@H](CN1c2ccccc2Sc2ccc(C#N)cc21)C[NH+](C)C ZINC188
