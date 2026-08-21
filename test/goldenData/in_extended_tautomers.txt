@@ -4,3 +4,5 @@ Cc1c[nH]ccc1=O 4-pyridone
 Nc1cc(=O)nc[nH]1 cytosine
 Cc1ccc2nc[nH]c2c1 benzimidazole
 CNC(=NCC)NCCC guanidine
+Cc1ccc2[nH]ccnc12 1H-1,4-diaza
+CN(C)C1CCC(=O)C(C(N)=O)=C1O vinylog_acid
