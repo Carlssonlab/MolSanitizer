@@ -57,11 +57,10 @@ GCC and Clang-family compilers to preserve the floating-point behavior used for
 scientific parity testing. CPU-specific native optimizations and OpenMP are not
 enabled in distributed builds.
 
-CMake first looks for an RDKit CMake package and then checks common Conda and
-system locations for RDKit development files. If they are unavailable, the
-extension can still build, but its direct RDKit functions will report that
-RDKit support was not compiled in. MolSanitizer's DB2 workflow requires that
-support.
+The extension reads molecular data through RDKit's public Python API. It does
+not include RDKit C++ headers or link to RDKit libraries, avoiding C++ ABI and
+Windows DLL-export differences between RDKit distributions. RDKit must still
+be installed at runtime for MolSanitizer's DB2 workflow.
 
 Do not keep a separate editable installation of the standalone `amsolcpp`
 Python package in the same environment. Both installations provide the same

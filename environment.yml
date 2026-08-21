@@ -15,7 +15,6 @@ dependencies:
   - libboost-devel
   - scikit-build-core
   - openbabel
-  - scipy
   - pyaml
   - gemmi
   - cmake<=3.29

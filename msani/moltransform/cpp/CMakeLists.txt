@@ -195,9 +195,8 @@ if(NOT RDKit_FOUND)
     endforeach()
 endif()
 
-msani_validate_rdkit_linkage(
-    RDKit::RDGeneral RDKit::SmilesParse RDKit::GraphMol
-    RDKit::ForceField RDKit::ForceFieldHelpers RDKit::DistGeomHelpers
+msani_select_rdkit_targets(MSANI_STEREO_RDKIT_TARGETS
+    RDGeneral SmilesParse GraphMol ForceField ForceFieldHelpers DistGeomHelpers
 )
 
 # Find Boost (required by RDKit)
@@ -225,14 +224,7 @@ target_include_directories(stereoisomer_lib PUBLIC
 # Link RDKit
 if(RDKit_FOUND)
     # Link in dependency order: low-level libraries first
-    target_link_libraries(stereoisomer_lib PUBLIC
-        RDKit::RDGeneral
-        RDKit::SmilesParse
-        RDKit::GraphMol
-        RDKit::ForceField
-        RDKit::ForceFieldHelpers
-        RDKit::DistGeomHelpers
-    )
+    target_link_libraries(stereoisomer_lib PUBLIC ${MSANI_STEREO_RDKIT_TARGETS})
     # On Windows with MSVC, RDKit is built as DLLs
     # Add the DLL directory to runtime path
     if(MSVC AND RDKit_ROOT_DIR)
@@ -267,14 +259,7 @@ target_link_libraries(msani_stereoisomers PRIVATE
 
 # Explicitly link RDKit and Boost to the extension on MSVC (ensure import libs are included)
 if(RDKit_FOUND)
-    target_link_libraries(msani_stereoisomers PRIVATE
-        RDKit::RDGeneral
-        RDKit::SmilesParse
-        RDKit::GraphMol
-        RDKit::ForceField
-        RDKit::ForceFieldHelpers
-        RDKit::DistGeomHelpers
-    )
+    target_link_libraries(msani_stereoisomers PRIVATE ${MSANI_STEREO_RDKIT_TARGETS})
 else()
     if(RDKIT_LIBRARIES)
         target_link_libraries(msani_stereoisomers PRIVATE ${RDKIT_LIBRARIES})

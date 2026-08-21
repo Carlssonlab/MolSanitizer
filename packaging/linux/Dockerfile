@@ -15,10 +15,12 @@ RUN git clone --depth 1 --branch "${RDKIT_REF}" \
 RUN cmake -S /tmp/rdkit -B /tmp/rdkit-build -G Ninja \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_INSTALL_PREFIX="${RDKIT_PREFIX}" \
-        -DBUILD_SHARED_LIBS=OFF \
+        -DRDK_INSTALL_INTREE=OFF \
+        -DRDK_BUILD_STATIC_LIBS_ONLY=ON \
         -DRDK_BUILD_PYTHON_WRAPPERS=OFF \
         -DRDK_BUILD_CPP_TESTS=OFF \
         -DRDK_BUILD_INCHI_SUPPORT=OFF \
+        -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
     && cmake --build /tmp/rdkit-build --parallel \
     && cmake --install /tmp/rdkit-build
 

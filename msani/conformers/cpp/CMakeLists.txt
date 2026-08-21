@@ -207,11 +207,10 @@ endif()
 
 # Wheel builds use a pinned static RDKit SDK; the shared/manual lookup path is
 # retained for local development only.
-msani_validate_rdkit_linkage(
-    RDKit::RDGeneral RDKit::RDGeometryLib RDKit::SubstructMatch
-    RDKit::SmilesParse RDKit::GraphMol RDKit::EigenSolvers RDKit::Alignment
-    RDKit::ForceField RDKit::ForceFieldHelpers RDKit::DistGeometry
-    RDKit::DistGeomHelpers RDKit::MolTransforms
+msani_select_rdkit_targets(MSANI_CONFGEN_RDKIT_TARGETS
+    RDGeneral RDGeometryLib SubstructMatch SmilesParse GraphMol EigenSolvers
+    Alignment ForceField ForceFieldHelpers DistGeometry DistGeomHelpers
+    MolTransforms
 )
 
 # Find PyBind11
@@ -299,20 +298,7 @@ target_include_directories(stochastic_sampling_lib PUBLIC
 if(RDKit_FOUND)
     # Use imported RDKit targets (provides both includes and libs automatically)
     # Link in dependency order: low-level libraries first
-    target_link_libraries(stochastic_sampling_lib PUBLIC
-        RDKit::RDGeneral
-        RDKit::RDGeometryLib
-        RDKit::SubstructMatch
-        RDKit::SmilesParse
-        RDKit::GraphMol
-        RDKit::EigenSolvers
-        RDKit::Alignment
-        RDKit::ForceField
-        RDKit::ForceFieldHelpers
-        RDKit::DistGeometry
-        RDKit::DistGeomHelpers
-        RDKit::MolTransforms
-    )
+    target_link_libraries(stochastic_sampling_lib PUBLIC ${MSANI_CONFGEN_RDKIT_TARGETS})
     # On Windows with MSVC, RDKit is built as DLLs
     # Add the DLL directory to runtime path
     if(MSVC AND RDKit_ROOT_DIR)
@@ -356,20 +342,7 @@ target_link_libraries(msani_confgen_cpp PRIVATE stochastic_sampling_lib)
 
 # On Windows/MSVC, explicitly link RDKit and Boost to the extension as well
 if(RDKit_FOUND)
-    target_link_libraries(msani_confgen_cpp PRIVATE
-        RDKit::RDGeneral
-        RDKit::RDGeometryLib
-        RDKit::SubstructMatch
-        RDKit::SmilesParse
-        RDKit::GraphMol
-        RDKit::EigenSolvers
-        RDKit::Alignment
-        RDKit::ForceField
-        RDKit::ForceFieldHelpers
-        RDKit::DistGeometry
-        RDKit::DistGeomHelpers
-        RDKit::MolTransforms
-    )
+    target_link_libraries(msani_confgen_cpp PRIVATE ${MSANI_CONFGEN_RDKIT_TARGETS})
 else()
     if(RDKIT_LIBRARIES)
         target_link_libraries(msani_confgen_cpp PRIVATE ${RDKIT_LIBRARIES})

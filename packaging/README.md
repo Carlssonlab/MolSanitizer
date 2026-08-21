@@ -13,3 +13,8 @@ Conda installation.
 
 This is the first Linux x86_64 / CPython 3.12 packaging target. Each Python
 and platform wheel needs its own build and clean-install test.
+
+For the current local prototype, `/home/phonglam/msani-rdkit-sdk` is a valid
+RDKit 2025.09.5 SDK and the build selects RDKit's `*_static` imported targets.
+The resulting WSL-built wheel is limited to `manylinux_2_39_x86_64`; use the
+manylinux container for the wider `manylinux_2_28_x86_64` production target.

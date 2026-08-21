@@ -29,8 +29,8 @@ from ._amsolcpp import (
 )
 from . import _amsolcpp as _native_module
 
-# True when this build was compiled with RDKit support (AMSOLCPP_WITH_RDKIT).
-# False means the three rdkit functions exist but raise RuntimeError on call.
+# The extension uses RDKit's public Python API, so no separate C++ RDKit build
+# support is required.
 rdkit_support: bool = getattr(_native_module, "rdkit_support", False)
 
 

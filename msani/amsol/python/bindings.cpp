@@ -8,93 +8,53 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
-#ifdef AMSOLCPP_WITH_RDKIT
-// RDKit headers for direct mol object extraction
-// (compiled in because AMSOLCPP_WITH_RDKIT is defined)
-#include <GraphMol/ROMol.h>
-#include <GraphMol/RWMol.h>
-#include <GraphMol/MolPickler.h>
-#include <GraphMol/Conformer.h>
-#include <Geometry/point.h>
-#endif  // AMSOLCPP_WITH_RDKIT
-
 namespace py = pybind11;
 
 // ---------------------------------------------------------------------------
 // Helper: extract amsolcpp::Atom list directly from a Python RDKit Mol object.
 //
-// Only compiled when AMSOLCPP_WITH_RDKIT is defined (i.e. RDKit headers and
-// libraries were found at cmake configure time).  When the flag is absent,
-// the three public Python functions below are still registered but throw a
-// clear RuntimeError so callers get an actionable message instead of an
-// obscure ImportError or linker failure.
-//
 // Accepts any rdkit.Chem.Mol (or RWMol/ROMol) that has already been prepared
-// with 3-D coordinates (i.e. it has at least one conformer).  The molecule
-// is round-tripped through RDKit's binary pickle format so that we never
-// touch the Python-side C++ internals directly – this is safe across all
-// RDKit build flavours.
+// with 3-D coordinates (i.e. it has at least one conformer). Atomic data is
+// read through RDKit's public Python API, so this extension does not cross the
+// RDKit C++ ABI or link against private ROMol lifecycle methods.
 //
 // Coordinates are returned in angstroms, exactly as stored by RDKit.
 // ---------------------------------------------------------------------------
-#ifdef AMSOLCPP_WITH_RDKIT
 static std::vector<amsolcpp::Atom> atoms_from_rdkit_mol_impl(py::object mol_obj) {
     if (mol_obj.is_none()) {
         throw std::invalid_argument("rdkit mol object is None");
     }
 
-    // Serialise the Python-side RDKit mol to a binary pickle string.
-    py::bytes binary_data;
     try {
-        binary_data = mol_obj.attr("ToBinary")();
-    } catch (const std::exception& e) {
-        throw std::runtime_error(
-            std::string("could not call ToBinary() on the rdkit mol object: ") + e.what());
-    }
-    const std::string binary_str = binary_data.cast<std::string>();
+        const auto num_conformers =
+            mol_obj.attr("GetNumConformers")().cast<unsigned int>();
+        if (num_conformers == 0) {
+            throw std::invalid_argument(
+                "rdkit mol has no conformers; generate 3-D coordinates "
+                "(e.g. AllChem.EmbedMolecule) before passing to amsolcpp");
+        }
 
-    // Deserialise into an RDKit ROMol using MolPickler.
-    RDKit::ROMol mol;
-    try {
-        RDKit::MolPickler::molFromPickle(binary_str, mol);
-    } catch (const std::exception& e) {
-        throw std::runtime_error(
-            std::string("MolPickler failed to deserialise rdkit mol: ") + e.what());
-    }
+        const auto num_atoms = mol_obj.attr("GetNumAtoms")().cast<unsigned int>();
+        py::object conf = mol_obj.attr("GetConformer")();
+        std::vector<amsolcpp::Atom> atoms;
+        atoms.reserve(num_atoms);
 
-    // Require at least one 3-D conformer.
-    if (mol.getNumConformers() == 0) {
+        for (unsigned int i = 0; i < num_atoms; ++i) {
+            py::object atom = mol_obj.attr("GetAtomWithIdx")(i);
+            py::object pos = conf.attr("GetAtomPosition")(i);
+            atoms.push_back(amsolcpp::Atom{
+                atom.attr("GetAtomicNum")().cast<int>(),
+                pos.attr("x").cast<double>(),
+                pos.attr("y").cast<double>(),
+                pos.attr("z").cast<double>()
+            });
+        }
+        return atoms;
+    } catch (const py::error_already_set& e) {
         throw std::invalid_argument(
-            "rdkit mol has no conformers; generate 3-D coordinates "
-            "(e.g. AllChem.EmbedMolecule) before passing to amsolcpp");
+            std::string("object is not a compatible RDKit molecule: ") + e.what());
     }
-
-    const RDKit::Conformer& conf = mol.getConformer(0);
-    std::vector<amsolcpp::Atom> atoms;
-    atoms.reserve(mol.getNumAtoms());
-
-    for (unsigned int i = 0; i < mol.getNumAtoms(); ++i) {
-        const RDKit::Atom* atom = mol.getAtomWithIdx(i);
-        const RDGeom::Point3D& pos = conf.getAtomPos(i);
-        atoms.push_back(amsolcpp::Atom{
-            static_cast<int>(atom->getAtomicNum()),
-            pos.x,
-            pos.y,
-            pos.z
-        });
-    }
-    return atoms;
 }
-#endif  // AMSOLCPP_WITH_RDKIT
-
-// Shared error message used by all three stub registrations below.
-static constexpr const char* RDKIT_NOT_COMPILED_MSG =
-    "This amsolcpp build was compiled without RDKit support.\n"
-    "To enable it, ensure RDKit development headers and libraries are "
-    "available in your environment (e.g. install rdkit-dev via conda or "
-    "your package manager), then rebuild with:\n"
-    "    cmake -DAMSOLCPP_BUILD_PYTHON=ON ...\n"
-    "CMake will detect RDKit automatically and set AMSOLCPP_WITH_RDKIT.";
 
 // ---------------------------------------------------------------------------
 // SolvDescriptors structs defined at file scope so that compute_solv_descriptors
@@ -559,14 +519,8 @@ PYBIND11_MODULE(_amsolcpp, module) {
   // -----------------------------------------------------------------------
   // RDKit mol object extraction
   // -----------------------------------------------------------------------
-  // These three functions are always registered in the module so that
-  // callers always get the same attribute-lookup behaviour regardless of
-  // how the extension was built.  When AMSOLCPP_WITH_RDKIT is NOT defined
-  // (i.e. RDKit was not found at build time) each function raises a clear
-  // RuntimeError that explains what the user must do to enable support.
-
-#ifdef AMSOLCPP_WITH_RDKIT
-  // --- Full implementation (RDKit present at build time) ---
+  // RDKit stays on the Python side of the extension boundary, avoiding a
+  // compile-time dependency on RDKit's C++ headers and libraries.
 
   module.def(
       "atoms_from_rdkit_mol",
@@ -576,9 +530,7 @@ PYBIND11_MODULE(_amsolcpp, module) {
       py::arg("mol"),
       "Extract a list of Atom objects from a Python RDKit Mol object.\n\n"
       "The molecule must already have 3-D coordinates (at least one conformer).\n"
-      "Atom positions are taken from the first conformer in angstroms.\n\n"
-      "This replaces the Python-side mol_to_amsol_atoms() helper and avoids\n"
-      "the overhead of iterating atoms in Python.");
+      "Atom positions are taken from the first conformer in angstroms.");
 
   module.def(
       "calculate_from_rdkit_mol",
@@ -597,8 +549,8 @@ PYBIND11_MODULE(_amsolcpp, module) {
       [](py::object mol_obj, amsolcpp::CalculationOptions options)
           -> SolvDescriptors {
         // Extract atoms from the Python RDKit mol object, then run the full
-        // dual-solvent computation.  GIL must be held during mol extraction
-        // (ToBinary call), then released for the numerical computation.
+        // dual-solvent computation. The GIL must be held during public Python
+        // API calls, then is released for the numerical computation.
         auto atoms = atoms_from_rdkit_mol_impl(mol_obj);
 
         py::gil_scoped_release release;
@@ -612,49 +564,7 @@ PYBIND11_MODULE(_amsolcpp, module) {
       "(charges, polar_diffs, surfaces, apolar_diffs, solv_diffs) can be\n"
       "assigned directly to Solv attributes without list comprehensions.");
 
-  // Expose a flag so Python code can inspect RDKit support at runtime.
+  // This extension can consume an RDKit molecule whenever RDKit is installed
+  // in the Python runtime; no separately compiled C++ support is required.
   module.attr("rdkit_support") = true;
-
-#else  // AMSOLCPP_WITH_RDKIT not defined
-  // --- Stub implementations (RDKit absent at build time) ---
-
-  module.def(
-      "atoms_from_rdkit_mol",
-      [](py::object /*mol_obj*/) -> std::vector<amsolcpp::Atom> {
-        throw std::runtime_error(RDKIT_NOT_COMPILED_MSG);
-        return {};
-      },
-      py::arg("mol"),
-      "[RDKit support not compiled in]\n\n"
-      "Raises RuntimeError. Rebuild amsolcpp with RDKit headers available\n"
-      "to enable this function.");
-
-  module.def(
-      "calculate_from_rdkit_mol",
-      [](py::object /*mol_obj*/, amsolcpp::CalculationOptions /*options*/)
-          -> amsolcpp::CalculationResult {
-        throw std::runtime_error(RDKIT_NOT_COMPILED_MSG);
-        return {};
-      },
-      py::arg("mol"), py::arg("options") = amsolcpp::CalculationOptions{},
-      "[RDKit support not compiled in]\n\n"
-      "Raises RuntimeError. Rebuild amsolcpp with RDKit headers available\n"
-      "to enable this function.");
-
-  module.def(
-      "calculate_solv_descriptors_from_rdkit_mol",
-      [](py::object /*mol_obj*/, amsolcpp::CalculationOptions /*options*/)
-          -> SolvDescriptors {
-        throw std::runtime_error(RDKIT_NOT_COMPILED_MSG);
-        return {};
-      },
-      py::arg("mol"), py::arg("options") = amsolcpp::CalculationOptions{},
-      "[RDKit support not compiled in]\n\n"
-      "Raises RuntimeError. Rebuild amsolcpp with RDKit headers available\n"
-      "to enable this function.");
-
-  // Expose a flag so Python code can inspect RDKit support at runtime.
-  module.attr("rdkit_support") = false;
-
-#endif  // AMSOLCPP_WITH_RDKIT
 }
