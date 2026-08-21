@@ -31,7 +31,7 @@ input, output, or `.solv` files.
 
 The adapter in
 [`rdkit_amsol_to_solv.py`](rdkit_amsol_to_solv.py) converts the native
-AMSOLcpp result into the `Solv` object consumed by MolSanitizer's DB2 hierarchy
+AMSOLcpp result into the `Solv` object consumed by MolSanitizer's DB2 layout
 writer.
 
 For each molecule, the adapter:

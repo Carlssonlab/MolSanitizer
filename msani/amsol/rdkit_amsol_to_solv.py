@@ -13,7 +13,7 @@ class SolvError(RuntimeError):
 
 
 class Solv:
-    """Solvation values consumed by the DB2 hierarchy writer."""
+    """Solvation values consumed by the DB2 layout writer."""
 
     def __init__(self):
         self.name = "fake"

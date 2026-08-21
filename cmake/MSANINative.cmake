@@ -6,7 +6,7 @@ set(MSANI_RDKIT_LINKAGE "shared" CACHE STRING
     "RDKit linkage mode: shared (development) or static (redistributable wheel)")
 set_property(CACHE MSANI_RDKIT_LINKAGE PROPERTY STRINGS shared static)
 
-function(msani_validate_rdkit_linkage)
+function(msani_select_rdkit_targets output_variable)
     if(NOT MSANI_RDKIT_LINKAGE STREQUAL "shared" AND
        NOT MSANI_RDKIT_LINKAGE STREQUAL "static")
         message(FATAL_ERROR
@@ -14,39 +14,42 @@ function(msani_validate_rdkit_linkage)
             "'${MSANI_RDKIT_LINKAGE}'")
     endif()
 
-    if(NOT MSANI_RDKIT_LINKAGE STREQUAL "static")
-        return()
-    endif()
-
-    if(MSVC)
+    if(MSANI_RDKIT_LINKAGE STREQUAL "static" AND MSVC)
         message(FATAL_ERROR
             "The private static RDKit wheel path is currently implemented "
             "for Linux packaging only. Use MSANI_RDKIT_LINKAGE=shared for "
             "Windows development builds.")
     endif()
 
-    foreach(_msani_rdkit_target IN LISTS ARGN)
-        if(NOT TARGET ${_msani_rdkit_target})
-            message(FATAL_ERROR
-                "Static packaging requires imported target "
-                "${_msani_rdkit_target}. Configure CMAKE_PREFIX_PATH with "
-                "the pinned static RDKit SDK.")
+    set(_msani_selected_targets)
+    foreach(_msani_rdkit_component IN LISTS ARGN)
+        if(MSANI_RDKIT_LINKAGE STREQUAL "static")
+            set(_msani_rdkit_target "RDKit::${_msani_rdkit_component}_static")
+        else()
+            set(_msani_rdkit_target "RDKit::${_msani_rdkit_component}")
         endif()
 
-        get_target_property(_msani_rdkit_location
-            ${_msani_rdkit_target} IMPORTED_LOCATION_RELEASE)
-        if(NOT _msani_rdkit_location)
-            get_target_property(_msani_rdkit_location
-                ${_msani_rdkit_target} IMPORTED_LOCATION)
-        endif()
-        if(NOT _msani_rdkit_location MATCHES "\\.a$")
+        if(NOT TARGET ${_msani_rdkit_target})
             message(FATAL_ERROR
-                "Static packaging requires ${_msani_rdkit_target} to resolve "
-                "to a static archive, but it resolves to "
-                "'${_msani_rdkit_location}'. Build/install RDKit 2025.09.5 "
-                "with BUILD_SHARED_LIBS=OFF and point CMAKE_PREFIX_PATH to it.")
+                "RDKit linkage mode '${MSANI_RDKIT_LINKAGE}' requires target "
+                "${_msani_rdkit_target}. Point CMAKE_PREFIX_PATH or RDBASE "
+                "at the pinned RDKit SDK.")
         endif()
+
+        if(MSANI_RDKIT_LINKAGE STREQUAL "static")
+            get_target_property(_msani_rdkit_type ${_msani_rdkit_target} TYPE)
+            if(NOT _msani_rdkit_type STREQUAL "STATIC_LIBRARY")
+                message(FATAL_ERROR
+                    "${_msani_rdkit_target} is ${_msani_rdkit_type}, not a "
+                    "static RDKit library. Rebuild RDKit 2025.09.5 with "
+                    "RDK_BUILD_STATIC_LIBS_ONLY=ON.")
+            endif()
+        endif()
+
+        list(APPEND _msani_selected_targets ${_msani_rdkit_target})
     endforeach()
+
+    set(${output_variable} "${_msani_selected_targets}" PARENT_SCOPE)
 endfunction()
 
 function(msani_configure_native_static_target target)
