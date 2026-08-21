@@ -516,7 +516,7 @@ class ConformerGenerator:
                     conformer, current_descriptors = lowest_energy_entry[0], lowest_energy_entry[2:]
                     scaffold = Chem.Mol(self.empty_mol)
                     conf_id = scaffold.AddConformer(conformer, assignId=True)
-                    # Need to align briefly so that coordinates are not too far apart and disrupt Mol2DB2
+                    # Align so coordinate clustering remains numerically stable for DB2 conversion.
                     if self.ring_confs: rdMolAlign.AlignMol(scaffold, self.ring_confs[0], 0, 0, atomMap=[(i, i) for i in align_on])
                     self.ring_confs.append(Chem.Mol(scaffold, conf_id))
                     num_confs_per_regioisomers += 1
@@ -545,7 +545,7 @@ class ConformerGenerator:
                     conformer, current_descriptors = entry[0], entry[2:]
                     scaffold = Chem.Mol(self.empty_mol)
                     conf_id = scaffold.AddConformer(conformer, assignId=True)
-                    # Need to align briefly so that coordinates are not too far apart and disrupt Mol2DB2
+                    # Align so coordinate clustering remains numerically stable for DB2 conversion.
                     if self.ring_confs: rdMolAlign.AlignMol(scaffold, self.ring_confs[0], 0, 0, atomMap=[(i, i) for i in align_on])
                     self.ring_confs.append(Chem.Mol(scaffold, conf_id))
                     sulfo_7_descriptor_ref = current_descriptors[-1]
@@ -558,7 +558,7 @@ class ConformerGenerator:
                     conformer, current_descriptors = entry[0], entry[2:]
                     scaffold = Chem.Mol(self.empty_mol)
                     conf_id = scaffold.AddConformer(conformer, assignId=True)
-                # Need to align briefly so that coordinates are not too far apart and disrupt Mol2DB2
+                # Align so coordinate clustering remains numerically stable for DB2 conversion.
                 if self.ring_confs: rdMolAlign.AlignMol(scaffold, self.ring_confs[0], 0, 0, atomMap=[(i, i) for i in align_on])
                 self.ring_confs.append(Chem.Mol(scaffold, conf_id))
                 sulfo_7_descriptor_ref = current_descriptors[-1]
@@ -604,7 +604,7 @@ class ConformerGenerator:
                 conformer, current_descriptors = lowest_energy_entry[0], lowest_energy_entry[2:]
                 scaffold = Chem.Mol(self.empty_mol)
                 scaffold.AddConformer(conformer, assignId=True)
-                # Need to align briefly so that coordinates are not too far apart and disrupt Mol2DB2
+                # Align so coordinate clustering remains numerically stable for DB2 conversion.
                 if self.ring_confs: rdMolAlign.AlignMol(scaffold, self.ring_confs[0], 0, 0, atomMap=[(i, i) for i in align_on])
                 self.ring_confs.append(scaffold)
                 temp_list = utils.ring_conf_clusters(current_descriptors, temp_list)
@@ -1226,25 +1226,26 @@ class ConformerGenerator:
         os.makedirs(f"db2/{self.name}", exist_ok=True)
         try:
             os.chdir(f"db2/{self.name}")
-            db2_data_all = ""
             topology_writer = mol2writer.Mol2Writer(
                 self.ring_confs[0],
                 mol2_template=self.mol2_str,
             )
-            mol2_topology = topology_writer.to_db2_topology(
+            db2_topology = topology_writer.to_db2_topology(
                 name=self.name,
                 smiles=self.smiles,
                 longname=longname,
             )
+            db2_chunks = []
             for ring_conf in self.ring_confs:
                 for rigid_scaffold in self.atom_maps:
-                    db2_data = utils.Align_ConvertToDb2(
+                    db2_data = utils.align_and_convert_to_db2(
                         ring_conf,
                         rigid_scaffold,
                         solv_obj,
-                        mol2_topology,
+                        db2_topology,
                     )
-                    db2_data_all += db2_data
+                    db2_chunks.append(db2_data)
+            db2_data_all = "".join(db2_chunks)
             if not (as_string):
                 if tarfile: write_to_tarball(tarfile, db2_data_all.encode('utf-8'), name=f"{self.name}.db2")
                 else: write_to_file(db2_data_all, f"../{self.name}.db2")
@@ -1445,8 +1446,8 @@ def _process_conformer_row(row, config, request_alignment, archive):
     amsol_time = getattr(confgen, 'amsol_time', 0.0)
     db2_sampling_time = getattr(confgen, 'db2_sampling_time', 0.0)
     sampling_time += db2_sampling_time
-    mol2db2_time = max(output_time - amsol_time - db2_sampling_time, 0.0)
-    return f'{name},{embedding_time},{amsol_time},{sampling_time},{mol2db2_time},{total_time}\n'
+    db2_conversion_time = max(output_time - amsol_time - db2_sampling_time, 0.0)
+    return f'{name},{embedding_time},{amsol_time},{sampling_time},{db2_conversion_time},{total_time}\n'
 
 
 def _cleanup_conformer_outputs(config):
@@ -1515,7 +1516,7 @@ def gen_conf_chunk(df: DataFrame, args, input_file='0'):
     if config.timing:
         header = ('Name,Initial embedding,Torsional sampling,SDF,Total\n'
                   if 'sdf' in config.formats else
-                  'Name,Initial embedding,AMSOL,Torsional sampling,Mol2DB2,Total\n')
+                  'Name,Initial embedding,AMSOL,Torsional sampling,DB2 conversion,Total\n')
         if not os.path.exists('msani_timing.csv'):
             with open('msani_timing.csv', 'w') as handle:
                 handle.write(header)

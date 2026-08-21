@@ -88,7 +88,7 @@ class Mol2Writer:
 
     def to_db2_topology(self, name=None, smiles="fake", longname="fake"):
         """Build reusable DB2 topology without conformer-specific data."""
-        from msani.db2.molecule import MoleculeData
+        from msani.db2.molecule import MoleculeData, prepare_molecule_for_db2
 
         topology = MoleculeData()
         topology.name = name or (
@@ -128,7 +128,7 @@ class Mol2Writer:
             topology.atom_bonds[start - 1].append((end - 1, bond_type))
             topology.atom_bonds[end - 1].append((start - 1, bond_type))
 
-        return topology
+        return prepare_molecule_for_db2(topology)
 
     @staticmethod
     def with_db2_conformers(topology, mol):
@@ -140,7 +140,7 @@ class Mol2Writer:
                 f"RDKit atom count ({num_atoms})"
             )
 
-        mol2_data = topology.copy_topology()
+        molecule_data = topology.copy_topology()
 
         for conf in mol.GetConformers():
             coordinates = []
@@ -149,17 +149,12 @@ class Mol2Writer:
                 coordinates.append(
                     (float(position.x), float(position.y), float(position.z))
                 )
-            mol2_data.conformers.append(coordinates)
+            molecule_data.conformers.append(coordinates)
 
-        conformer_count = len(mol2_data.conformers)
-        mol2_data.input_energies = [9999.99] * conformer_count
-        mol2_data.input_total_strain = [0.0] * conformer_count
-        mol2_data.input_max_strain = [0.0] * conformer_count
-        mol2_data.input_hydrogen_states = [0] * conformer_count
-        return mol2_data
+        return molecule_data
 
-    def to_db2_mol2(self, name=None, smiles="fake", longname="fake"):
-        """Build a complete DB2 Mol2 object directly from the RDKit molecule."""
+    def to_db2_molecule(self, name=None, smiles="fake", longname="fake"):
+        """Build complete DB2 molecule data directly from the RDKit molecule."""
         topology = self.to_db2_topology(name=name, smiles=smiles, longname=longname)
         return self.with_db2_conformers(topology, self.mol)
         

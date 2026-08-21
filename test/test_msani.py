@@ -2,9 +2,11 @@ import unittest
 import tempfile
 import os
 import shutil
+import tarfile
 
 from pathlib import Path
 import platform
+from types import SimpleNamespace
 
 
 from pandas import read_csv
@@ -12,6 +14,8 @@ from rdkit import Chem
 
 from msani import cli
 from msani.batchmode import Split_Submit_jobs
+from msani.conformers import mol2writer
+from msani.db2.db2conv import db2converter
 from msani.io import parsers
 
 OS = platform.system()
@@ -495,6 +499,97 @@ class Test_MolSanitizer(unittest.TestCase):
         os.chdir(self.path)
         shutil.rmtree(f"{temp_dir}")
         tmp_obj.cleanup()
+
+    def test_db2converter_from_pregenerated_mol2(self):
+        """Convert the fixed ZINC conformer archive without embedding."""
+
+        mol2_path = self.path / "ZINCpg000027Y0hd.mol2.gz"
+        with tarfile.open(mol2_path, "r:gz") as archive:
+            mol2_file = archive.extractfile("ZINCpg000027Y0hd.mol2")
+            self.assertIsNotNone(mol2_file)
+            mol2_text = mol2_file.read().decode("ascii")
+
+        mol2_blocks = [
+            "@<TRIPOS>MOLECULE" + block
+            for block in mol2_text.split("@<TRIPOS>MOLECULE")[1:]
+        ]
+        self.assertEqual(len(mol2_blocks), 1196)
+
+        molecule = Chem.MolFromMol2Block(
+            mol2_blocks[0], sanitize=True, removeHs=False
+        )
+        self.assertIsNotNone(molecule, "Could not read MOL2 topology")
+        atom_count = molecule.GetNumAtoms()
+        for mol2_block in mol2_blocks[1:]:
+            lines = mol2_block.splitlines()
+            atom_start = lines.index("@<TRIPOS>ATOM") + 1
+            atom_end = lines.index("@<TRIPOS>BOND")
+            coordinates = [
+                tuple(map(float, line.split()[2:5]))
+                for line in lines[atom_start:atom_end]
+            ]
+            self.assertEqual(len(coordinates), atom_count)
+            conformer = Chem.Conformer(atom_count)
+            for atom_index, xyz in enumerate(coordinates):
+                conformer.SetAtomPosition(atom_index, xyz)
+            molecule.AddConformer(conformer, assignId=True)
+
+        topology = mol2writer.Mol2Writer(
+            molecule, mol2_template=mol2_blocks[0]
+        ).to_db2_topology(
+            name="ZINCpg000027Y0hd",
+            smiles="C#CCN(CCF)C(=O)[C@@H]1C[C@H](OC)CN1C(=O)[C@@H](C)OCC(C)C",
+            longname="fake",
+        )
+
+        expected = (self.path / "ZINCpg000027Y0hd.db2").read_text()
+        expected_lines = expected.splitlines()
+        atom_records = [
+            line.split() for line in expected_lines if line.startswith("A ")
+        ]
+        total_values = list(map(float, expected_lines[1].split()[1:]))
+        solvation = SimpleNamespace(
+            charge=[float(record[6]) for record in atom_records],
+            polarSolv=[float(record[7]) for record in atom_records],
+            apolarSolv=[float(record[8]) for record in atom_records],
+            solv=[float(record[9]) for record in atom_records],
+            surface=[float(record[10]) for record in atom_records],
+            totalCharge=total_values[0],
+            totalPolarSolv=total_values[1],
+            totalApolarSolv=total_values[2],
+            totalSolv=total_values[3],
+            totalSurface=total_values[4],
+        )
+        molecule_data = mol2writer.Mol2Writer.with_db2_conformers(
+            topology, molecule
+        )
+        observed_lines = db2converter(molecule_data, solvation).splitlines()
+
+        self.assertEqual(len(observed_lines), len(expected_lines))
+        for line_number, (observed, reference) in enumerate(
+            zip(observed_lines, expected_lines), 1
+        ):
+            if observed == reference:
+                continue
+            # The MOL2 archive stores four decimal places, while the golden
+            # DB2 was written from the original higher-precision coordinates.
+            # Every non-coordinate record must therefore remain byte-exact;
+            # only the last printed decimal of an X coordinate may differ.
+            observed_fields = observed.split()
+            reference_fields = reference.split()
+            self.assertEqual(observed_fields[0], "X", f"DB2 line {line_number}")
+            self.assertEqual(
+                observed_fields[:4], reference_fields[:4], f"DB2 line {line_number}"
+            )
+            for observed_xyz, reference_xyz in zip(
+                observed_fields[4:], reference_fields[4:]
+            ):
+                self.assertAlmostEqual(
+                    float(observed_xyz),
+                    float(reference_xyz),
+                    delta=0.00011,
+                    msg=f"DB2 line {line_number}",
+                )
 
     def test_amsol(self):
         os.chdir(self.path)

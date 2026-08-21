@@ -14,7 +14,7 @@ from rdkit.Chem.rdchem import Mol, Conformer
 
 from pathlib import Path
 
-from msani.db2 import mol2db2
+from msani.db2 import db2conv
 from msani.conformers import mol2writer
 
 
@@ -609,16 +609,18 @@ def find_rigid_part(mol, request_alignment=None):
                 break
     return rigid_part, rule_label
     
-def Align_ConvertToDb2(ring_conf, rigid_scaffold, solv_obj, mol2_topology):
+def align_and_convert_to_db2(ring_conf, rigid_scaffold, solv_obj, db2_topology):
     """
     Align all conformers to the rigid scaffold and convert them to DB2 in memory.
     """
     aligned_mol = Chem.Mol(ring_conf)
     rdMolAlign.AlignMolConformers(aligned_mol, atomIds=list(rigid_scaffold))
 
-    mol2_obj = mol2writer.Mol2Writer.with_db2_conformers(mol2_topology, aligned_mol)
+    molecule_data = mol2writer.Mol2Writer.with_db2_conformers(
+        db2_topology, aligned_mol
+    )
 
-    return mol2db2.mol2db2(mol2_obj, solv_obj)
+    return db2conv.db2converter(molecule_data, solv_obj)
 
 
 # All deterministic version of torsional sampling will be available here

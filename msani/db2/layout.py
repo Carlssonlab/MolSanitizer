@@ -1,4 +1,4 @@
-"""Build and serialize the conformer hierarchy used by the DB2 format."""
+"""Build and serialize the coordinate layout used by the DB2 format."""
 
 from __future__ import annotations
 
@@ -6,8 +6,6 @@ from dataclasses import dataclass
 from itertools import product
 import math
 from typing import Any
-
-from scipy.spatial.distance import sqeuclidean
 
 from msani.db2.molecule import Coordinate, MoleculeData
 
@@ -38,7 +36,7 @@ class Db2Coordinate:
 
 
 @dataclass(frozen=True, slots=True)
-class ConformerHierarchy:
+class Db2Layout:
     """DB2-specific coordinate, conformation, and input-set relationships."""
 
     position_counts: tuple[int, ...]
@@ -148,17 +146,22 @@ class _SpatialPositionClusterer:
                 if neighbor_bucket is None or neighbor_bucket.visited:
                     return
 
-                member_offset = 0
-                while member_offset < len(neighbor_bucket.conformer_indices):
-                    neighbor_index = neighbor_bucket.conformer_indices[member_offset]
+                remaining_indices: list[int] = []
+                for neighbor_index in neighbor_bucket.conformer_indices:
+                    neighbor = positions[neighbor_index]
+                    x_difference = representative[0] - neighbor[0]
+                    y_difference = representative[1] - neighbor[1]
+                    z_difference = representative[2] - neighbor[2]
                     if (
-                        sqeuclidean(representative, positions[neighbor_index])
+                        x_difference * x_difference
+                        + y_difference * y_difference
+                        + z_difference * z_difference
                         <= self.tolerance_squared
                     ):
                         cluster_members.append(neighbor_index)
-                        neighbor_bucket.conformer_indices.pop(member_offset)
                     else:
-                        member_offset += 1
+                        remaining_indices.append(neighbor_index)
+                neighbor_bucket.conformer_indices = remaining_indices
 
             for offset in _MOORE_NEIGHBORHOOD:
                 absorb_nearby(
@@ -204,10 +207,10 @@ class _SpatialPositionClusterer:
         return faces
 
 
-def build_conformer_hierarchy(
+def build_db2_layout(
     molecule: MoleculeData, tolerance: float = 0.001
-) -> ConformerHierarchy:
-    """Build the DB2 hierarchy without changing molecular coordinates.
+) -> Db2Layout:
+    """Build the DB2 coordinate layout without changing coordinates.
 
     Positions within ``tolerance`` are represented by the first coordinate in
     their historical spatial cluster. Rigid structures describe atoms that are
@@ -226,7 +229,7 @@ def build_conformer_hierarchy(
     rigid_atom_indices = _find_largest_fixed_component(
         position_counts, molecule.atom_bonds
     )
-    coordinates, coordinate_ranges, conformers_by_set = _assemble_hierarchy_records(
+    coordinates, coordinate_ranges, conformers_by_set = _assemble_layout_records(
         position_groups,
         rigid_structure_ids,
         input_set_count=len(molecule.conformers),
@@ -238,7 +241,7 @@ def build_conformer_hierarchy(
         for atom_index in rigid_atom_set
         if "H" not in molecule.atom_types[atom_index]
     )
-    return ConformerHierarchy(
+    return Db2Layout(
         position_counts=tuple(position_counts),
         rigid_structure_ids=tuple(rigid_structure_ids),
         rigid_atom_indices=tuple(rigid_atom_indices),
@@ -419,12 +422,12 @@ def _find_largest_fixed_component(
             largest_component = component
     if largest_component is None:
         raise ValueError(
-            "DB2 hierarchy requires at least two bonded atoms fixed across conformers"
+            "DB2 layout requires at least two bonded atoms fixed across conformers"
         )
     return largest_component
 
 
-def _assemble_hierarchy_records(
+def _assemble_layout_records(
     position_groups: dict[tuple[int, ...], _PositionGroup],
     rigid_structure_ids: list[int],
     input_set_count: int,
@@ -476,9 +479,9 @@ def _assemble_hierarchy_records(
 def serialize_db2(
     molecule: MoleculeData,
     solvation_data: Any,
-    hierarchy: ConformerHierarchy,
+    layout: Db2Layout,
 ) -> str:
-    """Serialize a prepared molecule and hierarchy using legacy DB2 layout."""
+    """Serialize a prepared molecule and its DB2 layout."""
 
     lines: list[str] = []
     lines.append(
@@ -488,10 +491,10 @@ def serialize_db2(
             molecule.protein_name[-9:],
             len(molecule.atom_numbers),
             len(molecule.bond_starts),
-            len(hierarchy.coordinates),
-            hierarchy.conformation_count,
-            len(hierarchy.conformers_by_input_set),
-            len(hierarchy.heavy_rigid_atom_indices),
+            len(layout.coordinates),
+            layout.conformation_count,
+            len(layout.conformers_by_input_set),
+            len(layout.heavy_rigid_atom_indices),
             5,
             0,
         )
@@ -536,7 +539,7 @@ def serialize_db2(
                 molecule.bond_types[bond_index],
             )
         )
-    for coordinate_number, coordinate in enumerate(hierarchy.coordinates, 1):
+    for coordinate_number, coordinate in enumerate(layout.coordinates, 1):
         lines.append(
             "X %9d %3d %6d %+9.4f %+9.4f %+9.4f\n"
             % (
@@ -549,7 +552,7 @@ def serialize_db2(
             )
         )
     for rigid_number, atom_index in enumerate(
-        hierarchy.heavy_rigid_atom_indices, 1
+        layout.heavy_rigid_atom_indices, 1
     ):
         xyz = molecule.conformers[0][atom_index]
         lines.append(
@@ -563,7 +566,7 @@ def serialize_db2(
             )
         )
     for conformation_number, (start, end) in enumerate(
-        hierarchy.conformer_coordinate_ranges, 1
+        layout.conformer_coordinate_ranges, 1
     ):
         lines.append(
             "C %6d %9d %9d\n"
@@ -571,11 +574,11 @@ def serialize_db2(
         )
 
     for output_set_number, input_set_index in enumerate(
-        sorted(hierarchy.conformers_by_input_set), 1
+        sorted(layout.conformers_by_input_set), 1
     ):
         conformer_numbers = [
             number + 1
-            for number in hierarchy.conformers_by_input_set[input_set_index]
+            for number in layout.conformers_by_input_set[input_set_index]
         ]
         total_conformers = len(conformer_numbers)
         total_lines = math.ceil(total_conformers / SET_CONFORMERS_PER_LINE)
@@ -586,9 +589,9 @@ def serialize_db2(
                 total_lines,
                 total_conformers,
                 0,
-                molecule.input_hydrogen_states[input_set_index],
-                molecule.input_total_strain[input_set_index],
-                molecule.input_max_strain[input_set_index],
+                _value_or_default(molecule.input_hydrogen_states, input_set_index, 0),
+                _value_or_default(molecule.input_total_strain, input_set_index, 0.0),
+                _value_or_default(molecule.input_max_strain, input_set_index, 0.0),
             )
         )
         for line_number in range(total_lines):
@@ -607,3 +610,9 @@ def serialize_db2(
 
     lines.append("E\n")
     return "".join(lines)
+
+
+def _value_or_default(values: list[Any], index: int, default: Any) -> Any:
+    """Return sparse optional conformer metadata without materializing defaults."""
+
+    return values[index] if index < len(values) else default

@@ -162,20 +162,19 @@ COLOR_RULES: tuple[tuple[object, ...], ...] = (
 
 
 def prepare_molecule_for_db2(molecule: MoleculeData) -> MoleculeData:
-    """Complete per-conformer metadata and calculate DB2 atom properties.
+    """Calculate DB2 atom properties when they are not already cached.
 
-    The metadata lists and the calculated ``dock_atom_types``/``color_ids``
-    fields are updated in place, matching the historical entry-point side
-    effects. Graph neighborhoods are calculated once and reused by every color
-    rule instead of repeatedly traversing the molecular graph.
+    Graph neighborhoods are calculated once and reused by every color rule.
+    A prepared topology retains these values when conformer batches are copied,
+    avoiding repeated graph work in :meth:`ConformerGenerator.to_db2`.
     """
 
-    conformer_count = len(molecule.conformers)
-    while len(molecule.input_energies) < conformer_count:
-        molecule.input_energies.append(9999.99)
-        molecule.input_total_strain.append(0.0)
-        molecule.input_max_strain.append(0.0)
-        molecule.input_hydrogen_states.append(0)
+    atom_count = len(molecule.atom_numbers)
+    if (
+        len(molecule.dock_atom_types) == atom_count
+        and len(molecule.color_ids) == atom_count
+    ):
+        return molecule
 
     graph_levels = _build_graph_levels(molecule.atom_bonds, maximum_depth=2)
     molecule.dock_atom_types = _assign_dock_atom_types(molecule, graph_levels)
