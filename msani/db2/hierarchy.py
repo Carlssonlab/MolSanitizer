@@ -1,916 +1,609 @@
-#!/usr/bin/env python3.7
+"""Build and serialize the conformer hierarchy used by the DB2 format."""
 
-#Ryan G. Coleman
-#uses mol2 file to generate a hierarchy
+from __future__ import annotations
 
-#import string
-import sys
-from msani.db2.unionfind2 import unionFind
-from msani.db2.geometry import distL2Squared3
-from msani.db2 import geometry
-from msani.db2 import buckets2
-
-import gzip
-import operator
+from dataclasses import dataclass
+from itertools import product
 import math
-import time
-import io
+from typing import Any
 
-def printClusterHelper(clusterList):
-  '''stupid function used for debugging, prints list of pymol out.???.mol2 lines
-  to copy/paste and run to see what the clusters are.
-  run mol2hydroxyls.py -r and mol2tomultimol2.py first to get out.???.mol2 files
-  '''
-  for clusters in clusterList:
-    print("pymol ", end=" ")
-    for conf in clusters:
-      #print("out." + string.zfill(conf, 3) + ".mol2 ", end=' ')
-      print("out." + conf.zfill(3) + ".mol2 ", end=" ")
-    print(" ")
+from scipy.spatial.distance import sqeuclidean
 
-def computeBreaks(limitError, options):
-  '''3 diff requirements, make sure we break it into enough pieces to meet them
-  all.'''
-  #have to break the atomXyz into multiple sets so the hierarchy isn't too big
-  try:
-    breaksS = int(math.ceil(limitError.getSets() / float(options.limitset)))
-  except TypeError:  # means None was used
-    breaksS = 1
-  try:
-    breaksC = int(math.ceil(limitError.getConfs() / float(options.limitconf)))
-  except TypeError:  # means None was used
-    breaksC = 1
-  try:
-    breaksX = int(math.ceil(limitError.getCoords() / float(options.limitcoord)))
-  except TypeError:  # means None was used
-    breaksX = 1
-  #print breaksS, breaksC, breaksX  # see which breaks is higher
-  breaks = max(breaksS, breaksC, breaksX)  # use the max of any of these
-  return breaks
+from msani.db2.molecule import Coordinate, MoleculeData
 
-class TooBigError(Exception):
-  '''error raised when the hierarchy has too many conformations of input
-  after the hydroxyls have been rotated.'''
 
-  def __init__(self, confs, sets, coords):
-    self.confs = confs
-    self.coords = coords
-    self.sets = sets
+SET_CONFORMERS_PER_LINE = 8
 
-  def __str__(self):
-    return repr(self.confs) + ", " + repr(self.coords) + ", " + repr(self.sets)
+_MOORE_NEIGHBORHOOD = tuple(product(range(-1, 2), repeat=3))
+_MOORE_NEIGHBORHOOD = tuple(
+    offset for offset in _MOORE_NEIGHBORHOOD if offset != (0, 0, 0)
+)
+_EXTENDED_MOORE_FACES = (
+    tuple((-2, second, third) for second, third in product(range(-1, 2), repeat=2)),
+    tuple((2, second, third) for second, third in product(range(-1, 2), repeat=2)),
+    tuple((first, -2, third) for first, third in product(range(-1, 2), repeat=2)),
+    tuple((first, 2, third) for first, third in product(range(-1, 2), repeat=2)),
+    tuple((first, second, -2) for first, second in product(range(-1, 2), repeat=2)),
+    tuple((first, second, 2) for first, second in product(range(-1, 2), repeat=2)),
+)
 
-  def getConfs(self):
-    '''actually used to figure out how many sub-groups to split input confs'''
-    return self.confs
 
-  def getCoords(self):
-    '''actually used to figure out how many sub-groups to split input confs'''
-    return self.coords
+@dataclass(frozen=True, slots=True)
+class Db2Coordinate:
+    """One unique coordinate emitted by the DB2 ``X`` section."""
 
-  def getSets(self):
-    '''actually used to figure out how many sub-groups to split input confs'''
-    return self.sets
+    atom_index: int
+    conformation_number: int
+    xyz: Coordinate
 
-class Hierarchy(object):
-  '''uses data from a mol2 file to make a hierarchy of conformations.
-  the following constants are used when writing out the confs/groups and are
-  based on the 80 character limit in fortran. yeah seriously.
-  they might change if something serious happens but it is better that they
-  are here than hardcoded several times later
-  these are floats so that the division works'''
-  grGrPerLine = 17.  # group -> group children per line in output
-  grCoPerLine = 9.  # group -> conf
-  coCoPerLine = 9.  # conf -> conf
-  coSePerLine = 8.  # conf -> set
 
-  def __init__(
-      self, mol2data, clashDecider, tolerance=0.001, verbose=False,
-      timeit=False, limitset=9999999999, limitconf=9999999999,
-      limitcoord=9999999999, solvdata=None):
-    '''takes a mol2data class as input. makes a hierarchy.'''
-    if solvdata is not None:
-      self.solvdata = solvdata
-    if timeit:
-      startTime = time.time()
-    #first step is to count the number of positions each atom has.
-    #the tolerance is taken into account here and only here.
-    totalCoords = len(mol2data.atomXyz) * len(mol2data.atomXyz[0])
-    if verbose:
-      print("total number of sets (complete confs):", len(mol2data.atomXyz))
-    if len(mol2data.atomXyz) > limitset:  # quit now, way too many sets
-      if verbose:
-          print("Total number of sets too high %d > %d" % (len(mol2data.atomXyz), limitset))
-      raise TooBigError(None, len(mol2data.atomXyz), totalCoords)
+@dataclass(frozen=True, slots=True)
+class ConformerHierarchy:
+    """DB2-specific coordinate, conformation, and input-set relationships."""
 
-    self._getRigidStructures(len(mol2data.atomXyz[0]), mol2data.atomBonds, verbose)
-    if timeit:
-      structureTime = time.time()
-      print("time to get rigid structures:", structureTime-startTime)
+    position_counts: tuple[int, ...]
+    rigid_structure_ids: tuple[int, ...]
+    rigid_atom_indices: tuple[int, ...]
+    heavy_rigid_atom_indices: tuple[int, ...]
+    coordinates: tuple[Db2Coordinate, ...]
+    conformer_coordinate_ranges: tuple[tuple[int, int], ...]
+    conformers_by_input_set: dict[int, tuple[int, ...]]
 
-    #if len(mol2data.atomXyz) > 50:
-    if verbose:
-      print("using faster count positions algorithm for large data")
-    self._countPositions(mol2data.atomXyz, tolerance, verbose)
-    #else:
-    #  if verbose:
-    #    print("using default count positions algorithm for smaller data")
-    #  self._countPositionsFewPoints(mol2data.atomXyz, tolerance)
-    if timeit:
-      countTime = time.time()
-      print("time to count unique positions:", countTime-structureTime)
-    #if verbose:
-    #  print("unique positions, atoms:", self.posCount, len(mol2data.atomXyz))
-    if totalCoords > limitcoord:
-      if verbose:
-          print("Total number of coords too high %d > %d" % (totalCoords, limitcoord))
-      raise TooBigError(None, len(mol2data.atomXyz), totalCoords)
-      #this breaks out of the init stage, needs fewer confs to be passed in.
-    #the rigid component is the biggest set of bonded non-moving atoms
-    self._findRigidComponent(mol2data.atomBonds)  # also uses self.posCount
-    #if timeit:
-    #  rigidTime = time.time()
-    #  print("time to find rigid component:", rigidTime-countTime)
-    #if verbose:
-    #  print("rigid atoms, others:", self.rigidComponent, self.atomsNotAssigned)
-    #new algorithm, find bonded atoms that move together, put in conformations
-    self._findRigidHeavy(mol2data.atomType)
-    self.heavyAtomNums = None
-    self._setHeavy(mol2data.atomType)
-    # self._findConformations(mol2data.atomBonds, mol2data.atomXyz) # not needed anymore, moved conformations, set finding, and position assigning to _countPositions
-    # self._findSets()  # puts conformations in sets
-    #if timeit:
-    #  flexTime = time.time()
-    #  print("time to find flexible components:", flexTime-countTime)
-    if verbose:
-      print("total number of confs:", self.numConfs)
-    if self.numConfs > limitconf:
-      raise TooBigError(
-          self.numConfs, len(mol2data.atomXyz), totalCoords)
-      #this breaks out of the init stage, needs fewer confs to be passed in.
-    #now want to actually put atom positions into hierarchy groups
-    # self._assignCoords(mol2data.atomXyz) # moved into _countPositions
-    #if timeit:
-    #  assignCoordsTime = time.time()
-    #  print("time to assign coords:", assignCoordsTime-flexTime)
-    self._identifyClashSetnums(clashDecider, mol2data)
-    if timeit:
-      afterClash = time.time()
-      print("time to identify clash sets:", afterClash-countTime)
-    if verbose:
-      print("number of broken/clashed sets:", len(self.brokenSets))
-    #the mol2data is needed during output so save it.
-    self.mol2data = mol2data
-    #if timeit:
-    #  afterXyz = time.time()
-    #  print("time to identify conf atoms:", afterXyz - flexTime)
-    self.clusters = None  # used to detect if clustering/clouding was done
-    #self._makeClouds()  # highest level of ligand sampling
-    #if timeit:
-    #  afterClouds = time.time()
-    #  print("time to make clouds:", afterClouds - afterClash)
+    @property
+    def conformation_count(self) -> int:
+        return len(self.conformer_coordinate_ranges)
 
-    if timeit:
-      endTime = time.time()
-      print("time spent processing hierarchy total", endTime - startTime)
 
-  # Benjamin Tingle 2/15/2021
-  # New function, _getRigidStructures
-  # gets all independently moving structures within the atom
-  # creates a map from atom -> structure
-  # independently moving structures contain atoms that fullfill one of the following conditions:
-  #   a. connected via rigid bonds (i.e not single bonds)
-  #     1. if an atom only has one bond neighbor, that bond is considered rigid, even if it is a single bond
-  #   b. within a graph cycle together (graph cycles within mols are considered rigid i.e ring systems)
-  # each conf should only contain atoms that move together, so we generate this information to assist in conf creation
-  def _getRigidStructures(self, natoms, atomBonds, verbose):
+@dataclass(slots=True)
+class _PositionGroup:
+    """Atoms sharing the same membership across input conformer sets."""
 
-    cycleCount = 0
-    cycles = [[] for i in range(natoms)]
-    parent = [0 for i in range(natoms)]
-    visited = [0 for i in range(natoms)]
+    atom_indices: list[int]
+    representative_coordinates: list[Coordinate]
 
-    def findCycles(atom, prev, parent, visited, cycles):
-      nonlocal cycleCount
-      if visited[atom] == 2:
-        return
-      if visited[atom] == 1: # found cycle!
-        curr = prev
-        while curr != atom:
-          cycles[curr].append(cycleCount)
-          curr = parent[curr]
-        cycles[curr].append(cycleCount)
-        cycleCount += 1
-        return
-      visited[atom] = 1
-      parent[atom] = prev
-      for otheratom, bondtype in atomBonds[atom]:
-        if otheratom == prev:
-          continue
-        findCycles(otheratom, atom, parent, visited, cycles)
-      visited[atom] = 2
 
-    # finds all cycles in the atom e.g ring systems
-    findCycles(0, -1, parent, visited, cycles)
+@dataclass(slots=True)
+class _SpatialBucket:
+    conformer_indices: list[int]
+    visited: bool = False
 
-    # adds rigid atom bonds as length 2 cycles to the cycles graph
-    for atom in range(natoms):
-      if len(atomBonds[atom]) == 1:
-        cycles[atom].append(cycleCount)
-        cycles[atomBonds[atom][0][0]].append(cycleCount)
-        cycleCount += 1
-        continue
-      for otheratom, bondtype in atomBonds[atom]:
-        if otheratom < atom:
-          continue
-        skip = False
-        other = cycles[otheratom]
-        for cycle in cycles[atom]:
-          if cycle in other:
-            skip = True
-            break
-        if not skip and bondtype != "1":
-          cycles[atom].append(cycleCount)
-          cycles[otheratom].append(cycleCount)
-          cycleCount += 1
-    
-    intersections = [set() for i in range(cycleCount)]
 
-    # find all points of intersection for each cycle
-    for atomCycles in cycles:
-      lcycle = len(atomCycles)
-      for i in range(lcycle):
-        for j in range(i+1, lcycle):
-          intersections[atomCycles[i]].add(atomCycles[j])
-          intersections[atomCycles[j]].add(atomCycles[i])
+class _DisjointSets:
+    """Small union/find implementation for fixed molecular components."""
 
-    rigidMap = [0 for i in range(cycleCount)]
-    visited = [False for i in range(cycleCount)]
-    rigidStructureCount = 0
+    def __init__(self) -> None:
+        self._parents: dict[int, int] = {}
+        self._ranks: dict[int, int] = {}
 
-    def findRigidStructures(cycle, prev, intersections, rigidMap, visited):
-      nonlocal rigidStructureCount
-      if visited[cycle]:
-        return
-      visited[cycle] = True
-      rigidMap[cycle] = rigidStructureCount
-      for intersect in intersections[cycle]:
-        if intersect == prev:
-          continue
-        findRigidStructures(intersect, cycle, intersections, rigidMap, visited)
-    
-    # merge intersecting cycles into a rigid structures map (cycle -> structure)
-    for cycle in range(cycleCount):
-      if not visited[cycle]:
-        findRigidStructures(cycle, -1, intersections, rigidMap, visited)
-        rigidStructureCount += 1
+    def find(self, item: int) -> int:
+        if item not in self._parents:
+            self._parents[item] = item
+            self._ranks[item] = 0
+            return item
 
-    self.rigidStructures = [0 for i in range(natoms)]
+        path = [item]
+        parent = self._parents[item]
+        while parent != path[-1]:
+            path.append(parent)
+            parent = self._parents[parent]
+        for path_item in path[:-1]:
+            self._parents[path_item] = parent
+        return parent
 
-    # resolve the cycle -> structure map into an atom -> structure map
-    for atom in range(natoms):
-      if len(cycles[atom]) > 0:
-        self.rigidStructures[atom] = rigidMap[cycles[atom][0]]
-      else:
-        # if the atom is not part of any cycles (example: single atom connected to other structures by two single bonds)
-        # then it is a rigid structure itself
-        self.rigidStructures[atom] = rigidStructureCount
-        rigidStructureCount += 1
+    def union(self, first: int, second: int) -> None:
+        first_parent = self.find(first)
+        second_parent = self.find(second)
+        if first_parent == second_parent:
+            return
+        if self._ranks[first_parent] < self._ranks[second_parent]:
+            self._parents[first_parent] = second_parent
+            return
+        self._parents[second_parent] = first_parent
+        if self._ranks[first_parent] == self._ranks[second_parent]:
+            self._ranks[first_parent] += 1
 
-    self.rigidStructureCount = rigidStructureCount
-    if verbose:
-      print("RIGID_STRUCTURES", self.rigidStructures)
+    def groups(self) -> list[list[int]]:
+        groups_by_parent: dict[int, list[int]] = {}
+        for item in self._parents:
+            self.find(item)
+        for item, parent in self._parents.items():
+            groups_by_parent.setdefault(parent, []).append(item)
+        return list(groups_by_parent.values())
 
-  def _countPositions(self, xyzData, tolerance, verbose=False):
-    '''
-    for a list of list of xyz data, count the number of positions each
-    atom takes based on the tolerance and the distance. tolerance is compared
-    to the euclidean difference squared to determine if a position is equal.
-    actually uses a clustering algorithm and uses a unionfind data structure.
-    
-    2/11/2021, Benjamin Tingle
-    Reworked _countPositions massively. Uses a new bucketing algorithm that doesn't require looping through all possible buckets, also removed the unionfind thing
-    Uses hashed buckets instead of an enormous array of buckets
-    Also reworked it so that sets, confs, atom output coordinates are resolved in the _countPositions function rather than outside
-    Confs are split along predefined rigid segments in the molecule, much easier to handle than attempting to figure out atom connectivity for each conf
-    '''
 
-    nmol2s = len(xyzData)
-    natoms = len(xyzData[0])
+class _SpatialPositionClusterer:
+    """Cluster conformer positions for one atom within a distance tolerance."""
 
-    confClusters = {}
-    posCount = []
-    posTotal = 0
-    confNum = 0
+    def __init__(self, tolerance: float) -> None:
+        self.tolerance_squared = tolerance**2
+        self.bucket_size = tolerance / math.sqrt(3)
+        self.extra_width = tolerance - self.bucket_size
 
-    bucketer = buckets2.buckets2(tolerance)
-    allConformations = tuple(range(nmol2s))
-    tolerance2 = tolerance * tolerance
+    def cluster(
+        self, positions: list[Coordinate]
+    ) -> list[tuple[tuple[int, ...], Coordinate]]:
+        buckets: dict[tuple[int, int, int], _SpatialBucket] = {}
+        for conformer_index, xyz in enumerate(positions):
+            bucket_key = (
+                math.floor(xyz[0] / self.bucket_size),
+                math.floor(xyz[1] / self.bucket_size),
+                math.floor(xyz[2] / self.bucket_size),
+            )
+            bucket = buckets.get(bucket_key)
+            if bucket is None:
+                buckets[bucket_key] = _SpatialBucket([conformer_index])
+            else:
+                bucket.conformer_indices.append(conformer_index)
 
-    for atom in range(natoms):
+        clusters: list[tuple[tuple[int, ...], Coordinate]] = []
+        for bucket_key, bucket in buckets.items():
+            if not bucket.conformer_indices:
+                continue
 
-      xyzData_t = [xyzData[mol2][atom] for mol2 in range(nmol2s)]
+            representative = positions[bucket.conformer_indices[0]]
+            cluster_members = list(bucket.conformer_indices)
 
-      # Alignment leaves scaffold atoms at one position across conformers.
-      # Register that common case directly instead of constructing and probing
-      # spatial buckets. This is only a sufficient-condition fast path; atoms
-      # outside the tolerance still use the original clustering algorithm.
-      reference = xyzData_t[0]
-      isFixed = True
-      for xyz in xyzData_t[1:]:
-        dx = reference[0] - xyz[0]
-        dy = reference[1] - xyz[1]
-        dz = reference[2] - xyz[2]
-        if dx * dx + dy * dy + dz * dz > tolerance2:
-          isFixed = False
-          break
+            def absorb_nearby(neighbor_key: tuple[int, int, int]) -> None:
+                neighbor_bucket = buckets.get(neighbor_key)
+                if neighbor_bucket is None or neighbor_bucket.visited:
+                    return
 
-      if isFixed:
-        existingCluster = confClusters.get(allConformations)
-        if existingCluster is None:
-          confClusters[allConformations] = (confNum, [atom], [reference])
-          confNum += 1
-        else:
-          _, atomList, xyzList = existingCluster
-          atomList.append(atom)
-          xyzList.append(reference)
-        posTotal += 1
-        posCount.append(1)
-        continue
+                member_offset = 0
+                while member_offset < len(neighbor_bucket.conformer_indices):
+                    neighbor_index = neighbor_bucket.conformer_indices[member_offset]
+                    if (
+                        sqeuclidean(representative, positions[neighbor_index])
+                        <= self.tolerance_squared
+                    ):
+                        cluster_members.append(neighbor_index)
+                        neighbor_bucket.conformer_indices.pop(member_offset)
+                    else:
+                        member_offset += 1
 
-      # check out buckets2.py for the new clustering algorithm
-      npos, confNum = bucketer.bucket(xyzData_t, atomId=atom, confNum=confNum, confClusters=confClusters)
-      posTotal += npos
+            for offset in _MOORE_NEIGHBORHOOD:
+                absorb_nearby(
+                    (
+                        bucket_key[0] + offset[0],
+                        bucket_key[1] + offset[1],
+                        bucket_key[2] + offset[2],
+                    )
+                )
+            for face_index in self._faces_near_position(representative, bucket_key):
+                for offset in _EXTENDED_MOORE_FACES[face_index]:
+                    absorb_nearby(
+                        (
+                            bucket_key[0] + offset[0],
+                            bucket_key[1] + offset[1],
+                            bucket_key[2] + offset[2],
+                        )
+                    )
 
-      posCount.append(npos)
+            bucket.visited = True
+            clusters.append((tuple(sorted(cluster_members)), representative))
+        return clusters
 
-    self.confAtoms = []
-    self.confInput = []
-    self.outAtomOrigAtom = [0 for i in range(posTotal)]
-    self.outAtomConfNum  = [0 for i in range(posTotal)]
-    self.outAtomXYZ      = [0 for i in range(posTotal)]
-    self.confNumAtomList = []
-    self.setToConfs = {i : [] for i in range(nmol2s)}
+    def _faces_near_position(
+        self, xyz: Coordinate, bucket_key: tuple[int, int, int]
+    ) -> list[int]:
+        x_offset = xyz[0] - bucket_key[0] * self.bucket_size
+        y_offset = xyz[1] - bucket_key[1] * self.bucket_size
+        z_offset = xyz[2] - bucket_key[2] * self.bucket_size
+        faces: list[int] = []
+        if x_offset < self.extra_width:
+            faces.append(0)
+        if x_offset > self.bucket_size - self.extra_width:
+            faces.append(1)
+        if y_offset < self.extra_width:
+            faces.append(2)
+        if y_offset > self.bucket_size - self.extra_width:
+            faces.append(3)
+        if z_offset < self.extra_width:
+            faces.append(4)
+        if z_offset > self.bucket_size - self.extra_width:
+            faces.append(5)
+        return faces
 
-    globalAtomCnt = 0
-    confNum_act = 0
-    for tupleInput, confInfo in sorted(confClusters.items(), key=lambda x:-len(x[0])): # sort confclusters such that the rigid conf is evaluated first
-      confNum_t, atoms, xyzlist = confInfo
 
-      rs_prev = None
-      # split confs if they contain atoms in different rigid structures i.e the atoms separated by a rotatable bond
-      # the previous method explored atom bonds within a full cluster match to find which pieces are connected and which aren't, the purpose being to merge atoms that "move together" into their own conf(s)
-      # problem is, this allowed atoms that don't actually "move together" to nonetheless be assigned the same conf because rotatable bonds weren't taken into account
-      # I am unsure of the purpose of having atoms that move together in the same conf, but I will not question it, just try and improve it
-      rsatoms = [(a, self.rigidStructures[a]) for a in atoms]
-      for i, (atom, rs) in enumerate(sorted(rsatoms, key=lambda x:x[1])):
-        
-        if rs_prev == rs:
-          self.confAtoms[confNum_act-1].append(atom)
+def build_conformer_hierarchy(
+    molecule: MoleculeData, tolerance: float = 0.001
+) -> ConformerHierarchy:
+    """Build the DB2 hierarchy without changing molecular coordinates.
 
-        elif rs_prev != rs:
-          self.confAtoms.append([atom])
-          self.confInput.append(tupleInput)
-
-          if rs_prev != None:
-            self.confNumAtomList[confNum_act-1][1] = globalAtomCnt - 1
-          self.confNumAtomList.append([globalAtomCnt, 0])
-
-          for setno in tupleInput:
-            self.setToConfs[setno].append(confNum_act)
-
-          confNum_act += 1
-
-        self.outAtomOrigAtom[globalAtomCnt] = atoms[i]
-        self.outAtomConfNum[globalAtomCnt] = confNum_act
-        self.outAtomXYZ[globalAtomCnt] = xyzlist[i]
-
-        globalAtomCnt += 1
-        rs_prev = rs
-      self.confNumAtomList[confNum_act-1][1] = globalAtomCnt - 1
-
-    self.outAtoms = globalAtomCnt
-    self.numConfs = confNum_act
-    self.posCount = posCount
-
-    if verbose:
-      print("POS_COUNT", self.posCount)
-
-  def _countPositionsFewPoints(self, xyzData, tolerance):
-    '''for a list of list of xyz data, count the number of positions each
-    atom takes based on the tolerance and the distance. tolerance is compared
-    to the euclidean difference squared to determine if a position is equal.
-    actually uses a clustering algorithm and uses a unionfind data structure.'''
-    self.posCount = []
-    self.posClusters = []  # just save all the data since we made it
-    self.posClusterLists = []  # just save all the data since we made it
-    tolerance2 = tolerance ** 2.  # square the tolerance since it is compared
-    for oneSet in range(len(xyzData[0])):  # goes from 0 to atom count
-      clusters = unionFind()
-      xyzList = []
-      for oneIndex in range(len(xyzData)):  # 0 to number of positions (mol2#s)
-        clusters.find(oneIndex)  # initiate each position
-        xyzList.append(xyzData[oneIndex][oneSet])
-      for oneIndex in range(len(xyzData)):  # 0 to positions
-        oneXyz = xyzList[oneIndex]
-        for twoIndex in range(oneIndex+1, len(xyzData)):
-          # count from oneIndex to positions
-          if geometry.distL2Squared3(oneXyz, xyzList[twoIndex]) < tolerance2:
-            clusters.union(oneIndex, twoIndex)
-      tempLists = clusters.toLists()
-      self.posCount.append(len(tempLists))
-      self.posClusters.append(clusters)
-      self.posClusterLists.append(tempLists)
-
-  def _findRigidComponent(self, atomBonds):
-    '''uses bond and position count information to find largest set of atoms
-    that don't move. this is the rigid component. set into self.rigidComponent
-    also find the complement of atomnums and the rigid component and set into
-    self.atomsNotAssigned for use later'''
-    clusters = unionFind()
-    for atomNum in range(len(self.posCount)):
-      if 1 == self.posCount[atomNum]:
-        for otherNum, bondType in atomBonds[atomNum]:
-          if 1 == self.posCount[otherNum]:
-            clusters.union(atomNum, otherNum)
-    maxSize = 0
-    maxCluster = None
-    clusterLists = clusters.toLists()
-    for clusterList in clusterLists:
-      if len(clusterList) > maxSize:
-        maxSize = len(clusterList)
-        maxCluster = clusterList
-    self.rigidComponent = maxCluster
-    self.atomsAssigned = set(self.rigidComponent)
-    self.atomsNotAssigned = set()
-    for atomNum in range(len(self.posCount)):
-      if atomNum not in self.rigidComponent:
-        self.atomsNotAssigned.add(atomNum)
-
-  def _findRigidHeavy(self, atomTypes):
-    '''counts the heavy atoms in the rigid component and puts in
-    self.heavyRigidCount'''
-    self.heavyRigidCount = 0
-    self.heavyRigidAtomNums = []
-    for atomNum in self.atomsAssigned:
-      if atomTypes[atomNum].find('H') == -1:
-        self.heavyRigidAtomNums.append(atomNum)
-        self.heavyRigidCount += 1
-    #print self.heavyRigidCount
-
-  def _setHeavy(self, atomTypes):
-    '''for all atoms, finds the heavy ones, put in self.heavyAtomNums, return'''
-    if self.heavyAtomNums is None:  # only do this once, it never changes
-      self.heavyAtomNums = []
-      for atomNum in range(len(atomTypes)):
-        if atomTypes[atomNum].find('H') == -1:
-          self.heavyAtomNums.append(atomNum)
-    return self.heavyAtomNums
-
-  ### DEPRECATED
-  def _findConformations(self, atomBonds, xyzData):
-    '''uses bond and xyzs to figure out what sets of neighboring atoms move
-    together and assign them to conformations and assign each set a specific
-    bunch of conformations.
-    self.rigidComponent is the list of atom numbers for the rigid comp
-    self.atomsAssigned is the set of atom numbers for the rigid comp (@start)
-    self.atomsNotAssigned is the rest of the atom numbers'''
-    self.confNums = [1]  # rigid starts
-    self.confAtoms = {}  # maps to atom numbers
-    self.confAtoms[1] = list(self.atomsAssigned)
-    self.confInput = {}  # maps to the input xyz lists
-    self.confInput[1] = list(range(len(xyzData)))
-    confClusters = {}
-    for atomNum in self.atomsNotAssigned:
-      for listInputs in self.posClusterLists[atomNum]:
-        tupleInputs = tuple(listInputs)  # can't use lists as keys
-        if not confClusters.get(tupleInputs):
-          confClusters[tupleInputs] = unionFind()
-        confClusters[tupleInputs].find(atomNum)  # in case of singletons
-        for otherNum, bondType in atomBonds[atomNum]:
-          if listInputs in self.posClusterLists[otherNum]:
-            confClusters[tupleInputs].union(atomNum, otherNum)
-    for tupleInputs, clusters in confClusters.items():
-      for atomLists in clusters.toLists():
-        #make a conf for each
-        thisConf = self.confNums[-1] + 1
-        self.confAtoms[thisConf] = atomLists
-        self.confInput[thisConf] = tupleInputs
-        self.confNums.append(thisConf)
-    #print self.confNums, self.confAtoms, self.confInput
-    #that's it, confs have been built
-
-  ### DEPRECATED
-  def _findSets(self):
-    '''puts conformations together into sets'''
-    self.setToConfs = {}  # maps set numbers to conf lists
-    for confNum in self.confNums:
-      for tupleInput in self.confInput[confNum]:
-        if tupleInput not in self.setToConfs:
-          self.setToConfs[tupleInput] = []
-        self.setToConfs[tupleInput].append(confNum)
-    #print self.setToConfs
-    #self.setToConfs contains relevant mapping
-
-  ### DEPRECATED
-  def _assignCoords(self, xyzData):
-    '''for each conf (including rigid) find atom positions for each atom'''
-    self.outAtoms = 0  # counter to indicate how many there are
-    self.outAtomOrigAtom = {}  # maps to original atom numbers from mol2
-    self.outAtomInputConf = {}
-    self.outAtomConfNum = {}
-    self.confNumAtomList = {}
-    for confNum in self.confNums:
-      self.confNumAtomList[confNum] = []
-      for atomNum in self.confAtoms[confNum]:
-        self.outAtoms += 1
-        globalAtomNum = self.outAtoms
-        self.outAtomOrigAtom[globalAtomNum] = atomNum
-        self.outAtomInputConf[globalAtomNum] = self.confInput[confNum][0]
-        self.outAtomConfNum[globalAtomNum] = confNum
-        self.confNumAtomList[confNum].append(globalAtomNum)
-
-  def _identifyClashSetnums(self, clashDecider, mol2data):
-    '''for each set decide if it is broken/clashed
-    and add it to the self.brokenConfs list if it is. clashDecider is a
-    clash.Clash object that figures out what a clash is. mol2data is the
-    mol2.Mol2 object that has atom type information and bondedTo method.'''
-
-    """ 
-    Benjamin Tingle 2/13/2021
-    Optimized clash sets algorithm for our current one-rule H-H setup
-    Only calculates distances between hydrogen atom pairs that match the bond rule
+    Positions within ``tolerance`` are represented by the first coordinate in
+    their historical spatial cluster. Rigid structures describe atoms that are
+    joined by non-rotatable bonds or belong to intersecting graph cycles.
     """
-    self.brokenSets = []
 
-    nconformations = len(mol2data.atomXyz)
+    if not molecule.conformers:
+        raise ValueError("DB2 generation requires at least one conformer")
 
-    #brokenBonds = clashDecider.decideBondRules(mol2data, mol2data.atomXyz[0])
-    #if brokenBonds:
-    #  print("Bond rule was broken! All conformations are clashed!")
-    #  self.brokenSets.extend([aSet for aSet in range(nconformations)])
-    #  return
+    rigid_structure_ids = _assign_rigid_structure_ids(
+        len(molecule.atom_numbers), molecule.atom_bonds
+    )
+    position_counts, position_groups = _cluster_atom_positions(
+        molecule.conformers, tolerance
+    )
+    rigid_atom_indices = _find_largest_fixed_component(
+        position_counts, molecule.atom_bonds
+    )
+    coordinates, coordinate_ranges, conformers_by_set = _assemble_hierarchy_records(
+        position_groups,
+        rigid_structure_ids,
+        input_set_count=len(molecule.conformers),
+    )
 
-    """for aSet in range(nconformations):
-      if clashDecider.decideDistanceRules(mol2data, mol2data.atomXyz[aSet]):
-        self.brokenSets.append(aSet)"""
+    rigid_atom_set = set(rigid_atom_indices)
+    heavy_rigid_atom_indices = tuple(
+        atom_index
+        for atom_index in rigid_atom_set
+        if "H" not in molecule.atom_types[atom_index]
+    )
+    return ConformerHierarchy(
+        position_counts=tuple(position_counts),
+        rigid_structure_ids=tuple(rigid_structure_ids),
+        rigid_atom_indices=tuple(rigid_atom_indices),
+        heavy_rigid_atom_indices=heavy_rigid_atom_indices,
+        coordinates=tuple(coordinates),
+        conformer_coordinate_ranges=tuple(coordinate_ranges),
+        conformers_by_input_set={
+            set_index: tuple(conformer_numbers)
+            for set_index, conformer_numbers in conformers_by_set.items()
+        },
+    )
 
-  def _initClusters(self, clusters):
-    '''initializes or reinitializes the clusters of conformations'''
-    self.clusters = {}
-    self.setNameRemap = {}  # maps old sets to new names
-    self.setNameOutOrder = []
-    self.setNameFirst = {}
-    self.setNameLast = {}
-    curSetName = 1
-    for clusterIndex, cluster in enumerate(clusters):  # save each cluster
-      self.clusters[clusterIndex] = tuple(cluster)
-      self.setNameFirst[clusterIndex] = curSetName
-      for setName in cluster:
-        # B.T:
-        # it seems this will happen sometimes
-        # this is a not good thing to happen so we avoid it now with this
-        if self.setNameRemap.get(setName): 
-          continue
-        self.setNameRemap[setName] = curSetName  # map from old to new
-        self.setNameOutOrder.append(setName)
-        curSetName += 1  # advance counter
-      self.setNameLast[clusterIndex] = curSetName - 1  # doing inclusive
 
-  def _findAdditionalMatchSpheres(self, numSpheres=5, cutoff=2.5):
-    '''for each cluster, find a couple matching spheres for distant atoms
-    that are relatively localized in space.
-    data ends up in dict self.clusterSpheres.
-    numSpheres is the max# of spheres to add for each cluster. will not always
-     find as many as requested.
-    cutoff is used as a cutoff to decide
-     whether or not to add a sphere for that atom, mean pairwise dist?'''
-    #atomDists = self.mol2data.distFromAtoms(self.rigidComponent)  # useful
-    possibleAtoms = set(self.heavyAtomNums)  # only heavy can be matching
-    possibleAtoms.difference_update(self.rigidComponent)  # no need to repeat
-    #possAtomDist = []  # useful for sorting by distance
-    #for possibleAtom in possibleAtoms:
-      #possAtomDist.append((possibleAtom, atomDists[possibleAtom]))
-    #possAtomDist.sort(key=operator.itemgetter(1), reverse=True)
-    #use possAtomDist for each cluster now to find the best candidates
-    self.clusterSpheres = {}  # indexed by clusterIndex just like self.clusters
-    for clusterIndex in list(self.clusters.keys()):
-      cluster = self.clusters[clusterIndex]  # cluster is a tuple of confs
-      #print "cluster", cluster #debugging
-      self.clusterSpheres[clusterIndex] = []
-      for possibleAtom in possibleAtoms:
-        xyzPositions = self.mol2data.getXyzManyConfs(cluster, possibleAtom)
-        okayToAdd = False
-        if 1 == len(xyzPositions):  # singleton cluster, definitely okay
-          okayToAdd = True
+def _assign_rigid_structure_ids(
+    atom_count: int, atom_bonds: list[list[tuple[int, str]]]
+) -> list[int]:
+    """Map atoms to rigid segments using cycles and non-single bonds."""
+
+    if atom_count == 0:
+        raise ValueError("DB2 generation requires at least one atom")
+
+    cycles_by_atom: list[list[int]] = [[] for _ in range(atom_count)]
+    parent = [0] * atom_count
+    visit_state = [0] * atom_count
+    cycle_count = 0
+
+    def find_graph_cycles(atom_index: int, previous_atom: int) -> None:
+        nonlocal cycle_count
+        if visit_state[atom_index] == 2:
+            return
+        if visit_state[atom_index] == 1:
+            current_atom = previous_atom
+            while current_atom != atom_index:
+                cycles_by_atom[current_atom].append(cycle_count)
+                current_atom = parent[current_atom]
+            cycles_by_atom[current_atom].append(cycle_count)
+            cycle_count += 1
+            return
+
+        visit_state[atom_index] = 1
+        parent[atom_index] = previous_atom
+        for neighbor_index, _bond_type in atom_bonds[atom_index]:
+            if neighbor_index != previous_atom:
+                find_graph_cycles(neighbor_index, atom_index)
+        visit_state[atom_index] = 2
+
+    # The historical implementation started only at atom zero. Visiting every
+    # component retains connected-molecule behavior and makes disconnected
+    # topologies deterministic instead of leaving them partially initialized.
+    for atom_index in range(atom_count):
+        if visit_state[atom_index] == 0:
+            find_graph_cycles(atom_index, -1)
+
+    for atom_index, neighbors in enumerate(atom_bonds):
+        if len(neighbors) == 1:
+            neighbor_index = neighbors[0][0]
+            cycles_by_atom[atom_index].append(cycle_count)
+            cycles_by_atom[neighbor_index].append(cycle_count)
+            cycle_count += 1
+            continue
+
+        for neighbor_index, bond_type in neighbors:
+            if neighbor_index < atom_index:
+                continue
+            shares_cycle = bool(
+                set(cycles_by_atom[atom_index]).intersection(
+                    cycles_by_atom[neighbor_index]
+                )
+            )
+            if not shares_cycle and bond_type != "1":
+                cycles_by_atom[atom_index].append(cycle_count)
+                cycles_by_atom[neighbor_index].append(cycle_count)
+                cycle_count += 1
+
+    intersecting_cycles: list[set[int]] = [set() for _ in range(cycle_count)]
+    for atom_cycles in cycles_by_atom:
+        for first_offset, first_cycle in enumerate(atom_cycles):
+            for second_cycle in atom_cycles[first_offset + 1 :]:
+                intersecting_cycles[first_cycle].add(second_cycle)
+                intersecting_cycles[second_cycle].add(first_cycle)
+
+    rigid_id_by_cycle = [0] * cycle_count
+    visited_cycles = [False] * cycle_count
+    rigid_structure_count = 0
+
+    def merge_intersecting_cycles(cycle_index: int) -> None:
+        if visited_cycles[cycle_index]:
+            return
+        visited_cycles[cycle_index] = True
+        rigid_id_by_cycle[cycle_index] = rigid_structure_count
+        for intersecting_cycle in intersecting_cycles[cycle_index]:
+            merge_intersecting_cycles(intersecting_cycle)
+
+    for cycle_index in range(cycle_count):
+        if not visited_cycles[cycle_index]:
+            merge_intersecting_cycles(cycle_index)
+            rigid_structure_count += 1
+
+    rigid_structure_ids = [0] * atom_count
+    for atom_index, atom_cycles in enumerate(cycles_by_atom):
+        if atom_cycles:
+            rigid_structure_ids[atom_index] = rigid_id_by_cycle[atom_cycles[0]]
         else:
-          longDist, meanDist = geometry.longestAndMeanDist(xyzPositions)
-          if meanDist <= cutoff:  # passes cutoff
-            okayToAdd = True
-        if okayToAdd:  # either singleton or passes cutoff
-          avgPoint = geometry.getAverage(xyzPositions)
-          self.clusterSpheres[clusterIndex].append((possibleAtom, avgPoint))
-          #print possibleAtom  # debugging
-          if len(self.clusterSpheres[clusterIndex]) == numSpheres:  # done
-            break  # out of for loop, no need to go on
-      #print self.clusterSpheres[clusterIndex] #debugging
+            rigid_structure_ids[atom_index] = rigid_structure_count
+            rigid_structure_count += 1
+    return rigid_structure_ids
 
-  def _makeClouds(self):
-    '''highest level of hierachical ligand sampling, breaks the input
-    sets into a few clouds representing gross levels of similar conformations'''
-    #atomDists = self.mol2data.distFromAtoms(self.rigidComponent)
-    #needs switched to divisive bisecting k-means clustering to be fast.
-    clusters = self.mol2data.divisiveClustering()
-    #printClusterHelper(clusters)  # debug cluster assignments
-    self._initClusters(clusters)
-    #now that we have clusters, want to find additional matching spheres
-    #(with colors even though coloring is bad)
-    #data ends up in dict self.clusterSpheres
-    self._findAdditionalMatchSpheres()
 
-  def _colorWriter(self, outFile, mol2data):
-    '''writes the color table if it was changed from the default'''
-    if mol2data.colorConverter.colorInts != \
-        mol2data.colorConverter.colorIntsDefault:  # if not default
-      colors = list(mol2data.colorConverter.colorInts.items())
-      colors.sort(key=operator.itemgetter(1))
-      for colorName, colorKey in colors:
-        outFile.write('T %2d %8s\n' % (colorKey, colorName))
+def _cluster_atom_positions(
+    conformers: list[list[Coordinate]], tolerance: float
+) -> tuple[list[int], dict[tuple[int, ...], _PositionGroup]]:
+    input_set_count = len(conformers)
+    atom_count = len(conformers[0])
+    all_input_sets = tuple(range(input_set_count))
+    tolerance_squared = tolerance * tolerance
+    clusterer = _SpatialPositionClusterer(tolerance)
+    position_counts: list[int] = []
+    position_groups: dict[tuple[int, ...], _PositionGroup] = {}
 
-  def _allButSetWriter(
-      self, outFile, mol2data, solvdata, setsTotal, clustersTotal=0):
-    '''writes the M A B X R and C lines'''
-    #now the molecule section, facts about the whole molecule, 5 lines
-    outFile.write(
-        'M %16s %9s %3d %3d %6d %6d %6d %6d %6d %6d\n' % (
-            mol2data.name[-16:], mol2data.protName[-9:],
-            len(mol2data.atomNum), len(mol2data.bondStart),
-            self.outAtoms, self.numConfs, setsTotal,
-            self.heavyRigidCount, 5, clustersTotal))
-    #second molecule line, solvation and charge data
-    outFile.write(
-        'M %+9.4f %+10.3f %+10.3f %+10.3f %9.3f\n' % (
-            solvdata.totalCharge, solvdata.totalPolarSolv,
-            solvdata.totalApolarSolv, solvdata.totalSolv,
-            solvdata.totalSurface))
-    #smiles and long version of name
-    outFile.write('M %-76s\n' % (mol2data.smiles[-76:]))
-    outFile.write('M %-76s\n' % (mol2data.longname[-76:]))
-    #best dud energy, computed and put in later. idea is to store the best
-    #energy that can be found using the old DOCK/db methods and make sure
-    #we aren't totally missing the ball.
-    outFile.write('M %+10.4f\n' % 999.999)
-    #atom line, 1 per atom
-    for atomNum in range(len(mol2data.atomNum)):
-      outFile.write(
-          'A %3d %-4s %-5s %2d %2d %+9.4f %+10.3f %+10.3f %+10.3f %9.3f\n' % (
-              mol2data.atomNum[atomNum], mol2data.atomName[atomNum],
-              mol2data.atomType[atomNum],
-              mol2data.dockNum[atomNum], mol2data.colorNum[atomNum],
-              solvdata.charge[atomNum], solvdata.polarSolv[atomNum],
-              solvdata.apolarSolv[atomNum], solvdata.solv[atomNum],
-              solvdata.surface[atomNum]))
-    #now all the bonds.
-    for bondNum in range(len(mol2data.bondStart)):
-      outFile.write(
-          'B %3d %3d %3d %-2s\n' % (
-              mol2data.bondNum[bondNum], mol2data.bondStart[bondNum],
-              mol2data.bondEnd[bondNum], mol2data.bondType[bondNum]))
-    #now all the coordinates. this section is complex to output since not
-    # all atoms*input coordinates are output.
-    for xyzNum in range(len(self.outAtomXYZ)):
-      #xyzNum += 1  # 1-index nonsense
-      atomNum = self.outAtomOrigAtom[xyzNum]
-      #inputConfNum = self.outAtomInputConf[xyzNum]
-      confNum = self.outAtomConfNum[xyzNum]
-      xyz = self.outAtomXYZ[xyzNum]
-      #xyz = self.mol2data.atomXyz[inputConfNum][atomNum]
-      #atomnum needs incremented by 1 to make it match up with the input atom#
-      outFile.write(
-          'X %9d %3d %6d %+9.4f %+9.4f %+9.4f\n' %
-          (xyzNum+1, atomNum+1, confNum, xyz[0], xyz[1], xyz[2]))
-      #amazingly these coordinates are not converted to integers.
-    #rigid xyzs, or really just the ligand xyzs to be used for matching
-    self.rigidNumSeen = 0
-    for rigidNum in self.heavyRigidAtomNums:
-      self.rigidNumSeen += 1
-      atomColor = mol2data.colorNum[rigidNum]
-      xyz = self.mol2data.atomXyz[0][rigidNum]
-      outFile.write(
-          'R %6d %2d %+9.4f %+9.4f %+9.4f\n' %
-          (self.rigidNumSeen, atomColor, xyz[0], xyz[1], xyz[2]))
-    #conformations...
-    for confNum in range(self.numConfs):
-      coordStart = self.confNumAtomList[confNum][0] + 1 # conf start/end should be 1-indexed in the output db2
-      coordEnd = self.confNumAtomList[confNum][1] + 1
-      outFile.write('C %6d %9d %9d\n' % (confNum+1, coordStart, coordEnd))
+    for atom_index in range(atom_count):
+        atom_positions = [conformer[atom_index] for conformer in conformers]
+        representative = atom_positions[0]
+        fixed = True
+        for xyz in atom_positions[1:]:
+            x_difference = representative[0] - xyz[0]
+            y_difference = representative[1] - xyz[1]
+            z_difference = representative[2] - xyz[2]
+            if (
+                x_difference * x_difference
+                + y_difference * y_difference
+                + z_difference * z_difference
+                > tolerance_squared
+            ):
+                fixed = False
+                break
 
-  def _setWriter(self, outFile, mol2data, solvdata):
-    '''writes the S lines. no more limit here.'''
-    #set conf list S
-    if self.clusters is None:  # if clusters weren't made
-      curSets = list(self.setToConfs.keys())  # this order is fine
-      curSets.sort()
-    else:
-      curSets = self.setNameOutOrder
-    for outSetNum, curSet in enumerate(curSets):  # all sets
-      if self.clusters is None:  # if clusters weren't made
-        outSetNum += 1  # 1 index since it is fortran
-      else:
-        outSetNum = self.setNameRemap[curSet]
-      curConfs = [c+1 for c in self.setToConfs[curSet]]
-      totalConfs = len(curConfs)
-      if 0 == totalConfs:  # means there are no children, this shouldn't happen
-        print("set", curSet, "has no conformations in it.", curConfs)
-        sys.exit(1)
-      else:
-        totalLines = int(math.ceil(totalConfs / self.coSePerLine))
-        lastLineLen = totalConfs % int(self.coSePerLine)
-        if 0 == lastLineLen:
-          lastLineLen += int(self.coSePerLine)  # correct count when 0
-        #the first line that says how many more are coming and has data
-        inInput = 0  # mix-n-match
-        confEnergy_1 = 999999.999
-        confEnergy_2 = 999999.999
-        outHydro = 3  # mix-n-match
-        #this makes the confEnergy a mmff internal energy, ignoring hydroxyls
-        #that have been rotated for now.
-        #jklyu, 20200511, replace mmff internal energy with totalStrain from UCSF strain energy
-        #confEnergy = mol2data.inputEnergy[curSet] - min(mol2data.inputEnergy)
-        confEnergy_1 = mol2data.inputTotalStrain[curSet]
-        confEnergy_2 = mol2data.inputMaxStrain[curSet]
-        #confEnergy = mol2data.inputEnergy[curSet]
-        outHydro = mol2data.inputHydrogens[curSet]
-        brokenSet = 0  # not broken
-        if curSet in self.brokenSets:
-          brokenSet = 1  # broken
-        outFile.write(
-        #    'S %6d %6d %3d %1d %1d %+11.3f\n' % (
-        #        outSetNum, totalLines, totalConfs, brokenSet, outHydro,
-        #        confEnergy))
-            'S %6d %6d %3d %1d %1d %+11.3f %+11.3f\n' % (
-                outSetNum, totalLines, totalConfs, brokenSet, outHydro,
-                confEnergy_1, confEnergy_2))
-        fullLineFormat = 'S %6d %6d %1d'
-        for count in range(int(self.coSePerLine)):
-          fullLineFormat += ' %6d'
-        fullLineFormat += '\n'
-        for lineNum in range(totalLines - 1):  # each full line
-          outData = [outSetNum, lineNum + 1, self.coSePerLine]
-          for count in range(int(self.coSePerLine)):
-            outData.append(
-                curConfs[lineNum * int(self.coSePerLine) + count])
-          outFile.write(fullLineFormat % tuple(outData))
-        #now write last line separately and carefully
-        partLineFormat = 'S %6d %6d %1d'
-        outData = [outSetNum, totalLines, lastLineLen]
-        for count in range(lastLineLen):
-          partLineFormat += ' %6d'
-          outData.append(
-              curConfs[(totalLines - 1) * int(self.coSePerLine) + count])
-        partLineFormat += '\n'
-        outFile.write(partLineFormat % tuple(outData))
+        if fixed:
+            group = position_groups.get(all_input_sets)
+            if group is None:
+                position_groups[all_input_sets] = _PositionGroup(
+                    [atom_index], [representative]
+                )
+            else:
+                group.atom_indices.append(atom_index)
+                group.representative_coordinates.append(representative)
+            position_counts.append(1)
+            continue
 
-  def _cloudWriter(self, outFile, mol2data):
-    '''write the cloud data'''
-    self.cloudNumSeen = 0
-    for clusterId in list(self.clusters.keys()):
-      outClusId = clusterId + 1
-      countSph = len(self.clusterSpheres[clusterId])
-      #next line gets around a bug produced when countSph is 0
-      maxSphCount = max(self.cloudNumSeen + countSph, self.cloudNumSeen + 1)
-      outFile.write(
-          'D %6d %6d %6d %3d %3d %3d\n' % (
-              outClusId, self.setNameFirst[clusterId],
-              self.setNameLast[clusterId], countSph, self.cloudNumSeen + 1,
-              maxSphCount))
-      for matchAtom, matchXyz in self.clusterSpheres[clusterId]:
-        self.cloudNumSeen += 1  # advance counter
-        atomColor = mol2data.colorNum[matchAtom]
-        outFile.write(
-            'D %6d %2d %+9.4f %+9.4f %+9.4f\n' % (
-                self.cloudNumSeen, atomColor,
-                matchXyz[0], matchXyz[1], matchXyz[2]))
+        spatial_clusters = clusterer.cluster(atom_positions)
+        for input_sets, cluster_representative in spatial_clusters:
+            group = position_groups.get(input_sets)
+            if group is None:
+                position_groups[input_sets] = _PositionGroup(
+                    [atom_index], [cluster_representative]
+                )
+            else:
+                group.atom_indices.append(atom_index)
+                group.representative_coordinates.append(cluster_representative)
+        position_counts.append(len(spatial_clusters))
 
-  def write(
-      self, db2gzFileName, verbose=False, timeit=False,
-      #limitset=9999999, writeMode='w'):
-      limitset=9999999, writeMode='wt'):
-    '''writes to the new db2 file format. already gzipped.
-    writeMode allows append instead of write(over)'''
-    try:  # to open the file
-      #outFile = gzip.GzipFile(db2gzFileName, writeMode)
-      #outFile = gzip.open(db2gzFileName, writeMode)
-      outFile = io.StringIO()
-      try:
-        mol2data = self.mol2data
-      except AttributeError:
-        print('mol2data missing when output stage encountered.(3)')
-        sys.exit(1)
-      try:
-        solvdata = self.solvdata
-      except AttributeError:
-        print('solvdata missing when output stage encountered.(4)')
-        sys.exit(1)
-      #check if default colors changed, write if they have.
-      self._colorWriter(outFile, mol2data)
-      setsTotal = len(self.setToConfs.keys())
-      self._allButSetWriter(
-          outFile, mol2data, solvdata,
-          setsTotal, len(self.clusters or []))
-      self._setWriter(outFile, mol2data, solvdata)
-      if self.clusters is not None:  # if makeclouds was run
-        self._cloudWriter(outFile, mol2data)  # this sucks, have to only
-           #write clouds for sets that were written. need to rething huge hack
-      outFile.write('E\n')  # write the E line here
-      outFile.seek(0, 0)
-      outgz = gzip.open(db2gzFileName, writeMode)
-      outgz.write(outFile.read())
-    except IOError:
-      print("error opening output file", db2gzFileName)
-      sys.exit(1)
-    if verbose:
-      print(db2gzFileName + " file written out")
-    
-  def writeFile(
-    self, fileHandle, verbose=False, timeit=False,
-    limitset=9999999, writeMode='wt'):
-    try:
-      mol2data = self.mol2data
-    except AttributeError:
-      print('mol2data missing when output stage encountered.(3)')
-      sys.exit(1)
-    try:
-      solvdata = self.solvdata
-    except AttributeError:
-      print('solvdata missing when output stage encountered.(4)')
-      sys.exit(1)
-    outFile=fileHandle
-    #check if default colors changed, write if they have.
-    self._colorWriter(outFile, mol2data)
-    self._allButSetWriter(
-        outFile, mol2data, solvdata,
-        len(list(self.setToConfs.keys())), 0 if not self.clusters else len(self.clusters))
-    self._setWriter(outFile, mol2data, solvdata)
-    if self.clusters is not None:  # if makeclouds was run
-      self._cloudWriter(outFile, mol2data)  # this sucks, have to only
-          #write clouds for sets that were written. need to rething huge hack
-    outFile.write('E\n')  # write the E line here
+    return position_counts, position_groups
 
-  def writeMol2(
-      self, mol2fileName, verbose=False, timeit=False, separateClusters=True):
-    '''writes multi-mol2 files instead of db2 files. useful for debugging
-    the clustering (or other procedures).     each cluster can be written separately
-    and will be given a prefix of cluster.00001. etc'''
-    if self.clusters is None:
-      separateClusters = False  # don't write non-existent clusters
-    if separateClusters:
-      currentCluster = list(self.clusters.keys())[0] + 1
-      #currentPrefix = "cluster." + string.zfill(currentCluster, 5) + "."
-      currentPrefix = "cluster." + currentCluster.zfill(5) + "."
-      currentName = currentPrefix + mol2fileName
-    else:
-      currentName = mol2fileName
-    try:  # to open the file
-      outFile = open(currentName, 'w')
-      try:
-        mol2data = self.mol2data
-      except AttributeError:
-        print('mol2data missing when output stage encountered.(1)')
-        sys.exit(1)
-      try:
-        solvdata = self.solvdata
-      except AttributeError:
-        print('solvdata missing when output stage encountered.(2)')
-        sys.exit(1)
-      if self.clusters is not None:  # if makeclouds was run
-        outFile.close()  # close the open and empty file. stupid stupid hack.
-        for clusterId in list(self.clusters.keys()):
-          currentCluster = clusterId + 1
-          #currentPrefix = "cluster." + string.zfill(currentCluster, 5) + "."
-          currentPrefix = "cluster." + currentCluster.zfill(5) + "."
-          currentName = currentPrefix + mol2fileName
-          outFile = open(currentName, 'w')
-          outNums = []
-          for confNumber in range(
-              self.setNameFirst[clusterId], self.setNameLast[clusterId] + 1):
-            outNum = self.setNameOutOrder[confNumber - 1]  # hate 1-indexing
-            outNums.append(outNum)
-          self.mol2data.writeMol2File(outFile, outNums)
-          if verbose:
-            print(currentName + " file written out")
-          outFile.close()
-      else:
-        self.mol2data.writeMol2File(outFile)  # just write them all
-      outFile.close()
-    except IOError:
-      print("error opening output file", currentName)
-      sys.exit(1)
-    if verbose:
-      print(currentName + " file written out")
 
-# fix for py3-3.7
-#if -1 != string.find(sys.argv[0], "hierarchy.py"):
-if -1 != sys.argv[0].find("hierarchy.py"):
-  #nothing to do if called from commandline
-  pass
+def _find_largest_fixed_component(
+    position_counts: list[int], atom_bonds: list[list[tuple[int, str]]]
+) -> list[int]:
+    components = _DisjointSets()
+    for atom_index, position_count in enumerate(position_counts):
+        if position_count != 1:
+            continue
+        for neighbor_index, _bond_type in atom_bonds[atom_index]:
+            if position_counts[neighbor_index] == 1:
+                components.union(atom_index, neighbor_index)
+
+    largest_component: list[int] | None = None
+    for component in components.groups():
+        if largest_component is None or len(component) > len(largest_component):
+            largest_component = component
+    if largest_component is None:
+        raise ValueError(
+            "DB2 hierarchy requires at least two bonded atoms fixed across conformers"
+        )
+    return largest_component
+
+
+def _assemble_hierarchy_records(
+    position_groups: dict[tuple[int, ...], _PositionGroup],
+    rigid_structure_ids: list[int],
+    input_set_count: int,
+) -> tuple[
+    list[Db2Coordinate],
+    list[tuple[int, int]],
+    dict[int, list[int]],
+]:
+    coordinates: list[Db2Coordinate] = []
+    coordinate_ranges: list[tuple[int, int]] = []
+    conformers_by_set = {set_index: [] for set_index in range(input_set_count)}
+    conformation_number = 0
+
+    groups_by_decreasing_membership = sorted(
+        position_groups.items(), key=lambda item: -len(item[0])
+    )
+    for input_sets, group in groups_by_decreasing_membership:
+        # Sorting rigid IDs determines conformation boundaries. Atom and
+        # coordinate record order intentionally remains the historical atom
+        # processing order so DB2 output stays byte-for-byte compatible.
+        sorted_rigid_ids = sorted(
+            rigid_structure_ids[atom_index] for atom_index in group.atom_indices
+        )
+        previous_rigid_id: int | None = None
+        range_start = 0
+        for group_offset, rigid_id in enumerate(sorted_rigid_ids):
+            if rigid_id != previous_rigid_id:
+                if previous_rigid_id is not None:
+                    coordinate_ranges.append((range_start, len(coordinates) - 1))
+                range_start = len(coordinates)
+                conformation_number += 1
+                for set_index in input_sets:
+                    conformers_by_set[set_index].append(conformation_number - 1)
+
+            coordinates.append(
+                Db2Coordinate(
+                    atom_index=group.atom_indices[group_offset],
+                    conformation_number=conformation_number,
+                    xyz=group.representative_coordinates[group_offset],
+                )
+            )
+            previous_rigid_id = rigid_id
+
+        coordinate_ranges.append((range_start, len(coordinates) - 1))
+
+    return coordinates, coordinate_ranges, conformers_by_set
+
+
+def serialize_db2(
+    molecule: MoleculeData,
+    solvation_data: Any,
+    hierarchy: ConformerHierarchy,
+) -> str:
+    """Serialize a prepared molecule and hierarchy using legacy DB2 layout."""
+
+    lines: list[str] = []
+    lines.append(
+        "M %16s %9s %3d %3d %6d %6d %6d %6d %6d %6d\n"
+        % (
+            molecule.name[-16:],
+            molecule.protein_name[-9:],
+            len(molecule.atom_numbers),
+            len(molecule.bond_starts),
+            len(hierarchy.coordinates),
+            hierarchy.conformation_count,
+            len(hierarchy.conformers_by_input_set),
+            len(hierarchy.heavy_rigid_atom_indices),
+            5,
+            0,
+        )
+    )
+    lines.append(
+        "M %+9.4f %+10.3f %+10.3f %+10.3f %9.3f\n"
+        % (
+            solvation_data.totalCharge,
+            solvation_data.totalPolarSolv,
+            solvation_data.totalApolarSolv,
+            solvation_data.totalSolv,
+            solvation_data.totalSurface,
+        )
+    )
+    lines.append("M %-76s\n" % molecule.smiles[-76:])
+    lines.append("M %-76s\n" % molecule.long_name[-76:])
+    lines.append("M %+10.4f\n" % 999.999)
+
+    for atom_index, atom_number in enumerate(molecule.atom_numbers):
+        lines.append(
+            "A %3d %-4s %-5s %2d %2d %+9.4f %+10.3f %+10.3f %+10.3f %9.3f\n"
+            % (
+                atom_number,
+                molecule.atom_names[atom_index],
+                molecule.atom_types[atom_index],
+                molecule.dock_atom_types[atom_index],
+                molecule.color_ids[atom_index],
+                solvation_data.charge[atom_index],
+                solvation_data.polarSolv[atom_index],
+                solvation_data.apolarSolv[atom_index],
+                solvation_data.solv[atom_index],
+                solvation_data.surface[atom_index],
+            )
+        )
+    for bond_index, bond_number in enumerate(molecule.bond_numbers):
+        lines.append(
+            "B %3d %3d %3d %-2s\n"
+            % (
+                bond_number,
+                molecule.bond_starts[bond_index],
+                molecule.bond_ends[bond_index],
+                molecule.bond_types[bond_index],
+            )
+        )
+    for coordinate_number, coordinate in enumerate(hierarchy.coordinates, 1):
+        lines.append(
+            "X %9d %3d %6d %+9.4f %+9.4f %+9.4f\n"
+            % (
+                coordinate_number,
+                coordinate.atom_index + 1,
+                coordinate.conformation_number,
+                coordinate.xyz[0],
+                coordinate.xyz[1],
+                coordinate.xyz[2],
+            )
+        )
+    for rigid_number, atom_index in enumerate(
+        hierarchy.heavy_rigid_atom_indices, 1
+    ):
+        xyz = molecule.conformers[0][atom_index]
+        lines.append(
+            "R %6d %2d %+9.4f %+9.4f %+9.4f\n"
+            % (
+                rigid_number,
+                molecule.color_ids[atom_index],
+                xyz[0],
+                xyz[1],
+                xyz[2],
+            )
+        )
+    for conformation_number, (start, end) in enumerate(
+        hierarchy.conformer_coordinate_ranges, 1
+    ):
+        lines.append(
+            "C %6d %9d %9d\n"
+            % (conformation_number, start + 1, end + 1)
+        )
+
+    for output_set_number, input_set_index in enumerate(
+        sorted(hierarchy.conformers_by_input_set), 1
+    ):
+        conformer_numbers = [
+            number + 1
+            for number in hierarchy.conformers_by_input_set[input_set_index]
+        ]
+        total_conformers = len(conformer_numbers)
+        total_lines = math.ceil(total_conformers / SET_CONFORMERS_PER_LINE)
+        lines.append(
+            "S %6d %6d %3d %1d %1d %+11.3f %+11.3f\n"
+            % (
+                output_set_number,
+                total_lines,
+                total_conformers,
+                0,
+                molecule.input_hydrogen_states[input_set_index],
+                molecule.input_total_strain[input_set_index],
+                molecule.input_max_strain[input_set_index],
+            )
+        )
+        for line_number in range(total_lines):
+            line_conformers = conformer_numbers[
+                line_number
+                * SET_CONFORMERS_PER_LINE : (line_number + 1)
+                * SET_CONFORMERS_PER_LINE
+            ]
+            line = "S %6d %6d %1d" % (
+                output_set_number,
+                line_number + 1,
+                len(line_conformers),
+            )
+            line += "".join(" %6d" % number for number in line_conformers)
+            lines.append(line + "\n")
+
+    lines.append("E\n")
+    return "".join(lines)

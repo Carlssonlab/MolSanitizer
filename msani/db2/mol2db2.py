@@ -1,76 +1,54 @@
-"""Convert in-memory MOL2 and solvation objects to DB2 data."""
+"""Stable public entry point for in-memory MOL2-to-DB2 conversion."""
 
-import io
-from types import SimpleNamespace
+from __future__ import annotations
 
-from msani.db2 import clash, hierarchy
-from msani.db2.hierarchy import TooBigError
+from os import PathLike
+from typing import Any
+
+from msani.db2.hierarchy import build_conformer_hierarchy, serialize_db2
+from msani.db2.molecule import MoleculeData, prepare_molecule_for_db2
 
 
 def mol2db2(
-    mol2data,
-    solvdata,
-    clashfile=None,
-    disttol=0.001,
-):
-    """Build DB2 text directly from in-memory topology and solvation data."""
-    options = SimpleNamespace(
-        atomtypefile=None,
-        colortablefile=None,
-        clashfile=clashfile,
-        tolerance=disttol,
-        covalent=False,
-        verbose=False,
-        timeit=False,
-        limitset=9999999999,
-        limitconf=9999999999,
-        limitcoord=9999999999,
-        maxrecursiondepth=1,
+    mol2data: MoleculeData,
+    solvdata: Any,
+    clashfile: str | PathLike[str] | None = None,
+    disttol: float = 0.001,
+) -> str:
+    """Convert in-memory molecular and solvation data to DB2 text.
+
+    ``mol2data`` is prepared in place, preserving the historical metadata and
+    atom-property side effects. Coordinates and floating-point calculations
+    are not reordered during hierarchy construction or serialization.
+    """
+
+    _validate_legacy_clash_file(clashfile)
+    prepared_molecule = prepare_molecule_for_db2(mol2data)
+    conformer_hierarchy = build_conformer_hierarchy(
+        prepared_molecule, tolerance=disttol
     )
+    return serialize_db2(prepared_molecule, solvdata, conformer_hierarchy)
 
-    while len(mol2data.inputEnergy) < mol2data.xyzCount:
-        mol2data.inputEnergy.append(9999.99)
-        mol2data.inputTotalStrain.append(0.0)
-        mol2data.inputMaxStrain.append(0.0)
-        mol2data.inputHydrogens.append(0)
 
-    mol2data.convertDockTypes(options.atomtypefile)
-    mol2data.addColors(options.colortablefile)
-    clash_decider = clash.Clash(options.clashfile)
+def _validate_legacy_clash_file(
+    clashfile: str | PathLike[str] | None,
+) -> None:
+    """Preserve validation of the legacy clash-file option.
 
-    def hierarchy_data_generator(this_mol2data, depth=1):
-        try:
-            yield hierarchy.Hierarchy(
-                this_mol2data,
-                clash_decider,
-                tolerance=options.tolerance,
-                verbose=options.verbose,
-                timeit=options.timeit,
-                limitset=options.limitset,
-                limitconf=options.limitconf,
-                limitcoord=options.limitcoord,
-                solvdata=solvdata,
-            )
-        except TooBigError as limit_error:
-            if depth > options.maxrecursiondepth:
-                raise
-            breaks = hierarchy.computeBreaks(limit_error, options)
-            for part in range(breaks + 1):
-                split_mol2data = this_mol2data.copy()
-                first = len(this_mol2data.atomXyz) * part // (breaks + 1)
-                last = len(this_mol2data.atomXyz) * (part + 1) // (breaks + 1)
-                split_mol2data.keepConfsOnly(first, last)
-                if split_mol2data.atomXyz:
-                    yield from hierarchy_data_generator(
-                        split_mol2data, depth=depth + 1,
-                    )
+    Clash filtering was disabled in the pre-refactor hierarchy builder, but a
+    supplied file was still opened and parsed. Keeping that input boundary
+    avoids changing errors observed by callers without suggesting that these
+    rules affect generated conformer sets.
+    """
 
-    output = io.StringIO()
-    for hierarchy_data in hierarchy_data_generator(mol2data):
-        hierarchy_data.writeFile(
-            fileHandle=output,
-            verbose=options.verbose,
-            timeit=options.timeit,
-            limitset=options.limitset,
-        )
-    return output.getvalue()
+    if clashfile is None:
+        return
+    with open(clashfile) as clash_rules:
+        for line in clash_rules:
+            tokens = line.split()
+            _constraint = tokens[0]
+            int(tokens[1])
+            int(tokens[2])
+            _first_atom_type = tokens[3]
+            _second_atom_type = tokens[4]
+            float(tokens[5])

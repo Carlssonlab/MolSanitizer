@@ -88,13 +88,15 @@ class Mol2Writer:
 
     def to_db2_topology(self, name=None, smiles="fake", longname="fake"):
         """Build reusable DB2 topology without conformer-specific data."""
-        from msani.db2.mol2 import Mol2
+        from msani.db2.molecule import MoleculeData
 
-        topology = Mol2()
-        topology.name = name or (self.mol.GetProp("_Name") if self.mol.HasProp("_Name") else "fake")
-        topology.protName = "fake"
+        topology = MoleculeData()
+        topology.name = name or (
+            self.mol.GetProp("_Name") if self.mol.HasProp("_Name") else "fake"
+        )
+        topology.protein_name = "fake"
         topology.smiles = smiles
-        topology.longname = longname or "fake"
+        topology.long_name = longname or "fake"
 
         num_atoms = self.mol.GetNumAtoms()
         if len(self.atom_types) != num_atoms:
@@ -103,13 +105,12 @@ class Mol2Writer:
                 f"RDKit atom count ({num_atoms})"
             )
 
-        topology.atomNum = list(range(1, num_atoms + 1))
-        topology.atomName = [
+        topology.atom_numbers = list(range(1, num_atoms + 1))
+        topology.atom_names = [
             f"{atom.GetSymbol()}{atom.GetIdx() + 1}" for atom in self.mol.GetAtoms()
         ]
-        topology.atomType = list(self.atom_types)
-        topology.atomCharge = [0.0] * num_atoms
-        topology.atomBonds = [[] for _ in range(num_atoms)]
+        topology.atom_types = list(self.atom_types)
+        topology.atom_bonds = [[] for _ in range(num_atoms)]
 
         for bond_line in self.bond:
             if bond_line.startswith("@<TRIPOS>BOND"):
@@ -120,41 +121,26 @@ class Mol2Writer:
 
             bond_num, start, end = map(int, tokens[:3])
             bond_type = tokens[3]
-            topology.bondNum.append(bond_num)
-            topology.bondStart.append(start)
-            topology.bondEnd.append(end)
-            topology.bondType.append(bond_type)
-            topology.atomBonds[start - 1].append((end - 1, bond_type))
-            topology.atomBonds[end - 1].append((start - 1, bond_type))
+            topology.bond_numbers.append(bond_num)
+            topology.bond_starts.append(start)
+            topology.bond_ends.append(end)
+            topology.bond_types.append(bond_type)
+            topology.atom_bonds[start - 1].append((end - 1, bond_type))
+            topology.atom_bonds[end - 1].append((start - 1, bond_type))
 
-        topology.xyzCount = 0
-        topology.origXyzCount = 0
         return topology
 
     @staticmethod
     def with_db2_conformers(topology, mol):
         """Copy cached topology and attach coordinates from an RDKit molecule."""
         num_atoms = mol.GetNumAtoms()
-        if len(topology.atomNum) != num_atoms:
+        if len(topology.atom_numbers) != num_atoms:
             raise ValueError(
-                f"Cached topology atom count ({len(topology.atomNum)}) does not match "
+                f"Cached topology atom count ({len(topology.atom_numbers)}) does not match "
                 f"RDKit atom count ({num_atoms})"
             )
 
-        mol2_data = topology.copy()
-        # Mol2.copy() intentionally shares topology. Make these collections
-        # independent because later DB2 options (for example covalent mode)
-        # may mutate them.
-        mol2_data.atomNum = list(topology.atomNum)
-        mol2_data.atomName = list(topology.atomName)
-        mol2_data.atomType = list(topology.atomType)
-        mol2_data.atomCharge = list(topology.atomCharge)
-        mol2_data.atomBonds = [list(neighbors) for neighbors in topology.atomBonds]
-        mol2_data.bondNum = list(topology.bondNum)
-        mol2_data.bondStart = list(topology.bondStart)
-        mol2_data.bondEnd = list(topology.bondEnd)
-        mol2_data.bondType = list(topology.bondType)
-        mol2_data.bondDists = None
+        mol2_data = topology.copy_topology()
 
         for conf in mol.GetConformers():
             coordinates = []
@@ -163,14 +149,13 @@ class Mol2Writer:
                 coordinates.append(
                     (float(position.x), float(position.y), float(position.z))
                 )
-            mol2_data.atomXyz.append(coordinates)
+            mol2_data.conformers.append(coordinates)
 
-        mol2_data.xyzCount = len(mol2_data.atomXyz)
-        mol2_data.origXyzCount = mol2_data.xyzCount
-        mol2_data.inputEnergy = [9999.99] * mol2_data.xyzCount
-        mol2_data.inputTotalStrain = [0.0] * mol2_data.xyzCount
-        mol2_data.inputMaxStrain = [0.0] * mol2_data.xyzCount
-        mol2_data.inputHydrogens = [0] * mol2_data.xyzCount
+        conformer_count = len(mol2_data.conformers)
+        mol2_data.input_energies = [9999.99] * conformer_count
+        mol2_data.input_total_strain = [0.0] * conformer_count
+        mol2_data.input_max_strain = [0.0] * conformer_count
+        mol2_data.input_hydrogen_states = [0] * conformer_count
         return mol2_data
 
     def to_db2_mol2(self, name=None, smiles="fake", longname="fake"):
