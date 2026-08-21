@@ -12,6 +12,7 @@
 #include <GraphMol/RWMol.h>
 #include "Flippers.h"
 #include <GraphMol/SmilesParse/SmilesWrite.h>
+#include <limits>
 
 namespace RDKit {
 namespace EnumerateStereoisomers {
@@ -34,8 +35,12 @@ BondFlipper::BondFlipper(RWMol &mol, const Chirality::StereoInfo &si)
   dp_bond = mol.getBondWithIdx((si.centeredOn));
   auto stereoAtoms = dp_bond->getStereoAtoms();
   if (stereoAtoms.empty()) {
-    if (si.controllingAtoms[0] != Atom::NOATOM &&
-        si.controllingAtoms[2] != Atom::NOATOM) {
+    // RDKit 2025.09.3 exposes this sentinel as StereoInfo::NOATOM, while
+    // 2025.09.5 moved it to Atom::NOATOM. Its defined value is stable across
+    // both APIs, so avoid depending on either version-specific spelling.
+    constexpr auto noAtom = std::numeric_limits<unsigned int>::max();
+    if (si.controllingAtoms[0] != noAtom &&
+        si.controllingAtoms[2] != noAtom) {
       dp_bond->setStereoAtoms(si.controllingAtoms[0], si.controllingAtoms[2]);
     } else {
       dp_bond = nullptr;
