@@ -54,10 +54,28 @@ RWMol* extractMolDirectly(py::object mol_obj) {
     }
 }
 
+// Copy a native RDKit conformer's coordinates into a NumPy array so the
+// Python RDKit binding can set every atom position in a single call.
+py::array_t<double> conformerPositionsToNumpy(const RDKit::Conformer& conf) {
+    py::array_t<double> positions({
+        static_cast<py::ssize_t>(conf.getNumAtoms()),
+        static_cast<py::ssize_t>(3),
+    });
+    auto coordinates = positions.mutable_unchecked<2>();
+
+    for (unsigned int atom_idx = 0; atom_idx < conf.getNumAtoms(); ++atom_idx) {
+        const RDGeom::Point3D& position = conf.getAtomPos(atom_idx);
+        coordinates(atom_idx, 0) = position.x;
+        coordinates(atom_idx, 1) = position.y;
+        coordinates(atom_idx, 2) = position.z;
+    }
+
+    return positions;
+}
+
 // Enhanced function that creates RDKit molecule from conformers with direct transfer
 py::object createMoleculeWithConformersDirectly(py::object mol_obj, const std::vector<ConformerResult>& products) {
-    std::unique_ptr<RWMol> mol(extractMolDirectly(mol_obj));
-    if (!mol) {
+    if (mol_obj.is_none()) {
         return py::none();
     }
     
@@ -67,9 +85,11 @@ py::object createMoleculeWithConformersDirectly(py::object mol_obj, const std::v
         return mol_obj;  // Return original molecule if no conformers generated
     }
     
-    // Check if conformer atom count matches molecule atom count
-    if (!products.empty() && products[0].conformer.getNumAtoms() != mol->getNumAtoms()) {
-        py::print("Atom count mismatch! Molecule: " + std::to_string(mol->getNumAtoms()) + 
+    // Check if conformer atom count matches molecule atom count without
+    // serializing and deserializing the original Python molecule a second time.
+    const auto molecule_num_atoms = mol_obj.attr("GetNumAtoms")().cast<unsigned int>();
+    if (products[0].conformer.getNumAtoms() != molecule_num_atoms) {
+        py::print("Atom count mismatch! Molecule: " + std::to_string(molecule_num_atoms) +
                   ", Conformer: " + std::to_string(products[0].conformer.getNumAtoms()));
         py::print("   This suggests the stochastic sampling process modified the molecular structure.");
         py::print("   Returning original molecule to preserve structure.");
@@ -81,7 +101,6 @@ py::object createMoleculeWithConformersDirectly(py::object mol_obj, const std::v
     mol_obj.attr("SetBoolProp")("Failed_sampling", false);
     // Add conformers directly to the Python molecule object
     py::object rdkit_chem = py::module::import("rdkit.Chem");
-    py::object rdgeom = py::module::import("rdkit.Geometry");
     
     for (size_t i = 0; i < products.size(); ++i) {
         const auto& product = products[i];
@@ -95,14 +114,8 @@ py::object createMoleculeWithConformersDirectly(py::object mol_obj, const std::v
         py_conformer.attr("Set3D")(true);
         py_conformer.attr("SetProp")("Energy", std::to_string(product.energy));
         
-        // Copy 3D coordinates from C++ conformer to Python conformer
-        for (unsigned int atom_idx = 0; atom_idx < conf.getNumAtoms(); ++atom_idx) {
-            const RDGeom::Point3D& pos = conf.getAtomPos(atom_idx);
-            
-            // Set position using Python API
-            py::object point3d = rdgeom.attr("Point3D")(pos.x, pos.y, pos.z);
-            py_conformer.attr("SetAtomPosition")(atom_idx, point3d);
-        }
+        // Copy all 3D coordinates in one Python API call.
+        py_conformer.attr("SetPositions")(conformerPositionsToNumpy(conf));
         
         // Add conformer directly to the molecule
         mol_obj.attr("AddConformer")(py_conformer, false);  // false = don't assign ID automatically
@@ -729,7 +742,6 @@ py::object embedMultipleConfsWrapper(py::object mol_obj,
 
         mol_obj.attr("RemoveAllConformers")();
         py::object rdkit_chem = py::module::import("rdkit.Chem");
-        py::object rdgeom = py::module::import("rdkit.Geometry");
 
         for (size_t i = 0; i < res.size(); ++i) {
             int confId = res[i];
@@ -753,11 +765,7 @@ py::object embedMultipleConfsWrapper(py::object mol_obj,
             py_conformer.attr("Set3D")(true);
             py_conformer.attr("SetDoubleProp")("MMFF_Energy", energy);
 
-            for (unsigned int atom_idx = 0; atom_idx < mutable_conf.getNumAtoms(); ++atom_idx) {
-                const RDGeom::Point3D& pos = mutable_conf.getAtomPos(atom_idx);
-                py::object point3d = rdgeom.attr("Point3D")(pos.x, pos.y, pos.z);
-                py_conformer.attr("SetAtomPosition")(atom_idx, point3d);
-            }
+            py_conformer.attr("SetPositions")(conformerPositionsToNumpy(mutable_conf));
 
             mol_obj.attr("AddConformer")(py_conformer, false);
         }
