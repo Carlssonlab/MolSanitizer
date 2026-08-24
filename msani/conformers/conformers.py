@@ -1223,9 +1223,8 @@ class ConformerGenerator:
 
         ### Output to DB2 ###
         if self.VERBOSE: print("Output to DB2...")
-        os.makedirs(f"db2/{self.name}", exist_ok=True)
+        os.makedirs(f"db2", exist_ok=True)
         try:
-            os.chdir(f"db2/{self.name}")
             topology_writer = mol2writer.Mol2Writer(
                 self.ring_confs[0],
                 mol2_template=self.mol2_str,
@@ -1248,19 +1247,12 @@ class ConformerGenerator:
             db2_data_all = "".join(db2_chunks)
             if not (as_string):
                 if tarfile: write_to_tarball(tarfile, db2_data_all.encode('utf-8'), name=f"{self.name}.db2")
-                else: write_to_file(db2_data_all, f"../{self.name}.db2")
-            os.chdir("../..")
-            if cleanup:
-                utils.remove_folders([f"db2/{self.name}"])
+                else: write_to_file(db2_data_all, f"db2/{self.name}.db2")
             if as_string:
                 return db2_data_all
                 
         except Exception:
             logger.exception(f"Error in converting {self.name} to DB2 format")
-            os.chdir("../..")
-            try: # Clean up the folders if error occurs. This help to not overfill the disk
-                shutil.rmtree(f"db2/{self.name}", ignore_errors=True)
-            except: pass
             log_error(self.smiles, self.name)
             return
 
