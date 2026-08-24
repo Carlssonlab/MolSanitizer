@@ -193,7 +193,8 @@ def clean_data(args):
         neutralize=args.neutralize, stereoisomers=args.stereoisomers, 
         max_stereoisomers=args.max_isomers, protonation=args.protonation, pH=args.pH, 
         pH_range=args.pH_range, numcores=args.numcores, randomSeed=args.randomSeed, 
-        stereo_timeout=args.stereo_timeout, standardize=args.standardize,
+        stereo_timeout=args.stereo_timeout, useCorina= (args.method == 'corina'),
+        corinaPath=args.corinaPath, standardize=args.standardize,
         protonation_library=args.protlib, tautomer_library=args.taulib,  
         debug=args.debug)       
     if args.smiles:
