@@ -317,6 +317,31 @@ class Filters():
         else:
             raise ValueError(f"Invalid condition: {condition}, supported formats: range (e.g. 1-5), greater than (or equal to) (e.g. >= 5), less than or equal to (e.g. <= 5), equal to (e.g. 5).")
 
+    @staticmethod
+    def filter_mask(values: Series, condition: str, column: str) -> Series:
+        """Evaluate a descriptor condition directly against a Series."""
+        if "-" in condition:
+            lower, upper = map(float, condition.split('-'))
+            return (values >= lower) & (values <= upper)
+
+        if '>' in condition or '<' in condition:
+            condition = condition.strip()
+            for prefix, comparison in (
+                ('>=', values.ge),
+                ('<=', values.le),
+                ('>', values.gt),
+                ('<', values.lt),
+            ):
+                if condition.startswith(prefix):
+                    return comparison(float(condition[len(prefix):]))
+            raise ValueError(f"Invalid condition: {condition}")
+
+        if condition.startswith('='):
+            return values.eq(float(condition.split('=', 1)[1]))
+        if column == 'logp':
+            return values.le(float(condition))
+        return values.eq(float(condition))
+
     @staticmethod    
     def filter_by_ha(df, filter_query, rejectedFile, debug = False) -> DataFrame:
         """Filter out molecules with heavy atoms only using the RDKit Mol.GetNumHeavyAtoms() function.
@@ -329,24 +354,18 @@ class Filters():
             DataFrame: A new DataFrame chunk with molecules containing heavy atoms.
         """
         ha_series = df['mol'].apply(lambda x: x.GetNumHeavyAtoms())
-        
-        # We temporarily put 'ha' in df to use query, then we will remove it.
-        # This is more memory efficient than df.copy()
-        df = df.assign(ha=ha_series)
-        query = Filters.convert_to_query(filter_query, 'ha')
-        
-        # mask is much more memory efficient than query matching
-        mask = df.eval(query)
+        mask = Filters.filter_mask(ha_series, filter_query, 'ha')
         rejected_mask = ~mask
         
         if rejected_mask.any():
-            rejected_df = df.loc[rejected_mask, ['smiles', 'ids', 'ha']].copy()
+            rejected_df = df.loc[rejected_mask, ['smiles', 'ids']].copy()
+            rejected_df['ha'] = ha_series.loc[rejected_mask]
             rejected_df['ha'] = rejected_df['ha'].apply(lambda x: f'ha{x}')
             rejected_df.to_csv(rejectedFile, index=False, mode='a', sep=' ', header=False)
             if debug: 
                 logger.info(f"Removed {len(rejected_df)} molecules with heavy atoms requirements: {rejected_df['ha'].values}")
                 print(f"Removed {len(rejected_df)} molecules with heavy atoms requirements: {rejected_df['ha'].values}")
-        return df.loc[mask].drop(columns=['ha'])
+        return df.loc[mask].copy()
 
     @staticmethod
     def filter_by_logp(df, filter_query, rejectedFile, debug = False) -> DataFrame:
@@ -361,21 +380,19 @@ class Filters():
             DataFrame: A new DataFrame chunk with molecules containing the specified logP value.
         """
         logp_series = df['mol'].apply(lambda x: (MolLogP(x))*100)
-        df = df.assign(logp=logp_series)
-        query = Filters.convert_to_query(filter_query, 'logp')
-        
-        mask = df.eval(query)
+        mask = Filters.filter_mask(logp_series, filter_query, 'logp')
         rejected_mask = ~mask
         
         if rejected_mask.any():
-            rejected_df = df.loc[rejected_mask, ['smiles', 'ids', 'logp']].copy()
+            rejected_df = df.loc[rejected_mask, ['smiles', 'ids']].copy()
+            rejected_df['logp'] = logp_series.loc[rejected_mask]
             rejected_df['logp'] = rejected_df['logp'].apply(lambda x: f'logp {x/100:.2f}')
             rejected_df.to_csv(rejectedFile, index=False, mode='a', sep=' ', header=False)
             if debug: 
                 logger.info(f"Removed {len(rejected_df)} molecules with logP requirements: {rejected_df['logp'].values}")
                 print(f"Removed {len(rejected_df)} molecules with logP requirements: {rejected_df['logp'].values}")
         
-        return df.loc[mask].drop(columns=['logp'])
+        return df.loc[mask].copy()
     
     def filter_by_hba(df, filter_query, rejectedFile, debug = False) -> DataFrame:
         """Filter out molecules with required number of H-bond acceptors using the RDKit CalcNumHBA().
@@ -391,22 +408,20 @@ class Filters():
         Returns:
             DataFrame: A new DataFrame chunk with molecules containing heavy atoms.
         """
-        hba_series = df['mol'].apply(lambda x: CalcNumHBA(x))
-        df = df.assign(hba=hba_series)
-        query = Filters.convert_to_query(filter_query, 'hba')
-        
-        mask = df.eval(query)
+        hba_series = df['mol'].apply(CalcNumHBA)
+        mask = Filters.filter_mask(hba_series, filter_query, 'hba')
         rejected_mask = ~mask
         
         if rejected_mask.any():
-            rejected_df = df.loc[rejected_mask, ['smiles', 'ids', 'hba']].copy()
+            rejected_df = df.loc[rejected_mask, ['smiles', 'ids']].copy()
+            rejected_df['hba'] = hba_series.loc[rejected_mask]
             rejected_df['hba'] = rejected_df['hba'].apply(lambda x: f'hba {x}')
             rejected_df.to_csv(rejectedFile, index=False, mode='a', sep=' ', header=False)
             if debug: 
                 logger.info(f"Removed {len(rejected_df)} molecules with number of H-bond acceptors requirements: {rejected_df['hba'].values}")
                 print(f"Removed {len(rejected_df)} molecules with number of H-bond acceptors requirements: {rejected_df['hba'].values}")
         
-        return df.loc[mask].drop(columns=['hba'])
+        return df.loc[mask].copy()
     
     def filter_by_hbd(df, filter_query, rejectedFile, debug = False) -> DataFrame:
         """Filter out molecules with required number of H-bond donors using the RDKit CalcNumLipinskiHBD().
@@ -421,22 +436,20 @@ class Filters():
         Returns:
             DataFrame: A new DataFrame chunk with molecules containing heavy atoms.
         """
-        hbd_series = df['mol'].apply(lambda x: rdMolDescriptors.CalcNumLipinskiHBD(x))
-        df = df.assign(hbd=hbd_series)
-        query = Filters.convert_to_query(filter_query, 'hbd')
-        
-        mask = df.eval(query)
+        hbd_series = df['mol'].apply(rdMolDescriptors.CalcNumLipinskiHBD)
+        mask = Filters.filter_mask(hbd_series, filter_query, 'hbd')
         rejected_mask = ~mask
         
         if rejected_mask.any():
-            rejected_df = df.loc[rejected_mask, ['smiles', 'ids', 'hbd']].copy()
+            rejected_df = df.loc[rejected_mask, ['smiles', 'ids']].copy()
+            rejected_df['hbd'] = hbd_series.loc[rejected_mask]
             rejected_df['hbd'] = rejected_df['hbd'].apply(lambda x: f'hbd {x}')
             rejected_df.to_csv(rejectedFile, index=False, mode='a', sep=' ', header=False)
             if debug: 
                 logger.info(f"Removed {len(rejected_df)} molecules with number of H-bond donors requirements: {rejected_df['hbd'].values}")
                 print(f"Removed {len(rejected_df)} molecules with number of H-bond donors requirements: {rejected_df['hbd'].values}")
         
-        return df.loc[mask].drop(columns=['hbd'])
+        return df.loc[mask].copy()
 
     def filter_by_mw(df, filter_query, rejectedFile, debug = False) -> DataFrame:
         """Filter out molecules with required molecular weight using the RDKit GetMolWt().
@@ -448,62 +461,56 @@ class Filters():
         Returns:
             DataFrame: A new DataFrame chunk with molecules containing heavy atoms.
         """
-        mw_series = df['mol'].apply(lambda x: rdMolDescriptors.CalcExactMolWt(x))
-        df = df.assign(mw=mw_series)
-        query = Filters.convert_to_query(filter_query, 'mw')
-        
-        mask = df.eval(query)
+        mw_series = df['mol'].apply(rdMolDescriptors.CalcExactMolWt)
+        mask = Filters.filter_mask(mw_series, filter_query, 'mw')
         rejected_mask = ~mask
         
         if rejected_mask.any():
-            rejected_df = df.loc[rejected_mask, ['smiles', 'ids', 'mw']].copy()
+            rejected_df = df.loc[rejected_mask, ['smiles', 'ids']].copy()
+            rejected_df['mw'] = mw_series.loc[rejected_mask]
             rejected_df['mw'] = rejected_df['mw'].apply(lambda x: f'mw {x:.2f}')
             rejected_df.to_csv(rejectedFile, index=False, mode='a', sep=' ', header=False)
             if debug: 
                 logger.info(f"Removed {len(rejected_df)} molecules with molecular weight requirements: {rejected_df['mw'].values}")
                 print(f"Removed {len(rejected_df)} molecules with molecular weight requirements: {rejected_df['mw'].values}")
         
-        return df.loc[mask].drop(columns=['mw'])
+        return df.loc[mask].copy()
 
     @staticmethod
     def filter_by_tpsa(df, filter_query, rejectedFile, debug = False) -> DataFrame:
         """Filter molecules by topological polar surface area (TPSA)."""
         tpsa_series = df['mol'].apply(rdMolDescriptors.CalcTPSA)
-        df = df.assign(tpsa=tpsa_series)
-        query = Filters.convert_to_query(filter_query, 'tpsa')
-
-        mask = df.eval(query)
+        mask = Filters.filter_mask(tpsa_series, filter_query, 'tpsa')
         rejected_mask = ~mask
 
         if rejected_mask.any():
-            rejected_df = df.loc[rejected_mask, ['smiles', 'ids', 'tpsa']].copy()
+            rejected_df = df.loc[rejected_mask, ['smiles', 'ids']].copy()
+            rejected_df['tpsa'] = tpsa_series.loc[rejected_mask]
             rejected_df['tpsa'] = rejected_df['tpsa'].apply(lambda x: f'tpsa {x:.2f}')
             rejected_df.to_csv(rejectedFile, index=False, mode='a', sep=' ', header=False)
             if debug:
                 logger.info(f"Removed {len(rejected_df)} molecules with TPSA requirements: {rejected_df['tpsa'].values}")
                 print(f"Removed {len(rejected_df)} molecules with TPSA requirements: {rejected_df['tpsa'].values}")
 
-        return df.loc[mask].drop(columns=['tpsa'])
+        return df.loc[mask].copy()
 
     @staticmethod
     def filter_by_fsp3(df, filter_query, rejectedFile, debug = False) -> DataFrame:
         """Filter molecules by the fraction of sp3 carbon atoms (FSP3)."""
         fsp3_series = df['mol'].apply(rdMolDescriptors.CalcFractionCSP3)
-        df = df.assign(fsp3=fsp3_series)
-        query = Filters.convert_to_query(filter_query, 'fsp3')
-
-        mask = df.eval(query)
+        mask = Filters.filter_mask(fsp3_series, filter_query, 'fsp3')
         rejected_mask = ~mask
 
         if rejected_mask.any():
-            rejected_df = df.loc[rejected_mask, ['smiles', 'ids', 'fsp3']].copy()
+            rejected_df = df.loc[rejected_mask, ['smiles', 'ids']].copy()
+            rejected_df['fsp3'] = fsp3_series.loc[rejected_mask]
             rejected_df['fsp3'] = rejected_df['fsp3'].apply(lambda x: f'fsp3 {x:.3f}')
             rejected_df.to_csv(rejectedFile, index=False, mode='a', sep=' ', header=False)
             if debug:
                 logger.info(f"Removed {len(rejected_df)} molecules with FSP3 requirements: {rejected_df['fsp3'].values}")
                 print(f"Removed {len(rejected_df)} molecules with FSP3 requirements: {rejected_df['fsp3'].values}")
 
-        return df.loc[mask].drop(columns=['fsp3'])
+        return df.loc[mask].copy()
 
     @staticmethod
     def count_unspecified_chiralcenters(mol):
@@ -530,21 +537,19 @@ class Filters():
         Returns:
             DataFrame: A new DataFrame chunk with molecules containing heavy atoms.
         """
-        cc_series = df['mol'].apply(lambda x: rdMolDescriptors.CalcNumUnspecifiedAtomStereoCenters(x))
-        df = df.assign(chiralcenters=cc_series)
-        query = Filters.convert_to_query(filter_query, 'chiralcenters')
-        
-        mask = df.eval(query)
+        cc_series = df['mol'].apply(rdMolDescriptors.CalcNumUnspecifiedAtomStereoCenters)
+        mask = Filters.filter_mask(cc_series, filter_query, 'chiralcenters')
         rejected_mask = ~mask
         
         if rejected_mask.any():
-            rejected_df = df.loc[rejected_mask, ['smiles', 'ids', 'chiralcenters']].copy()
+            rejected_df = df.loc[rejected_mask, ['smiles', 'ids']].copy()
+            rejected_df['chiralcenters'] = cc_series.loc[rejected_mask]
             rejected_df['chiralcenters'] = rejected_df['chiralcenters'].apply(lambda x: f'chiralcenters {x}')
             rejected_df.to_csv(rejectedFile, index=False, mode='a', sep=' ', header=False)
             if debug: 
                 logger.info(f"Removed {len(rejected_df)} molecules with number of chiral centers requirements: {rejected_df['chiralcenters'].values}")
                 print(f"Removed {len(rejected_df)} molecules with number of chiral centers requirements: {rejected_df['chiralcenters'].values}")
-        return df.loc[mask].drop(columns=['chiralcenters'])
+        return df.loc[mask].copy()
     
     @staticmethod
     def applyStandarizeFilters(mol):
@@ -692,6 +697,12 @@ class Filters():
         if hasattr(smarts_df, 'GetFirstMatch'):
             entry = smarts_df.GetFirstMatch(mol)
             return entry.GetDescription() if entry is not None else 'OK'
+
+        # Preserve the public helper API for callers passing a SMARTS DataFrame.
+        for substructure in smarts_df.itertuples(index=False):
+            if mol.HasSubstructMatch(substructure.mol):
+                return substructure.label
+        return 'OK'
 
     @staticmethod
     def buildSMARTScatalog(smarts_df: DataFrame):

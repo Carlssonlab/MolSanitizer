@@ -183,7 +183,7 @@ class Msani:
                                         rejectedFile = rejected_file,
                                         unwanted_df = self.unwanted_df,
                                         debug = self.debug,
-                                        numcores = self.numcores)
+                                        unwanted_catalog = self.unwanted_catalog)
 
         if self.protonation: 
             ionizer = Ionizer(smartsFile = self.protonation_library,
