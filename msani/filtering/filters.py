@@ -1,17 +1,19 @@
 from pathlib import Path
 
 from rdkit import Chem, RDLogger, rdBase
-from rdkit.Chem import  SaltRemover, rdMolDescriptors
+from rdkit.Chem import FilterCatalog as RDFilterCatalog
+from rdkit.Chem import SaltRemover, rdMolDescriptors
 from rdkit.Chem.Descriptors import MolLogP
 from rdkit.Chem.MolStandardize import rdMolStandardize
 
-from pandas import DataFrame, read_csv, concat
+from pandas import DataFrame, Series, read_csv, concat
 import logging
 
 logger = logging.getLogger('msani')
 uncharger = rdMolStandardize.Uncharger()
 saltfile = Path(__file__).parent.parent / 'Data' / 'salt_stripping.txt'
 salt_remover = SaltRemover.SaltRemover(defnFilename=saltfile)        
+_pains_catalog = None
 
 RDLogger.DisableLog('rdApp.*') # To disable error messages with kekulizing tautomers from RDKit
 
@@ -56,6 +58,9 @@ class Filters():
 
         pains: bool, default False.
             Apply the PAINS filter to the molecules. If True, it will check for PAINS functional groups.
+
+        numcores: int, default 1.
+            Number of native threads used by the PAINS catalog search.
 
         rejectedFile: str, default 'rejected_entries.txt'.
             Path to the file where rejected molecules will be saved. The file will be created if it does not exist.
@@ -115,7 +120,8 @@ class Filters():
                  pains = None,
                  rejectedFile = 'rejected_entries.txt',
                  tpsa = None,
-                 fsp3 = None):
+                 fsp3 = None,
+                 numcores = 1):
         self.removesalts = removesalts
         self.ha = ha
         self.logp = logp
@@ -132,16 +138,19 @@ class Filters():
         if self.custom is not None or self.unwanted is not None:
             if self.custom: temp_df_custom = loadSMARTSdata(self.custom)
             if self.unwanted:
-                smartsFile = Path(__file__).parent / 'Data' / 'filter_out.txt'
+                smartsFile = Path(__file__).parent.parent / 'Data' / 'filter_out.txt'
                 temp_df_unwanted = loadSMARTSdata(smartsFile.resolve(), self.unwanted)
             self.unwanted_df = concat([temp_df_custom, temp_df_unwanted]) if self.custom and self.unwanted \
                 else temp_df_custom if self.custom else temp_df_unwanted
+            self.unwanted_catalog = Filters.buildSMARTScatalog(self.unwanted_df)
             logger.info(f"Loaded {len(self.unwanted_df)} SMARTS patterns for unwanted filtering.")
         else:
             self.unwanted_df = None
+            self.unwanted_catalog = None
 
         self.pains = pains
         self.rejectedFile = rejectedFile
+        self.numcores = numcores
 
     def __repr__(self):
         cls_name = self.__class__.__name__
@@ -603,7 +612,8 @@ class Filters():
             return 'OK'
         
     @staticmethod
-    def painsFilter(df: DataFrame, rejectedFile: str, debug: bool = False) -> DataFrame:
+    def painsFilter(df: DataFrame, rejectedFile: str, debug: bool = False,
+                    numcores: int = 1) -> DataFrame:
         """
         Detect and filter out molecules with PAINS functional groups using the RDKit PAINS catalog.
 
@@ -611,20 +621,42 @@ class Filters():
             df (DataFrame): Input DataFrame with 'mol' column containing RDKit molecule objects.
             rejectedFile (str): Path to the file to save rejected molecules.
             debug (bool, optional): Debug mode. Defaults to False.
+            numcores (int, optional): Number of RDKit catalog threads. Defaults to 1.
 
         Returns:
             DataFrame: A new DataFrame chunk with molecules that passed the PAINS filter.
         """
         # Set up the PAINS catalog
-        from rdkit.Chem.FilterCatalog import FilterCatalog, FilterCatalogParams
+        global _pains_catalog
         if rdBase.rdkitVersion < '2025.09.3':
             print('\nThe warning is expected and can be ignored.\n')
-        params = FilterCatalogParams()
-        params.AddCatalog(FilterCatalogParams.FilterCatalogs.PAINS)
-        catalog = FilterCatalog(params)
+        if _pains_catalog is None:
+            params = RDFilterCatalog.FilterCatalogParams()
+            params.AddCatalog(RDFilterCatalog.FilterCatalogParams.FilterCatalogs.PAINS)
+            _pains_catalog = RDFilterCatalog.FilterCatalog(params)
 
-        # Detect PAINS violations
-        reasons = df['mol'].apply(lambda x: Filters.detect_and_label_pains(x, catalog))
+        if numcores == 1:
+            # Avoid serialization and reparsing overhead when parallelism is
+            # disabled, while retaining the exact original single-core path.
+            reasons = df['mol'].apply(
+                lambda mol: Filters.detect_and_label_pains(mol, _pains_catalog)
+            )
+        else:
+            # Run the native catalog search in parallel. Generate the input from
+            # the current molecules because transformations such as neutralization
+            # may intentionally leave the original text in the 'smiles' column.
+            current_smiles = [Chem.MolToSmiles(mol) for mol in df['mol'].array]
+            matches = RDFilterCatalog.RunFilterCatalog(
+                _pains_catalog, current_smiles, numThreads=numcores
+            )
+            reasons = Series(
+                [
+                    'OK' if not entries else
+                    'PAINS violation: ' + str(entries[0].GetDescription().capitalize())
+                    for entries in matches
+                ],
+                index=df.index,
+            )
 
         # Separate rejected molecules
         mask_ok = (reasons == 'OK')
@@ -656,13 +688,25 @@ class Filters():
 
     @staticmethod
     def filterbysmarts(mol, smarts_df: DataFrame) -> str:
-        for _, substructure in smarts_df.iterrows():
-            if mol.HasSubstructMatch(substructure.mol):
-                return substructure.label
-        return 'OK'
+        """Return the first matching label from a catalog or SMARTS DataFrame."""
+        if hasattr(smarts_df, 'GetFirstMatch'):
+            entry = smarts_df.GetFirstMatch(mol)
+            return entry.GetDescription() if entry is not None else 'OK'
+
+    @staticmethod
+    def buildSMARTScatalog(smarts_df: DataFrame):
+        """Compile ordered SMARTS patterns into an RDKit FilterCatalog."""
+        catalog = RDFilterCatalog.FilterCatalog()
+        for substructure in smarts_df.itertuples(index=False):
+            label = str(substructure.label)
+            matcher = RDFilterCatalog.SmartsMatcher(label, substructure.mol)
+            catalog.AddEntry(RDFilterCatalog.FilterCatalogEntry(label, matcher))
+        return catalog
     
     @staticmethod
-    def unwantedFilter(df: DataFrame, rejectedFile, unwanted_option = None, unwanted_df: DataFrame = None, debug = False) -> DataFrame:
+    def unwantedFilter(df: DataFrame, rejectedFile, unwanted_option = None,
+                       unwanted_df: DataFrame = None, debug = False,
+                       unwanted_catalog = None) -> DataFrame:
         """Filter out unwanted substructures using a default list of SMARTS patterns.
 
             Args:
@@ -671,6 +715,7 @@ class Filters():
                 unwanted_option (list): The mode input by the user.
                 unwanted_df (DataFrame): DataFrame containing the SMARTS patterns and their corresponding RDKit molecule objects.
                 debug (bool, optional): Debug mode. Defaults to False.
+                unwanted_catalog: Precompiled RDKit catalog. Defaults to None.
 
             Returns:
                 DataFrame: A new DataFrame chunk with molecules that passed the filter.
@@ -684,8 +729,11 @@ class Filters():
             unwanted_df = loadSMARTSdata(smartsFile.resolve(), unwanted_option)
             logger.info(f'Parsed {len(unwanted_df)} substructures from: {smartsFile}')
 
+        if unwanted_catalog is None:
+            unwanted_catalog = Filters.buildSMARTScatalog(unwanted_df)
+
         # Apply reactions to each SMILES in the DataFrame
-        reasons = df['mol'].apply(lambda x: Filters.filterbysmarts(x, unwanted_df))
+        reasons = df['mol'].apply(lambda x: Filters.filterbysmarts(x, unwanted_catalog))
         
         mask_ok = (reasons == 'OK')
         rejected_mask = ~mask_ok
@@ -719,9 +767,10 @@ class Filters():
         # Load smarts to clean  from file
         unwanted_df = loadSMARTSdata(smartsFile.resolve())
         if debug: logger.info(f'Parsed {len(unwanted_df)} custom substructures from: {smartsFile}')
+        unwanted_catalog = Filters.buildSMARTScatalog(unwanted_df)
 
         # Apply reactions to each SMILES in the DataFrame
-        reasons = df['mol'].apply(lambda x: Filters.filterbysmarts(x, unwanted_df))
+        reasons = df['mol'].apply(lambda x: Filters.filterbysmarts(x, unwanted_catalog))
         mask_ok = (reasons == 'OK')
         rejected_mask = ~mask_ok
         
@@ -747,8 +796,6 @@ class Filters():
             df = Filters.saltstripping(df, debug)
         if self.ha:
             df = Filters.filter_by_ha(df, self.ha, rejectedFile, debug)
-        if self.logp:
-            df = Filters.filter_by_logp(df, self.logp, rejectedFile, debug)
         if self.hba:
             df = Filters.filter_by_hba(df, self.hba, rejectedFile, debug)
         if self.hbd:
@@ -761,16 +808,19 @@ class Filters():
             df = Filters.filter_by_fsp3(df, self.fsp3, rejectedFile, debug)
         if self.chiral:
             df = Filters.filter_by_chiralcenters(df, self.chiral, rejectedFile, debug)
+        if self.logp:
+            df = Filters.filter_by_logp(df, self.logp, rejectedFile, debug)
         if self.unwanted_df is not None:
             df = Filters.unwantedFilter(
                 df, 
                 rejectedFile, 
                 unwanted_option=None, 
                 unwanted_df=self.unwanted_df, 
-                debug=debug
+                debug=debug,
+                unwanted_catalog=self.unwanted_catalog,
             )
         if self.pains:
-            df = Filters.painsFilter(df, rejectedFile, debug)
+            df = Filters.painsFilter(df, rejectedFile, debug, self.numcores)
         return df
 
 def loadSMARTSdata(smartsFile: str, unwanted_option=None) -> DataFrame:
