@@ -320,6 +320,11 @@ def parseArguments(args = None, batch_mode = False):
         default=defaults.get('method', 'rdkit'),
         help=f'Embedding method (default: {embed_method} - options: rdkit, obabel, corina)')
     gen3d.add_argument(
+        '--corinaPath',
+        type=str,
+        default=defaults.get('corinaPath', corina_exe),
+        help=f'Path to the CORINA executable (default: {corina_exe})')
+    gen3d.add_argument(
         '--numconfs', '-nconfs',
         type=int,
         default=defaults.get('numconfs', numconfs),
@@ -534,7 +539,7 @@ def parseArguments(args = None, batch_mode = False):
         args.input_files = [Path(inFile).resolve() for inFile in args.input_files]
 
     if args.method == 'corina':
-        if not Path(corina_exe).is_file:
+        if not Path(args.corinaPath).expanduser().is_file():
             parser.error('Corina path is not correct or corina not found. Please check the configuration file.')
 
     if args.custom:

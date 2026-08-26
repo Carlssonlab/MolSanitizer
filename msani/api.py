@@ -56,6 +56,8 @@ class Msani:
                 numcores = 1,
                 randomSeed = 42,
                 stereo_timeout = 60,
+                useCorina = False,
+                corinaPath = None,
                 standardize = False,
                 protonation_library = None,
                 tautomer_library = None,
@@ -83,9 +85,11 @@ class Msani:
                 temp_df_unwanted = loadSMARTSdata(smartsFile.resolve(), self.unwanted)
             self.unwanted_df = concat([temp_df_custom, temp_df_unwanted]) if self.custom and self.unwanted \
                 else temp_df_custom if self.custom else temp_df_unwanted
+            self.unwanted_catalog = Filters.buildSMARTScatalog(self.unwanted_df)
             logger.info(f"Loaded {len(self.unwanted_df)} SMARTS patterns for unwanted filtering.")
         else:
             self.unwanted_df = None
+            self.unwanted_catalog = None
 
         self.pains = pains
         self.chiral = chiral
@@ -101,6 +105,8 @@ class Msani:
         self.pH_range = pH_range
         self.randomSeed = randomSeed
         self.stereo_timeout = stereo_timeout
+        self.useCorina = useCorina
+        self.corinaPath = corinaPath
         self.standardize = standardize    
         self.debug = debug
         self.numcores = numcores
@@ -137,13 +143,14 @@ class Msani:
         if self.standardize: df = Filters.remove_exotic_chem_to_db2(df)
         if self.removesalts: df = Filters.saltstripping(df, debug=self.debug)
         if self.ha is not None: df = Filters.filter_by_ha(df, self.ha, rejectedFile=rejected_file, debug=self.debug)
-        if self.logp is not None: df = Filters.filter_by_logp(df, self.logp, rejectedFile=rejected_file, debug=self.debug)
         if self.hba is not None: df = Filters.filter_by_hba(df, self.hba, rejectedFile=rejected_file, debug=self.debug)
         if self.hbd is not None: df = Filters.filter_by_hbd(df, self.hbd, rejectedFile=rejected_file, debug=self.debug)
         if self.mw is not None: df = Filters.filter_by_mw(df, self.mw, rejectedFile=rejected_file, debug=self.debug)
         if self.tpsa is not None: df = Filters.filter_by_tpsa(df, self.tpsa, rejectedFile=rejected_file, debug=self.debug)
         if self.fsp3 is not None: df = Filters.filter_by_fsp3(df, self.fsp3, rejectedFile=rejected_file, debug=self.debug)
         if self.chiral is not None: df = Filters.filter_by_chiralcenters(df, self.chiral, rejectedFile=rejected_file, debug=self.debug)
+        if self.logp is not None: df = Filters.filter_by_logp(df, self.logp, rejectedFile=rejected_file, debug=self.debug)
+ 
         if self.standardize: 
             df = Filters.standarizeFilters(df)
             return df
@@ -166,7 +173,8 @@ class Msani:
             if self.debug: print("Filtering PAINS")
             df = Filters.painsFilter(df,
                                                 rejectedFile = rejected_file,
-                                                debug = self.debug)
+                                                debug = self.debug,
+                                                numcores = self.numcores)
             
         # We already gathered the unwanted SMARTS patterns in the constructor
         if self.unwanted_df is not None: 
@@ -174,7 +182,8 @@ class Msani:
             df = Filters.unwantedFilter(df,
                                         rejectedFile = rejected_file,
                                         unwanted_df = self.unwanted_df,
-                                        debug = self.debug)
+                                        debug = self.debug,
+                                        unwanted_catalog = self.unwanted_catalog)
 
         if self.protonation: 
             ionizer = Ionizer(smartsFile = self.protonation_library,
@@ -204,6 +213,8 @@ class Msani:
                                   randomSeed=self.randomSeed,
                                   numcores=self.numcores,
                                   timeout=self.stereo_timeout,
+                                  useCorina=self.useCorina,
+                                  corinaPath=self.corinaPath,
                                   debug=self.debug)
             df = stereoisomerizer.enumerate_df(df)
 
