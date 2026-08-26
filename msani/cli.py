@@ -15,6 +15,7 @@ from pandas import DataFrame, read_csv  # only what you use
 from rdkit import Chem, rdBase
 
 from msani.io import parsers, loggers
+from msani.io.readers import detect_input_compression
 from msani.api import Msani  
 
 logger = logging.getLogger('msani')
@@ -74,6 +75,16 @@ def get_output_files(args, input_file_path):
     return output_file, rejected_file
 
 def read_input_file(input_file, is_enamine, is_synthon):
+    compression = detect_input_compression(input_file)
+    if compression:
+        logger.info(f'Using {compression} compression for input')
+
+    read_options = {
+        'header': None,
+        'chunksize': 100_000,
+        'compression': compression,
+    }
+
     if is_synthon:
         logger.info('Using Synthon format for parsing')
         return read_csv(
@@ -81,9 +92,8 @@ def read_input_file(input_file, is_enamine, is_synthon):
             sep=r'\s+',
             names=['smiles', 'ids', 'longname'],
             usecols=[0, 1, 2],
-            header=None,
-            chunksize=100_000,
-            dtype={'smiles': str, 'ids': str, 'longname': str}  # Enforce string types
+            dtype={'smiles': str, 'ids': str, 'longname': str},
+            **read_options,
         )
     if is_enamine:
         logger.info('Using Enamine format for parsing')
@@ -92,9 +102,8 @@ def read_input_file(input_file, is_enamine, is_synthon):
             sep='\t',
             names=['smiles', 'ids'],
             usecols=[0, 1],
-            header=None,
-            chunksize=100_000,
-            dtype={'smiles': str, 'ids': str}  # Enforce string types
+            dtype={'smiles': str, 'ids': str},
+            **read_options,
         )
     else:
         return read_csv(
@@ -102,9 +111,8 @@ def read_input_file(input_file, is_enamine, is_synthon):
             sep=r'\s+',
             names=['smiles', 'ids'],
             usecols=[0, 1],
-            header=None,
-            chunksize=100_000,
-            dtype={'smiles': str, 'ids': str}  # Enforce string types
+            dtype={'smiles': str, 'ids': str},
+            **read_options,
         )
     
 def process_files(processor: Msani, args):

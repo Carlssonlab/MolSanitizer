@@ -16,6 +16,7 @@ from pathlib import Path
 from rdkit import rdBase
 
 from msani.io import parsers
+from msani.io.readers import detect_input_compression
 
 logo=r""" __  __         _  _____                _  _    _                 
 |  \/  |       | |/  ___|              (_)| |  (_)                
@@ -149,9 +150,113 @@ with open(os.path.join(os.path.dirname(__file__), 'msani_configurations.yaml')) 
     max_array_size = configurations['MAX_ARRAY_SIZE']
     max_limit_project = configurations['MAX_LIMIT_PROJECT']
 
-def count_lines_bash(file_path):
-    result = subprocess.run(['wc', '-l', '--', file_path], stdout=subprocess.PIPE)
+def count_input_lines(file_path):
+    """Count input lines with native tools, streaming decompression if needed."""
+    compression = detect_input_compression(file_path)
+    if compression is None:
+        result = subprocess.run(
+            ['wc', '-l', str(file_path)],
+            stdout=subprocess.PIPE,
+            text=True,
+            check=True,
+        )
+    else:
+        decompressor_command = [
+            'gzip' if compression == 'gzip' else 'xz',
+            '-cd',
+            str(file_path),
+        ]
+        decompressor = subprocess.Popen(
+            decompressor_command,
+            stdout=subprocess.PIPE,
+        )
+        try:
+            result = subprocess.run(
+                ['wc', '-l'],
+                stdin=decompressor.stdout,
+                stdout=subprocess.PIPE,
+                text=True,
+            )
+        finally:
+            if decompressor.stdout is not None:
+                decompressor.stdout.close()
+        decompressor_returncode = decompressor.wait()
+        result.check_returncode()
+        if decompressor_returncode != 0:
+            raise subprocess.CalledProcessError(
+                decompressor_returncode,
+                decompressor_command,
+            )
+
     return int(result.stdout.split()[0])
+
+
+def split_input_file(file_path, output_dir, lines_per_file):
+    """Split an input using native tools, streaming decompression if needed."""
+    if lines_per_file <= 0:
+        raise ValueError('lines_per_file must be greater than zero')
+
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_prefix = output_dir / 'in'
+    split_command = [
+        'split',
+        '-l', str(lines_per_file),
+        '-d',
+        '-a', '4',
+    ]
+
+    compression = detect_input_compression(file_path)
+    if compression is None:
+        subprocess.run(
+            split_command + [str(file_path), str(output_prefix)],
+            check=True,
+        )
+    else:
+        decompressor_command = [
+            'gzip' if compression == 'gzip' else 'xz',
+            '-cd',
+            str(file_path),
+        ]
+        decompressor = subprocess.Popen(
+            decompressor_command,
+            stdout=subprocess.PIPE,
+        )
+        try:
+            split_result = subprocess.run(
+                split_command + ['-', str(output_prefix)],
+                stdin=decompressor.stdout,
+            )
+        finally:
+            if decompressor.stdout is not None:
+                decompressor.stdout.close()
+        decompressor_returncode = decompressor.wait()
+        split_result.check_returncode()
+        if decompressor_returncode != 0:
+            raise subprocess.CalledProcessError(
+                decompressor_returncode,
+                decompressor_command,
+            )
+
+    # BSD split lacks GNU's --additional-suffix option. Renaming the relatively
+    # small number of chunks keeps the data path native and works on both.
+    chunk_paths = []
+    for path in sorted(output_dir.glob('in[0-9]*')):
+        if not path.name[2:].isdigit():
+            continue
+        chunk_path = path.with_name(f'{path.name}.smi')
+        path.rename(chunk_path)
+        chunk_paths.append(chunk_path)
+    return chunk_paths
+
+
+def prepare_batch_chunks(file_path, output_dir, lines_per_file):
+    """Create job chunks and a deterministic directory listing."""
+    chunk_paths = split_input_file(file_path, output_dir, lines_per_file)
+    with open(Path(output_dir) / 'dirlista', 'w', encoding='utf-8') as stream:
+        for chunk_path in chunk_paths:
+            stream.write(f'{chunk_path.name}\n')
+    return chunk_paths
 
 def parse_flags_single_job(args: dict, parser):
     """Parse the flags for a single job
@@ -233,10 +338,8 @@ def test_batch_mode(args: dict, header: str, script: str):
     file = Path(args.prefix) / args.input_files[0]
     prefix = Path(args.prefix) / file.stem  # Ensure prefix is within temp_dir
 
-    subprocess.run(f"mkdir -p {prefix}", shell=True)
-    subprocess.run(f"split -l {args.lines} -d -a 4 --additional-suffix=.smi {file} {prefix}/in", shell=True)
+    prepare_batch_chunks(file, prefix, args.lines)
     os.chdir(prefix)
-    subprocess.run(f"ls in* > dirlista", shell=True)
     write_single_job_script(header, script)
 
 def Split_Submit_jobs(args: dict, parser):
@@ -331,7 +434,7 @@ def Split_Submit_jobs(args: dict, parser):
                 print(f"File {file} does not exist. Please check the path and try again.")
                 print(f"Exitting MolSanitizer...")
                 return
-            line_count = count_lines_bash(file)
+            line_count = count_input_lines(file)
             job_for_this_file = math.ceil(line_count/args.lines)
             print(f"\tFile {file} will be split into {job_for_this_file} jobs.")
             n_jobs += job_for_this_file
@@ -372,16 +475,12 @@ def Split_Submit_jobs(args: dict, parser):
                 else:
                     print(f"Exitting MolSanitizer...\n")
                     return
-            subprocess.run(f"mkdir -p {prefix}", shell=True)
-            subprocess.run(f"split -l {args.lines} -d -a 4 --additional-suffix=.smi {file} {prefix}/in", shell=True)
+            chunk_paths = prepare_batch_chunks(file, prefix, args.lines)
             os.chdir(prefix)
-            subprocess.run(f"ls in* > dirlista", shell=True)
-            n_jobs = sum(1 for line in open('dirlista'))
-            with open('dirlista') as f:
-                for line in f:
-                    jobname = line.strip().split('.')[0]
-                    with open(f'{jobname}.lock', 'w') as lock:
-                        lock.write('')
+            n_jobs = len(chunk_paths)
+            for chunk_path in chunk_paths:
+                with open(f'{chunk_path.stem}.lock', 'w') as lock:
+                    lock.write('')
             if args.whole_node:
                 n_array_tasks = math.ceil(n_jobs / cores)
                 print(f"Submitting {n_array_tasks} array tasks ({n_jobs} jobs, {cores} per node)\n")

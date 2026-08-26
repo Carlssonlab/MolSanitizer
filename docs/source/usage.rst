@@ -6,6 +6,11 @@ Preparing the input file
 
 The program requires a white-space or tab-delimited file containing two columns (SMILES, moleculeID) without headers. 
 
+Input files may be uncompressed, gzip-compressed, or xz-compressed. MolSanitizer
+detects gzip and xz from the file contents (so the extension is optional) and
+streams decompressed rows to pandas in chunks rather than loading the whole
+file into memory.
+
 .. code-block:: console
    
    COCCC(=O)Nc1ncc(s1)Br  CP000000418470
@@ -97,7 +102,7 @@ Help message
     MolSanitizer - A package to prepare SMILES databases
 
     Input and output options:
-    --input_files, -i     Input files containing chemical structures
+    --input_files, -i     Input files containing chemical structures (plain, gzip, or xz)
     --input_list, -il     Path to a text file containing one or more input file paths (one per line).
     --smiles, -s          Input SMILES strings
     --extended, -e        Extended SMILES reading (tab-separated files supported only).
@@ -443,6 +448,10 @@ Running in batch mode
 
 
 msani now supports the batch mode ``msani_batch``, which allows handling bigger SMILES databases on the SLURM-based cluster. Nearly all the flags supported by the standalone msani are supported by the batch mode. In principle, ``msani_batch`` will split the input file into chunks of smaller input files, which is defined by the ``-l`` or ``--lines_per_job`` flag (default: 200). The split files will then be submitted to the SLURM cluster using an array of jobs. By default, a maximum of 500 jobs will be submitted simultaneously to avoid interfering with other users within the same project, but you can change this limit with the ``--max_jobs`` flag.
+
+Batch mode accepts plain, gzip-compressed, and xz-compressed inputs. Compressed
+files are decompressed as a stream into uncompressed job chunks, keeping memory
+usage independent of the input file size.
 
 The additional flags supported by ``msani_batch`` so far:
 

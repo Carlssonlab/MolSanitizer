@@ -28,7 +28,7 @@ dependencies = [
     "numpy",
     # The Python package remains the Python-level API provider. Native wheels
     # are built against the matching private RDKit C++ SDK.
-    "rdkit>=2025.9.5",
+    "rdkit>=2025.3.1",
     "gemmi",
     "pyaml"
 ]

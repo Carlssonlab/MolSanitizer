@@ -3,6 +3,8 @@ import tempfile
 import os
 import shutil
 import tarfile
+import gzip
+import lzma
 
 from pathlib import Path
 import platform
@@ -13,7 +15,11 @@ from pandas import read_csv
 from rdkit import Chem
 
 from msani import cli
-from msani.batchmode import Split_Submit_jobs
+from msani.batchmode import (
+    Split_Submit_jobs,
+    count_input_lines,
+    prepare_batch_chunks,
+)
 from msani.conformers import mol2writer
 from msani.db2.db2conv import db2converter
 from msani.io import parsers
@@ -47,6 +53,74 @@ class Test_MolSanitizer(unittest.TestCase):
             cli.clean_data(args)
             self.compareFiles(f'{temp_dir}/dummy_output_clean.txt',
                               f'{self.path}/out_multiple_inputs.txt')
+
+    def test_read_input_file_streams_compressed_inputs(self):
+        contents = b'CC ethanol\nCCC propane\n'
+        compressors = (
+            (gzip.open, 'gzip'),
+            (lzma.open, 'xz'),
+        )
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            for index, (compressed_open, expected_compression) in enumerate(compressors):
+                # Deliberately omit the usual extension: detection is based on
+                # the file signature rather than its name.
+                input_path = Path(temp_dir) / f'input-{index}.smi'
+                with compressed_open(input_path, 'wb') as stream:
+                    stream.write(contents)
+
+                with self.subTest(compression=expected_compression):
+                    self.assertEqual(
+                        cli.detect_input_compression(input_path),
+                        expected_compression,
+                    )
+                    with cli.read_input_file(
+                        input_path,
+                        is_enamine=False,
+                        is_synthon=False,
+                    ) as chunks:
+                        self.assertEqual(chunks.chunksize, 100_000)
+                        frame = next(chunks)
+                    self.assertEqual(frame.to_dict('records'), [
+                        {'smiles': 'CC', 'ids': 'ethanol'},
+                        {'smiles': 'CCC', 'ids': 'propane'},
+                    ])
+
+    def test_batch_streams_compressed_inputs_into_chunks(self):
+        contents = b''.join(
+            f'C molecule-{index}\n'.encode('utf-8') for index in range(5)
+        )
+        compressors = (
+            (gzip.open, 'gzip'),
+            (lzma.open, 'xz'),
+        )
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            for index, (compressed_open, compression) in enumerate(compressors):
+                input_path = Path(temp_dir) / f'batch-input-{index}.smi'
+                output_dir = Path(temp_dir) / f'chunks-{index}'
+                with compressed_open(input_path, 'wb') as stream:
+                    stream.write(contents)
+
+                with self.subTest(compression=compression):
+                    self.assertEqual(count_input_lines(input_path), 5)
+                    chunk_paths = prepare_batch_chunks(input_path, output_dir, 2)
+                    self.assertEqual(
+                        [path.name for path in chunk_paths],
+                        ['in0000.smi', 'in0001.smi', 'in0002.smi'],
+                    )
+                    self.assertEqual(
+                        [path.read_text().count('\n') for path in chunk_paths],
+                        [2, 2, 1],
+                    )
+                    self.assertEqual(
+                        b''.join(path.read_bytes() for path in chunk_paths),
+                        contents,
+                    )
+                    self.assertEqual(
+                        (output_dir / 'dirlista').read_text().splitlines(),
+                        [path.name for path in chunk_paths],
+                    )
     
     def test_removesalts(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -712,8 +786,8 @@ class Test_MolSanitizer(unittest.TestCase):
             shutil.rmtree(temp_dir)
             tmp_obj.cleanup()
     
-    @unittest.skipIf(OS in ["Windows","Darwin"],
-                     "Skipping test on Windows due to incompatible `split` command.")
+    @unittest.skipIf(OS == "Windows",
+                     "Skipping SLURM shell-script test on Windows.")
     def test_batch(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             args, parser = parsers.parseArguments([], batch_mode=True)
@@ -769,8 +843,8 @@ class Test_MolSanitizer(unittest.TestCase):
                                     "Flags were not passed correctly.")            
             os.chdir(self.path)
 
-    @unittest.skipIf(OS in ["Windows","Darwin"],
-                     "Skipping test on Windows due to incompatible `split` command.")
+    @unittest.skipIf(OS == "Windows",
+                     "Skipping SLURM shell-script test on Windows.")
     def test_batch_whole_node(self):
         """Test whole-node mode: header uses tetralith partition + nodes/ntasks,
         and the script body contains the chunked for-loop with & and wait."""
