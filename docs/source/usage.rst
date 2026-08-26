@@ -450,8 +450,12 @@ Running in batch mode
 msani now supports the batch mode ``msani_batch``, which allows handling bigger SMILES databases on the SLURM-based cluster. Nearly all the flags supported by the standalone msani are supported by the batch mode. In principle, ``msani_batch`` will split the input file into chunks of smaller input files, which is defined by the ``-l`` or ``--lines_per_job`` flag (default: 200). The split files will then be submitted to the SLURM cluster using an array of jobs. By default, a maximum of 500 jobs will be submitted simultaneously to avoid interfering with other users within the same project, but you can change this limit with the ``--max_jobs`` flag.
 
 Batch mode accepts plain, gzip-compressed, and xz-compressed inputs. Compressed
-files are decompressed as a stream into uncompressed job chunks, keeping memory
-usage independent of the input file size.
+files are decompressed once as a stream directly into uncompressed job chunks.
+The generated chunks provide the exact job count, keeping memory usage
+independent of the input file size and avoiding a separate decompression pass
+for line counting. Each input is validated and submitted independently; an
+input that exceeds the array-size or currently available project capacity is
+skipped without preventing later inputs from being considered.
 
 The additional flags supported by ``msani_batch`` so far:
 

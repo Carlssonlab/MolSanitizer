@@ -5,10 +5,12 @@ import shutil
 import tarfile
 import gzip
 import lzma
+import subprocess
 
 from pathlib import Path
 import platform
 from types import SimpleNamespace
+from unittest.mock import patch
 
 
 from pandas import read_csv
@@ -121,6 +123,69 @@ class Test_MolSanitizer(unittest.TestCase):
                         (output_dir / 'dirlista').read_text().splitlines(),
                         [path.name for path in chunk_paths],
                     )
+
+    @unittest.skipIf(OS == "Windows",
+                     "Skipping native split test on Windows.")
+    def test_batch_submission_uses_splitting_as_the_counting_pass(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            first_input = temp_path / 'first.smi'
+            second_input = temp_path / 'second.smi'
+            first_input.write_text('C first\n' * 5)
+            second_input.write_text('C second\n' * 3)
+
+            args, parser = parsers.parseArguments([], batch_mode=True)
+            args.input_files = [first_input, second_input]
+            args.proj_name = 'test-project'
+            args.partition = None
+            args.lines = 2
+            args.timelimit = 1
+            args.max_jobs = 10
+            args.whole_node = False
+            args.whole_node_cores = 1
+            args.test = False
+
+            real_subprocess_run = subprocess.run
+            submissions = []
+
+            def run_command(command, *command_args, **command_kwargs):
+                if isinstance(command, list) and command[0] == 'squeue':
+                    return SimpleNamespace(stdout='', returncode=0)
+                if isinstance(command, list) and command[0] == 'sbatch':
+                    submissions.append(command)
+                    return SimpleNamespace(returncode=0)
+                return real_subprocess_run(
+                    command,
+                    *command_args,
+                    **command_kwargs,
+                )
+
+            previous_dir = Path.cwd()
+            try:
+                os.chdir(temp_path)
+                with (
+                    patch(
+                        'msani.batchmode.count_input_lines',
+                        side_effect=AssertionError(
+                            'batch submission must not make a counting pass'
+                        ),
+                    ),
+                    patch('msani.batchmode.time.sleep'),
+                    patch('msani.batchmode.write_single_job_script'),
+                    patch('msani.batchmode.subprocess.run', side_effect=run_command),
+                    patch('msani.batchmode.max_array_size', 2),
+                ):
+                    Split_Submit_jobs(args, parser)
+            finally:
+                os.chdir(previous_dir)
+
+            # The oversized first input is skipped without preventing the
+            # independently valid second input from being submitted.
+            self.assertFalse((temp_path / 'first').exists())
+            self.assertEqual(len(list((temp_path / 'second').glob('in*.smi'))), 2)
+            self.assertEqual(submissions, [
+                ['sbatch', '--array=0-1%10', 'submit_msani.sh'],
+            ])
     
     def test_removesalts(self):
         with tempfile.TemporaryDirectory() as temp_dir:

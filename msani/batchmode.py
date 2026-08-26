@@ -9,7 +9,9 @@ import os
 import sys
 import time
 import math
+import shutil
 import subprocess
+import tempfile
 
 from yaml import safe_load
 from pathlib import Path
@@ -419,78 +421,129 @@ def Split_Submit_jobs(args: dict, parser):
         print(f"Maximum number of jobs running parallelly (-mj): {args.max_jobs} jobs")
         print(f"Number of compounds per job (-l): {args.lines} lines\n")
 
-        result = subprocess.run(f'squeue -A {args.proj_name} -r | wc -l', shell=True, stdout=subprocess.PIPE, text=True)
-        try: 
-            current_running_jobs = int(result.stdout.strip())
-        except:
-            current_running_jobs = 0
-            pass
+        squeue_command = ['squeue', '--noheader', '--array']
+        if args.proj_name is not None:
+            squeue_command.extend(['--account', str(args.proj_name)])
+        result = subprocess.run(
+            squeue_command,
+            stdout=subprocess.PIPE,
+            text=True,
+            check=True,
+        )
+        current_running_jobs = len(result.stdout.splitlines())
         
-        n_jobs = 0
-        submitting_max_array_size = 0
-        print("Counting the number of jobs to submit...")
+        print("Checking input files...")
         for file in args.input_files:
             if not os.path.exists(file):
                 print(f"File {file} does not exist. Please check the path and try again.")
                 print(f"Exitting MolSanitizer...")
                 return
-            line_count = count_input_lines(file)
-            job_for_this_file = math.ceil(line_count/args.lines)
-            print(f"\tFile {file} will be split into {job_for_this_file} jobs.")
-            n_jobs += job_for_this_file
-            submitting_max_array_size = max(submitting_max_array_size, job_for_this_file)
-        print(f"Total number of jobs to submit: {n_jobs}")
-
-        if args.whole_node:
-            n_array_tasks = math.ceil(n_jobs / cores)
-            print(f"Whole-node mode: {n_jobs} jobs chunked into {n_array_tasks} array tasks ({cores} jobs/node)\n")
-        else:
-            n_array_tasks = n_jobs
-            print()
-
-        if submitting_max_array_size > max_array_size:
-            print(f"Too many jobs in an array to submit ({submitting_max_array_size}). Please increase the number of lines per job or decrease the number of input files")
-            print(f"Exitting MolSanitizer...")
-            return
-        
-        if current_running_jobs + n_array_tasks > max_limit_project:
-            print(f"Current number of jobs running in the project {args.proj_name}: {current_running_jobs}")
-            print(f"Total number of array tasks to submit: {n_array_tasks}")
-            print(f"Total number of jobs will exceed the limit of {max_limit_project} jobs in the project {args.proj_name}")
-            print(f"Please wait for the current jobs to finish before submitting new jobs.")
-            print(f"Exitting MolSanitizer...")
-            return
 
         # Wait for 5 seconds before proceeding
         print("Waiting 5 seconds to review the configurations...")
         time.sleep(5)
         print('Submitting jobs...\n')
         for file in args.input_files:
-            prefix = file.stem
+            file = Path(file)
+            prefix = Path(file.stem)
+            replace_prefix = False
             if os.path.exists(prefix):
                 remove_folder = input(f"Folder {prefix} already exists. Do you want to remove it? (y/n): ")
                 if remove_folder.lower() in ['y','yes']:
-                    print(f"Removing folder {prefix}...\n")
-                    subprocess.run(f"rm -rf {prefix}", shell=True)
+                    replace_prefix = True
                 else:
-                    print(f"Exitting MolSanitizer...\n")
-                    return
-            chunk_paths = prepare_batch_chunks(file, prefix, args.lines)
-            os.chdir(prefix)
-            n_jobs = len(chunk_paths)
-            for chunk_path in chunk_paths:
-                with open(f'{chunk_path.stem}.lock', 'w') as lock:
-                    lock.write('')
-            if args.whole_node:
-                n_array_tasks = math.ceil(n_jobs / cores)
-                print(f"Submitting {n_array_tasks} array tasks ({n_jobs} jobs, {cores} per node)\n")
-                write_single_job_script(active_header, active_script)
-                subprocess.run(f"sbatch --array=0-{n_array_tasks-1}%{args.max_jobs} submit_msani.sh", shell=True)
-            else:
-                print(f"Submitting {n_jobs} jobs\n")
-                write_single_job_script(active_header, active_script)
-                subprocess.run(f"sbatch --array=0-{n_jobs-1}%{args.max_jobs} submit_msani.sh", shell=True)
-            os.chdir('..')
+                    print(f"Skipping input file {file}.\n")
+                    continue
+
+            staging_dir = Path(tempfile.mkdtemp(
+                prefix=f'.{prefix.name}.msani-',
+                dir=prefix.parent,
+            ))
+            try:
+                # Splitting is also the counting pass. Compressed inputs are
+                # therefore decompressed exactly once.
+                chunk_paths = prepare_batch_chunks(
+                    file,
+                    staging_dir,
+                    args.lines,
+                )
+                n_jobs = len(chunk_paths)
+                n_array_tasks = (
+                    math.ceil(n_jobs / cores) if args.whole_node else n_jobs
+                )
+
+                if n_jobs == 0:
+                    print(f"Input file {file} is empty; skipping it.\n")
+                    continue
+
+                print(f"File {file} was split into {n_jobs} jobs.")
+                if args.whole_node:
+                    print(
+                        f"This input requires {n_array_tasks} array tasks "
+                        f"({cores} jobs/node)."
+                    )
+
+                # Each input is submitted as its own array, so the scheduler's
+                # array-size limit applies to this input independently.
+                if n_array_tasks > max_array_size:
+                    print(
+                        f"Skipping {file}: its array requires {n_array_tasks} "
+                        f"tasks, exceeding the limit of {max_array_size}. "
+                        "Please increase the number of lines per job.\n"
+                    )
+                    continue
+
+                # Project capacity is shared by all arrays. Include arrays
+                # submitted earlier in this invocation because they may not be
+                # visible in squeue immediately.
+                if current_running_jobs + n_array_tasks > max_limit_project:
+                    available_tasks = max(
+                        0,
+                        max_limit_project - current_running_jobs,
+                    )
+                    print(
+                        f"Skipping {file}: it requires {n_array_tasks} array "
+                        f"tasks, but the project currently has capacity for "
+                        f"{available_tasks}.\n"
+                    )
+                    continue
+
+                if replace_prefix:
+                    print(f"Removing folder {prefix}...\n")
+                    shutil.rmtree(prefix)
+                staging_dir.rename(prefix)
+
+                previous_dir = Path.cwd()
+                try:
+                    os.chdir(prefix)
+                    for chunk_path in chunk_paths:
+                        with open(f'{chunk_path.stem}.lock', 'w') as lock:
+                            lock.write('')
+                    if args.whole_node:
+                        print(f"Submitting {n_array_tasks} array tasks ({n_jobs} jobs, {cores} per node)\n")
+                    else:
+                        print(f"Submitting {n_jobs} jobs\n")
+                    write_single_job_script(active_header, active_script)
+                    submission = subprocess.run(
+                        [
+                            'sbatch',
+                            f'--array=0-{n_array_tasks-1}%{args.max_jobs}',
+                            'submit_msani.sh',
+                        ],
+                    )
+                finally:
+                    os.chdir(previous_dir)
+
+                if submission.returncode == 0:
+                    current_running_jobs += n_array_tasks
+                else:
+                    print(f"Submission failed for {file}; continuing with the next input.\n")
+            finally:
+                # Once renamed, staging_dir no longer exists. On validation or
+                # splitting failures this removes only our private temporary
+                # directory and leaves any existing result directory intact.
+                if staging_dir.exists():
+                    shutil.rmtree(staging_dir)
         
 def main():
 
