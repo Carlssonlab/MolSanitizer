@@ -3,6 +3,7 @@
 
 _COMPRESSION_SIGNATURES = (
     (b'\x1f\x8b', 'gzip'),
+    (b'BZh', 'bz2'),
     (b'\xfd7zXZ\x00', 'xz'),
 )
 

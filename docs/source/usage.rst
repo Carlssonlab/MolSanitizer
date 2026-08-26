@@ -6,10 +6,10 @@ Preparing the input file
 
 The program requires a white-space or tab-delimited file containing two columns (SMILES, moleculeID) without headers. 
 
-Input files may be uncompressed, gzip-compressed, or xz-compressed. MolSanitizer
-detects gzip and xz from the file contents (so the extension is optional) and
-streams decompressed rows to pandas in chunks rather than loading the whole
-file into memory.
+Input files may be uncompressed, gzip-compressed, bzip2-compressed, or
+xz-compressed. MolSanitizer detects gzip, bzip2, and xz from the file contents
+(so the extension is optional) and streams decompressed rows to pandas in
+chunks rather than loading the whole file into memory.
 
 .. code-block:: console
    
@@ -102,7 +102,7 @@ Help message
     MolSanitizer - A package to prepare SMILES databases
 
     Input and output options:
-    --input_files, -i     Input files containing chemical structures (plain, gzip, or xz)
+    --input_files, -i     Input files containing chemical structures (plain, gzip, bzip2, or xz)
     --input_list, -il     Path to a text file containing one or more input file paths (one per line).
     --smiles, -s          Input SMILES strings
     --extended, -e        Extended SMILES reading (tab-separated files supported only).
@@ -447,15 +447,27 @@ Running in batch mode
 -----------------------------------
 
 
-msani now supports the batch mode ``msani_batch``, which allows handling bigger SMILES databases on the SLURM-based cluster. Nearly all the flags supported by the standalone msani are supported by the batch mode. In principle, ``msani_batch`` will split the input file into chunks of smaller input files, which is defined by the ``-l`` or ``--lines_per_job`` flag (default: 200). The split files will then be submitted to the SLURM cluster using an array of jobs. By default, a maximum of 500 jobs will be submitted simultaneously to avoid interfering with other users within the same project, but you can change this limit with the ``--max_jobs`` flag.
+msani now supports the batch mode ``msani_batch``, which allows handling bigger SMILES databases on a SLURM-based cluster. Nearly all flags supported by standalone ``msani`` are available in batch mode. The ``-l`` or ``--lines_per_job`` option (default: 200) defines how many input records each array job processes. By default, a maximum of 500 jobs run simultaneously, but this can be changed with ``--max_jobs``.
 
-Batch mode accepts plain, gzip-compressed, and xz-compressed inputs. Compressed
-files are decompressed once as a stream directly into uncompressed job chunks.
-The generated chunks provide the exact job count, keeping memory usage
-independent of the input file size and avoiding a separate decompression pass
-for line counting. Each input is validated and submitted independently; an
-input that exceeds the array-size or currently available project capacity is
-skipped without preventing later inputs from being considered.
+Batch mode accepts plain, gzip-compressed, bzip2-compressed, and xz-compressed
+inputs. Each input gets a corresponding batch directory containing
+``input.data``, ``input.offsets``, and the submission script. For plain input,
+``input.data`` is a symbolic link to the original file. Compressed input is
+decompressed once into the single ``input.data`` staging file. During that same
+pass, MolSanitizer records one byte boundary per job in ``input.offsets``.
+Array tasks use these offsets to copy only their assigned range to node-local
+scratch space, so the shared filesystem does not contain thousands of input
+chunks. The temporary task input is removed when the task exits.
+
+Each input is validated and submitted independently. An input that exceeds the
+array-size or currently available project capacity is skipped without
+preventing later inputs from being considered. With cleanup enabled, shared
+staging data and its offset index are removed after every task succeeds; they
+remain available when tasks must be retried. Successful output shards are
+sorted by their numeric job identifier and atomically concatenated into
+``in/processed/processed.smi``. Rejected-output shards are similarly merged into
+``in/removed/removed.smi``. Individual shards are deleted only after their merge
+succeeds.
 
 The additional flags supported by ``msani_batch`` so far:
 

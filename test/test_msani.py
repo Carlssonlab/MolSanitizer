@@ -5,6 +5,7 @@ import shutil
 import tarfile
 import gzip
 import lzma
+import bz2
 import subprocess
 
 from pathlib import Path
@@ -19,8 +20,9 @@ from rdkit import Chem
 from msani import cli
 from msani.batchmode import (
     Split_Submit_jobs,
+    cleanup_script,
     count_input_lines,
-    prepare_batch_chunks,
+    prepare_batch_input,
 )
 from msani.conformers import mol2writer
 from msani.db2.db2conv import db2converter
@@ -60,6 +62,7 @@ class Test_MolSanitizer(unittest.TestCase):
         contents = b'CC ethanol\nCCC propane\n'
         compressors = (
             (gzip.open, 'gzip'),
+            (bz2.open, 'bz2'),
             (lzma.open, 'xz'),
         )
 
@@ -88,45 +91,106 @@ class Test_MolSanitizer(unittest.TestCase):
                         {'smiles': 'CCC', 'ids': 'propane'},
                     ])
 
-    def test_batch_streams_compressed_inputs_into_chunks(self):
+    def test_batch_streams_compressed_inputs_into_indexed_data(self):
         contents = b''.join(
             f'C molecule-{index}\n'.encode('utf-8') for index in range(5)
         )
         compressors = (
             (gzip.open, 'gzip'),
+            (bz2.open, 'bz2'),
             (lzma.open, 'xz'),
         )
 
         with tempfile.TemporaryDirectory() as temp_dir:
             for index, (compressed_open, compression) in enumerate(compressors):
                 input_path = Path(temp_dir) / f'batch-input-{index}.smi'
-                output_dir = Path(temp_dir) / f'chunks-{index}'
+                output_dir = Path(temp_dir) / f'indexed-{index}'
                 with compressed_open(input_path, 'wb') as stream:
                     stream.write(contents)
 
                 with self.subTest(compression=compression):
-                    self.assertEqual(count_input_lines(input_path), 5)
-                    chunk_paths = prepare_batch_chunks(input_path, output_dir, 2)
-                    self.assertEqual(
-                        [path.name for path in chunk_paths],
-                        ['in0000.smi', 'in0001.smi', 'in0002.smi'],
-                    )
-                    self.assertEqual(
-                        [path.read_text().count('\n') for path in chunk_paths],
-                        [2, 2, 1],
-                    )
-                    self.assertEqual(
-                        b''.join(path.read_bytes() for path in chunk_paths),
-                        contents,
-                    )
-                    self.assertEqual(
-                        (output_dir / 'dirlista').read_text().splitlines(),
-                        [path.name for path in chunk_paths],
-                    )
+                    n_jobs = prepare_batch_input(input_path, output_dir, 2)
+                    data_path = output_dir / 'input.data'
+                    offsets = [
+                        int(value)
+                        for value in (
+                            output_dir / 'input.offsets'
+                        ).read_text().splitlines()
+                    ]
+
+                    self.assertEqual(n_jobs, 3)
+                    self.assertFalse(data_path.is_symlink())
+                    self.assertEqual(data_path.read_bytes(), contents)
+                    self.assertEqual(len(offsets), n_jobs + 1)
+                    self.assertEqual([
+                        data_path.read_bytes()[start:end].count(b'\n')
+                        for start, end in zip(offsets, offsets[1:])
+                    ], [2, 2, 1])
+
+    def test_batch_indexes_plain_input_without_copying_it(self):
+        contents = b'C first\nCC second\nCCC third'
+        with tempfile.TemporaryDirectory() as temp_dir:
+            input_path = Path(temp_dir) / 'input.smi'
+            output_dir = Path(temp_dir) / 'indexed'
+            input_path.write_bytes(contents)
+
+            n_jobs = prepare_batch_input(input_path, output_dir, 2)
+
+            self.assertEqual(n_jobs, 2)
+            self.assertTrue((output_dir / 'input.data').is_symlink())
+            self.assertEqual((output_dir / 'input.data').read_bytes(), contents)
+            offsets = [
+                int(value)
+                for value in (
+                    output_dir / 'input.offsets'
+                ).read_text().splitlines()
+            ]
+            self.assertEqual(offsets, [0, len(b'C first\nCC second\n'), len(contents)])
+
+    @unittest.skipIf(OS == "Windows",
+                     "Skipping Bash merge test on Windows.")
+    def test_batch_merge_orders_shards_numerically(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            processed_dir = Path(temp_dir) / 'in' / 'processed'
+            processed_dir.mkdir(parents=True)
+            for name, contents in (
+                ('in10_clean.smi', 'ten\n'),
+                ('in2_clean.smi', 'two\n'),
+                ('in1_clean.smi', 'one\n'),
+            ):
+                (processed_dir / name).write_text(contents)
+
+            definition_start = cleanup_script.index('    merge_shards() {')
+            definition_end = cleanup_script.index(
+                '    if ! merge_shards',
+                definition_start,
+            )
+            merge_definition = cleanup_script[
+                definition_start:definition_end
+            ]
+            merge_command = (
+                merge_definition
+                + "\nmerge_shards in/processed 'in*_clean*' "
+                + 'in/processed/processed.smi\n'
+            )
+            subprocess.run(
+                ['bash', '-c', merge_command],
+                cwd=temp_dir,
+                check=True,
+            )
+
+            self.assertEqual(
+                (processed_dir / 'processed.smi').read_text(),
+                'one\ntwo\nten\n',
+            )
+            self.assertEqual(
+                list(processed_dir.glob('in*_clean*')),
+                [],
+            )
 
     @unittest.skipIf(OS == "Windows",
                      "Skipping native split test on Windows.")
-    def test_batch_submission_uses_splitting_as_the_counting_pass(self):
+    def test_batch_submission_uses_indexing_as_the_counting_pass(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
             first_input = temp_path / 'first.smi'
@@ -182,7 +246,14 @@ class Test_MolSanitizer(unittest.TestCase):
             # The oversized first input is skipped without preventing the
             # independently valid second input from being submitted.
             self.assertFalse((temp_path / 'first').exists())
-            self.assertEqual(len(list((temp_path / 'second').glob('in*.smi'))), 2)
+            second_dir = temp_path / 'second'
+            self.assertTrue((second_dir / 'input.data').is_symlink())
+            self.assertEqual(
+                (second_dir / 'input.offsets').read_text().splitlines(),
+                ['0', '18', '27'],
+            )
+            self.assertEqual(len(list(second_dir.glob('in*.smi'))), 0)
+            self.assertEqual(len(list(second_dir.glob('in*.lock'))), 2)
             self.assertEqual(submissions, [
                 ['sbatch', '--array=0-1%10', 'submit_msani.sh'],
             ])
@@ -877,7 +948,7 @@ class Test_MolSanitizer(unittest.TestCase):
             os.chdir(batch_dir)
 
             # Check for required files
-            required_files = ['submit_msani.sh', 'in0000.smi', 'in0001.smi']
+            required_files = ['submit_msani.sh', 'input.data', 'input.offsets']
             for file in required_files:
                 with self.subTest(file=file):
                     self.assertTrue(os.path.exists(file),
@@ -895,17 +966,20 @@ class Test_MolSanitizer(unittest.TestCase):
             ]
 
             with open('submit_msani.sh', 'r') as f:
-                file_contents = f.readlines()
+                contents = f.read()
+                file_contents = contents.splitlines(keepends=True)
                 self.assertEqual(file_contents[:7], expected_template,
                                  "submit_msani.sh header is incorrect.")
 
-                # Extract and verify flags
-                command_line = file_contents[17].strip()
-                extracted_flags = command_line.split('/msani -i $smiles_file ')[-1].split(' --')
-                # Ensure applied_flags match extracted_flags
+                self.assertIn('dd if=input.data', contents)
+                self.assertIn('-i "$smiles_file" -j 1', contents)
+                self.assertIn('sort -zV', contents)
+                self.assertIn('in/processed/processed.smi', contents)
+                self.assertIn('in/removed/removed.smi', contents)
                 with self.subTest(msg="Checking applied flags"):
-                    self.assertTrue(set(applied_flags).issubset(set(extracted_flags)),
-                                    "Flags were not passed correctly.")            
+                    for flag in applied_flags:
+                        self.assertIn(f'--{flag}', contents)
+            subprocess.run(['bash', '-n', 'submit_msani.sh'], check=True)
             os.chdir(self.path)
 
     @unittest.skipIf(OS == "Windows",
@@ -937,7 +1011,7 @@ class Test_MolSanitizer(unittest.TestCase):
             os.chdir(batch_dir)
 
             # Check for required files
-            required_files = ['submit_msani.sh', 'in0000.smi', 'in0001.smi']
+            required_files = ['submit_msani.sh', 'input.data', 'input.offsets']
             for file in required_files:
                 with self.subTest(file=file):
                     self.assertTrue(os.path.exists(file),
@@ -971,15 +1045,17 @@ class Test_MolSanitizer(unittest.TestCase):
                               "END_IDX calculation missing or incorrect.")
                 self.assertIn('for i in $(seq $START_IDX $END_IDX); do', contents,
                               "Chunked for-loop missing.")
+                self.assertIn('dd if=input.data', contents)
 
             with self.subTest(msg="Checking background & operator"):
                 self.assertIn(' &', contents,
                               "Background '&' operator missing from script.")
 
             with self.subTest(msg="Checking wait command"):
-                self.assertIn('\nwait\n', contents,
+                self.assertIn('wait "$pid"', contents,
                               "'wait' command missing from script.")
 
+            subprocess.run(['bash', '-n', 'submit_msani.sh'], check=True)
             os.chdir(self.path)
 
     def clear_temp_txt(self, temp_dir: str):

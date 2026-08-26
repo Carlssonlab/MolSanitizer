@@ -20,6 +20,13 @@ from rdkit import rdBase
 from msani.io import parsers
 from msani.io.readers import detect_input_compression
 
+
+_DECOMPRESSOR_COMMANDS = {
+    'gzip': 'gzip',
+    'bz2': 'bzip2',
+    'xz': 'xz',
+}
+
 logo=r""" __  __         _  _____                _  _    _                 
 |  \/  |       | |/  ___|              (_)| |  (_)                
 | .  . |  ___  | |\ `--.   __ _  _ __   _ | |_  _  ____ ___  _ __ 
@@ -51,34 +58,56 @@ PARTITION_NAME
 '''
 
 slurm_script='''
-dirs=( $(cat dirlista) )
 TASK_ID=${SLURM_ARRAY_TASK_ID}
-smiles_file=${dirs[$TASK_ID]}
 ARRAY_ID=${SLURM_ARRAY_JOB_ID}
 
-log_prefix=$(basename "$smiles_file")
-log_prefix="${log_prefix%.*}"  # Remove the extension
+offsets=( $(cat input.offsets) )
+start_offset=${offsets[$TASK_ID]}
+end_offset=${offsets[$(( TASK_ID + 1 ))]}
+byte_count=$(( end_offset - start_offset ))
+
+printf -v log_prefix "in%04d" "$TASK_ID"
 log_file="${log_prefix}.log"
-MSANI_PATH -i $smiles_file -j 1'''
+scratch_parent=${SLURM_TMPDIR:-${TMPDIR:-/tmp}}
+task_dir=$(mktemp -d "${scratch_parent}/msani-${ARRAY_ID}-${TASK_ID}-XXXXXX")
+smiles_file="${task_dir}/${log_prefix}.smi"
+trap 'rm -rf "$task_dir"' EXIT
+
+dd if=input.data of="$smiles_file" iflag=skip_bytes,count_bytes \\
+   skip="$start_offset" count="$byte_count" status=none
+MSANI_PATH -i "$smiles_file" -j 1'''
 
 slurm_script_whole_node='''
-dirs=( $(cat dirlista) )
-n_total=${#dirs[@]}
+offsets=( $(cat input.offsets) )
+n_total=$(( ${#offsets[@]} - 1 ))
 ARRAY_ID=${SLURM_ARRAY_JOB_ID}
 TASK_ID=${SLURM_ARRAY_TASK_ID}
 
 START_IDX=$(( TASK_ID * NODE_CORES ))
 END_IDX=$(( START_IDX + NODE_CORES - 1 ))
-if [ $END_IDX -ge $n_total ]; then
+if [ "$END_IDX" -ge "$n_total" ]; then
     END_IDX=$(( n_total - 1 ))
 fi
 
-for i in $(seq $START_IDX $END_IDX); do
-    smiles_file=${dirs[$i]}
-    log_prefix=$(basename "$smiles_file")
-    log_prefix="${log_prefix%.*}"
+run_chunk() {
+    local i=$1
+    local start_offset=${offsets[$i]}
+    local end_offset=${offsets[$(( i + 1 ))]}
+    local byte_count=$(( end_offset - start_offset ))
+    local scratch_parent=${SLURM_TMPDIR:-${TMPDIR:-/tmp}}
+    local task_dir
+    local smiles_file
+    local log_prefix
+    local log_file
+    local chunk_status
+
+    printf -v log_prefix "in%04d" "$i"
     log_file="${log_prefix}.log"
-    MSANI_PATH -i $smiles_file -j 1'''
+    task_dir=$(mktemp -d "${scratch_parent}/msani-${ARRAY_ID}-${i}-XXXXXX")
+    smiles_file="${task_dir}/${log_prefix}.smi"
+    dd if=input.data of="$smiles_file" iflag=skip_bytes,count_bytes \\
+       skip="$start_offset" count="$byte_count" status=none
+    MSANI_PATH -i "$smiles_file" -j 1'''
 
 cleanup_script ="""
 task_count=$(ls *.lock 2>/dev/null | wc -l)
@@ -101,8 +130,47 @@ if [ "$task_count" -eq 0 ]; then
     mkdir -p in/processed in/removed log
     mv *.log log
     mv in*_rejected* in/removed -f 2>/dev/null
-    mv in*_clean* in/processed
-    find in/removed -type d -empty -delete
+    mv in*_clean* in/processed -f 2>/dev/null
+
+    merge_shards() {
+        local source_dir=$1
+        local pattern=$2
+        local destination=$3
+        local temporary="${destination}.tmp"
+        local shard
+        local shards=()
+
+        while IFS= read -r -d '' shard; do
+            shards+=("$shard")
+        done < <(find "$source_dir" -maxdepth 1 -type f -name "$pattern" -print0 | sort -zV)
+
+        # Always produce a deterministic output, including an empty file when
+        # no molecules belong to this category.
+        : > "$temporary" || return 1
+        for shard in "${shards[@]}"; do
+            cat -- "$shard" >> "$temporary" || {
+                rm -f "$temporary"
+                return 1
+            }
+        done
+        mv -f "$temporary" "$destination" || return 1
+
+        if [ "${#shards[@]}" -gt 0 ]; then
+            rm -f -- "${shards[@]}" || return 1
+        fi
+    }
+
+    if ! merge_shards in/processed 'in*_clean*' in/processed/processed.smi; then
+        echo "Failed to merge processed output shards; retaining staging data for recovery."
+        exit 1
+    fi
+    if ! merge_shards in/removed 'in*_rejected*' in/removed/removed.smi; then
+        echo "Failed to merge rejected output shards; retaining staging data for recovery."
+        exit 1
+    fi
+
+    # Remove the shared staging data only after both ordered merges succeed.
+    rm -f input.data input.offsets
 
     # Check for failed tasks using sacct
     failed_tasks=$(sacct -j "${ARRAY_ID}" --format='JobID%30,State' --noheader | grep 'NODE_FAIL' | awk -F_ '{print $2}' | awk '{print $1}' | tr '\n' ',' | sed 's/,$//')
@@ -112,19 +180,8 @@ if [ "$task_count" -eq 0 ]; then
         echo "sbatch --array=${failed_tasks} submit_msani.sh" > RESUBMIT_FAILED_JOBS.txt
         echo "Instructions for resubmitting failed jobs written to RESUBMIT_FAILED_JOBS.txt"
 
-        # Create a pattern to exclude failed task files with zero-padded IDs
-        exclude_pattern=$(echo $failed_tasks | tr ',' '\n' | awk '{printf "in%04d.smi ", $1}' | tr '\n' ' ')
-        echo "Excluding files: $exclude_pattern"
-
-        # Move all `in*.smi` files except those corresponding to failed tasks
-        for file in in*.smi; do
-            if [[ ! $exclude_pattern =~ $(basename "$file") ]]; then
-                mv "$file" in
-            fi
-        done
     else
         echo "No failed tasks detected."
-        mv in*.smi in
     fi
 
     echo "Cleanup complete."
@@ -132,15 +189,22 @@ fi
 """
 
 remove_lock_files = '''
-rm -f "${log_prefix}.lock"
+msani_status=$?
+if [ "$msani_status" -eq 0 ]; then
+    rm -f "${log_prefix}.lock"
+fi
 '''
 
 remove_lock_files_whole_node = '''
+pids=()
 for i in $(seq $START_IDX $END_IDX); do
-    smiles_file=${dirs[$i]}
-    log_prefix=$(basename "$smiles_file")
-    log_prefix="${log_prefix%.*}"
-    rm -f "${log_prefix}.lock"
+    run_chunk "$i" &
+    pids+=("$!")
+done
+
+overall_status=0
+for pid in "${pids[@]}"; do
+    wait "$pid" || overall_status=1
 done
 '''
 with open(os.path.join(os.path.dirname(__file__), 'msani_configurations.yaml')) as confFile:
@@ -164,7 +228,7 @@ def count_input_lines(file_path):
         )
     else:
         decompressor_command = [
-            'gzip' if compression == 'gzip' else 'xz',
+            _DECOMPRESSOR_COMMANDS[compression],
             '-cd',
             str(file_path),
         ]
@@ -193,6 +257,99 @@ def count_input_lines(file_path):
     return int(result.stdout.split()[0])
 
 
+def _write_offset_index(source, index_path, lines_per_job, destination=None):
+    """Stream input data and record byte boundaries for each batch job."""
+    boundaries = [0]
+    total_bytes = 0
+    line_count = 0
+    last_newline_offset = 0
+
+    while True:
+        block = source.read(1024 * 1024)
+        if not block:
+            break
+        if destination is not None:
+            destination.write(block)
+
+        block_start = total_bytes
+        cursor = 0
+        while True:
+            newline = block.find(b'\n', cursor)
+            if newline < 0:
+                break
+            line_count += 1
+            last_newline_offset = block_start + newline + 1
+            if line_count % lines_per_job == 0:
+                boundaries.append(last_newline_offset)
+            cursor = newline + 1
+        total_bytes += len(block)
+
+    # A final line without a newline still belongs to the last job.
+    if total_bytes > last_newline_offset:
+        line_count += 1
+    if total_bytes > boundaries[-1]:
+        boundaries.append(total_bytes)
+
+    with open(index_path, 'w', encoding='ascii') as index_stream:
+        for boundary in boundaries:
+            index_stream.write(f'{boundary}\n')
+
+    return len(boundaries) - 1
+
+
+def prepare_batch_input(file_path, output_dir, lines_per_job):
+    """Create one shared data file (or symlink) and its byte-offset index."""
+    if lines_per_job <= 0:
+        raise ValueError('lines_per_job must be greater than zero')
+
+    file_path = Path(file_path).resolve()
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    data_path = output_dir / 'input.data'
+    index_path = output_dir / 'input.offsets'
+    compression = detect_input_compression(file_path)
+
+    if compression is None:
+        with open(file_path, 'rb') as source:
+            n_jobs = _write_offset_index(
+                source,
+                index_path,
+                lines_per_job,
+            )
+        # A symlink gives every job the same folder-local path without copying
+        # an already uncompressed input.
+        data_path.symlink_to(file_path)
+        return n_jobs
+
+    decompressor_command = [
+        _DECOMPRESSOR_COMMANDS[compression],
+        '-cd',
+        str(file_path),
+    ]
+    decompressor = subprocess.Popen(
+        decompressor_command,
+        stdout=subprocess.PIPE,
+    )
+    try:
+        with open(data_path, 'wb') as destination:
+            n_jobs = _write_offset_index(
+                decompressor.stdout,
+                index_path,
+                lines_per_job,
+                destination,
+            )
+    finally:
+        if decompressor.stdout is not None:
+            decompressor.stdout.close()
+    decompressor_returncode = decompressor.wait()
+    if decompressor_returncode != 0:
+        raise subprocess.CalledProcessError(
+            decompressor_returncode,
+            decompressor_command,
+        )
+    return n_jobs
+
+
 def split_input_file(file_path, output_dir, lines_per_file):
     """Split an input using native tools, streaming decompression if needed."""
     if lines_per_file <= 0:
@@ -216,7 +373,7 @@ def split_input_file(file_path, output_dir, lines_per_file):
         )
     else:
         decompressor_command = [
-            'gzip' if compression == 'gzip' else 'xz',
+            _DECOMPRESSOR_COMMANDS[compression],
             '-cd',
             str(file_path),
         ]
@@ -340,7 +497,7 @@ def test_batch_mode(args: dict, header: str, script: str):
     file = Path(args.prefix) / args.input_files[0]
     prefix = Path(args.prefix) / file.stem  # Ensure prefix is within temp_dir
 
-    prepare_batch_chunks(file, prefix, args.lines)
+    prepare_batch_input(file, prefix, args.lines)
     os.chdir(prefix)
     write_single_job_script(header, script)
 
@@ -377,9 +534,19 @@ def Split_Submit_jobs(args: dict, parser):
         # Inject NODE_CORES and append flags + background launch + wait
         flags = parse_flags_single_job(args, parser)
         active_script = slurm_script_whole_node.replace('NODE_CORES', str(cores))
-        active_script = active_script + flags + ' >> "$log_file" 2>&1 &\ndone\nwait\n' + remove_lock_files_whole_node
+        active_script += flags + ''' >> "$log_file" 2>&1
+    chunk_status=$?
+    rm -rf "$task_dir"
+    if [ "$chunk_status" -eq 0 ]; then
+        rm -f "${log_prefix}.lock"
+    fi
+    return "$chunk_status"
+}
+'''
+        active_script += remove_lock_files_whole_node
         if args.cleanup:
             active_script += '\nlog_file="node_slurm_${ARRAY_ID}_${TASK_ID}.log"\n' + cleanup_script
+        active_script += '\nexit "$overall_status"\n'
     else:
         # --- Standard (1-core-per-task) header (local copy) ---
         active_header = slurm_header
@@ -402,9 +569,10 @@ def Split_Submit_jobs(args: dict, parser):
 
         # --- Standard execution script (local copy) ---
         flags = parse_flags_single_job(args, parser)
-        active_script = slurm_script + flags + remove_lock_files
+        active_script = slurm_script + flags + ' >> "$log_file" 2>&1\n' + remove_lock_files
         if args.cleanup:
             active_script += cleanup_script
+        active_script += '\nexit "$msani_status"\n'
 
 
     if args.test: 
@@ -460,14 +628,13 @@ def Split_Submit_jobs(args: dict, parser):
                 dir=prefix.parent,
             ))
             try:
-                # Splitting is also the counting pass. Compressed inputs are
-                # therefore decompressed exactly once.
-                chunk_paths = prepare_batch_chunks(
+                # Staging and indexing are also the counting pass. Compressed
+                # inputs are therefore decompressed exactly once.
+                n_jobs = prepare_batch_input(
                     file,
                     staging_dir,
                     args.lines,
                 )
-                n_jobs = len(chunk_paths)
                 n_array_tasks = (
                     math.ceil(n_jobs / cores) if args.whole_node else n_jobs
                 )
@@ -476,7 +643,7 @@ def Split_Submit_jobs(args: dict, parser):
                     print(f"Input file {file} is empty; skipping it.\n")
                     continue
 
-                print(f"File {file} was split into {n_jobs} jobs.")
+                print(f"File {file} was indexed into {n_jobs} jobs.")
                 if args.whole_node:
                     print(
                         f"This input requires {n_array_tasks} array tasks "
@@ -516,8 +683,8 @@ def Split_Submit_jobs(args: dict, parser):
                 previous_dir = Path.cwd()
                 try:
                     os.chdir(prefix)
-                    for chunk_path in chunk_paths:
-                        with open(f'{chunk_path.stem}.lock', 'w') as lock:
+                    for job_index in range(n_jobs):
+                        with open(f'in{job_index:04d}.lock', 'w') as lock:
                             lock.write('')
                     if args.whole_node:
                         print(f"Submitting {n_array_tasks} array tasks ({n_jobs} jobs, {cores} per node)\n")

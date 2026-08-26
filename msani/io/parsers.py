@@ -118,7 +118,7 @@ def parseArguments(args = None, batch_mode = False):
         type=str, 
         default=defaults.get('input_files', None), 
         nargs='+', 
-        help='Input files containing chemical structures (plain, gzip, or xz)')
+        help='Input files containing chemical structures (plain, gzip, bzip2, or xz)')
     io_group.add_argument(
         '--input_list', '-il', 
         type=str, 
