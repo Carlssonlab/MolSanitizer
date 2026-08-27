@@ -14,7 +14,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 
-from pandas import read_csv
+from pandas import Series, read_csv
 from rdkit import Chem
 
 from msani import cli
@@ -26,6 +26,10 @@ from msani.batchmode import (
 )
 from msani.conformers import mol2writer
 from msani.db2.db2conv import db2converter
+from msani.filtering.filters import (
+    Filters,
+    _normalize_logp_condition,
+)
 from msani.io import parsers
 
 OS = platform.system()
@@ -383,6 +387,37 @@ class Test_MolSanitizer(unittest.TestCase):
             self.remove_temp_text_files(temp_dir)
             cli.clean_data(args)
             with self.subTest(msg="Checking logP <=350:"):
+                self.compare_relative(f'{temp_dir}/dummy_output_clean.txt',
+                                      f'{self.path}/out_logp_350_clean.txt')
+                self.compare_relative(f'{temp_dir}/dummy_output_rejected.txt',
+                                      f'{self.path}/out_logp_350_rejected.txt')
+
+            with self.subTest(msg="Checking logP condition normalization:"):
+                expected_conditions = {
+                    '3.5': '350',
+                    '350': '350',
+                    ' <= 3.50 ': '<=350',
+                    '.5': '50',
+                    '1.0-3.5': '100-350',
+                    '-2.5--1.0': '-250--100',
+                }
+                for condition, expected in expected_conditions.items():
+                    self.assertEqual(
+                        _normalize_logp_condition(condition), expected
+                    )
+                with self.assertRaises(ValueError):
+                    _normalize_logp_condition('1-2-3')
+                signed_range_mask = Filters.filter_mask(
+                    Series([-300, -150, -50]),
+                    _normalize_logp_condition('-2.5--1.0'),
+                    'logp',
+                )
+                self.assertEqual(signed_range_mask.tolist(), [False, True, False])
+
+            args.logp = '<=3.50'
+            self.remove_temp_text_files(temp_dir)
+            cli.clean_data(args)
+            with self.subTest(msg="Checking native-scale logP <=3.50:"):
                 self.compare_relative(f'{temp_dir}/dummy_output_clean.txt',
                                       f'{self.path}/out_logp_350_clean.txt')
                 self.compare_relative(f'{temp_dir}/dummy_output_rejected.txt',

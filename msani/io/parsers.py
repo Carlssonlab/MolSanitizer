@@ -194,7 +194,7 @@ def parseArguments(args = None, batch_mode = False):
         '--logp', 
         default=defaults.get('logp', None),  
         type=str, 
-        help='Filter by the value of cLogP*100 (UCSF format: cLogP 3.5->350).' if show_advanced_help else argparse.SUPPRESS)
+        help='Filter by cLogP (for example, 3.5). Legacy UCSF-style values multiplied by 100 (for example, 350) are also accepted.' if show_advanced_help else argparse.SUPPRESS)
     filter_group.add_argument(
         '--hba', 
         default=defaults.get('hba', None),  

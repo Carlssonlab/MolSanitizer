@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 from rdkit import Chem, RDLogger, rdBase
 from rdkit.Chem import FilterCatalog as RDFilterCatalog
@@ -16,6 +17,39 @@ salt_remover = SaltRemover.SaltRemover(defnFilename=saltfile)
 _pains_catalog = None
 
 RDLogger.DisableLog('rdApp.*') # To disable error messages with kekulizing tautomers from RDKit
+
+_NUMBER_PATTERN = r'-?(?:\d+(?:\.\d*)?|\.\d+)'
+
+
+def _format_scaled_logp(value: str) -> str:
+    """Return a logP value on the legacy cLogP*100 comparison scale."""
+    numeric_value = float(value)
+    scaled_value = numeric_value if abs(numeric_value) >= 100 else numeric_value * 100
+    return f'{scaled_value:g}'
+
+
+def _normalize_logp_condition(condition) -> str:
+    """Accept cLogP units (3.5) as well as UCSF cLogP*100 units (350)."""
+    condition = str(condition).strip().replace(' ', '')
+    operator = re.fullmatch(f'(<=|>=|<|>|=)({_NUMBER_PATTERN})', condition)
+    if operator:
+        return operator.group(1) + _format_scaled_logp(operator.group(2))
+
+    number = re.fullmatch(_NUMBER_PATTERN, condition)
+    if number:
+        return _format_scaled_logp(number.group(0))
+
+    interval = re.fullmatch(
+        f'({_NUMBER_PATTERN})-({_NUMBER_PATTERN})', condition
+    )
+    if interval:
+        return '-'.join(_format_scaled_logp(value) for value in interval.groups())
+
+    raise ValueError(
+        f'Invalid logP condition {condition!r}; use 3.5, 350, <=3.5, '
+        'or a range such as 1.0-3.5'
+    )
+
 
 class Filters():
     """A class to apply various filtering operations on molecular data.
@@ -320,27 +354,32 @@ class Filters():
     @staticmethod
     def filter_mask(values: Series, condition: str, column: str) -> Series:
         """Evaluate a descriptor condition directly against a Series."""
-        if "-" in condition:
-            lower, upper = map(float, condition.split('-'))
+        condition = str(condition).strip().replace(' ', '')
+        operator = re.fullmatch(f'(<=|>=|<|>|=)({_NUMBER_PATTERN})', condition)
+        if operator:
+            value = float(operator.group(2))
+            comparisons = {
+                '>=': values.ge,
+                '<=': values.le,
+                '>': values.gt,
+                '<': values.lt,
+                '=': values.eq,
+            }
+            return comparisons[operator.group(1)](value)
+
+        interval = re.fullmatch(
+            f'({_NUMBER_PATTERN})-({_NUMBER_PATTERN})', condition
+        )
+        if interval:
+            lower, upper = map(float, interval.groups())
             return (values >= lower) & (values <= upper)
 
-        if '>' in condition or '<' in condition:
-            condition = condition.strip()
-            for prefix, comparison in (
-                ('>=', values.ge),
-                ('<=', values.le),
-                ('>', values.gt),
-                ('<', values.lt),
-            ):
-                if condition.startswith(prefix):
-                    return comparison(float(condition[len(prefix):]))
-            raise ValueError(f"Invalid condition: {condition}")
+        number = re.fullmatch(_NUMBER_PATTERN, condition)
+        if number:
+            value = float(number.group(0))
+            return values.le(value) if column == 'logp' else values.eq(value)
 
-        if condition.startswith('='):
-            return values.eq(float(condition.split('=', 1)[1]))
-        if column == 'logp':
-            return values.le(float(condition))
-        return values.eq(float(condition))
+        raise ValueError(f'Invalid condition: {condition}')
 
     @staticmethod    
     def filter_by_ha(df, filter_query, rejectedFile, debug = False) -> DataFrame:
@@ -379,7 +418,8 @@ class Filters():
         Returns:
             DataFrame: A new DataFrame chunk with molecules containing the specified logP value.
         """
-        logp_series = df['mol'].apply(lambda x: (MolLogP(x))*100)
+        filter_query = _normalize_logp_condition(filter_query)
+        logp_series = df['mol'].apply(lambda mol: MolLogP(mol) * 100)
         mask = Filters.filter_mask(logp_series, filter_query, 'logp')
         rejected_mask = ~mask
         
