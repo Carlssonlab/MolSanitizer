@@ -7,14 +7,14 @@ import time
 import numpy as np
 import yaml
 
-from pandas import DataFrame, concat, read_csv  # only what you use
+from pandas import DataFrame, read_csv  # only what you use
 from rdkit import Chem
 from rdkit.Chem import rdMolTransforms, rdMolAlign
 from rdkit.Chem.rdchem import Mol, Conformer
 
 from pathlib import Path
 
-from msani.db2 import db2conv
+from msani.db2 import db2writer
 from msani.conformers import mol2writer
 
 
@@ -620,7 +620,7 @@ def align_and_convert_to_db2(ring_conf, rigid_scaffold, solv_obj, db2_topology):
         db2_topology, aligned_mol
     )
 
-    return db2conv.db2converter(molecule_data, solv_obj)
+    return db2writer.write_db2(molecule_data, solv_obj)
 
 
 # All deterministic version of torsional sampling will be available here

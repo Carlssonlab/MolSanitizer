@@ -25,7 +25,7 @@ from msani.batchmode import (
     prepare_batch_input,
 )
 from msani.conformers import mol2writer
-from msani.db2.db2conv import db2converter
+from msani.db2.db2writer import write_db2
 from msani.filtering.filters import (
     Filters,
     _normalize_logp_condition,
@@ -745,7 +745,7 @@ class Test_MolSanitizer(unittest.TestCase):
         shutil.rmtree(f"{temp_dir}")
         tmp_obj.cleanup()
 
-    def test_db2converter_from_pregenerated_mol2(self):
+    def test_db2writer_from_pregenerated_mol2(self):
         """Convert the fixed ZINC conformer archive without embedding."""
 
         mol2_path = self.path / "ZINCpg000027Y0hd.mol2.gz"
@@ -808,7 +808,7 @@ class Test_MolSanitizer(unittest.TestCase):
         molecule_data = mol2writer.Mol2Writer.with_db2_conformers(
             topology, molecule
         )
-        observed_lines = db2converter(molecule_data, solvation).splitlines()
+        observed_lines = write_db2(molecule_data, solvation).splitlines()
 
         self.assertEqual(len(observed_lines), len(expected_lines))
         for line_number, (observed, reference) in enumerate(

@@ -8,7 +8,7 @@ from msani.db2.layout import build_db2_layout, serialize_db2
 from msani.db2.molecule import MoleculeData, prepare_molecule_for_db2
 
 
-def db2converter(
+def write_db2(
     molecule: MoleculeData,
     solvation_data: Any,
     disttol: float = 0.001,
