@@ -266,8 +266,10 @@ def parseArguments(args = None, batch_mode = False):
         '--extended-tautomers', '-et',
         action='store_true',
         default=defaults.get('extended_tautomers', False),
-        help="Extended tautomers enumeration using additional tautomerization rules (will also activate '--tautomers')\n" \
-              "This option will enumerate to less probable tautomeric forms."
+        help="Extended enumeration of tautomers using additional tautomerization rules \n" \
+              "(will also activate '--tautomers'). Enumerates less probable tautomeric forms\n"
+              "for specific chemotypes: aromatic nitrogen compounds, amidine-like structures,\n"
+              "and vinylogous acids (up to 20 forms per compound total)."
     )
     smiles_group.add_argument(
         '--protonation', '-prot',

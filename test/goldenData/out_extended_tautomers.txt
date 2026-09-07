@@ -12,3 +12,7 @@ Cc1ccc2[nH]cnc2c1 benzimidazole_2
 CCCNC(=NCC)NC guanidine_1
 CCCNC(=NC)NCC guanidine_2
 CCCN=C(NC)NCC guanidine_3
+Cc1ccc2[nH]ccnc1-2 1H-1,4-diaza_1
+Cc1ccc2ncc[nH]c1-2 1H-1,4-diaza_2
+CN(C)C1CCC(=O)C(C(N)=O)=C1O vinylog_acid_1
+CN(C)C1CCC(O)=C(C(N)=O)C1=O vinylog_acid_2
