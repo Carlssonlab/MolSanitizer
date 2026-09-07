@@ -62,6 +62,10 @@ AMSOL 7.1 executables and intermediate input/output files are no longer used.
 
 ## Contribution
 
+Python workflows live in `msani/`, while native implementations and Python/C++
+bindings are grouped in [`msani/cpp/`](msani/cpp/README.md). That directory's
+README maps each component to its source files and build target.
+
 We warmly welcome contributions of all kinds, whether it's reporting a bug, suggesting a feature, or developing new functionality. To get started, please refer to our [CONTRIBUTING.md](CONTRIBUTING.md) guide, which details the steps for contributing, from opening an issue to submitting a pull request.
 
 

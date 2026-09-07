@@ -13,11 +13,5 @@ include(cmake/MSANINative.cmake)
 # Find Python and pybind11 (shared across all modules)
 find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
 
-# Build conformer generation C++ extension
-add_subdirectory(msani/conformers/cpp)
-
-# Build stereoisomer enumeration C++ extension  
-add_subdirectory(msani/moltransform/cpp)
-
-# Build the vendored AMSOLcpp Python package.
-add_subdirectory(msani/amsol)
+# Native implementation and Python bindings share one source entry point.
+add_subdirectory(msani/cpp)

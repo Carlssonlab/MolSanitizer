@@ -4,7 +4,7 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "MolSanitizer"
-version = "0.7.0"
+version = "0.7.1"
 description = "An Efficient In-silico Refinement pipeline for Virtual Screening (protonation, tautomers,...)"
 readme = "README.md"
 authors = [
@@ -59,6 +59,8 @@ install.components = ["python"]
 wheel.packages = ["msani"]
 # Native source and build artifacts belong in the sdist, not a binary wheel.
 wheel.exclude = [
+    "msani/cpp/**",
+    "msani/amsol/amsolcpp/**",
     "**/.DS_Store",
     "**/__pycache__/**",
     "msani/**/*.cpp",
@@ -69,7 +71,7 @@ wheel.exclude = [
 ]
 wheel.license-files = [
     "LICENSE",
-    "msani/amsol/LICENSE",
+    "msani/cpp/amsol/LICENSE",
     "third_party/rdkit/LICENSE",
     "third_party/boost/LICENSE",
     "third_party/bzip2/LICENSE",

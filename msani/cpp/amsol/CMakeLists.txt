@@ -30,7 +30,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "^(GNU|Clang|AppleClang)$")
     )
 endif()
 
-pybind11_add_module(_amsolcpp MODULE python/bindings.cpp)
+pybind11_add_module(_amsolcpp MODULE ../bindings/amsol.cpp)
 msani_configure_native_extension(_amsolcpp)
 target_compile_features(_amsolcpp PRIVATE cxx_std_20)
 target_link_libraries(_amsolcpp PRIVATE amsolcpp_core)
@@ -39,7 +39,7 @@ install(TARGETS _amsolcpp
     LIBRARY DESTINATION amsolcpp COMPONENT python
     RUNTIME DESTINATION amsolcpp COMPONENT python
 )
-install(FILES python/amsolcpp/__init__.py
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/../../amsol/amsolcpp/__init__.py
     DESTINATION amsolcpp
     COMPONENT python
 )

@@ -243,7 +243,7 @@ endif()
 
 # Create the Python module
 pybind11_add_module(msani_stereoisomers
-    pybind_interface.cpp
+    ../bindings/stereoisomers.cpp
 )
 
 # Apply MSVC-specific compile flags to this target
@@ -303,7 +303,7 @@ install(TARGETS msani_stereoisomers
 )
 
 # Install the .pyi stub file alongside the compiled module
-install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/../cpp/msani_stereoisomers.pyi
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/msani_stereoisomers.pyi
     DESTINATION .
     COMPONENT python
 )

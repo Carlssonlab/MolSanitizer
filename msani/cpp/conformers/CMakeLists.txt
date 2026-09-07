@@ -326,7 +326,7 @@ endif()
 
 # Create the Python module
 pybind11_add_module(msani_confgen_cpp 
-    pybind_interface.cpp
+    ../bindings/conformers.cpp
 )
 
 # Apply MSVC-specific compile flags to this target
@@ -437,7 +437,7 @@ install(TARGETS msani_confgen_cpp
 )
 
 # Install the .pyi stub file alongside the compiled module
-install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/../cpp/msani_confgen_cpp.pyi
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/msani_confgen_cpp.pyi
     DESTINATION .
     COMPONENT python
 )
