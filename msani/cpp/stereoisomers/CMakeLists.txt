@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 project(msani_stereoisomers)
 
 # Always find the Python interpreter from the build environment
-find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
+find_package(Python3 COMPONENTS Interpreter Development.Module REQUIRED)
 
 # Find RDKit root (Conda on Windows uses Library/*)
 set(RDKit_ROOT_DIR "$ENV{RDBASE}")
@@ -92,8 +92,7 @@ if(MSVC)
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /O2 /Ob2 /DNDEBUG" CACHE STRING "" FORCE)
     # Use target-specific flags instead of global add_compile_options to avoid conflicts
     set(MSVC_COMPILE_FLAGS /W3 /EHsc /bigobj /Zc:__cplusplus)
-    # Define BOOST_NO_EXCEPTIONS=0 to ensure Boost exception handling is enabled
-    add_compile_definitions(BOOST_NO_EXCEPTIONS=0)
+    # Leave BOOST_NO_EXCEPTIONS undefined: Boost checks its presence, not value.
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     # GCC or Clang
     add_compile_options(-O3 -Wall)
@@ -148,7 +147,7 @@ if(RDKit_ROOT_DIR)
 endif()
 
 # Find Python and pybind11 (pybind11 provides a CMake config in Conda)
-find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
+find_package(Python3 COMPONENTS Interpreter Development.Module REQUIRED)
 find_package(pybind11 CONFIG REQUIRED)
 
 # Prefer imported RDKit targets via CMake config (Conda installs ship RDKitConfig.cmake)
@@ -206,15 +205,21 @@ find_package(Boost REQUIRED)
 add_library(stereoisomer_lib STATIC
     EnumerateStereoisomers.cpp
     Flippers.cpp
-    $<$<PLATFORM_ID:Windows>:boost_throw_stub.cpp>
-    $<$<PLATFORM_ID:Windows>:rdkit_romol_destroy_stub.cpp>
 )
 msani_configure_native_static_target(stereoisomer_lib)
+if(TARGET Boost::headers)
+    target_link_libraries(stereoisomer_lib PUBLIC Boost::headers)
+elseif(TARGET Boost::boost)
+    target_link_libraries(stereoisomer_lib PUBLIC Boost::boost)
+else()
+    target_include_directories(stereoisomer_lib PUBLIC ${Boost_INCLUDE_DIRS})
+endif()
 
 # Apply MSVC-specific compile flags to this target
 if(MSVC)
     target_compile_options(stereoisomer_lib PRIVATE ${MSVC_COMPILE_FLAGS})
-    target_compile_definitions(stereoisomer_lib PRIVATE RDKIT_DYN_LINK)
+    target_compile_definitions(stereoisomer_lib PRIVATE
+        $<$<STREQUAL:${MSANI_RDKIT_LINKAGE},shared>:RDKIT_DYN_LINK>)
 endif()
 
 target_include_directories(stereoisomer_lib PUBLIC
@@ -249,7 +254,8 @@ pybind11_add_module(msani_stereoisomers
 # Apply MSVC-specific compile flags to this target
 if(MSVC)
     target_compile_options(msani_stereoisomers PRIVATE ${MSVC_COMPILE_FLAGS})
-    target_compile_definitions(msani_stereoisomers PRIVATE RDKIT_DYN_LINK)
+    target_compile_definitions(msani_stereoisomers PRIVATE
+        $<$<STREQUAL:${MSANI_RDKIT_LINKAGE},shared>:RDKIT_DYN_LINK>)
     target_link_options(msani_stereoisomers PRIVATE /VERBOSE:LIB)
 endif()
 

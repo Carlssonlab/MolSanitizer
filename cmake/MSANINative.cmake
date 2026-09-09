@@ -14,13 +14,6 @@ function(msani_select_rdkit_targets output_variable)
             "'${MSANI_RDKIT_LINKAGE}'")
     endif()
 
-    if(MSANI_RDKIT_LINKAGE STREQUAL "static" AND MSVC)
-        message(FATAL_ERROR
-            "The private static RDKit wheel path is currently implemented "
-            "for Linux packaging only. Use MSANI_RDKIT_LINKAGE=shared for "
-            "Windows development builds.")
-    endif()
-
     set(_msani_selected_targets)
     foreach(_msani_rdkit_component IN LISTS ARGN)
         if(MSANI_RDKIT_LINKAGE STREQUAL "static")
@@ -41,7 +34,7 @@ function(msani_select_rdkit_targets output_variable)
             if(NOT _msani_rdkit_type STREQUAL "STATIC_LIBRARY")
                 message(FATAL_ERROR
                     "${_msani_rdkit_target} is ${_msani_rdkit_type}, not a "
-                    "static RDKit library. Rebuild RDKit 2025.09.5 with "
+                    "static RDKit library. Rebuild the selected RDKit SDK with "
                     "RDK_BUILD_STATIC_LIBS_ONLY=ON.")
             endif()
         endif()

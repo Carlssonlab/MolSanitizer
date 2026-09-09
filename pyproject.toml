@@ -4,7 +4,7 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "MolSanitizer"
-version = "0.7.1"
+version = "0.7.1a1"
 description = "An Efficient In-silico Refinement pipeline for Virtual Screening (protonation, tautomers,...)"
 readme = "README.md"
 authors = [
@@ -18,11 +18,13 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     'Programming Language :: Python :: 3.11',
     'Programming Language :: Python :: 3.12',
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Operating System :: POSIX :: Linux",
     "Topic :: Scientific/Engineering :: Chemistry",
 ]
 keywords = ["docking", "drug design"]
-requires-python = ">=3.10,<3.13"
+requires-python = ">=3.10,<3.15"
 dependencies = [
     "pandas",
     "numpy",
@@ -34,7 +36,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-pdbqt = ["meeko>=0.7.1"]
+pdbqt = ["meeko>=0.7.1", "scipy"]
 
 [project.urls]
 Homepage = "https://github.com/phonglam3103/MolSanitizer.git"
@@ -43,8 +45,8 @@ Homepage = "https://github.com/phonglam3103/MolSanitizer.git"
 msani = "msani.cli:main"
 msani_batch = "msani.batchmode:main"
 strain = "msani.filtering.strain_filter:main"
-ionizer = "msani.moltransform.ionizer:main"
-tautomerizer = "msani.moltransform.tautomerizer:main"
+m_ionizer = "msani.moltransform.ionizer:main"
+m_tautomerizer = "msani.moltransform.tautomerizer:main"
 gen3d = "msani.conformers.conformers:main"
 
 [tool.setuptools]

@@ -22,7 +22,9 @@ target_include_directories(amsolcpp_core
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
     PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
-if(CMAKE_CXX_COMPILER_ID MATCHES "^(GNU|Clang|AppleClang)$")
+if(MSVC)
+    target_compile_options(amsolcpp_core PRIVATE /EHsc /bigobj /Zc:__cplusplus /fp:strict)
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "^(GNU|Clang|AppleClang)$")
     # Preserve AMSOLcpp's audited floating-point behavior across builds.
     target_compile_options(amsolcpp_core PRIVATE
         -fno-fast-math

@@ -12,6 +12,9 @@ import math
 import shutil
 import subprocess
 import tempfile
+import gzip
+import bz2
+import lzma
 
 from yaml import safe_load
 from pathlib import Path
@@ -26,6 +29,8 @@ _DECOMPRESSOR_COMMANDS = {
     'bz2': 'bzip2',
     'xz': 'xz',
 }
+
+_DECOMPRESSOR_OPEN = {'gzip': gzip.open, 'bz2': bz2.open, 'xz': lzma.open}
 
 logo=r""" __  __         _  _____                _  _    _                 
 |  \/  |       | |/  ___|              (_)| |  (_)                
@@ -219,6 +224,10 @@ with open(os.path.join(os.path.dirname(__file__), 'msani_configurations.yaml')) 
 def count_input_lines(file_path):
     """Count input lines with native tools, streaming decompression if needed."""
     compression = detect_input_compression(file_path)
+    if compression and not shutil.which(_DECOMPRESSOR_COMMANDS[compression]):
+        with _DECOMPRESSOR_OPEN[compression](file_path, 'rb') as source:
+            return sum(block.count(b'\n') for block in iter(
+                lambda: source.read(1024 * 1024), b''))
     if compression is None:
         result = subprocess.run(
             ['wc', '-l', str(file_path)],
@@ -321,6 +330,12 @@ def prepare_batch_input(file_path, output_dir, lines_per_job):
         data_path.symlink_to(file_path)
         return n_jobs
 
+    if not shutil.which(_DECOMPRESSOR_COMMANDS[compression]):
+        with _DECOMPRESSOR_OPEN[compression](file_path, 'rb') as source:
+            with open(data_path, 'wb') as destination:
+                return _write_offset_index(
+                    source, index_path, lines_per_job, destination)
+
     decompressor_command = [
         _DECOMPRESSOR_COMMANDS[compression],
         '-cd',
@@ -366,6 +381,23 @@ def split_input_file(file_path, output_dir, lines_per_file):
     ]
 
     compression = detect_input_compression(file_path)
+    if compression and not shutil.which(_DECOMPRESSOR_COMMANDS[compression]):
+        chunk_paths = []
+        with _DECOMPRESSOR_OPEN[compression](file_path, 'rb') as source:
+            destination = None
+            try:
+                for index, line in enumerate(source):
+                    if index % lines_per_file == 0:
+                        if destination is not None:
+                            destination.close()
+                        chunk_path = output_dir / f'in{len(chunk_paths):04d}.smi'
+                        destination = open(chunk_path, 'wb')
+                        chunk_paths.append(chunk_path)
+                    destination.write(line)
+            finally:
+                if destination is not None:
+                    destination.close()
+        return chunk_paths
     if compression is None:
         subprocess.run(
             split_command + [str(file_path), str(output_prefix)],

@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 project(msani_confgen_cpp)
 
 # Always find the Python interpreter from the build environment
-find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
+find_package(Python3 COMPONENTS Interpreter Development.Module REQUIRED)
 
 # Find RDKit root (Conda on Windows uses Library/*)
 set(RDKit_ROOT_DIR "$ENV{RDBASE}")
@@ -111,8 +111,7 @@ if(MSVC)
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /O2 /Ob2 /DNDEBUG" CACHE STRING "" FORCE)
     # Use target-specific flags instead of global add_compile_options to avoid conflicts
     set(MSVC_COMPILE_FLAGS /W3 /EHsc /bigobj /Zc:__cplusplus)
-    # Define BOOST_NO_EXCEPTIONS=0 to ensure Boost exception handling is enabled
-    add_compile_definitions(BOOST_NO_EXCEPTIONS=0)
+    # Leave BOOST_NO_EXCEPTIONS undefined: Boost checks its presence, not value.
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     # GCC or Clang
     add_compile_options(-O3 -Wall)
@@ -235,7 +234,7 @@ if(NOT pybind11_FOUND)
             INTERFACE_INCLUDE_DIRECTORIES "${PYBIND11_INCLUDE_DIR}")
         
     # Find Python (already found as Python3)
-    find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
+    find_package(Python3 COMPONENTS Interpreter Development.Module REQUIRED)
         
         # Create pybind11::module target
         add_library(pybind11::module INTERFACE IMPORTED)
@@ -278,15 +277,21 @@ add_library(stochastic_sampling_lib STATIC
     accelerated_rmsd.cpp
     stochastic_sampling.cpp
     initial_embedder.cpp
-    $<$<PLATFORM_ID:Windows>:boost_throw_stub.cpp>
-    $<$<PLATFORM_ID:Windows>:rdkit_romol_destroy_stub.cpp>
 )
 msani_configure_native_static_target(stochastic_sampling_lib)
+if(TARGET Boost::headers)
+    target_link_libraries(stochastic_sampling_lib PUBLIC Boost::headers)
+elseif(TARGET Boost::boost)
+    target_link_libraries(stochastic_sampling_lib PUBLIC Boost::boost)
+else()
+    target_include_directories(stochastic_sampling_lib PUBLIC ${Boost_INCLUDE_DIRS})
+endif()
 
 # Apply MSVC-specific compile flags to this target
 if(MSVC)
     target_compile_options(stochastic_sampling_lib PRIVATE ${MSVC_COMPILE_FLAGS})
-    target_compile_definitions(stochastic_sampling_lib PRIVATE RDKIT_DYN_LINK)
+    target_compile_definitions(stochastic_sampling_lib PRIVATE
+        $<$<STREQUAL:${MSANI_RDKIT_LINKAGE},shared>:RDKIT_DYN_LINK>)
 endif()
 
 # Set target properties for the library
@@ -332,7 +337,8 @@ pybind11_add_module(msani_confgen_cpp
 # Apply MSVC-specific compile flags to this target
 if(MSVC)
     target_compile_options(msani_confgen_cpp PRIVATE ${MSVC_COMPILE_FLAGS})
-    target_compile_definitions(msani_confgen_cpp PRIVATE RDKIT_DYN_LINK)
+    target_compile_definitions(msani_confgen_cpp PRIVATE
+        $<$<STREQUAL:${MSANI_RDKIT_LINKAGE},shared>:RDKIT_DYN_LINK>)
     # Enable verbose library search output from the linker
     target_link_options(msani_confgen_cpp PRIVATE /VERBOSE:LIB)
 endif()
