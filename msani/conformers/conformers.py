@@ -60,14 +60,31 @@ except ImportError:
     AMSOLCPP_AVAILABLE = False
 
 # Check if Meeko is installed
+MEEKO_IMPORT_ERROR = None
 try:
     from meeko.preparation import MoleculePreparation
     from meeko.writer import PDBQTWriterLegacy
     MEEKO_AVAILABLE = True
-except ImportError:
+except ImportError as error:
+    MEEKO_IMPORT_ERROR = error
     MEEKO_AVAILABLE = False
     MoleculePreparation = None
     PDBQTWriterLegacy = None
+
+
+def _require_meeko():
+    """Keep Meeko optional, but do not hide broken installations."""
+    if not MEEKO_AVAILABLE:
+        detail = (
+            f' Original import error: {type(MEEKO_IMPORT_ERROR).__name__}: '
+            f'{MEEKO_IMPORT_ERROR}' if MEEKO_IMPORT_ERROR is not None else ''
+        )
+        raise ImportError(
+            'Meeko could not be imported for PDBQT output. '
+            'Install the optional dependency with '
+            '"pip install MolSanitizer[pdbqt]"; if already installed, '
+            'check its dependencies and compatibility.' + detail
+        ) from MEEKO_IMPORT_ERROR
 
 # Check if the CPP-accelerated sampling module is available
 try:
@@ -1112,11 +1129,7 @@ class ConformerGenerator:
         Args:
             filename (str): The name of the output PDBQT file. If None, defaults to self.name.pdbqt.
         """
-        if not MEEKO_AVAILABLE:
-            raise ImportError(
-                'Meeko is required for PDBQT output. Install the optional dependency with '
-                '"pip install MolSanitizer[pdbqt]".'
-            )
+        _require_meeko()
 
         if filename is None:
             filename = self.name
@@ -1400,11 +1413,8 @@ def _process_conformer_row(row, config, request_alignment, archive):
         print(f'Handling {name}')
     started = time.perf_counter()
     try:
-        if 'pdbqt' in config.formats and not MEEKO_AVAILABLE:
-            raise ImportError(
-                'Meeko is not available for PDBQT output. Install it with '
-                '"pip install MolSanitizer[pdbqt]".'
-            )
+        if 'pdbqt' in config.formats:
+            _require_meeko()
         if config.method == 'obabel' and not OBABEL_AVAILABLE:
             raise ImportError(
                 'Open Babel was selected for embedding, but its obabel executable was not found. '
