@@ -33,52 +33,9 @@ if(RDKit_ROOT_DIR)
     )
 endif()
 
-# Try to get Python's site-packages path
-execute_process(
-    COMMAND ${Python3_EXECUTABLE} -c "import sys; import sysconfig; print(sysconfig.get_path('purelib'))"
-    OUTPUT_VARIABLE PYTHON_SITE_PACKAGES
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-    ERROR_QUIET
-)
-message(STATUS "Python site-packages: ${PYTHON_SITE_PACKAGES}")
-message(STATUS "RDKit root directory: ${RDKit_ROOT_DIR}")
-message(STATUS "Python executable: ${Python3_EXECUTABLE}")
-
-# Try to detect RDKit version using Python to determine C++ standard
-# Add explicit PYTHONPATH from conda environment to ensure rdkit can be found
-if(WIN32)
-    set(PYTHON_PATH_SEP ";")
-    set(RDKIT_SITE_PACKAGES "${RDKit_ROOT_DIR}/Lib/site-packages")
-    # Ensure RDKit DLLs are in PATH for the import to work
-    set(ENV{PATH} "${RDKit_ROOT_DIR}/Library/bin;$ENV{PATH}")
-else()
-    set(PYTHON_PATH_SEP ":")
-    set(RDKIT_SITE_PACKAGES "${RDKit_ROOT_DIR}/lib/python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}/site-packages")
-endif()
-
-set(ENV{PYTHONPATH} "${RDKIT_SITE_PACKAGES}${PYTHON_PATH_SEP}${PYTHON_SITE_PACKAGES}${PYTHON_PATH_SEP}$ENV{PYTHONPATH}")
-execute_process(
-    COMMAND ${Python3_EXECUTABLE} -c "import sys; sys.path.insert(0, '${RDKIT_SITE_PACKAGES}'); sys.path.insert(0, '${PYTHON_SITE_PACKAGES}'); import rdkit; print(rdkit.__version__)"
-    OUTPUT_VARIABLE RDKIT_VERSION
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-    RESULT_VARIABLE RESULT
-    ERROR_QUIET
-)
-if(RESULT EQUAL 0)
-    message(STATUS "Detected RDKit version via Python: ${RDKIT_VERSION}")
-    # Set C++ standard based on RDKit version
-    # RDKit < 2025.3.1: C++17, >= 2025.3.1: C++20
-    if(RDKIT_VERSION VERSION_LESS "2025.3.1")
-        set(CMAKE_CXX_STANDARD 17)
-        message(STATUS "Using C++17 for RDKit version ${RDKIT_VERSION}")
-    else()
-        set(CMAKE_CXX_STANDARD 20)
-        message(STATUS "Using C++20 for RDKit version ${RDKIT_VERSION}")
-    endif()
-else()
-    message(WARNING "Could not detect RDKit version via Python, defaulting to C++20")
-    set(CMAKE_CXX_STANDARD 20)
-endif()
+# RDKit 2025.9 requires C++20.
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Local static libraries must be usable from Python extension modules.
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)

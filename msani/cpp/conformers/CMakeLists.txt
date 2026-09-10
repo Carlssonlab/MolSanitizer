@@ -44,7 +44,6 @@ message(STATUS "Python site-packages: ${PYTHON_SITE_PACKAGES}")
 message(STATUS "RDKit root directory: ${RDKit_ROOT_DIR}")
 message(STATUS "Python executable: ${Python3_EXECUTABLE}")
 
-# Try to detect RDKit version using Python to determine C++ standard
 # Add explicit PYTHONPATH from conda environment to ensure rdkit can be found
 if(WIN32)
     set(PYTHON_PATH_SEP ";")
@@ -57,30 +56,8 @@ else()
 endif()
 
 set(ENV{PYTHONPATH} "${RDKIT_SITE_PACKAGES}${PYTHON_PATH_SEP}${PYTHON_SITE_PACKAGES}${PYTHON_PATH_SEP}$ENV{PYTHONPATH}")
-execute_process(
-    COMMAND ${Python3_EXECUTABLE} -c "import sys; sys.path.insert(0, '${RDKIT_SITE_PACKAGES}'); sys.path.insert(0, '${PYTHON_SITE_PACKAGES}'); import rdkit; print(rdkit.__version__)"
-    OUTPUT_VARIABLE RDKIT_VERSION
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-    RESULT_VARIABLE RESULT
-    ERROR_QUIET
-)
-if(RESULT EQUAL 0)
-    message(STATUS "Detected RDKit version via Python: ${RDKIT_VERSION}")
-    # Set C++ standard based on RDKit version
-    # RDKit < 2025.3.1: C++17, >= 2025.3.1: C++20
-    if(RDKIT_VERSION VERSION_LESS "2025.3.1")
-        set(CMAKE_CXX_STANDARD 17)
-        message(STATUS "Using C++17 for RDKit version ${RDKIT_VERSION}")
-    else()
-        set(CMAKE_CXX_STANDARD 20)
-        message(STATUS "Using C++20 for RDKit version ${RDKIT_VERSION}")
-    endif()
-else()
-    # Fallback to C++20 if Python detection fails
-    set(CMAKE_CXX_STANDARD 20)
-    message(STATUS "Could not detect RDKit version via Python, defaulting to C++20")
-endif()
-
+# RDKit 2025.9 requires C++20.
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Detect whether RDKit was built with thread-safe substructure search support
