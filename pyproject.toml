@@ -28,11 +28,10 @@ requires-python = ">=3.10,<3.15"
 dependencies = [
     "pandas",
     "numpy",
-    # The Python package remains the Python-level API provider. Native wheels
-    # are built against the matching private RDKit C++ SDK.
     "rdkit>=2025.3.1",
     "gemmi",
-    "pyaml"
+    "pyaml",
+    "platformdirs>=4"
 ]
 
 [project.optional-dependencies]

@@ -5,7 +5,6 @@ import logging
 import time
 
 import numpy as np
-import yaml
 
 from pandas import DataFrame, read_csv  # only what you use
 from rdkit import Chem
@@ -64,9 +63,8 @@ rigid_rules['mol'] = rigid_rules['SMARTS'].apply(lambda x: Chem.MolFromSmarts(x)
 rotatable_pattern=r'*~[!$(*(#*)-!@*#*)&!D1]-!@[!$(*(#*)-!@*#*)&!D1]~*'
 rot_bond_mol = Chem.MolFromSmarts(rotatable_pattern)
 
-with open(Path(__file__).parent.parent / 'msani_configurations.yaml') as confFile:
-    msani_configurations = yaml.safe_load(confFile)
-CORINA_EXE = msani_configurations['CORINA']
+from msani.config import load_defaults
+
 
 # These below are for the new more deterministic method
 symmetric_patterns_file = Path(__file__).parent.parent / 'Data' / 'symmetric_smarts.txt'
@@ -77,7 +75,7 @@ prim_amidines_guanidines_pattern_mol = [Chem.MolFromSmarts('[#1:1][NH2,NX3H1:2]!
 
 
 
-def embed_smiles_corina(smiles, name, numringconfs, VERBOSE):
+def embed_smiles_corina(smiles, name, numringconfs, VERBOSE, corina_path=None):
     '''
     Embed the SMILES string using CORINA and return the mol, net_charge,
     rigid_scaffolds, and flexible_scaffolds
@@ -89,7 +87,7 @@ def embed_smiles_corina(smiles, name, numringconfs, VERBOSE):
     # rc: multiple ring confs; flapn: Flap ring nitrogen atoms,
     # de=6: energy window, mc=nconfs: write nring conf, wh: write hydrogens, sanpyr: make sulfonamide pyramidal
     command = [
-        CORINA_EXE,
+        corina_path or load_defaults()[0]['CORINA'] or 'corina',
         "-i", "t=smiles,scn=1,ncn=2",
         "-o", "t=sdf",
         "-d", f"rc,flapn,de=6,mc={numringconfs},wh,sanpyr"

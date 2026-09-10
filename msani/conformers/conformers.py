@@ -121,6 +121,7 @@ class ConformerRunConfig:
     timing: bool
     formats: frozenset
     synthon: bool
+    corina_path: str | None = None
 
     @property
     def ignore_torlib(self):
@@ -132,7 +133,7 @@ class ConformerRunConfig:
                    args.forcefield, args.nringconfs, args.numcores, args.mode,
                    args.tolerance, args.rmsd, args.clash_scale, args.timeout_conf, args.timeout,
                    args.eps, args.allowNonring, args.cleanup, args.debug,
-                   args.timing, frozenset(args.format), args.synthon)
+                   args.timing, frozenset(args.format), args.synthon, getattr(args, 'corinaPath', None))
     
 class ConformerGenerator:
     '''
@@ -200,8 +201,8 @@ class ConformerGenerator:
                  mode = 'fixed',
                  tolerance = 30,
                  torlib = Torlib,
-
-                 VERBOSE = False):
+                 VERBOSE = False,
+                 corina_path = None):
         """
         Initialize the ConformerGenerator object.
         
@@ -223,6 +224,7 @@ class ConformerGenerator:
         # Validate inputs
         self.smiles = smiles
         self.name = name
+        self.corina_path = corina_path
         self.method = method
         self.randomSeed = randomSeed
         random.seed(self.randomSeed)
@@ -726,7 +728,7 @@ class ConformerGenerator:
         Embed the SMILES string using CORINA and return the mol, net_charge,
         rigid_scaffolds, and flexible_scaffolds
         '''
-        self.ring_confs = utils.embed_smiles_corina(self.smiles, self.name, self.num_ring_confs, self.VERBOSE)
+        self.ring_confs = utils.embed_smiles_corina(self.smiles, self.name, self.num_ring_confs, self.VERBOSE, self.corina_path)
         if self.ring_confs:
             self.mol_H = Chem.Mol(self.ring_confs[0])
             mol2_obj = mol2writer.Mol2Writer(self.mol_H)
@@ -1313,7 +1315,7 @@ def _create_conformer_generator(smiles, name, config, request_alignment):
     """
     start = time.perf_counter()
     common_kwargs = dict(
-        forcefield=config.forcefield,
+        forcefield=config.forcefield, corina_path=config.corina_path,
         randomSeed=config.random_seed, num_ring_confs=config.ring_confs,
         numcores=config.num_cores, request_alignment=request_alignment,
         mode=config.mode, tolerance=config.tolerance, rmsd=config.rmsd,

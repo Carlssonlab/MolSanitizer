@@ -55,7 +55,13 @@ The program by default will conduct the preparation and filtering in the order b
 Default settings
 -----------------------------------
 
-Many of the default values of msani described below, both in the SINGLE MODE and BATCH MODE can be modified in `msani/msani_configurations.yaml <https://github.com/phonglam3103/msani/blob/main/msani_configurations.yaml>`__ file. It is for the convenience of the  user so that he/she does not have to specify the values (such as numConfs, --max_stereoisomers, etc) every time the program is run. If the user specify the values in the command line, the values in the configuration file will be overwritten.
+To customize defaults for future runs, use ``msani config init`` and edit the
+personal ``msani_configurations.yaml`` at the location printed by the command.
+Both single and batch mode load this file automatically. Use ``msani config use
+PATH`` to remember a different configuration location, and ``msani config show``
+to inspect effective defaults. Explicit command-line options override personal
+defaults. See :doc:`config` for platform locations, precedence, and examples.
+
 
 The users are asked to provide CORINA path if the he/she wants to use it for the generation of 3D coordinates. The path should be provided in the `CORINA` field.
 

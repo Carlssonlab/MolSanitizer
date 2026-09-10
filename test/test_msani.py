@@ -21,7 +21,6 @@ from msani import cli
 from msani.batchmode import (
     Split_Submit_jobs,
     cleanup_script,
-    count_input_lines,
     prepare_batch_input,
 )
 from msani.conformers import mol2writer
@@ -253,7 +252,7 @@ class Test_MolSanitizer(unittest.TestCase):
                     patch('msani.batchmode.time.sleep'),
                     patch('msani.batchmode.write_single_job_script'),
                     patch('msani.batchmode.subprocess.run', side_effect=run_command),
-                    patch('msani.batchmode.max_array_size', 2),
+                    patch('msani.config.load_defaults', return_value=({'MAX_ARRAY_SIZE': 2, 'MAX_LIMIT_PROJECT': 5000}, {})),
                 ):
                     Split_Submit_jobs(args, parser)
             finally:

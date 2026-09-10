@@ -231,6 +231,9 @@ def generateCustomTemplate(args, filename):
         print(f"Generated template file: {output_filename}")
 
 def main():
+    from msani.config import dispatch
+    if dispatch(sys.argv[1:]):
+        return
     if os.getenv('SLURM_JOB_ID') is None: print(logo)
     if len(sys.argv) == 1:
         print(version_text)

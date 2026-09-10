@@ -6,36 +6,7 @@ from yaml import safe_load
 
 
 
-with open(Path(__file__).parent.parent / 'msani_configurations.yaml') as confFile:
-    configurations = safe_load(confFile)
-    slurm_account = configurations.get('SLURM_ACCOUNT', None)
-    slurm_partition = configurations.get('SLURM_PARTITION', None)
-    time_limit = configurations.get('TIME_LIMIT', 96)
-    lines_per_job = configurations.get('LINES_PER_JOB', 200)
-    max_jobs = configurations.get('MAX_JOBS', 1000)
-    whole_node = configurations.get('WHOLE_NODE', False)
-    whole_node_cores = configurations.get('WHOLE_NODE_CORES', 72)
-    timeout = configurations.get('TIMEOUT', 2)
-    embed_method = configurations.get('EMBED_METHOD', 'rdkit')
-    corina_exe = configurations.get('CORINA', 'corina_executable')
-    energy_window = configurations.get('ENERGY_WINDOW', 25)
-    numconfs = configurations.get('NUMCONFS', 2000)
-    max_isomers = configurations.get('MAX_STEREOISOMERS', 8)
-    pH = configurations.get('PH', 7)
-    pH_range = configurations.get('PH_RANGE', 0)
-
-info_batch = f"""MolSanitizer - A package to prepare SMILES databases
-        This is a batch version of the MolSanitizer package. 
-        It reads a list of input files, splits the files into chunks of "--lines_per_job" and processes them parallelly on the HPC.
-        For more information, use msani_batch -h
-
-        Default settings (modifiable in msani_configurations.yaml):
-        Project name: {slurm_account}
-        Time limit: {time_limit} hour(s)
-        Number of compounds per job: {lines_per_job} 
-        Maximum jobs at the same time: {max_jobs} job(s)
-
-        """
+from msani.config import ConfigError, load_defaults
 
 info_standalone = """MolSanitizer - A package to prepare SMILES databases
 """
@@ -50,6 +21,13 @@ epilog ="""  Example input file (space or tab-separated file):
         CCC(CC(=O)N(CC)CCC(=O)N1CCO[C@H]2COC[C@H]21)C(F)F |&1:17,21|	Cmp0002
         CC(C)CC(CNC(=O)C1CSC1)C(=O)N[C@H]1C[C@@H](O)[C@H](F)C1 |&1:16,18,20|	Cmp0003
             
+  Personal defaults:
+    Bundled defaults are used when no personal configuration exists.
+    Run msani config init to customize pH, energywindow, numConfs,
+    CORINA path, project settings, and other defaults.
+    Run msani config show to inspect defaults and their sources.
+    Run msani config -h to see all configuration commands.
+
   Example usage:
     msani -i example.smi --removesalts --pains --unwanted all --stereoisomers --protonation
     msani -i example.smi --logp "<=500" --hba "<=10" --hbd "<=5" --mw "<=500" -3d -f pdbqt
@@ -80,6 +58,39 @@ def none_or_str(value):
     return value
 
 def parseArguments(args = None, batch_mode = False):
+    try:
+        configurations, _ = load_defaults()
+    except ConfigError as exc:
+        raise SystemExit(f'Configuration error: {exc}') from exc
+    slurm_account = configurations.get('SLURM_ACCOUNT', None)
+    slurm_partition = configurations.get('SLURM_PARTITION', None)
+    time_limit = configurations.get('TIME_LIMIT', 96)
+    lines_per_job = configurations.get('LINES_PER_JOB', 200)
+    max_jobs = configurations.get('MAX_JOBS', 1000)
+    whole_node = configurations.get('WHOLE_NODE', False)
+    whole_node_cores = configurations.get('WHOLE_NODE_CORES', 72)
+    timeout = configurations.get('TIMEOUT', 2)
+    embed_method = configurations.get('EMBED_METHOD', 'rdkit')
+    corina_exe = configurations.get('CORINA') or 'corina'
+    energy_window = configurations.get('ENERGY_WINDOW', 25)
+    numconfs = configurations.get('NUMCONFS', 2000)
+    max_isomers = configurations.get('MAX_STEREOISOMERS', 8)
+    pH = configurations.get('PH', 7)
+    pH_range = configurations.get('PH_RANGE', 0)
+
+    info_batch = f"""MolSanitizer - A package to prepare SMILES databases
+            This is a batch version of the MolSanitizer package.
+            It reads a list of input files, splits the files into chunks of "--lines_per_job" and processes them parallelly on the HPC.
+            For more information, use msani_batch -h
+
+            Default settings (modifiable in msani_configurations.yaml):
+            Project name: {slurm_account}
+            Time limit: {time_limit} hour(s)
+            Number of compounds per job: {lines_per_job}
+            Maximum jobs at the same time: {max_jobs} job(s)
+
+            """
+
     # Support the parsing of a YAML configuration file
     pre_parser = argparse.ArgumentParser(add_help=False)
     pre_parser.add_argument('--config', '-c', type=str, help='YAML configuration file')
@@ -319,7 +330,7 @@ def parseArguments(args = None, batch_mode = False):
     gen3d.add_argument(
         '--method', '-m',
         choices=['rdkit', 'obabel', 'corina'],
-        default=defaults.get('method', 'rdkit'),
+        default=defaults.get('method', embed_method),
         help=f'Embedding method (default: {embed_method} - options: rdkit, obabel, corina)')
     gen3d.add_argument(
         '--corinaPath',
@@ -509,7 +520,7 @@ def parseArguments(args = None, batch_mode = False):
         batch_group.add_argument(
             '--whole_node', 
             action='store_true', 
-            default=defaults.get('whole_node', False), 
+            default=defaults.get('whole_node', whole_node),
             help='Run the job on a whole node (default: False)')
         batch_group.add_argument(
             '--whole_node_cores', 
@@ -541,7 +552,9 @@ def parseArguments(args = None, batch_mode = False):
         args.input_files = [Path(inFile).resolve() for inFile in args.input_files]
 
     if args.method == 'corina':
-        if not Path(args.corinaPath).expanduser().is_file():
+        import shutil
+        args.corinaPath = shutil.which(str(Path(args.corinaPath or 'corina').expanduser()))
+        if not args.corinaPath:
             parser.error('Corina path is not correct or corina not found. Please check the configuration file.')
 
     if args.custom:

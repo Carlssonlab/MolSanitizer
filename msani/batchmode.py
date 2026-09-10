@@ -212,14 +212,6 @@ for pid in "${pids[@]}"; do
     wait "$pid" || overall_status=1
 done
 '''
-with open(os.path.join(os.path.dirname(__file__), 'msani_configurations.yaml')) as confFile:
-    configurations = safe_load(confFile)
-    slurm_account = configurations['SLURM_ACCOUNT']
-    time_limit = configurations['TIME_LIMIT']
-    lines_per_job = configurations['LINES_PER_JOB']
-    max_jobs = configurations['MAX_JOBS']
-    max_array_size = configurations['MAX_ARRAY_SIZE']
-    max_limit_project = configurations['MAX_LIMIT_PROJECT']
 
 def count_input_lines(file_path):
     """Count input lines with native tools, streaming decompression if needed."""
@@ -504,7 +496,7 @@ def parse_flags_single_job(args: dict, parser):
     flags = " " + " ".join(flags)
     return flags
 
-def write_single_job_script(slurm_header: str, slurm_script: str):
+def write_single_job_script(slurm_header: str, slurm_script: str, defaults=None):
     """Write the script for a single job
 
     Args:
@@ -521,17 +513,25 @@ def write_single_job_script(slurm_header: str, slurm_script: str):
 
     slurm_script = slurm_script.replace('MSANI_PATH', msani_path)
 
+    from msani.config import load_defaults
+    from yaml import safe_dump
+    snapshot = 'msani_defaults.yaml'
+    if defaults is None:
+        defaults, _ = load_defaults()
+    Path(snapshot).write_text(safe_dump(defaults), encoding='utf-8')
+    # SLURM copies scripts to its spool directory; the snapshot stays at submission.
+    slurm_script = '\nexport MSANI_CONFIG="${SLURM_SUBMIT_DIR:-$PWD}/msani_defaults.yaml"\n' + slurm_script
     with open('submit_msani.sh', 'w') as f:
         f.write(slurm_header)
         f.write(slurm_script)
 
-def test_batch_mode(args: dict, header: str, script: str):
+def test_batch_mode(args: dict, header: str, script: str, defaults=None):
     file = Path(args.prefix) / args.input_files[0]
     prefix = Path(args.prefix) / file.stem  # Ensure prefix is within temp_dir
 
     prepare_batch_input(file, prefix, args.lines)
     os.chdir(prefix)
-    write_single_job_script(header, script)
+    write_single_job_script(header, script, defaults)
 
 def Split_Submit_jobs(args: dict, parser):
     """Split the input files into chunks and submit jobs to the cluster
@@ -542,6 +542,11 @@ def Split_Submit_jobs(args: dict, parser):
     Returns:
         None
     """
+    from msani.config import load_defaults
+    configurations, _ = load_defaults()
+    max_array_size = configurations['MAX_ARRAY_SIZE']
+    max_limit_project = configurations['MAX_LIMIT_PROJECT']
+
     # Replace the PROJECT_NAME with the project name and time limit for SLURM
     
     cores = args.whole_node_cores
@@ -608,7 +613,7 @@ def Split_Submit_jobs(args: dict, parser):
 
 
     if args.test: 
-        test_batch_mode(args, active_header, active_script)
+        test_batch_mode(args, active_header, active_script, configurations)
     else:
         print(logo)
         if args.proj_name is not None: print(f"Using project name (-A): {args.proj_name}")
@@ -722,7 +727,7 @@ def Split_Submit_jobs(args: dict, parser):
                         print(f"Submitting {n_array_tasks} array tasks ({n_jobs} jobs, {cores} per node)\n")
                     else:
                         print(f"Submitting {n_jobs} jobs\n")
-                    write_single_job_script(active_header, active_script)
+                    write_single_job_script(active_header, active_script, configurations)
                     submission = subprocess.run(
                         [
                             'sbatch',
@@ -745,6 +750,9 @@ def Split_Submit_jobs(args: dict, parser):
                     shutil.rmtree(staging_dir)
         
 def main():
+    from msani.config import dispatch
+    if dispatch(sys.argv[1:]):
+        return
 
     args, parser = parsers.parseArguments(sys.argv[1:], batch_mode=True)
     rdkit_version = rdBase.rdkitVersion
