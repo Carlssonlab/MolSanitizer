@@ -21,6 +21,7 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
     "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS :: MacOS X",
     "Topic :: Scientific/Engineering :: Chemistry",
 ]
 keywords = ["docking", "drug design"]
@@ -78,6 +79,8 @@ wheel.license-files = [
     "third_party/bzip2/LICENSE",
     "third_party/xz/LICENSE",
     "third_party/zstd/LICENSE",
+    "third_party/libcxx/LICENSE",
+    "third_party/zlib/LICENSE",
 ]
 sdist.exclude = ["build/**", "dist/**", "**/.DS_Store", "**/__pycache__/**", "msani/**/*.a"]
 # Useful for development rebuilds

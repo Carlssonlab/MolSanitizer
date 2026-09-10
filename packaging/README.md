@@ -18,3 +18,10 @@ For the current local prototype, `/home/phonglam/msani-rdkit-sdk` is a valid
 RDKit 2025.09.5 SDK and the build selects RDKit's `*_static` imported targets.
 The resulting WSL-built wheel is limited to `manylinux_2_39_x86_64`; use the
 manylinux container for the wider `manylinux_2_28_x86_64` production target.
+
+## Local platform wheel matrices
+
+- Linux x86_64: `linux/build_wheels.sh` (Docker).
+- Windows x64: [Windows instructions](windows/README.md).
+- macOS arm64: [Apple Silicon instructions](macos/README.md), or run
+  `bash packaging/macos/build_wheels.sh` on a native Apple Silicon Mac.

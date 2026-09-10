@@ -45,12 +45,14 @@ class TestConfig(unittest.TestCase):
         path = self.path / 'custom directory' / 'defaults.yaml'
         config.main(['init', '--path', str(path)])
         pointer = json.loads((self.path / 'settings/settings.json').read_text())
-        self.assertEqual(pointer['config_path'], str(path))
+        # Configuration stores canonical paths; macOS /var is a symlink to
+        # /private/var, including the default temporary directory.
+        self.assertEqual(pointer['config_path'], str(path.resolve()))
         path.write_text('NUMCONFS: 123\n')
         values, sources = config.load_defaults()
         self.assertEqual(values['NUMCONFS'], 123)
         self.assertEqual(values['TIMEOUT'], 2)
-        self.assertEqual(sources['NUMCONFS'], str(path))
+        self.assertEqual(sources['NUMCONFS'], str(path.resolve()))
         with self.assertRaises(SystemExit):
             config.main(['init', '--path', str(path)])
         self.assertEqual(config.load_defaults()[0]['NUMCONFS'], 123)
