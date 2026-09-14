@@ -23,7 +23,8 @@ from msani.batchmode import (
     cleanup_script,
     prepare_batch_input,
 )
-from msani.conformers import mol2writer
+from msani.conformers import mol2writer, utils
+from msani.conformers.conformers import ConformerGenerator
 from msani.db2.db2writer import write_db2
 from msani.filtering.filters import (
     Filters,
@@ -668,6 +669,53 @@ class Test_MolSanitizer(unittest.TestCase):
         shutil.rmtree(f"{temp_dir}")
         tmp_obj.cleanup()
 
+    def test_mol2_sulfur_types_match_corina(self):
+        def atom_types(block):
+            section = block.split('@<TRIPOS>ATOM\n', 1)[1]
+            section = section.split('@<TRIPOS>', 1)[0]
+            return [line.split()[5] for line in section.splitlines()
+                    if line.strip()]
+
+        reference = {}
+        for block in (self.path / 'S-aro.mol2').read_text().split('@<TRIPOS>MOLECULE\n')[1:]:
+            reference[block.splitlines()[0]] = atom_types(block)
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            for line in (self.path / 'S-aro.smi').read_text().splitlines():
+                smiles, name = line.split()
+                for explicit_hs in (False, True):
+                    with self.subTest(molecule=name, explicit_hs=explicit_hs):
+                        mol = Chem.MolFromSmiles(smiles)
+                        self.assertIsNotNone(mol)
+                        if explicit_hs:
+                            mol = Chem.AddHs(mol)
+                        # Coordinates do not affect typing; avoid stochastic embedding.
+                        mol.AddConformer(Chem.Conformer(mol.GetNumAtoms()))
+                        output = Path(temp_dir) / f'{name}.mol2'
+                        mol2writer.Mol2Writer(mol).write_mol2(output)
+                        generated = atom_types(output.read_text())
+                        self.assertEqual(
+                            [t for t in generated if t.startswith('S.')],
+                            [t for t in reference[name] if t.startswith('S.')])
+                        self.assertNotIn('S.ar', generated)
+                        self.assertEqual([t for t in generated if t != 'H'],
+                                         [t for t in reference[name] if t != 'H'])
+                        if name == 'aro-S4':
+                            bonds = output.read_text().split('@<TRIPOS>BOND\n')[1]
+                            ring_bonds = [row.split()[3] for row in bonds.splitlines()
+                                          if all(int(i) <= 6 for i in row.split()[1:3])]
+                            self.assertEqual(ring_bonds, ['ar'] * 6)
+
+    def test_mol2_sulfur_functional_groups(self):
+        for smiles, expected in [('CSC', 'S.3'), ('C=S', 'S.2'),
+                                 ('CS(=O)C', 'S.o'), ('CS(=O)(=O)C', 'S.o2')]:
+            with self.subTest(smiles=smiles):
+                mol = Chem.MolFromSmiles(smiles)
+                mol.AddConformer(Chem.Conformer(mol.GetNumAtoms()))
+                writer = mol2writer.Mol2Writer(mol)
+                self.assertEqual([writer.atom_types[a.GetIdx()] for a in mol.GetAtoms()
+                                  if a.GetSymbol() == 'S'], [expected])
+
     def test_mol2_generation(self):
         tmp_obj = tempfile.TemporaryDirectory()
         temp_dir = tmp_obj.name
@@ -1154,6 +1202,39 @@ class Test_MolSanitizer(unittest.TestCase):
                 setattr(args, mode.replace('-', '_'), True)
         return args
         
+
+class TestRigidPart(unittest.TestCase):
+    SMILES = 'N(S(=O)(=O)[O-])(S(=O)(=O)[O-])S(=O)(=O)[O-]'
+
+    def test_carbon_free_alignment(self):
+        mol = Chem.MolFromSmiles(self.SMILES)
+        parts, label = utils.find_rigid_part(mol)
+        self.assertEqual(label, 'Two_nonH')
+        self.assertEqual(len(parts), 1)
+        self.assertEqual(len(parts[0]), 2)
+        self.assertIsNotNone(mol.GetBondBetweenAtoms(*parts[0]))
+
+    def test_existing_rule_priority(self):
+        for smiles, expected in [('CCO', 'Two_random_C'), ('CO', 'One_C_with_nonH')]:
+            with self.subTest(smiles=smiles):
+                _, label = utils.find_rigid_part(Chem.MolFromSmiles(smiles))
+                self.assertEqual(label, expected)
+
+    def test_unmatched_explicit_alignment_stays_unmatched(self):
+        parts, label = utils.find_rigid_part(
+            Chem.MolFromSmiles(self.SMILES), Chem.MolFromSmarts('CC'))
+        self.assertEqual(parts, [])
+        self.assertIsNone(label)
+
+    def test_carbon_free_sampling(self):
+        for mode in ('fixed', 'random', 'ignoretorlib'):
+            with self.subTest(mode=mode):
+                generator = ConformerGenerator(self.SMILES, mode=mode)
+                generator.conf_sampling(numConfs=30, ignoreTorlib=mode == 'ignoretorlib')
+                self.assertTrue(generator.atom_maps)
+                self.assertTrue(generator.conf_sampled)
+                self.assertGreater(generator.ring_confs[0].GetNumConformers(), 0)
+
 
 if __name__ == '__main__':
         unittest.main()

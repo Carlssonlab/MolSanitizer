@@ -482,10 +482,9 @@ class ConformerGenerator:
             try:
                 self._embed_smiles_babel()
             except RuntimeError as e:
-                logger.error(f"Error in generating initial conformation using OpenBabel for {self.name}, skipping it {e}")
-                log_error(self.smiles, self.name)
-                self.failed = True
-                return
+                raise RuntimeError(
+                    f'Open Babel fallback could not embed {self.name}: {e}'
+                ) from e
             return
 
         # Improvement for entry Platinum L0B_4AFH
@@ -1064,6 +1063,22 @@ class ConformerGenerator:
 
     # ========== Output to different file formats ===========
 
+    def validate_embedding(self):
+        """Reject failed or non-3D embeddings before sampling and output."""
+        if self.failed:
+            raise ValueError('The given molecule could not be embedded')
+        molecules = [self.amsol_mol, *self.ring_confs]
+        if not self.ring_confs or any(
+            mol.GetNumConformers() == 0
+            or any(not conf.Is3D() for conf in mol.GetConformers())
+            for mol in molecules
+        ):
+            self.failed = True
+            raise ValueError(
+                '3D output skipped: embedding has missing conformers or '
+                'conformers not tagged as 3D'
+            )
+
     def to_sdf(self, filename = None):
         """
         Write the conformers to an SDF file.
@@ -1137,9 +1152,6 @@ class ConformerGenerator:
             filename = self.name
             
         mkprep = MoleculePreparation()
-        if not self.ring_confs:
-            logger.warning(f"Failed to embed {self.name}.")
-            return
         is_multi = len(self.ring_confs) > 1
         for i, mol in enumerate(self.ring_confs):
             prepared_mol = mkprep(Chem.Mol(mol, confId=0))
@@ -1297,6 +1309,7 @@ def _embed_rdkit_worker(result_queue, smiles, name, config):
             numcores=config.num_cores, mode=config.mode, tolerance=config.tolerance,
             rmsd=config.rmsd, clash_scale=config.clash_scale, VERBOSE=config.verbose,
         )
+        generator.validate_embedding()
         property_flags = PropertyPickleOptions.MolProps | PropertyPickleOptions.PrivateProps
         result_queue.put((generator.amsol_mol.ToBinary(propertyFlags=property_flags),
                           [ring_conf.ToBinary(propertyFlags=property_flags) for ring_conf in generator.ring_confs],
@@ -1423,9 +1436,7 @@ def _process_conformer_row(row, config, request_alignment, archive):
                 'Install Open Babel or use method="rdkit".'
             )
         confgen, embedding_time = _create_conformer_generator(smiles, name, config, request_alignment)
-        if confgen.failed:
-            _log_conformer_failure(smiles, name, 'Conformer generation', 'The given molecule could not be embedded')
-            return None
+        confgen.validate_embedding()
         if 'pdbqt' in config.formats:
             confgen.to_pdbqt()
         sampling_time = 0.0

@@ -59,6 +59,7 @@ class Mol2Writer:
                 'aro6': Chem.MolFromSmarts("A1=A-A=A-A=A1"), # Aromatic 6-membered ring
             }
             self.amide_bonds = set()
+            self.aromatic_ring_bonds = set()
             self.atom_types = self._assign_sybyl_types_to_mol(self.mol)
             self.bond = self._bond_section(self.mol)
 
@@ -277,11 +278,23 @@ class Mol2Writer:
         # Aromatic 6-membered ring
         # Pattern: A1=A-A=A-A=A1
         for match in mol.GetSubstructMatches(self.smarts_patterns['aro6']):
+            # Neutral hypervalent and anionic sulfur rings are Kekule rings
+            # in CORINA, despite matching the alternating-bond pattern.
+            if any(mol.GetAtomWithIdx(idx).GetSymbol() == 'S'
+                   and mol.GetAtomWithIdx(idx).GetHybridization() != HybridizationType.SP2
+                   for idx in match):
+                continue
+            for begin, end in zip(match, match[1:] + match[:1]):
+                self.aromatic_ring_bonds.add(tuple(sorted((begin, end))))
             # match gives A1_idx, A2_idx, A3_idx, A4_idx, A5_idx, A6_idx
             # Assign C.ar and N.ar matching the 6-membered aromatic ring.
+            # Resolve issue 58 related to wrongly perceived S.ar
             for idx in match:
-                if mol.GetAtomWithIdx(idx).GetSymbol() == 'O': atom_types[idx] = 'O.3' # pyrrilium
-                else: atom_types[idx] = mol.GetAtomWithIdx(idx).GetSymbol() + '.ar'
+                symbol = mol.GetAtomWithIdx(idx).GetSymbol()
+                if symbol in ('O', 'S'):
+                    atom_types[idx] = symbol + '.3'
+                elif symbol in ('C', 'N'):
+                    atom_types[idx] = symbol + '.ar'
 
     def _guess_sybyl_atom_type(self, atom, mol):
         """Fallback SYBYL-like atom type assignment if SMARTS didn't assign one."""
@@ -339,12 +352,15 @@ class Mol2Writer:
                 return 'O.3'
 
         elif symbol == 'S':
-            # double_o_count = count_double_bonded_oxygens(atom)
-            # if double_o_count == 2:
-            #     return 'S.o2'
-            # elif double_o_count == 1:
-            #     return 'S.o' # This is already handled by the SMARTS
-            if hyb == HybridizationType.SP2:
+            # CORINA uses S.o for neutral tetravalent sulfur even without
+            # oxygen. Sulfoxides and sulfones were already assigned above.
+            if charge == 0 and atom.GetTotalValence() == 4:
+                return 'S.o'
+            # Charged trivalent sulfur and thiophene-like sulfur use S.3;
+            # RDKit's SP2 hybridization alone does not imply SYBYL S.2.
+            if charge != 0 and atom.GetTotalValence() == 3:
+                return 'S.3'
+            if any(b.GetBondTypeAsDouble() == 2.0 for b in bonds):
                 return 'S.2'
             else:
                 return 'S.3'
@@ -375,7 +391,8 @@ class Mol2Writer:
         for i, bond in enumerate(mol.GetBonds(), start=1):
             a1 = bond.GetBeginAtomIdx() + 1
             a2 = bond.GetEndAtomIdx() + 1
-            if all(self.atom_types[i].endswith('.ar') for i in [a1-1, a2-1]):
+            if (tuple(sorted((a1-1, a2-1))) in self.aromatic_ring_bonds
+                    or all(self.atom_types[i].endswith('.ar') for i in [a1-1, a2-1])):
                 bond_order = 'ar'
             elif set([self.atom_types[a1-1], self.atom_types[a2-1]]) == {'C.2', 'O.co2'}:
                 bond_order = 'ar'
