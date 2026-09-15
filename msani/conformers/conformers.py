@@ -21,7 +21,8 @@ import time
 import argparse
 from contextlib import nullcontext
 from dataclasses import dataclass
-from queue import Empty
+from queue import Empty, Queue
+from threading import Thread
 
 from pandas import DataFrame, read_csv  # only what you use
 from pathlib import Path
@@ -281,16 +282,26 @@ class ConformerGenerator:
                            tolerance = 30,
                            clash_scale = 0.7,
                            rmsd = 0.5,
-                           VERBOSE=False):
+                           VERBOSE=False,
+                           randomSeed=42,
+                           numcores=1,
+                           num_ring_confs=1):
         """Alternative constructor that initializes from existing data"""
 
         # Create a minimal instance
-        instance = cls(smiles, name=name, pre_embed=True)
+        instance = cls(
+            smiles, name=name, pre_embed=True, forcefield=forcefield,
+            randomSeed=randomSeed, numcores=numcores, num_ring_confs=num_ring_confs,
+            request_alignment=request_alignment, mode=mode, tolerance=tolerance,
+            clash_scale=clash_scale, rmsd=rmsd, VERBOSE=VERBOSE)
         
         # Override the instance attributes
         mol = Chem.Mol(amsol_mol)
         instance.amsol_mol = mol
-        instance.mp = rdForceFieldHelpers.MMFFGetMoleculeProperties(instance.amsol_mol, mmffVariant=forcefield)
+        # MMFF properties depend on topology, already prepared by __init__.
+        # Retain the historical post-reconstruction electrostatics setting.
+        if forcefield.startswith('MMFF'):
+            instance.mp.SetMMFFEleTerm(True)
         instance.method = 'rdkit'
         instance.ring_confs = [Chem.Mol(ring_conf) for ring_conf in ring_confs] if ring_confs else []
         instance.mol2_str = mol2_str
@@ -1300,7 +1311,7 @@ def _log_conformer_failure(smiles, name, stage, error):
     log_error(smiles, name, f'{stage}: {error}')
 
 
-def _embed_rdkit_worker(result_queue, smiles, name, config):
+def _embed_rdkit_worker(result_connection, smiles, name, config):
     """Run RDKit embedding in an isolated process so it can be terminated safely."""
     try:
         generator = ConformerGenerator(
@@ -1311,11 +1322,60 @@ def _embed_rdkit_worker(result_queue, smiles, name, config):
         )
         generator.validate_embedding()
         property_flags = PropertyPickleOptions.MolProps | PropertyPickleOptions.PrivateProps
-        result_queue.put((generator.amsol_mol.ToBinary(propertyFlags=property_flags),
+        result_connection.send((generator.amsol_mol.ToBinary(propertyFlags=property_flags),
                           [ring_conf.ToBinary(propertyFlags=property_flags) for ring_conf in generator.ring_confs],
                           generator.mol2_str, None))
     except Exception as error:
-        result_queue.put((None, None, None, str(error)))
+        result_connection.send((None, None, None, str(error)))
+    finally:
+        result_connection.close()
+
+
+def _receive_embedding_result(connection, messages):
+    """Drain IPC on a reader thread so even a partial send has a deadline."""
+    try:
+        messages.put((True, connection.recv()))
+    except (EOFError, OSError) as error:
+        messages.put((False, str(error)))
+
+
+def _run_embedding_worker(smiles, name, config):
+    """Receive before joining; stop and reap the worker on every exit path."""
+    receiver, sender = multiprocessing.Pipe(duplex=False)
+    messages = Queue()
+    process = multiprocessing.Process(
+        target=_embed_rdkit_worker, args=(sender, smiles, name, config))
+    reader = None
+    deadline = time.monotonic() + config.embedding_timeout * 60
+    try:
+        process.start()
+        # Only the child owns the write end now. Its exit produces EOF even
+        # when it crashes during a send. Start the reader after fork/spawn.
+        sender.close()
+        reader = Thread(target=_receive_embedding_result,
+                        args=(receiver, messages), daemon=True)
+        reader.start()
+        remaining = max(0, deadline - time.monotonic())
+        try:
+            received, payload = messages.get(timeout=remaining)
+        except Empty as error:
+            raise TimeoutError('RDKit embedding worker exceeded its deadline') from error
+        if not received:
+            raise RuntimeError('RDKit embedding worker exited without returning a result')
+        process.join(timeout=max(0, deadline - time.monotonic()))
+        if process.is_alive():
+            raise TimeoutError('RDKit embedding worker exceeded its deadline')
+        return payload
+    finally:
+        if process.pid is not None:
+            if process.is_alive():
+                process.terminate()
+            process.join()
+        sender.close()
+        receiver.close()
+        if reader is not None:
+            reader.join(timeout=1)
+        process.close()
 
 
 def _create_conformer_generator(smiles, name, config, request_alignment):
@@ -1337,15 +1397,9 @@ def _create_conformer_generator(smiles, name, config, request_alignment):
     if config.method != 'rdkit':
         return ConformerGenerator(smiles, name, method=config.method, **common_kwargs), time.perf_counter() - start
 
-    result_queue = multiprocessing.Queue()
-    process = multiprocessing.Process(target=_embed_rdkit_worker, args=(result_queue, smiles, name, config))
-    process.start()
-    process.join(timeout=config.embedding_timeout * 60)
-    if process.is_alive():
-        process.terminate()
-        process.join()
-        result_queue.close()
-        process.close()
+    try:
+        amsol_mol, ring_confs, mol2_str, error = _run_embedding_worker(smiles, name, config)
+    except TimeoutError:
         if not OBABEL_AVAILABLE:
             raise RuntimeError(
                 f'RDKit embedding timed out for {name}, and Open Babel is not available '
@@ -1353,19 +1407,13 @@ def _create_conformer_generator(smiles, name, config, request_alignment):
             )
         logger.warning('RDKit embedding timed out for %s; falling back to Open Babel.', name)
         return ConformerGenerator(smiles, name, method='obabel', **common_kwargs), time.perf_counter() - start
-    try:
-        amsol_mol, ring_confs, mol2_str, error = result_queue.get(timeout=1)
-    except Empty as error:
-        raise RuntimeError('RDKit embedding worker exited without returning a result') from error
-    finally:
-        result_queue.close()
-        process.close()
     if error:
         raise RuntimeError(error)
     generator = ConformerGenerator.from_existing_data(
         smiles=smiles, name=name, amsol_mol=amsol_mol, ring_confs=ring_confs,
         mol2_str=mol2_str, request_alignment=request_alignment,
         forcefield=config.forcefield, mode=config.mode, tolerance=config.tolerance,
+        randomSeed=config.random_seed, numcores=config.num_cores, num_ring_confs=config.ring_confs,
         rmsd=config.rmsd, clash_scale=config.clash_scale, VERBOSE=config.verbose,
     )
     return generator, time.perf_counter() - start
