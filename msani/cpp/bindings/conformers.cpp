@@ -24,6 +24,8 @@
 #include <algorithm>
 #include <cctype>
 #include <array>
+#include <cmath>
+#include <set>
 #include <optional>
 #include <limits>
 #include <sstream>
@@ -133,8 +135,10 @@ AngleMap convertDiscreteAngleMap(const py::dict& py_angle_map) {
         py::tuple value = item.second.cast<py::tuple>();
         
         AngleMapEntry entry;
+        if (value.size() != 3) throw std::invalid_argument("Angle entries require pattern, four atoms, and angles");
         // Extract dihedral atoms (4 integers)
         py::list dihedral_list = value[1].cast<py::list>();
+        if (dihedral_list.size() != 4) throw std::invalid_argument("A torsion requires exactly four atom indices");
         for (int i = 0; i < 4; ++i) {
             entry.dihedral_atoms.push_back(dihedral_list[i].cast<int>());
         }
@@ -174,6 +178,7 @@ ContinuousTorsionMap convertContinuousTorsionLibrary(const py::list& match_torli
     
     for (size_t i = 0; i < match_torlib.size(); ++i) {
         py::list rule = match_torlib[i];  // Each rule is a list, not tuple
+        if (rule.size() != 3) throw std::invalid_argument("Torsion rules require pattern, four atoms, and peaks");
         py::tuple dihedral_atoms_py = rule[1];  // Dihedral atoms tuple
         py::list peaks_py = rule[2];            // Peaks list
         
@@ -188,6 +193,7 @@ ContinuousTorsionMap convertContinuousTorsionLibrary(const py::list& match_torli
         for (size_t j = 0; j < peaks_py.size(); ++j) {
             py::tuple peak_tuple = peaks_py[j];
             
+            if (peak_tuple.size() != 4) throw std::invalid_argument("Peaks require center, two tolerances, and weight");
             double center = peak_tuple[0].cast<double>();
             double tolerance_1 = peak_tuple[1].cast<double>();
             double tolerance_2 = peak_tuple[2].cast<double>();
@@ -483,6 +489,64 @@ void applyTorsionConstraints(ForceFields::ForceField &ff, const TorsionConstrain
 }
 
 // Main discrete sampling wrapper
+namespace {
+void requireFinite(double value, const char* name, bool positive = false) {
+    if (!std::isfinite(value) || (positive ? value <= 0.0 : value < 0.0)) {
+        throw std::invalid_argument(std::string(name) + " must be finite and " +
+                                    (positive ? "positive" : "nonnegative"));
+    }
+}
+
+void validateAtom(int index, const ROMol& mol) {
+    if (index < 0 || static_cast<unsigned int>(index) >= mol.getNumAtoms()) {
+        throw std::invalid_argument("Torsion atom index is outside the molecule");
+    }
+}
+
+void validateTorsionAtoms(const std::vector<int>& atoms, const ROMol& mol) {
+    if (atoms.size() != 4 || std::set<int>(atoms.begin(), atoms.end()).size() != 4) {
+        throw std::invalid_argument("A torsion requires four distinct atom indices");
+    }
+    for (int atom : atoms) validateAtom(atom, mol);
+    for (std::size_t i = 1; i < atoms.size(); ++i) {
+        if (!mol.getBondBetweenAtoms(atoms[i - 1], atoms[i])) {
+            throw std::invalid_argument("Torsion atoms must form a bonded path");
+        }
+    }
+}
+
+void validateWeights(const std::vector<double>& weights, std::size_t expected) {
+    if (weights.size() != expected || weights.empty()) {
+        throw std::invalid_argument("Sampling weights must match the nonempty choices");
+    }
+    double sum = 0.0;
+    for (double weight : weights) { requireFinite(weight, "Weight"); sum += weight; }
+    requireFinite(sum, "Weight sum", true);
+}
+
+void validateSamplingParameters(const ROMol& mol, std::size_t torsions,
+                                const HeteroBonds& bonds, int count, int attempts,
+                                int timeout, double window, double rmsd,
+                                double clash_scale, double eps) {
+    if (count <= 0 || attempts <= 0 || timeout < 0) {
+        throw std::invalid_argument("Conformer and attempt counts must be positive; timeout must be nonnegative");
+    }
+    requireFinite(window, "Energy window");
+    requireFinite(rmsd, "RMSD");
+    requireFinite(clash_scale, "Clash scale", true);
+    requireFinite(eps, "Dielectric constant", true);
+    if (bonds.size() > torsions) {
+        throw std::invalid_argument("More hydroxyl bonds than torsion entries");
+    }
+    for (const auto& bond : bonds) {
+        validateAtom(bond.first, mol); validateAtom(bond.second, mol);
+        if (!mol.getBondBetweenAtoms(bond.first, bond.second)) {
+            throw std::invalid_argument("Hydroxyl atom indices must describe a bond");
+        }
+    }
+}
+}  // namespace
+
 // Main discrete sampling wrapper (fixed argument ordering)
 py::object stochasticSamplingDiscreteWrapper(py::object mol_obj,
                                              const py::dict& py_angle_map,
@@ -521,11 +585,25 @@ py::object stochasticSamplingDiscreteWrapper(py::object mol_obj,
         HeteroBonds hetero_H_bonds;
         for (auto item : py_hetero_H_bonds) {
             py::tuple bond_tuple = item.cast<py::tuple>();
+            if (bond_tuple.size() != 2) throw std::invalid_argument("Hydroxyl bonds require two atom indices");
             int atom1 = bond_tuple[0].cast<int>();
             int atom2 = bond_tuple[1].cast<int>();
             hetero_H_bonds.emplace_back(atom1, atom2);
         }
 
+        validateSamplingParameters(*mol, angle_map.size(), hetero_H_bonds,
+                                   numConfs, max_attempts, timeout_conf, window, rmsd, clash_scale, eps);
+        if (possible_numConfs < 0) throw std::invalid_argument("Possible conformer count must be nonnegative");
+        if (!angle_map.empty()) validateWeights(importance_order, angle_map.size());
+        for (const auto& [key, entry] : angle_map) {
+            validateTorsionAtoms(entry.dihedral_atoms, *mol);
+            if (entry.possible_angles.empty()) throw std::invalid_argument("Torsion angles cannot be empty");
+            for (double angle : entry.possible_angles) {
+                if (!std::isfinite(angle)) throw std::invalid_argument("Torsion angles must be finite");
+            }
+            const auto weights = score_map.find(key);
+            if (weights != score_map.end()) validateWeights(weights->second, entry.possible_angles.size());
+        }
         // Call the discrete sampling function
         ProductList products = stochasticSamplingDiscrete(*mol,
                                                          angle_map,
@@ -547,6 +625,8 @@ py::object stochasticSamplingDiscreteWrapper(py::object mol_obj,
         // Convert results back to Python molecule
         return createMoleculeWithConformersDirectly(mol_obj, products);
 
+    } catch (const std::invalid_argument&) {
+        throw;
     } catch (const std::exception& e) {
         throw std::runtime_error(std::string("Error in discrete sampling: ") + e.what());
     }
@@ -581,9 +661,25 @@ py::object stochasticSamplingContinuousWrapper(py::object mol_obj,
         HeteroBonds hetero_H_bonds;
         for (auto item : py_hetero_H_bonds) {
             py::tuple bond_tuple = item.cast<py::tuple>();
+            if (bond_tuple.size() != 2) throw std::invalid_argument("Hydroxyl bonds require two atom indices");
             int atom1 = bond_tuple[0].cast<int>();
             int atom2 = bond_tuple[1].cast<int>();
             hetero_H_bonds.emplace_back(atom1, atom2);
+        }
+        validateSamplingParameters(*mol, torsion_library.size(), hetero_H_bonds,
+                                   numConfs, max_attempts, timeout_conf, window, rmsd, clash_scale, eps);
+        if (tolerance_level != 1 && tolerance_level != 2) {
+            throw std::invalid_argument("Tolerance level must be 1 or 2");
+        }
+        for (const auto& [key, bond] : torsion_library) {
+            validateTorsionAtoms(bond.dihedral_atoms, *mol);
+            std::vector<double> weights;
+            for (const auto& peak : bond.peaks) {
+                if (!std::isfinite(peak.center)) throw std::invalid_argument("Peak centers must be finite");
+                for (double tolerance : peak.tolerance) requireFinite(tolerance, "Peak tolerance");
+                weights.push_back(peak.weight);
+            }
+            validateWeights(weights, bond.peaks.size());
         }
         // Call the continuous sampling function
     ProductList products = stochasticSamplingContinuous(*mol,
@@ -605,6 +701,8 @@ py::object stochasticSamplingContinuousWrapper(py::object mol_obj,
         // Convert results back to Python molecule
         return createMoleculeWithConformersDirectly(mol_obj, products);
         
+    } catch (const std::invalid_argument&) {
+        throw;
     } catch (const std::exception& e) {
         throw std::runtime_error(std::string("Error in continuous sampling: ") + e.what());
     }
@@ -851,7 +949,7 @@ PYBIND11_MODULE(msani_confgen_cpp, m) {
             match_torlib (list): Torsion library matching data
                 Format: [rule1, rule2, ...] where each rule is 
                 [pattern, (atom1, atom2, atom3, atom4), [(peak1_center, tol1, tol2, weight1), ...]]
-            tolerance_level (int): Tolerance level for peak sampling (0-2)
+            tolerance_level (int): Tolerance level for peak sampling (1 or 2, selecting tolerance1 or tolerance2)
             numConfs (int): Target number of output conformers
             window (float, optional): Energy window for conformer acceptance. Defaults to 25.0.
             max_attempts (int, optional): Maximum sampling attempts. Defaults to 50000.

@@ -117,7 +117,7 @@ def stochastic_sampling_continuous(
         Format: [rule1, rule2, ...] where each rule is 
         [pattern, (atom1, atom2, atom3, atom4), [(peak1_center, tol1, tol2, weight1), ...]]
     tolerance_level : int
-        Tolerance level for peak sampling (0-2)
+        Tolerance level for peak sampling (1 or 2, selecting tolerance1 or tolerance2)
     numConfs : int
         Target number of output conformers
     window : float, optional

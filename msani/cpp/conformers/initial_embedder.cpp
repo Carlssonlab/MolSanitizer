@@ -510,10 +510,15 @@ bool minimizeWithExpTorsions(RDGeom::PointPtrVect &positions,
   bool planar = true;
 
   // convert to 3D positions and create coordMap
+  // Own coordinates independently of the force field's non-owning view.
+  // Reserve before taking addresses, and destroy the field before this storage.
+  std::vector<RDGeom::Point3D> positions3DStore;
+  positions3DStore.reserve(positions.size());
   RDGeom::Point3DPtrVect positions3D;
+  positions3D.reserve(positions.size());
   for (auto &position : positions) {
-    positions3D.push_back(
-        new RDGeom::Point3D((*position)[0], (*position)[1], (*position)[2]));
+    positions3DStore.emplace_back((*position)[0], (*position)[1], (*position)[2]);
+    positions3D.push_back(&positions3DStore.back());
   }
 
   // create the force field
@@ -542,12 +547,11 @@ bool minimizeWithExpTorsions(RDGeom::PointPtrVect &positions,
     field->minimize(300, embedParams.optimizerForceTol);
   }
 
-  // overwrite positions and delete the 3D ones
+  // Copy optimized coordinates back; local storage also cleans up on exceptions.
   for (unsigned int i = 0; i < positions3D.size(); ++i) {
     (*positions[i])[0] = (*positions3D[i])[0];
     (*positions[i])[1] = (*positions3D[i])[1];
     (*positions[i])[2] = (*positions3D[i])[2];
-    delete positions3D[i];
   }
 
   return planar;
