@@ -1,5 +1,6 @@
 #include "stochastic_sampling.h"
 #include "common_types.h"
+#include "hydroxyl_sampling.h"
 #include "accelerated_rmsd.h"
 
 #include <GraphMol/MolTransforms/MolTransforms.h>
@@ -183,7 +184,7 @@ ProductList stochasticSamplingDiscrete(RDKit::ROMol& mol,
     }
     
     // Calculate hydroxyl combinations and scaling
-    int num_hydroxyl_combinations = 1;
+    std::uint64_t num_hydroxyl_combinations = 1;
     int f = 1; // scaling factor
     int core_allocation = numConfs;
 
@@ -192,7 +193,8 @@ ProductList stochasticSamplingDiscrete(RDKit::ROMol& mol,
         for (int i = 0; i < num_hetero_H_bonds; ++i) {
             if (i < static_cast<int>(angle_keys.size())) {
                 const auto& entry = angle_map.at(angle_keys[angle_keys.size() - 1 - i]);
-                num_hydroxyl_combinations *= entry.possible_angles.size();
+                num_hydroxyl_combinations = HydroxylCombinationSampler::cappedProduct(
+                    num_hydroxyl_combinations, entry.possible_angles.size());
             }
         }
         
@@ -200,22 +202,30 @@ ProductList stochasticSamplingDiscrete(RDKit::ROMol& mol,
         if (num_hydroxyl_combinations > 30) {
             f = 30;
         } else {
-            f = std::min(num_hydroxyl_combinations, 3);
+            f = static_cast<int>(std::min<std::uint64_t>(num_hydroxyl_combinations, 3));
         }
         core_allocation = (f < 30) ? core_allocation / f : core_allocation / 30;
         
         if (verbose) {
-            fprintf(stderr, "Hydroxyl combinations: %d, f: %d, core allocation: %d\n",
-                    num_hydroxyl_combinations, f, core_allocation);
+            fprintf(stderr, "Hydroxyl combinations: %llu, f: %d, core allocation: %d\n",
+                    static_cast<unsigned long long>(num_hydroxyl_combinations), f, core_allocation);
         }
-        possible_numConfs /= num_hydroxyl_combinations;
+        possible_numConfs /= static_cast<long long>(num_hydroxyl_combinations);
         if (verbose) {
             fprintf(stderr, "Adjusted possible_numConfs: %lld\n", possible_numConfs);
         }
     }
     
     // Main sampling logic; avoid over-enumerate for compounds with too many hydroxyls (sugars). For these, use stochastic sampling.
-    if (possible_numConfs <= max_attempts && possible_numConfs * num_hydroxyl_combinations <= max_attempts * 5) {
+    std::uint64_t full_combination_count = 1;
+    for (const auto& [key, entry] : angle_map) {
+        full_combination_count = HydroxylCombinationSampler::cappedProduct(
+            full_combination_count, entry.possible_angles.size());
+    }
+    if (possible_numConfs <= max_attempts &&
+        full_combination_count <= static_cast<std::uint64_t>(max_attempts) * 5 &&
+        num_hydroxyl_combinations <= static_cast<std::uint64_t>(max_attempts) * 5 /
+            static_cast<std::uint64_t>(std::max(1LL, possible_numConfs))) {
         // ENUMERATION PATH WITH RANDOMNESS
         if (verbose) {
             fprintf(stderr, "Using enumeration approach with randomness (combinations: %lld)\n", possible_numConfs);
@@ -564,39 +574,20 @@ ProductList stochasticSamplingDiscrete(RDKit::ROMol& mol,
             }
         }
         
-        // Generate all possible hydroxyl combinations
-        std::vector<std::vector<double>> hydroxyl_combinations;
-        std::function<void(int, std::vector<double>&)> generate_hydroxyl_combinations;
-        generate_hydroxyl_combinations = [&](int depth, std::vector<double>& current_angles) {
-            if (depth == num_hetero_H_bonds) {
-                hydroxyl_combinations.push_back(current_angles);
-                return;
-            }
-            
-            int bond_idx = angle_keys.size() - 1 - depth;
-            const auto& entry = angle_map.at(angle_keys[bond_idx]);
-            for (double angle : entry.possible_angles) {
-                current_angles.push_back(angle);
-                generate_hydroxyl_combinations(depth + 1, current_angles);
-                current_angles.pop_back();
-            }
-        };
-        
-        std::vector<double> current_hydroxyl_angles;
-        generate_hydroxyl_combinations(0, current_hydroxyl_angles);
-        
-        if (verbose) {
-            fprintf(stderr, "Generated %zu hydroxyl combinations\n", hydroxyl_combinations.size());
+        std::vector<std::vector<double>> hydroxyl_choices;
+        for (int depth = 0; depth < num_hetero_H_bonds; ++depth) {
+            const auto& entry = angle_map.at(angle_keys[angle_keys.size() - 1 - depth]);
+            hydroxyl_choices.push_back(entry.possible_angles);
         }
-        
+        HydroxylCombinationSampler hydroxyl_sampler(std::move(hydroxyl_choices));
+
         // For each core conformer, apply random f variations of hydroxyl orientations
         std::vector<ConformerResult> final_products;
         final_products.reserve(products.size() * f);
         bool reached_limit = false;
         
         for (const auto& core_product : products) {
-            auto shuffled_combinations = hydroxyl_combinations;
-            rand_gen.shuffle(shuffled_combinations);
+            auto shuffled_combinations = hydroxyl_sampler.sample(f + 2, rand_gen);
             
             int variations_to_try = std::min(f + 2, static_cast<int>(shuffled_combinations.size()));
             
@@ -760,7 +751,7 @@ ProductList stochasticSamplingContinuous(RDKit::ROMol& mol,
     int num_hetero_H_bonds = hetero_H_bonds.size();
     int f = 1;
     int core_allocation = numConfs;
-    int num_hydroxyl_combinations = 1;
+    std::uint64_t num_hydroxyl_combinations = 1;
     auto start_time = std::chrono::steady_clock::now();
     int timeout_check_counter = 0;
     
@@ -790,8 +781,13 @@ ProductList stochasticSamplingContinuous(RDKit::ROMol& mol,
 
     // Build bond_indices once outside the loop
     std::vector<int> bond_indices;
+    std::vector<std::vector<double>> bond_weights;
     for (const auto& [bond_id, bond_info] : torsion_library) {
         bond_indices.push_back(bond_id);
+        std::vector<double> weights;
+        weights.reserve(bond_info.peaks.size());
+        for (const auto& peak : bond_info.peaks) weights.push_back(peak.weight);
+        bond_weights.push_back(std::move(weights));
     }
 
     if (num_hetero_H_bonds > 0) {
@@ -802,7 +798,8 @@ ProductList stochasticSamplingContinuous(RDKit::ROMol& mol,
                     bond_indices.size() - 1 - static_cast<std::size_t>(i);
                 int actual_bond_id = bond_indices[bond_idx_in_torsion_library];
                 const auto& bond_info = torsion_library.at(actual_bond_id);
-                num_hydroxyl_combinations *= bond_info.peaks.size();
+                num_hydroxyl_combinations = HydroxylCombinationSampler::cappedProduct(
+                    num_hydroxyl_combinations, bond_info.peaks.size());
             }
         }
         
@@ -810,12 +807,12 @@ ProductList stochasticSamplingContinuous(RDKit::ROMol& mol,
         if (num_hydroxyl_combinations > 30) {
             f = 30;
         } else {
-            f = std::min(num_hydroxyl_combinations, 3);
+            f = static_cast<int>(std::min<std::uint64_t>(num_hydroxyl_combinations, 3));
         }
         core_allocation = (f < 30) ? core_allocation / f : core_allocation / 30;
         if (verbose) {
-            fprintf(stderr, "[Fallback] Hydroxyl combinations: %d, f: %d, core allocation: %d\n",
-                    num_hydroxyl_combinations, f, core_allocation);
+            fprintf(stderr, "[Fallback] Hydroxyl combinations: %llu, f: %d, core allocation: %d\n",
+                    static_cast<unsigned long long>(num_hydroxyl_combinations), f, core_allocation);
         }
     }
 
@@ -837,11 +834,7 @@ ProductList stochasticSamplingContinuous(RDKit::ROMol& mol,
             int bond_idx = rand_gen.randint(0, n_transform - 1);
             int actual_bond_id = bond_indices[bond_idx];
             const auto& bond_info = torsion_library.at(actual_bond_id);
-            std::vector<double> weights;
-            for (const auto& peak : bond_info.peaks) {
-                weights.push_back(peak.weight);
-            }
-            int peak_idx = rand_gen.weightedChoice(weights);
+            int peak_idx = rand_gen.weightedChoice(bond_weights[bond_idx]);
             if (peak_idx < 0 || peak_idx >= (int)bond_info.peaks.size()) peak_idx = 0;
             double angle = rand_gen.getRandomAngle(
                 bond_info.peaks[peak_idx].center,
@@ -940,45 +933,23 @@ ProductList stochasticSamplingContinuous(RDKit::ROMol& mol,
             }
         }
         
-        // Generate all possible hydroxyl combinations
-        std::vector<std::vector<double>> hydroxyl_combinations;
-        std::function<void(std::size_t, std::vector<double>&)> generate_hydroxyl_combinations;
-        generate_hydroxyl_combinations = [&](std::size_t depth, std::vector<double>& current_angles) {
-            if (depth == static_cast<std::size_t>(num_hetero_H_bonds)) {
-                hydroxyl_combinations.push_back(current_angles);
-                return;
-            }
-            
-            if (depth >= bond_indices.size()) {
-                return; // Should not happen if hetero_H_bonds are correctly mapped
-            }
-            const std::size_t bond_idx_in_torsion_library = bond_indices.size() - 1 - depth;
-            int actual_bond_id = bond_indices[bond_idx_in_torsion_library];
-            const auto& bond_info = torsion_library.at(actual_bond_id);
-            
-            for (const auto& peak : bond_info.peaks) {
-                double angle = peak.center; // Use peak.center directly as preprocessed
-                current_angles.push_back(angle);
-                generate_hydroxyl_combinations(depth + 1, current_angles);
-                current_angles.pop_back();
-            }
-        };
-        
-        std::vector<double> current_hydroxyl_angles;
-        generate_hydroxyl_combinations(0, current_hydroxyl_angles);
-        
-        if (verbose) {
-            fprintf(stderr, "[Fallback] Generated %zu hydroxyl combinations\n", hydroxyl_combinations.size());
+        std::vector<std::vector<double>> hydroxyl_choices;
+        for (int depth = 0; depth < num_hetero_H_bonds; ++depth) {
+            const auto& bond = torsion_library.at(bond_indices[bond_indices.size() - 1 - depth]);
+            std::vector<double> choices;
+            choices.reserve(bond.peaks.size());
+            for (const auto& peak : bond.peaks) choices.push_back(peak.center);
+            hydroxyl_choices.push_back(std::move(choices));
         }
-        
+        HydroxylCombinationSampler hydroxyl_sampler(std::move(hydroxyl_choices));
+
         // For each core conformer, apply random f variations of hydroxyl orientations
         std::vector<ConformerResult> final_products;
         final_products.reserve(products.size() * f);
         bool reached_limit = false;
         
         for (const auto& core_product : products) {
-            auto shuffled_combinations = hydroxyl_combinations;
-            rand_gen.shuffle(shuffled_combinations);
+            auto shuffled_combinations = hydroxyl_sampler.sample(f + 2, rand_gen);
             
             int variations_to_try = std::min(f + 2, static_cast<int>(shuffled_combinations.size()));
             
