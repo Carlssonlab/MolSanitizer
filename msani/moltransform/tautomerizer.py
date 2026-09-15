@@ -1,3 +1,4 @@
+from contextlib import nullcontext
 import argparse
 import multiprocessing as mp
 import platform
@@ -488,7 +489,8 @@ class Tautomerizer:
                           df: DataFrame,
                           smiles_column: str = 'smiles',
                           mol_column: str = 'mol',
-                          name_column: str = 'ids') -> DataFrame:
+                          name_column: str = 'ids',
+                          *, pool=None) -> DataFrame:
         """
         Tautomerize a dataframe of molecules using multiprocessing Pool.
         """
@@ -503,9 +505,11 @@ class Tautomerizer:
         rows = ((dict(zip(keys, r)), smiles_column, mol_column, name_column) for r in df.itertuples(index=False, name=None))
         
         results = []
-        with ctx.Pool(processes=num_cores,
-                      initializer=_init_tautomerizer_worker,
-                      initargs=(self,)) as pool:
+        pool_context = nullcontext(pool) if pool is not None else ctx.Pool(
+            processes=num_cores,
+            initializer=_init_tautomerizer_worker,
+            initargs=(self,))
+        with pool_context as pool:
             for res in pool.imap_unordered(_process_single_tautomer_row, rows, chunksize=10):
                 if res:
                     results.extend(res)
@@ -516,7 +520,8 @@ class Tautomerizer:
                        df: DataFrame,
                        smiles_column: str = 'smiles',
                        mol_column: str = 'mol',
-                       name_column: str = 'ids') -> DataFrame:
+                       name_column: str = 'ids',
+                       *, pool=None, parallel=True) -> DataFrame:
         """
         Tautomerize a dataframe of molecules using multiprocessing or single-core based on `num_cores`.
         """
@@ -526,18 +531,15 @@ class Tautomerizer:
             df = df.copy()
             df[mol_column] = df[smiles_column].apply(Chem.MolFromSmiles)
             
-        if self.numcores > 1:
-            return self.tautomerize_df_mp(df, smiles_column, mol_column, name_column)
+        if parallel and self.numcores > 1:
+            return self.tautomerize_df_mp(df, smiles_column, mol_column, name_column, pool=pool)
         else:
             keys = df.columns.tolist()
             rows = ((dict(zip(keys, r)), smiles_column, mol_column, name_column) for r in df.itertuples(index=False, name=None))
             results = []
-            
-            # Set global worker for single-core execution to share the same function
-            _init_tautomerizer_worker(self)
-            
+
             for row_args in rows:
-                res = _process_single_tautomer_row(row_args)
+                res = _process_single_tautomer_row(row_args, worker=self)
                 if res:
                     results.extend(res)
             return DataFrame(results)
@@ -553,12 +555,13 @@ def _init_tautomerizer_worker(tautomerizer):
     global _tautomerizer_worker
     _tautomerizer_worker = tautomerizer
 
-def _process_single_tautomer_row(args):
+def _process_single_tautomer_row(args, worker=None):
     """
     Worker function to process tautomerization for a single row.
     Caught exceptions simply log an error and return an empty list so the job continues.
     """
     row, smiles_column, mol_column, name_column = args
+    worker = _tautomerizer_worker if worker is None else worker
     results = []
     
     try:
@@ -566,7 +569,7 @@ def _process_single_tautomer_row(args):
         longname = row.get('longname', None)
         original_idx = row.get('original_idx', None)
         
-        tautomers = _tautomerizer_worker._tautomerize_mols(
+        tautomers = worker._tautomerize_mols(
             mol=mol, name=row[name_column]
         )
 

@@ -1,3 +1,4 @@
+from contextlib import nullcontext
 import argparse
 import multiprocessing as mp
 import platform
@@ -138,7 +139,8 @@ class Stereoisomerizer:
                         df: DataFrame,
                         smiles_column: str = 'smiles',
                         mol_column: str = 'mol',
-                        name_column: str = 'ids') -> DataFrame:
+                        name_column: str = 'ids',
+                        *, pool=None) -> DataFrame:
         """
         Enumerate stereoisomers for a dataframe of molecules using multiprocessing Pool.
         """
@@ -153,9 +155,11 @@ class Stereoisomerizer:
         rows = ((dict(zip(keys, r)), smiles_column, mol_column, name_column) for r in df.itertuples(index=False, name=None))
         
         results = []
-        with ctx.Pool(processes=num_cores,
-                      initializer=_init_stereoisomerizer_worker,
-                      initargs=(self,)) as pool:
+        pool_context = nullcontext(pool) if pool is not None else ctx.Pool(
+            processes=num_cores,
+            initializer=_init_stereoisomerizer_worker,
+            initargs=(self,))
+        with pool_context as pool:
             for res in pool.imap_unordered(_process_single_stereoisomer_row, rows, chunksize=10):
                 if res:
                     results.extend(res)
@@ -166,7 +170,8 @@ class Stereoisomerizer:
                        df: DataFrame,
                        smiles_column: str = 'smiles',
                        mol_column: str = 'mol',
-                       name_column: str = 'ids') -> DataFrame:
+                       name_column: str = 'ids',
+                       *, pool=None, parallel=True) -> DataFrame:
         """
         Enumerate stereoisomers for a dataframe of molecules.
 
@@ -192,18 +197,15 @@ class Stereoisomerizer:
             df = df.copy()
             df[mol_column] = df[smiles_column].apply(Chem.MolFromSmiles)
 
-        if self.numcores > 1:
-            return self.enumerate_df_mp(df, smiles_column, mol_column, name_column)
+        if parallel and self.numcores > 1:
+            return self.enumerate_df_mp(df, smiles_column, mol_column, name_column, pool=pool)
         else:
             keys = df.columns.tolist()
             rows = ((dict(zip(keys, r)), smiles_column, mol_column, name_column) for r in df.itertuples(index=False, name=None))
             results = []
-            
-            # Set global worker for single-core execution to share the same function
-            _init_stereoisomerizer_worker(self)
-            
+
             for row_args in rows:
-                res = _process_single_stereoisomer_row(row_args)
+                res = _process_single_stereoisomer_row(row_args, worker=self)
                 if res:
                     results.extend(res)
             return DataFrame(results)
@@ -220,12 +222,13 @@ def _init_stereoisomerizer_worker(stereoisomerizer):
     global _stereoisomerizer_worker
     _stereoisomerizer_worker = stereoisomerizer
 
-def _process_single_stereoisomer_row(args):
+def _process_single_stereoisomer_row(args, worker=None):
     """
     Worker function to process stereoisomerization for a single row.
     Caught exceptions simply log an error and return a fallback list so the job continues.
     """
     row, smiles_column, mol_column, name_column = args
+    worker = _stereoisomerizer_worker if worker is None else worker
     results = []
     
     mol_name = row[name_column]
@@ -242,9 +245,9 @@ def _process_single_stereoisomer_row(args):
         centers = Chem.FindMolChiralCenters(mol, includeUnassigned=True)
         unassigned = [idx for idx, tag in centers if tag == '?']
         num_possible_isomers = 2 ** len(unassigned)
-        max_isomers = _stereoisomerizer_worker.options['maxIsomers']
+        max_isomers = worker.options['maxIsomers']
 
-        stereoisomers_smiles = _stereoisomerizer_worker.enumerate(smiles)
+        stereoisomers_smiles = worker.enumerate(smiles)
 
         # Fall back to the input SMILES when the selected enumerator returns no
         # isomers, so the molecule is not silently dropped.

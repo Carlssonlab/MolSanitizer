@@ -27,6 +27,33 @@ The **Msani** class is the main entry point for using MolSanitizer. It provides 
     processed_df = molsani.run(df)
 
 
+For chunked input, use a context manager to share one worker pool across
+transformation stages and chunks. The CLI does this automatically. Rules are
+cached on the processor and refreshed when its transformation settings or a
+custom rule file changes. Workers are closed when the context exits, including
+on errors; a standalone ``run()`` closes its workers before returning.
+
+.. code-block:: python
+
+    def main():
+        with Msani(tautomers=True, protonation=True, numcores=2) as processor:
+            for chunk in pd.read_csv('input.smi', sep=r'\s+',
+                                     names=['smiles', 'ids'], chunksize=1000):
+                result = processor.run(chunk)
+                result[['smiles', 'ids']].to_csv(
+                    'prepared.smi', sep=' ', mode='a', header=False, index=False)
+
+    if __name__ == '__main__':
+        main()
+
+Without a warm pool, tautomer/protonation batches smaller than 256 rows after
+initial filtering run serially to avoid process startup overhead. Set
+``parallel_min_rows=0`` on ``Msani`` to always use the requested worker count.
+Stereoisomer enumeration retains multiprocessing for small batches because its
+per-molecule embedding cost can be high. Processor instances should not be
+shared between concurrent threads.
+
+
 Ionizer
 --------
 

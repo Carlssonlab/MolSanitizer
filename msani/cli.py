@@ -205,10 +205,11 @@ def clean_data(args):
         corinaPath=args.corinaPath, standardize=args.standardize,
         protonation_library=args.protlib, tautomer_library=args.taulib,  
         debug=args.debug)       
-    if args.smiles:
-        process_smiles(processor, args)
-    elif args.input_files:
-        process_files(processor, args)
+    with processor:
+        if args.smiles:
+            process_smiles(processor, args)
+        elif args.input_files:
+            process_files(processor, args)
 
     log_execution_time(start_time, args.test)
 
