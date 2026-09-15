@@ -144,13 +144,9 @@ class Mol2Writer:
         molecule_data = topology.copy_topology()
 
         for conf in mol.GetConformers():
-            coordinates = []
-            for atom_idx in range(num_atoms):
-                position = conf.GetAtomPosition(atom_idx)
-                coordinates.append(
-                    (float(position.x), float(position.y), float(position.z))
-                )
-            molecule_data.conformers.append(coordinates)
+            # Transfer the whole conformer once while preserving float tuples.
+            molecule_data.conformers.append(
+                list(map(tuple, conf.GetPositions().tolist())))
 
         return molecule_data
 
