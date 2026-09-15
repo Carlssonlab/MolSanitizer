@@ -285,30 +285,32 @@ class Tautomerizer:
 
                 if score > max_score: max_score = score
 
-            # Sort the tautomers by score
-            tautomers.sort(key=lambda x: (-x[1], Chem.MolToSmiles(x[0])))
-
-            if self.debug:
-                print(f"\tInitial score: {score_func(mol)}") # To avoid the warning of not having a score function
-                print(f"\tFound {len(tautomers)} tautomers")
-                for t in tautomers:
-                    print(f"\t\t{Chem.MolToSmiles(t[0])} {t[1]}")
-                print(f"\tMax score: {max_score}")
-            
-            # If the canonical tautomer is the same SCORE as the input,
-            # we believe more in the input than the output.
-            # Return the input molecule
+            # Most inputs already have the best score; no SMILES tie-break is
+            # needed in that case. Keep the full sorted diagnostic listing only
+            # in debug mode.
             initial_score = score_func(mol)
-            if max_score == initial_score:
-                if self.debug: print(f"Same score, use input molecule")
+            if max_score == initial_score and not self.debug:
                 return mol
-            
-            # Emulate the Canonicalize function
-            # Pick the one that has the same "configuration" of the double bonds as the input molecule
-            # Lexicographically min first
-            equal_tautomers = [(t[0], t[1], Chem.MolToSmiles(t[0])) for t in tautomers if t[1] >= max_score - 4] 
-            
-            
+
+            candidates = [
+                (tau, score, Chem.MolToSmiles(tau))
+                for tau, score in tautomers
+                if self.debug or score >= max_score - 4
+            ]
+            candidates.sort(key=lambda item: (-item[1], item[2]))
+            if self.debug:
+                print(f"\tInitial score: {initial_score}")
+                print(f"\tFound {len(tautomers)} tautomers")
+                for _, score, smiles in candidates:
+                    print(f"\t\t{smiles} {score}")
+                print(f"\tMax score: {max_score}")
+                if max_score == initial_score:
+                    print("Same score, use input molecule")
+                    return mol
+
+            # Preserve descending score and lexicographic SMILES tie-breaking.
+            equal_tautomers = [t for t in candidates if t[1] >= max_score - 4]
+
             if len(equal_tautomers) > 1:
                 if self.debug: 
                     print(f"\tFound {len(equal_tautomers)} tautomers with the nearly similar score:")
@@ -334,7 +336,8 @@ class Tautomerizer:
                             # canonical_tautomer = tautomer
                             # break
                     if potential_pool:
-                        if any(Chem.MolToSmiles(mol) == smiles for _, _, smiles in potential_pool):
+                        input_smiles = Chem.MolToSmiles(mol)
+                        if any(input_smiles == smiles for _, _, smiles in potential_pool):
                             if initial_score == potential_pool[0][1]:
                                 if self.debug: 
                                     print(f"\tInput has the highest score, take it.")
