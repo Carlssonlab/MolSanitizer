@@ -34,7 +34,6 @@ Contents
    
    changes
    python
-   evaluation
    contributors
 
 .. toctree::

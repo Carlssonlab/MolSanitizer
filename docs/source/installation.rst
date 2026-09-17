@@ -6,7 +6,7 @@ Dependencies
 
 MolSanitizer is built upon the following packages:
 
-- RDKit 2024.09.3+ (`Reference <https://www.rdkit.org/docs/Install.html>`__)
+- RDKit
 - pandas
 - numpy
 
@@ -26,12 +26,42 @@ Optional dependencies
 Installation
 ------------
 
+Installation of MolSanitizer can be done either from PyPI or by building from source. The recommended way is to install it from PyPI.
+
+From PyPI
+^^^^^^^^^
+
+.. code-block:: console
+
+   $ pip install molsanitizer
+
+In order to also generate PDBQT files, install the optional dependency Meeko:
+
+.. code-block:: console
+
+   $ pip install "molsanitizer[pdbqt]"
+
+From Conda-forge
+^^^^^^^^^
+
+.. code-block:: console
+
+   $ conda install -c conda-forge molsanitizer
+
+Building from source
+------------------------
+
+.. warning::
+
+    Building MolSanitizer from source is NOT meant to be done by regular users!
+
+
 We will set up the environment using `Anaconda <https://docs.anaconda.com/anaconda/install/index.html>`_.
 
 
 .. code-block:: console
 
-   $ git clone https://github.com/phonglam3103/MolSanitizer.git
+   $ git clone https://github.com/carlssonlab/MolSanitizer.git
     
 
 Mac OS and Linux

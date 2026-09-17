@@ -39,7 +39,7 @@ dependencies = [
 pdbqt = ["meeko>=0.7.1", "scipy", "gemmi"]
 
 [project.urls]
-Homepage = "https://github.com/phonglam3103/MolSanitizer.git"
+Homepage = "https://github.com/carlssonlab/MolSanitizer.git"
 
 [project.scripts]
 msani = "msani.cli:main"
