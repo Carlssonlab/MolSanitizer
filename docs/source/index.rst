@@ -24,7 +24,9 @@ Contents
    introduction
    validation
    installation
+   quickstart
    usage
+   outputs
    config
    feedback
 

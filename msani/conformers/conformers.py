@@ -197,7 +197,7 @@ class ConformerGenerator:
                  numcores = 1, 
                  request_alignment = None,
                  ignoreTorlib = False,
-                 clash_scale = 0.7,
+                 clash_scale = 0.6,
                  rmsd = 0.5,
                  mode = 'fixed',
                  tolerance = 30,
@@ -280,7 +280,7 @@ class ConformerGenerator:
                            forcefield = 'MMFF94s',
                            mode:str = 'vs',
                            tolerance = 30,
-                           clash_scale = 0.7,
+                           clash_scale = 0.6,
                            rmsd = 0.5,
                            VERBOSE=False,
                            randomSeed=42,
@@ -757,7 +757,7 @@ class ConformerGenerator:
                             numConfs,
                             window = 25,
                             max_attempts = 50000,
-                            eps = 1,
+                            eps = 4,
                             random_method = 'uniform',
                             timeout_conf = 1):
         """
@@ -796,7 +796,7 @@ class ConformerGenerator:
     def conf_sampling(self, 
                       numConfs=2000, 
                       energywindow = 25,
-                      eps = 1, 
+                      eps = 4,
                       ignoreTorlib = False, 
                       AllowNonRing = False, 
                       timeout_conf = 1,
@@ -920,7 +920,7 @@ class ConformerGenerator:
                                max_attempts=50_000,
                                hetero_H_bonds = [],
                                timeout_conf = 1,
-                               eps = 1):
+                               eps = 4):
         """
         Call the C++ extension for stochastic sampling.
         Args:
@@ -976,7 +976,7 @@ class ConformerGenerator:
                         AllowNonRing=False,
                         timeout_conf = 1,
                         request_alignment=None,
-                        eps = 1):
+                        eps = 4):
         """
         Perceive the allowed dihedral angles and call stochastic sampling to generate conformers.
         """
@@ -1183,7 +1183,7 @@ class ConformerGenerator:
     def to_db2(self, 
                numConfs = 2000,
                energywindow = 25,
-               eps = 1,
+               eps = 4,
                ignoreTorlib = False,
                AllowNonRing = False,
                timeout_conf = 1,
@@ -1598,7 +1598,7 @@ def main():
     parser.add_argument('--mode', '-mode', type=str, default='fixed', choices=['fixed', 'random', 'ignoretorlib'], help='Mode for conformer generation (fixed, random, ignoretorlib).')
     parser.add_argument('--tolerance', '-tol', type=float, default=30, help='Tolerance for dihedral angle sampling (default: 30).')
     parser.add_argument('--allowNonring', '-anr', action='store_true', help='Allow full sampling of non-ring compounds.')
-    parser.add_argument('--eps', type=float, default=1, help='The dielectric constant for electrostatic calculations (default: 1 - vacuum).')
+    parser.add_argument('--eps', type=float, default=4, help='The dielectric constant for electrostatic calculations (default: 4).')
     parser.add_argument('--numconfs', '-nconfs', type=int, default=2000, help='Number of conformers to generate (default: 2000).')
     parser.add_argument('--nringconfs', '-nr', type=int, default=1, help='Number of ring conformers to generate (default: 1).')
     parser.add_argument('--debug', '-d', action='store_true', help='Enable verbose output for debugging.')

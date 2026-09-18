@@ -19,15 +19,19 @@ All developers past and present
 
 * Phong Lam
 * Szymon Pach
-* Israel Cabeza de Vaca 
+* Flavio Ballante
+* Israel Cabeza de Vaca Lopez
+* Philip Ullmann
 * Ruth Brenk
 
 Scientific input
 ~~~~~~~~~~~~~~~~
-
+* Israel Cabeza de Vaca Lopez
+* Peter Kolb
+* Trent Balius
+* John Irwin
+* Flavio Ballante
 * Ruth Brenk
 * Jens Carlsson
-* Trent Balius
-* Peter Kolb
-* Flavio Ballente 
+
 
