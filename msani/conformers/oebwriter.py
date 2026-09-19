@@ -20,6 +20,16 @@ That keeps ligand identity intact, preserves the coordinates exactly rather
 than rounding them through a text format, and is about twice as fast as an
 SDF round-trip.
 
+Output layout
+-------------
+``--format oeb``      one ``oeb/<molecule>.oeb.gz`` per molecule
+``--format oeb.lib``  one ``oeb/<input>.oeb.gz`` library per input file, which is
+                      what FRED and HYBRID take as their database (the same
+                      relation db2.tgz has to db2)
+
+Either way the ring-conformer groups of a molecule are merged into a single
+OEMol, so every ligand is one record and docks to one result.
+
 Licensing
 ---------
 The OpenEye toolkits are commercial, so they are an optional dependency here
@@ -159,24 +169,76 @@ def rdkit_to_oemol(rdkit_mol, name=None, sddata=None):
     return oe
 
 
-def write_oeb(rdkit_mols, filename, name=None, sddata=None):
-    """Write ring-conformer groups of one molecule to a single .oeb.gz file.
+def append_conformers(oe, rdkit_mol):
+    """Append the conformers of another RDKit mol of the SAME molecule to `oe`.
 
-    Each group becomes one multi-conformer OEMol sharing the ligand's title, the
-    way sdf/mol2 express the groups as separate .nrK files. FRED and HYBRID group
-    their output by title, so the parts stay one ligand downstream.
+    Used to merge ring-conformer groups: they are copies of one molecule, so the
+    atom order is identical and only the coordinates differ. Returns False, and
+    leaves `oe` untouched, if the graphs do not line up.
     """
+    oe_atoms = list(oe.GetAtoms())
+    if len(oe_atoms) != rdkit_mol.GetNumAtoms():
+        return False
+    for i, oe_atom in enumerate(oe_atoms):
+        if rdkit_mol.GetAtomWithIdx(i).GetAtomicNum() != oe_atom.GetAtomicNum():
+            return False
+
+    ncoords = 3 * oe.GetMaxAtomIdx()
+    for rd_conf in rdkit_mol.GetConformers():
+        coords = oechem.OEFloatArray(ncoords)
+        for rd_idx, oe_atom in enumerate(oe_atoms):
+            pos = rd_conf.GetAtomPosition(rd_idx)
+            idx = 3 * oe_atom.GetIdx()
+            coords[idx]     = pos.x
+            coords[idx + 1] = pos.y
+            coords[idx + 2] = pos.z
+        oe.NewConf(coords)
+    return True
+
+
+def merge_to_oemols(rdkit_mols, name=None, sddata=None):
+    """Ring-conformer groups of one molecule -> a single multi-conformer OEMol.
+
+    FRED and HYBRID dock every record separately, so a ligand split over several
+    records would come back as several results. Merging the groups gives one
+    record, and one result, per ligand. A group whose graph does not match the
+    first one is kept as its own molecule rather than dropped, hence the list.
+    """
+    merged = []
+    for rdkit_mol in rdkit_mols:
+        if rdkit_mol.GetNumConformers() == 0:
+            continue
+        if merged and append_conformers(merged[0], rdkit_mol):
+            continue
+        oe = rdkit_to_oemol(rdkit_mol, name=name, sddata=sddata)
+        if oe is not None:
+            merged.append(oe)
+    return merged
+
+
+def open_oeb(filename):
+    """Open an .oeb/.oeb.gz output stream. Opening truncates: open a library ONCE."""
     require_openeye()
     ofs = oechem.oemolostream()
     if not ofs.open(filename):
         raise RuntimeError(f"Could not open {filename} for writing")
+    return ofs
+
+
+def write_to_stream(ofs, rdkit_mols, name=None, sddata=None):
+    """Write one molecule (all its ring-conformer groups) to an open stream."""
+    written = 0
+    for oe in merge_to_oemols(rdkit_mols, name=name, sddata=sddata):
+        if oechem.OEWriteMolecule(ofs, oe) != oechem.OEWriteMolReturnCode_Success:
+            raise RuntimeError(f"Could not write {name} to the OEB stream")
+        written += 1
+    return written
+
+
+def write_oeb(rdkit_mols, filename, name=None, sddata=None):
+    """Write one molecule to its own .oeb.gz file."""
+    ofs = open_oeb(filename)
     try:
-        written = 0
-        for rdkit_mol in rdkit_mols:
-            oe = rdkit_to_oemol(rdkit_mol, name=name, sddata=sddata)
-            if oe is not None:
-                oechem.OEWriteMolecule(ofs, oe)
-                written += 1
+        return write_to_stream(ofs, rdkit_mols, name=name, sddata=sddata)
     finally:
         ofs.close()
-    return written
