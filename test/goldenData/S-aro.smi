@@ -1,0 +1,6 @@
+CS4=CC=CC=C4 aro-S1
+C1=CC=CC=S1 aro-S2
+C1=CC=CC=[S-]1 aro-S3
+C1=CC=CC=[S+]1 aro-S4
+C1=CC=CS1 thiophene
+c1cc[sH+]c1 1H-thiophen-1-ium

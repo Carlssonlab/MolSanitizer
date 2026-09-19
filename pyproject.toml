@@ -4,7 +4,7 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "MolSanitizer"
-version = "0.7.0"
+version = "0.7.1a1"
 description = "An Efficient In-silico Refinement pipeline for Virtual Screening (protonation, tautomers,...)"
 readme = "README.md"
 authors = [
@@ -12,56 +12,77 @@ authors = [
     {name = "Szymon Pach", email = "szymon.pach@icm.uu.se"},
     {name = "Israel Cabeza de Vaca", email = "israel.cabezadevaca@icm.uu.se"}
 ]
-license = {text = "GPL 2.0"}
+license = "Apache-2.0"
 classifiers = [
     "Development Status :: 3 - Alpha",
-    "License :: OSI Approved :: GNU General Public License v2 (GPLv2)",
     "Programming Language :: Python :: 3.10",
     'Programming Language :: Python :: 3.11',
     'Programming Language :: Python :: 3.12',
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS :: MacOS X",
+    "Operating System :: Microsoft :: Windows",
     "Topic :: Scientific/Engineering :: Chemistry",
 ]
 keywords = ["docking", "drug design"]
-requires-python = ">=3.10,<3.13"
+requires-python = ">=3.10,<3.15"
 dependencies = [
     "pandas",
     "numpy",
-    "rdkit",
-    "gemmi",
-    "scipy",
-    "pyaml"
+    "rdkit>=2025.3.1",
+    "pyaml",
+    "platformdirs>=4"
 ]
 
 [project.optional-dependencies]
-pdbqt = ["meeko>=0.7.1"]
 oe = ["openeye-toolkits"]
+pdbqt = ["meeko>=0.7.1", "scipy", "gemmi"]
 
 [project.urls]
-Homepage = "https://github.com/phonglam3103/MolSanitizer.git"
+Homepage = "https://github.com/carlssonlab/MolSanitizer.git"
 
 [project.scripts]
 msani = "msani.cli:main"
 msani_batch = "msani.batchmode:main"
 strain = "msani.filtering.strain_filter:main"
-ionizer = "msani.moltransform.ionizer:main"
-tautomerizer = "msani.moltransform.tautomerizer:main"
+m_ionizer = "msani.moltransform.ionizer:main"
+m_tautomerizer = "msani.moltransform.tautomerizer:main"
 gen3d = "msani.conformers.conformers:main"
 
 [tool.setuptools]
 packages = ["msani"]
 
 [tool.scikit-build]
-# Configure CMake build for all C++ extensions
 cmake.source-dir = "."
 cmake.version = ">=3.20"
-cmake.args = [
-    "-DCMAKE_PREFIX_PATH=$CONDA_PREFIX",
-    "-DCMAKE_FIND_ROOT_PATH=$CONDA_PREFIX",
-    "-DCMAKE_INSTALL_PREFIX=$CONDA_PREFIX",
-    "-DCMAKE_CXX_FLAGS=-O3 -DNDEBUG",
-    "-DBUILD_SHARED_LIBS=OFF"
-]
+cmake.build-type = "Release"
 # Install the built .so files into the msani package
 install.components = ["python"]
 wheel.packages = ["msani"]
+# Native source and build artifacts belong in the sdist, not a binary wheel.
+wheel.exclude = [
+    "msani/cpp/**",
+    "msani/amsol/amsolcpp/**",
+    "**/.DS_Store",
+    "**/__pycache__/**",
+    "msani/**/*.cpp",
+    "msani/**/*.h",
+    "msani/**/*.hpp",
+    "msani/**/CMakeLists.txt",
+    "msani/**/*.a",
+]
+wheel.license-files = [
+    "LICENSE",
+    "msani/cpp/amsol/LICENSE",
+    "third_party/rdkit/LICENSE",
+    "third_party/boost/LICENSE",
+    "third_party/bzip2/LICENSE",
+    "third_party/xz/LICENSE",
+    "third_party/zstd/LICENSE",
+    "third_party/libcxx/LICENSE",
+    "third_party/zlib/LICENSE",
+]
+sdist.exclude = ["build/**", "dist/**", "**/.DS_Store", "**/__pycache__/**", "msani/**/*.a"]
+# Useful for development rebuilds
+build-dir = "build/{wheel_tag}"

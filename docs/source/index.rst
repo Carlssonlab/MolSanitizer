@@ -24,7 +24,9 @@ Contents
    introduction
    validation
    installation
+   quickstart
    usage
+   outputs
    config
    feedback
 
@@ -34,7 +36,6 @@ Contents
    
    changes
    python
-   evaluation
    contributors
 
 .. toctree::

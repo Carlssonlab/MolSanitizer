@@ -1,3 +1,4 @@
+from contextlib import nullcontext
 import argparse
 import multiprocessing as mp
 import platform
@@ -22,6 +23,7 @@ RDLogger.DisableLog('rdApp.*') # To disable error messages with kekulizing tauto
 logger = logging.getLogger('msani')
 
 TAUTOMER_RULES_PATH = Path(__file__).parent.parent / 'Data' / 'tautomers_v3.txt'
+TAUTOMER_EXTENDED_RULES_PATH = Path(__file__).parent.parent / 'Data' / 'tautomers_extended.txt'
 
 TAUTOMER_PARAMS = rdMolStandardize.CleanupParameters()
 TAUTOMER_PARAMS.tautomerRemoveSp3Stereo = False
@@ -164,17 +166,20 @@ class Tautomerizer:
                  taurdkit=True,
                  neutralize=True,
                  numcores = 1,
+                 extended_tautomers=False,
                  debug = False):
 
         self.debug = debug
         self.taurdkit = taurdkit
         self.neutralize = neutralize
         self.numcores = numcores
+        self.extended_tautomers = extended_tautomers
         if smartsFile is None: smartsFile = TAUTOMER_RULES_PATH
         self.reactions = self.load_reactions(smartsFile)
         self.integrity_substructs = integrity_substructs
         self.standardizing_reactions = [r for r in self.reactions if not r[1]]
         self.enumerating_reactions = [r for r in self.reactions if r[1]]
+        self.extended_enumerating_reactions = self.load_reactions(TAUTOMER_EXTENDED_RULES_PATH) if self.extended_tautomers else []
         self.debug = debug
 
     def __repr__(self):
@@ -280,30 +285,32 @@ class Tautomerizer:
 
                 if score > max_score: max_score = score
 
-            # Sort the tautomers by score
-            tautomers.sort(key=lambda x: (-x[1], Chem.MolToSmiles(x[0])))
-
-            if self.debug:
-                print(f"\tInitial score: {score_func(mol)}") # To avoid the warning of not having a score function
-                print(f"\tFound {len(tautomers)} tautomers")
-                for t in tautomers:
-                    print(f"\t\t{Chem.MolToSmiles(t[0])} {t[1]}")
-                print(f"\tMax score: {max_score}")
-            
-            # If the canonical tautomer is the same SCORE as the input,
-            # we believe more in the input than the output.
-            # Return the input molecule
+            # Most inputs already have the best score; no SMILES tie-break is
+            # needed in that case. Keep the full sorted diagnostic listing only
+            # in debug mode.
             initial_score = score_func(mol)
-            if max_score == initial_score:
-                if self.debug: print(f"Same score, use input molecule")
+            if max_score == initial_score and not self.debug:
                 return mol
-            
-            # Emulate the Canonicalize function
-            # Pick the one that has the same "configuration" of the double bonds as the input molecule
-            # Lexicographically min first
-            equal_tautomers = [(t[0], t[1], Chem.MolToSmiles(t[0])) for t in tautomers if t[1] >= max_score - 4] 
-            
-            
+
+            candidates = [
+                (tau, score, Chem.MolToSmiles(tau))
+                for tau, score in tautomers
+                if self.debug or score >= max_score - 4
+            ]
+            candidates.sort(key=lambda item: (-item[1], item[2]))
+            if self.debug:
+                print(f"\tInitial score: {initial_score}")
+                print(f"\tFound {len(tautomers)} tautomers")
+                for _, score, smiles in candidates:
+                    print(f"\t\t{smiles} {score}")
+                print(f"\tMax score: {max_score}")
+                if max_score == initial_score:
+                    print("Same score, use input molecule")
+                    return mol
+
+            # Preserve descending score and lexicographic SMILES tie-breaking.
+            equal_tautomers = [t for t in candidates if t[1] >= max_score - 4]
+
             if len(equal_tautomers) > 1:
                 if self.debug: 
                     print(f"\tFound {len(equal_tautomers)} tautomers with the nearly similar score:")
@@ -329,7 +336,8 @@ class Tautomerizer:
                             # canonical_tautomer = tautomer
                             # break
                     if potential_pool:
-                        if any(Chem.MolToSmiles(mol) == smiles for _, _, smiles in potential_pool):
+                        input_smiles = Chem.MolToSmiles(mol)
+                        if any(input_smiles == smiles for _, _, smiles in potential_pool):
                             if initial_score == potential_pool[0][1]:
                                 if self.debug: 
                                     print(f"\tInput has the highest score, take it.")
@@ -399,7 +407,7 @@ class Tautomerizer:
 
         return mol
 
-    def enumerate_mols(self, mol: Chem.Mol, max_tautomers: int = 10):
+    def enumerate_mols(self, mol: Chem.Mol, max_tautomers: int = 20):
         """
         Enumerate tautomers while retaining their RDKit molecule objects.
 
@@ -412,7 +420,7 @@ class Tautomerizer:
         initial_smiles = Chem.MolToSmiles(mol)
         unique_smiles = [initial_smiles]
         unique_mols = {initial_smiles: mol}
-        for name, _, rxn in self.enumerating_reactions:
+        for name, _, rxn in self.enumerating_reactions + self.extended_enumerating_reactions:
             i = 0
             while i < len(unique_smiles):
                 if len(unique_smiles) >= max_tautomers:
@@ -440,7 +448,7 @@ class Tautomerizer:
                 
         return unique_mols
 
-    def enumerate(self, mol: Chem.Mol, max_tautomers: int = 10):
+    def enumerate(self, mol: Chem.Mol, max_tautomers: int = 20):
         """Return the canonical SMILES keys from :meth:`enumerate_mols`."""
         return list(self.enumerate_mols(mol, max_tautomers))
 
@@ -484,7 +492,8 @@ class Tautomerizer:
                           df: DataFrame,
                           smiles_column: str = 'smiles',
                           mol_column: str = 'mol',
-                          name_column: str = 'ids') -> DataFrame:
+                          name_column: str = 'ids',
+                          *, pool=None) -> DataFrame:
         """
         Tautomerize a dataframe of molecules using multiprocessing Pool.
         """
@@ -499,9 +508,11 @@ class Tautomerizer:
         rows = ((dict(zip(keys, r)), smiles_column, mol_column, name_column) for r in df.itertuples(index=False, name=None))
         
         results = []
-        with ctx.Pool(processes=num_cores,
-                      initializer=_init_tautomerizer_worker,
-                      initargs=(self,)) as pool:
+        pool_context = nullcontext(pool) if pool is not None else ctx.Pool(
+            processes=num_cores,
+            initializer=_init_tautomerizer_worker,
+            initargs=(self,))
+        with pool_context as pool:
             for res in pool.imap_unordered(_process_single_tautomer_row, rows, chunksize=10):
                 if res:
                     results.extend(res)
@@ -512,7 +523,8 @@ class Tautomerizer:
                        df: DataFrame,
                        smiles_column: str = 'smiles',
                        mol_column: str = 'mol',
-                       name_column: str = 'ids') -> DataFrame:
+                       name_column: str = 'ids',
+                       *, pool=None, parallel=True) -> DataFrame:
         """
         Tautomerize a dataframe of molecules using multiprocessing or single-core based on `num_cores`.
         """
@@ -522,18 +534,15 @@ class Tautomerizer:
             df = df.copy()
             df[mol_column] = df[smiles_column].apply(Chem.MolFromSmiles)
             
-        if self.numcores > 1:
-            return self.tautomerize_df_mp(df, smiles_column, mol_column, name_column)
+        if parallel and self.numcores > 1:
+            return self.tautomerize_df_mp(df, smiles_column, mol_column, name_column, pool=pool)
         else:
             keys = df.columns.tolist()
             rows = ((dict(zip(keys, r)), smiles_column, mol_column, name_column) for r in df.itertuples(index=False, name=None))
             results = []
-            
-            # Set global worker for single-core execution to share the same function
-            _init_tautomerizer_worker(self)
-            
+
             for row_args in rows:
-                res = _process_single_tautomer_row(row_args)
+                res = _process_single_tautomer_row(row_args, worker=self)
                 if res:
                     results.extend(res)
             return DataFrame(results)
@@ -549,12 +558,13 @@ def _init_tautomerizer_worker(tautomerizer):
     global _tautomerizer_worker
     _tautomerizer_worker = tautomerizer
 
-def _process_single_tautomer_row(args):
+def _process_single_tautomer_row(args, worker=None):
     """
     Worker function to process tautomerization for a single row.
     Caught exceptions simply log an error and return an empty list so the job continues.
     """
     row, smiles_column, mol_column, name_column = args
+    worker = _tautomerizer_worker if worker is None else worker
     results = []
     
     try:
@@ -562,7 +572,7 @@ def _process_single_tautomer_row(args):
         longname = row.get('longname', None)
         original_idx = row.get('original_idx', None)
         
-        tautomers = _tautomerizer_worker._tautomerize_mols(
+        tautomers = worker._tautomerize_mols(
             mol=mol, name=row[name_column]
         )
 

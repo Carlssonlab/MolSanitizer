@@ -2,16 +2,34 @@ import unittest
 import tempfile
 import os
 import shutil
+import tarfile
+import gzip
+import lzma
+import bz2
+import subprocess
 
 from pathlib import Path
 import platform
+from types import SimpleNamespace
+from unittest.mock import patch
 
 
-from pandas import read_csv
+from pandas import Series, read_csv
 from rdkit import Chem
 
 from msani import cli
-from msani.batchmode import Split_Submit_jobs
+from msani.batchmode import (
+    Split_Submit_jobs,
+    cleanup_script,
+    prepare_batch_input,
+)
+from msani.conformers import mol2writer, utils
+from msani.conformers.conformers import ConformerGenerator
+from msani.db2.db2writer import write_db2
+from msani.filtering.filters import (
+    Filters,
+    _normalize_logp_condition,
+)
 from msani.io import parsers
 
 OS = platform.system()
@@ -25,10 +43,18 @@ except ImportError:
 
 
 class Test_MolSanitizer(unittest.TestCase):
+    def setUp(self):
+        # Always restore a durable directory, including after assertions fail
+        # and a TemporaryDirectory containing the current directory is removed.
+        os.chdir(self.path)
+        self.addCleanup(os.chdir, self.path)
+
     @classmethod
     def setUpClass(cls):
         """Set up class-level paths before running tests."""
-        cls.path = Path(__file__).parent / "goldenData"
+        original_dir = Path.cwd()
+        cls.addClassCleanup(os.chdir, original_dir)
+        cls.path = Path(__file__).resolve().parent / "goldenData"
         try:
             os.chdir(cls.path)  # Ensure test runs in the correct directory
         except FileNotFoundError:
@@ -51,6 +77,210 @@ class Test_MolSanitizer(unittest.TestCase):
             cli.clean_data(args)
             self.compareFiles(f'{temp_dir}/dummy_output_clean.txt',
                               f'{self.path}/out_multiple_inputs.txt')
+            
+    @unittest.skipIf(OS == "Windows",
+                     "Skipping Bash merge test on Windows.")
+    def test_read_input_file_streams_compressed_inputs(self):
+        contents = b'CC ethanol\nCCC propane\n'
+        compressors = (
+            (gzip.open, 'gzip'),
+            (bz2.open, 'bz2'),
+            (lzma.open, 'xz'),
+        )
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            for index, (compressed_open, expected_compression) in enumerate(compressors):
+                # Deliberately omit the usual extension: detection is based on
+                # the file signature rather than its name.
+                input_path = Path(temp_dir) / f'input-{index}.smi'
+                with compressed_open(input_path, 'wb') as stream:
+                    stream.write(contents)
+
+                with self.subTest(compression=expected_compression):
+                    self.assertEqual(
+                        cli.detect_input_compression(input_path),
+                        expected_compression,
+                    )
+                    with cli.read_input_file(
+                        input_path,
+                        is_enamine=False,
+                        is_synthon=False,
+                    ) as chunks:
+                        self.assertEqual(chunks.chunksize, 100_000)
+                        frame = next(chunks)
+                    self.assertEqual(frame.to_dict('records'), [
+                        {'smiles': 'CC', 'ids': 'ethanol'},
+                        {'smiles': 'CCC', 'ids': 'propane'},
+                    ])
+    @unittest.skipIf(OS == "Windows",
+                     "Skipping Bash merge test on Windows.")
+    def test_batch_streams_compressed_inputs_into_indexed_data(self):
+        contents = b''.join(
+            f'C molecule-{index}\n'.encode('utf-8') for index in range(5)
+        )
+        compressors = (
+            (gzip.open, 'gzip'),
+            (bz2.open, 'bz2'),
+            (lzma.open, 'xz'),
+        )
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            for index, (compressed_open, compression) in enumerate(compressors):
+                input_path = Path(temp_dir) / f'batch-input-{index}.smi'
+                output_dir = Path(temp_dir) / f'indexed-{index}'
+                with compressed_open(input_path, 'wb') as stream:
+                    stream.write(contents)
+
+                with self.subTest(compression=compression):
+                    n_jobs = prepare_batch_input(input_path, output_dir, 2)
+                    data_path = output_dir / 'input.data'
+                    offsets = [
+                        int(value)
+                        for value in (
+                            output_dir / 'input.offsets'
+                        ).read_text().splitlines()
+                    ]
+
+                    self.assertEqual(n_jobs, 3)
+                    self.assertFalse(data_path.is_symlink())
+                    self.assertEqual(data_path.read_bytes(), contents)
+                    self.assertEqual(len(offsets), n_jobs + 1)
+                    self.assertEqual([
+                        data_path.read_bytes()[start:end].count(b'\n')
+                        for start, end in zip(offsets, offsets[1:])
+                    ], [2, 2, 1])
+    @unittest.skipIf(OS == "Windows",
+                     "Skipping Bash merge test on Windows.")
+    def test_batch_indexes_plain_input_without_copying_it(self):
+        contents = b'C first\nCC second\nCCC third'
+        with tempfile.TemporaryDirectory() as temp_dir:
+            input_path = Path(temp_dir) / 'input.smi'
+            output_dir = Path(temp_dir) / 'indexed'
+            input_path.write_bytes(contents)
+
+            n_jobs = prepare_batch_input(input_path, output_dir, 2)
+
+            self.assertEqual(n_jobs, 2)
+            self.assertTrue((output_dir / 'input.data').is_symlink())
+            self.assertEqual((output_dir / 'input.data').read_bytes(), contents)
+            offsets = [
+                int(value)
+                for value in (
+                    output_dir / 'input.offsets'
+                ).read_text().splitlines()
+            ]
+            self.assertEqual(offsets, [0, len(b'C first\nCC second\n'), len(contents)])
+
+    @unittest.skipIf(OS == "Windows",
+                     "Skipping Bash merge test on Windows.")
+    def test_batch_merge_orders_shards_numerically(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            processed_dir = Path(temp_dir) / 'in' / 'processed'
+            processed_dir.mkdir(parents=True)
+            for name, contents in (
+                ('in10_clean.smi', 'ten\n'),
+                ('in2_clean.smi', 'two\n'),
+                ('in1_clean.smi', 'one\n'),
+            ):
+                (processed_dir / name).write_text(contents)
+
+            definition_start = cleanup_script.index('    merge_shards() {')
+            definition_end = cleanup_script.index(
+                '    if ! merge_shards',
+                definition_start,
+            )
+            merge_definition = cleanup_script[
+                definition_start:definition_end
+            ]
+            merge_command = (
+                merge_definition
+                + "\nmerge_shards in/processed 'in*_clean*' "
+                + 'in/processed/processed.smi\n'
+            )
+            subprocess.run(
+                ['bash', '-c', merge_command],
+                cwd=temp_dir,
+                check=True,
+            )
+
+            self.assertEqual(
+                (processed_dir / 'processed.smi').read_text(),
+                'one\ntwo\nten\n',
+            )
+            self.assertEqual(
+                list(processed_dir.glob('in*_clean*')),
+                [],
+            )
+
+    @unittest.skipIf(OS == "Windows",
+                     "Skipping native split test on Windows.")
+    def test_batch_submission_uses_indexing_as_the_counting_pass(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            first_input = temp_path / 'first.smi'
+            second_input = temp_path / 'second.smi'
+            first_input.write_text('C first\n' * 5)
+            second_input.write_text('C second\n' * 3)
+
+            args, parser = parsers.parseArguments([], batch_mode=True)
+            args.input_files = [first_input, second_input]
+            args.proj_name = 'test-project'
+            args.partition = None
+            args.lines = 2
+            args.timelimit = 1
+            args.max_jobs = 10
+            args.whole_node = False
+            args.whole_node_cores = 1
+            args.test = False
+
+            real_subprocess_run = subprocess.run
+            submissions = []
+
+            def run_command(command, *command_args, **command_kwargs):
+                if isinstance(command, list) and command[0] == 'squeue':
+                    return SimpleNamespace(stdout='', returncode=0)
+                if isinstance(command, list) and command[0] == 'sbatch':
+                    submissions.append(command)
+                    return SimpleNamespace(returncode=0)
+                return real_subprocess_run(
+                    command,
+                    *command_args,
+                    **command_kwargs,
+                )
+
+            previous_dir = Path.cwd()
+            try:
+                os.chdir(temp_path)
+                with (
+                    patch(
+                        'msani.batchmode.count_input_lines',
+                        side_effect=AssertionError(
+                            'batch submission must not make a counting pass'
+                        ),
+                    ),
+                    patch('msani.batchmode.time.sleep'),
+                    patch('msani.batchmode.write_single_job_script'),
+                    patch('msani.batchmode.subprocess.run', side_effect=run_command),
+                    patch('msani.config.load_defaults', return_value=({'MAX_ARRAY_SIZE': 2, 'MAX_LIMIT_PROJECT': 5000}, {})),
+                ):
+                    Split_Submit_jobs(args, parser)
+            finally:
+                os.chdir(previous_dir)
+
+            # The oversized first input is skipped without preventing the
+            # independently valid second input from being submitted.
+            self.assertFalse((temp_path / 'first').exists())
+            second_dir = temp_path / 'second'
+            self.assertTrue((second_dir / 'input.data').is_symlink())
+            self.assertEqual(
+                (second_dir / 'input.offsets').read_text().splitlines(),
+                ['0', '18', '27'],
+            )
+            self.assertEqual(len(list(second_dir.glob('in*.smi'))), 0)
+            self.assertEqual(len(list(second_dir.glob('in*.lock'))), 2)
+            self.assertEqual(submissions, [
+                ['sbatch', '--array=0-1%10', 'submit_msani.sh'],
+            ])
     
     def test_removesalts(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -67,7 +297,14 @@ class Test_MolSanitizer(unittest.TestCase):
             cli.clean_data(args)
             self.compare_relative(f'{temp_dir}/dummy_output_clean.txt',
                                   f'{self.path}/out_tautomers.txt')
-            
+    def test_tautomers_extended(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            args = self.generate_mock_arguments([f'{self.path}/in_extended_tautomers.txt'],
+                                                ['tautomers','extended-tautomers', 'test'], temp_dir)
+            cli.clean_data(args)
+            self.compare_relative(f'{temp_dir}/dummy_output_clean.txt',
+                                  f'{self.path}/out_extended_tautomers.txt')
+
     def test_tautomers_pseudo_chiralities(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             args = self.generate_mock_arguments([f'{self.path}/in_pseudochiral.txt'],
@@ -170,6 +407,37 @@ class Test_MolSanitizer(unittest.TestCase):
             self.remove_temp_text_files(temp_dir)
             cli.clean_data(args)
             with self.subTest(msg="Checking logP <=350:"):
+                self.compare_relative(f'{temp_dir}/dummy_output_clean.txt',
+                                      f'{self.path}/out_logp_350_clean.txt')
+                self.compare_relative(f'{temp_dir}/dummy_output_rejected.txt',
+                                      f'{self.path}/out_logp_350_rejected.txt')
+
+            with self.subTest(msg="Checking logP condition normalization:"):
+                expected_conditions = {
+                    '3.5': '350',
+                    '350': '350',
+                    ' <= 3.50 ': '<=350',
+                    '.5': '50',
+                    '1.0-3.5': '100-350',
+                    '-2.5--1.0': '-250--100',
+                }
+                for condition, expected in expected_conditions.items():
+                    self.assertEqual(
+                        _normalize_logp_condition(condition), expected
+                    )
+                with self.assertRaises(ValueError):
+                    _normalize_logp_condition('1-2-3')
+                signed_range_mask = Filters.filter_mask(
+                    Series([-300, -150, -50]),
+                    _normalize_logp_condition('-2.5--1.0'),
+                    'logp',
+                )
+                self.assertEqual(signed_range_mask.tolist(), [False, True, False])
+
+            args.logp = '<=3.50'
+            self.remove_temp_text_files(temp_dir)
+            cli.clean_data(args)
+            with self.subTest(msg="Checking native-scale logP <=3.50:"):
                 self.compare_relative(f'{temp_dir}/dummy_output_clean.txt',
                                       f'{self.path}/out_logp_350_clean.txt')
                 self.compare_relative(f'{temp_dir}/dummy_output_rejected.txt',
@@ -479,6 +747,53 @@ class Test_MolSanitizer(unittest.TestCase):
         shutil.rmtree(f"{temp_dir}")
         tmp_obj.cleanup()
 
+    def test_mol2_sulfur_types_match_corina(self):
+        def atom_types(block):
+            section = block.split('@<TRIPOS>ATOM\n', 1)[1]
+            section = section.split('@<TRIPOS>', 1)[0]
+            return [line.split()[5] for line in section.splitlines()
+                    if line.strip()]
+
+        reference = {}
+        for block in (self.path / 'S-aro.mol2').read_text().split('@<TRIPOS>MOLECULE\n')[1:]:
+            reference[block.splitlines()[0]] = atom_types(block)
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            for line in (self.path / 'S-aro.smi').read_text().splitlines():
+                smiles, name = line.split()
+                for explicit_hs in (False, True):
+                    with self.subTest(molecule=name, explicit_hs=explicit_hs):
+                        mol = Chem.MolFromSmiles(smiles)
+                        self.assertIsNotNone(mol)
+                        if explicit_hs:
+                            mol = Chem.AddHs(mol)
+                        # Coordinates do not affect typing; avoid stochastic embedding.
+                        mol.AddConformer(Chem.Conformer(mol.GetNumAtoms()))
+                        output = Path(temp_dir) / f'{name}.mol2'
+                        mol2writer.Mol2Writer(mol).write_mol2(output)
+                        generated = atom_types(output.read_text())
+                        self.assertEqual(
+                            [t for t in generated if t.startswith('S.')],
+                            [t for t in reference[name] if t.startswith('S.')])
+                        self.assertNotIn('S.ar', generated)
+                        self.assertEqual([t for t in generated if t != 'H'],
+                                         [t for t in reference[name] if t != 'H'])
+                        if name == 'aro-S4':
+                            bonds = output.read_text().split('@<TRIPOS>BOND\n')[1]
+                            ring_bonds = [row.split()[3] for row in bonds.splitlines()
+                                          if all(int(i) <= 6 for i in row.split()[1:3])]
+                            self.assertEqual(ring_bonds, ['ar'] * 6)
+
+    def test_mol2_sulfur_functional_groups(self):
+        for smiles, expected in [('CSC', 'S.3'), ('C=S', 'S.2'),
+                                 ('CS(=O)C', 'S.o'), ('CS(=O)(=O)C', 'S.o2')]:
+            with self.subTest(smiles=smiles):
+                mol = Chem.MolFromSmiles(smiles)
+                mol.AddConformer(Chem.Conformer(mol.GetNumAtoms()))
+                writer = mol2writer.Mol2Writer(mol)
+                self.assertEqual([writer.atom_types[a.GetIdx()] for a in mol.GetAtoms()
+                                  if a.GetSymbol() == 'S'], [expected])
+
     def test_mol2_generation(self):
         tmp_obj = tempfile.TemporaryDirectory()
         temp_dir = tmp_obj.name
@@ -567,6 +882,97 @@ class Test_MolSanitizer(unittest.TestCase):
         shutil.rmtree(f"{temp_dir}")
         tmp_obj.cleanup()
 
+    def test_db2writer_from_pregenerated_mol2(self):
+        """Convert the fixed ZINC conformer archive without embedding."""
+
+        mol2_path = self.path / "ZINCpg000027Y0hd.mol2.gz"
+        with tarfile.open(mol2_path, "r:gz") as archive:
+            mol2_file = archive.extractfile("ZINCpg000027Y0hd.mol2")
+            self.assertIsNotNone(mol2_file)
+            mol2_text = mol2_file.read().decode("ascii")
+
+        mol2_blocks = [
+            "@<TRIPOS>MOLECULE" + block
+            for block in mol2_text.split("@<TRIPOS>MOLECULE")[1:]
+        ]
+        self.assertEqual(len(mol2_blocks), 1196)
+
+        molecule = Chem.MolFromMol2Block(
+            mol2_blocks[0], sanitize=True, removeHs=False
+        )
+        self.assertIsNotNone(molecule, "Could not read MOL2 topology")
+        atom_count = molecule.GetNumAtoms()
+        for mol2_block in mol2_blocks[1:]:
+            lines = mol2_block.splitlines()
+            atom_start = lines.index("@<TRIPOS>ATOM") + 1
+            atom_end = lines.index("@<TRIPOS>BOND")
+            coordinates = [
+                tuple(map(float, line.split()[2:5]))
+                for line in lines[atom_start:atom_end]
+            ]
+            self.assertEqual(len(coordinates), atom_count)
+            conformer = Chem.Conformer(atom_count)
+            for atom_index, xyz in enumerate(coordinates):
+                conformer.SetAtomPosition(atom_index, xyz)
+            molecule.AddConformer(conformer, assignId=True)
+
+        topology = mol2writer.Mol2Writer(
+            molecule, mol2_template=mol2_blocks[0]
+        ).to_db2_topology(
+            name="ZINCpg000027Y0hd",
+            smiles="C#CCN(CCF)C(=O)[C@@H]1C[C@H](OC)CN1C(=O)[C@@H](C)OCC(C)C",
+            longname="fake",
+        )
+
+        expected = (self.path / "ZINCpg000027Y0hd.db2").read_text()
+        expected_lines = expected.splitlines()
+        atom_records = [
+            line.split() for line in expected_lines if line.startswith("A ")
+        ]
+        total_values = list(map(float, expected_lines[1].split()[1:]))
+        solvation = SimpleNamespace(
+            charge=[float(record[6]) for record in atom_records],
+            polarSolv=[float(record[7]) for record in atom_records],
+            apolarSolv=[float(record[8]) for record in atom_records],
+            solv=[float(record[9]) for record in atom_records],
+            surface=[float(record[10]) for record in atom_records],
+            totalCharge=total_values[0],
+            totalPolarSolv=total_values[1],
+            totalApolarSolv=total_values[2],
+            totalSolv=total_values[3],
+            totalSurface=total_values[4],
+        )
+        molecule_data = mol2writer.Mol2Writer.with_db2_conformers(
+            topology, molecule
+        )
+        observed_lines = write_db2(molecule_data, solvation).splitlines()
+
+        self.assertEqual(len(observed_lines), len(expected_lines))
+        for line_number, (observed, reference) in enumerate(
+            zip(observed_lines, expected_lines), 1
+        ):
+            if observed == reference:
+                continue
+            # The MOL2 archive stores four decimal places, while the golden
+            # DB2 was written from the original higher-precision coordinates.
+            # Every non-coordinate record must therefore remain byte-exact;
+            # only the last printed decimal of an X coordinate may differ.
+            observed_fields = observed.split()
+            reference_fields = reference.split()
+            self.assertEqual(observed_fields[0], "X", f"DB2 line {line_number}")
+            self.assertEqual(
+                observed_fields[:4], reference_fields[:4], f"DB2 line {line_number}"
+            )
+            for observed_xyz, reference_xyz in zip(
+                observed_fields[4:], reference_fields[4:]
+            ):
+                self.assertAlmostEqual(
+                    float(observed_xyz),
+                    float(reference_xyz),
+                    delta=0.00011,
+                    msg=f"DB2 line {line_number}",
+                )
+
     def test_amsol(self):
         os.chdir(self.path)
         reference_dir = self.path / 'db2_zinc'
@@ -590,6 +996,7 @@ class Test_MolSanitizer(unittest.TestCase):
                 args.format = ['db2']
                 args.numconfs = 1
                 args.prefix = Path(temp_dir)
+                args.numcores = 4
 
                 cli.clean_data(args)
                 self.assertFalse(
@@ -658,7 +1065,7 @@ class Test_MolSanitizer(unittest.TestCase):
     def test_pdbqt_generation(self):
         #with tempfile.TemporaryDirectory() as temp_dir:
             try:
-                from meeko.preparation import MoleculePreparation
+                import meeko
             except ImportError:
                 print("""The Meeko program is not installed.
                       PDBQT options are not tested""")
@@ -688,8 +1095,8 @@ class Test_MolSanitizer(unittest.TestCase):
             shutil.rmtree(temp_dir)
             tmp_obj.cleanup()
     
-    @unittest.skipIf(OS in ["Windows","Darwin"],
-                     "Skipping test on Windows due to incompatible `split` command.")
+    @unittest.skipIf(OS == "Windows",
+                     "Skipping SLURM shell-script test on Windows.")
     def test_batch(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             args, parser = parsers.parseArguments([], batch_mode=True)
@@ -714,7 +1121,7 @@ class Test_MolSanitizer(unittest.TestCase):
             os.chdir(batch_dir)
 
             # Check for required files
-            required_files = ['submit_msani.sh', 'in0000.smi', 'in0001.smi']
+            required_files = ['submit_msani.sh', 'input.data', 'input.offsets']
             for file in required_files:
                 with self.subTest(file=file):
                     self.assertTrue(os.path.exists(file),
@@ -732,21 +1139,24 @@ class Test_MolSanitizer(unittest.TestCase):
             ]
 
             with open('submit_msani.sh', 'r') as f:
-                file_contents = f.readlines()
+                contents = f.read()
+                file_contents = contents.splitlines(keepends=True)
                 self.assertEqual(file_contents[:7], expected_template,
                                  "submit_msani.sh header is incorrect.")
 
-                # Extract and verify flags
-                command_line = file_contents[17].strip()
-                extracted_flags = command_line.split('/msani -i $smiles_file ')[-1].split(' --')
-                # Ensure applied_flags match extracted_flags
+                self.assertIn('dd if=input.data', contents)
+                self.assertIn('-i "$smiles_file" -j 1', contents)
+                self.assertIn('sort -zV', contents)
+                self.assertIn('in/processed/processed.smi', contents)
+                self.assertIn('in/removed/removed.smi', contents)
                 with self.subTest(msg="Checking applied flags"):
-                    self.assertTrue(set(applied_flags).issubset(set(extracted_flags)),
-                                    "Flags were not passed correctly.")            
+                    for flag in applied_flags:
+                        self.assertIn(f'--{flag}', contents)
+            subprocess.run(['bash', '-n', 'submit_msani.sh'], check=True)
             os.chdir(self.path)
 
-    @unittest.skipIf(OS in ["Windows","Darwin"],
-                     "Skipping test on Windows due to incompatible `split` command.")
+    @unittest.skipIf(OS == "Windows",
+                     "Skipping SLURM shell-script test on Windows.")
     def test_batch_whole_node(self):
         """Test whole-node mode: header uses tetralith partition + nodes/ntasks,
         and the script body contains the chunked for-loop with & and wait."""
@@ -774,7 +1184,7 @@ class Test_MolSanitizer(unittest.TestCase):
             os.chdir(batch_dir)
 
             # Check for required files
-            required_files = ['submit_msani.sh', 'in0000.smi', 'in0001.smi']
+            required_files = ['submit_msani.sh', 'input.data', 'input.offsets']
             for file in required_files:
                 with self.subTest(file=file):
                     self.assertTrue(os.path.exists(file),
@@ -808,15 +1218,17 @@ class Test_MolSanitizer(unittest.TestCase):
                               "END_IDX calculation missing or incorrect.")
                 self.assertIn('for i in $(seq $START_IDX $END_IDX); do', contents,
                               "Chunked for-loop missing.")
+                self.assertIn('dd if=input.data', contents)
 
             with self.subTest(msg="Checking background & operator"):
                 self.assertIn(' &', contents,
                               "Background '&' operator missing from script.")
 
             with self.subTest(msg="Checking wait command"):
-                self.assertIn('\nwait\n', contents,
+                self.assertIn('wait "$pid"', contents,
                               "'wait' command missing from script.")
 
+            subprocess.run(['bash', '-n', 'submit_msani.sh'], check=True)
             os.chdir(self.path)
 
     def clear_temp_txt(self, temp_dir: str):
@@ -844,10 +1256,11 @@ class Test_MolSanitizer(unittest.TestCase):
             text_file.unlink()
 
     def compareFiles(self, newfile: str, goldenfile: str):
+        """Compare text outputs, ignoring only Windows versus Unix newlines."""
         with open(goldenfile, 'rb') as goldenFile, open(newfile, 'rb') as newFile:
             
-            goldenfile_content = goldenFile.read()
-            newFile_content = newFile.read()
+            goldenfile_content = goldenFile.read().replace(b'\r\n', b'\n')
+            newFile_content = newFile.read().replace(b'\r\n', b'\n')
             # Assert that the contents are the same
             self.assertEqual(goldenfile_content, newFile_content, "Files' contents differ")
 
@@ -867,6 +1280,39 @@ class Test_MolSanitizer(unittest.TestCase):
                 setattr(args, mode.replace('-', '_'), True)
         return args
         
+
+class TestRigidPart(unittest.TestCase):
+    SMILES = 'N(S(=O)(=O)[O-])(S(=O)(=O)[O-])S(=O)(=O)[O-]'
+
+    def test_carbon_free_alignment(self):
+        mol = Chem.MolFromSmiles(self.SMILES)
+        parts, label = utils.find_rigid_part(mol)
+        self.assertEqual(label, 'Two_nonH')
+        self.assertEqual(len(parts), 1)
+        self.assertEqual(len(parts[0]), 2)
+        self.assertIsNotNone(mol.GetBondBetweenAtoms(*parts[0]))
+
+    def test_existing_rule_priority(self):
+        for smiles, expected in [('CCO', 'Two_random_C'), ('CO', 'One_C_with_nonH')]:
+            with self.subTest(smiles=smiles):
+                _, label = utils.find_rigid_part(Chem.MolFromSmiles(smiles))
+                self.assertEqual(label, expected)
+
+    def test_unmatched_explicit_alignment_stays_unmatched(self):
+        parts, label = utils.find_rigid_part(
+            Chem.MolFromSmiles(self.SMILES), Chem.MolFromSmarts('CC'))
+        self.assertEqual(parts, [])
+        self.assertIsNone(label)
+
+    def test_carbon_free_sampling(self):
+        for mode in ('fixed', 'random', 'ignoretorlib'):
+            with self.subTest(mode=mode):
+                generator = ConformerGenerator(self.SMILES, mode=mode)
+                generator.conf_sampling(numConfs=30, ignoreTorlib=mode == 'ignoretorlib')
+                self.assertTrue(generator.atom_maps)
+                self.assertTrue(generator.conf_sampled)
+                self.assertGreater(generator.ring_confs[0].GetNumConformers(), 0)
+
 
 if __name__ == '__main__':
         unittest.main()

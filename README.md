@@ -12,9 +12,9 @@ MolSanitizer is a package for preparation (remove salts, stereoisomers enumerati
 
 We will set up the environment using [Anaconda](https://docs.anaconda.com/anaconda/install/index.html). Clone the current repository:
 
-    git clone https://github.com/phonglam3103/MolSanitizer.git
+    git clone https://github.com/carlssonlab/MolSanitizer.git
     OR
-    git clone https://ghp_token@github.com/phonglam3103/MolSanitizer.git  #Put your personal token so that you don't have to sign in every time.
+    git clone https://ghp_token@github.com/carlssonlab/MolSanitizer.git  #Put your personal token so that you don't have to sign in every time.
     
 Example of how to set up a working conda environment to run the code on Mac OS and Linux:
     
@@ -71,6 +71,10 @@ AMSOL 7.1 executables and intermediate input/output files are no longer used.
 
 
 ## Contribution
+
+Python workflows live in `msani/`, while native implementations and Python/C++
+bindings are grouped in [`msani/cpp/`](msani/cpp/README.md). That directory's
+README maps each component to its source files and build target.
 
 We warmly welcome contributions of all kinds, whether it's reporting a bug, suggesting a feature, or developing new functionality. To get started, please refer to our [CONTRIBUTING.md](CONTRIBUTING.md) guide, which details the steps for contributing, from opening an issue to submitting a pull request.
 

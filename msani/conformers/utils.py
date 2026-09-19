@@ -5,16 +5,15 @@ import logging
 import time
 
 import numpy as np
-import yaml
 
-from pandas import DataFrame, concat, read_csv  # only what you use
+from pandas import DataFrame, read_csv  # only what you use
 from rdkit import Chem
 from rdkit.Chem import rdMolTransforms, rdMolAlign
 from rdkit.Chem.rdchem import Mol, Conformer
 
 from pathlib import Path
 
-from msani.db2 import mol2db2
+from msani.db2 import db2writer
 from msani.conformers import mol2writer
 
 
@@ -64,9 +63,8 @@ rigid_rules['mol'] = rigid_rules['SMARTS'].apply(lambda x: Chem.MolFromSmarts(x)
 rotatable_pattern=r'*~[!$(*(#*)-!@*#*)&!D1]-!@[!$(*(#*)-!@*#*)&!D1]~*'
 rot_bond_mol = Chem.MolFromSmarts(rotatable_pattern)
 
-with open(Path(__file__).parent.parent / 'msani_configurations.yaml') as confFile:
-    msani_configurations = yaml.safe_load(confFile)
-CORINA_EXE = msani_configurations['CORINA']
+from msani.config import load_defaults
+
 
 # These below are for the new more deterministic method
 symmetric_patterns_file = Path(__file__).parent.parent / 'Data' / 'symmetric_smarts.txt'
@@ -77,7 +75,7 @@ prim_amidines_guanidines_pattern_mol = [Chem.MolFromSmarts('[#1:1][NH2,NX3H1:2]!
 
 
 
-def embed_smiles_corina(smiles, name, numringconfs, VERBOSE):
+def embed_smiles_corina(smiles, name, numringconfs, VERBOSE, corina_path=None):
     '''
     Embed the SMILES string using CORINA and return the mol, net_charge,
     rigid_scaffolds, and flexible_scaffolds
@@ -89,7 +87,7 @@ def embed_smiles_corina(smiles, name, numringconfs, VERBOSE):
     # rc: multiple ring confs; flapn: Flap ring nitrogen atoms,
     # de=6: energy window, mc=nconfs: write nring conf, wh: write hydrogens, sanpyr: make sulfonamide pyramidal
     command = [
-        CORINA_EXE,
+        corina_path or load_defaults()[0]['CORINA'] or 'corina',
         "-i", "t=smiles,scn=1,ncn=2",
         "-o", "t=sdf",
         "-d", f"rc,flapn,de=6,mc={numringconfs},wh,sanpyr"
@@ -125,7 +123,7 @@ def embed_smiles_corina(smiles, name, numringconfs, VERBOSE):
         if VERBOSE:
             print(f"\tNumber of ring conformers: {len(sdf_blocks)}")
         ring_confs = []
-        # Now you have a list of strings, each containing one MOL2 molecule
+        # Now you have a list of strings, each containing one SDF molecule
         for i, mol in enumerate(sdf_blocks, 1):
             rdkit_mol = Chem.MolFromMolBlock(mol, removeHs=False, sanitize=True)
             if rdkit_mol:
@@ -609,16 +607,18 @@ def find_rigid_part(mol, request_alignment=None):
                 break
     return rigid_part, rule_label
     
-def Align_ConvertToDb2(ring_conf, rigid_scaffold, solv_obj, mol2_topology):
+def align_and_convert_to_db2(ring_conf, rigid_scaffold, solv_obj, db2_topology):
     """
     Align all conformers to the rigid scaffold and convert them to DB2 in memory.
     """
     aligned_mol = Chem.Mol(ring_conf)
     rdMolAlign.AlignMolConformers(aligned_mol, atomIds=list(rigid_scaffold))
 
-    mol2_obj = mol2writer.Mol2Writer.with_db2_conformers(mol2_topology, aligned_mol)
+    molecule_data = mol2writer.Mol2Writer.with_db2_conformers(
+        db2_topology, aligned_mol
+    )
 
-    return mol2db2.mol2db2(mol2_obj, solv_obj)
+    return db2writer.write_db2(molecule_data, solv_obj)
 
 
 # All deterministic version of torsional sampling will be available here

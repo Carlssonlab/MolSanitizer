@@ -1,5 +1,7 @@
 include README.md
 include LICENSE
-recursive-include your_project *
-recursive-include tests *
-
+recursive-include msani *
+recursive-include test *
+recursive-include cmake *
+recursive-include third_party *
+include CMakeLists.txt
