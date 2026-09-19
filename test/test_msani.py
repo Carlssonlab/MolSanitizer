@@ -16,6 +16,14 @@ from msani.io import parsers
 
 OS = platform.system()
 machine = platform.machine().lower()
+
+try:  # OEB output is optional: commercial toolkits + a licence (OE_LICENSE)
+    from openeye import oechem as _oechem
+    OE_LICENSED = _oechem.OEChemIsLicensed()
+except ImportError:
+    OE_LICENSED = False
+
+
 class Test_MolSanitizer(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -397,6 +405,76 @@ class Test_MolSanitizer(unittest.TestCase):
                 del sdf_file
                 if mol is None:
                     raise ValueError("The molecule was not written correctly")
+        os.chdir(self.path)
+
+    @unittest.skipUnless(OE_LICENSED, "OpenEye toolkits not installed or not licensed")
+    def test_oeb_generation(self):
+        """OEB output: one record per molecule, carrying every conformer the SDF output carries."""
+        from openeye import oechem
+
+        def read_oeb(path):
+            ifs = oechem.oemolistream()
+            self.assertTrue(ifs.open(str(path)), "OEB file could not be read back.")
+            # the iterator reuses one molecule object, so copy each one out
+            mols = [oechem.OEMol(mol) for mol in ifs.GetOEMols()]
+            ifs.close()
+            return mols
+
+        def sdf_conformers(temp_dir, name):
+            total = 0
+            for part in sorted(Path(f"{temp_dir}/sdf").glob(f"{name}*.sdf")):
+                with open(part) as sdf_file:
+                    total += sum(1 for line in sdf_file if line.strip().endswith('M  END'))
+            return total
+
+        cases = ((f'{self.path}/in_confgen.smi', '3,4-diclorophenol'),
+                 (f'{self.path}/in_sulfonamide.smi', 'N-Methylbenzenesulfonamide'))  # 2 ring conformations
+
+        for smi, name in cases:
+            with self.subTest(msg=f"One OEB file per molecule: {name}"):
+                tmp_obj = tempfile.TemporaryDirectory()
+                temp_dir = tmp_obj.name
+                args = self.generate_mock_arguments([smi], ['gen3d', 'test'], temp_dir)
+                args.prefix = Path(temp_dir)
+                args.format = ['oeb', 'sdf']
+                cli.clean_data(args)
+
+                oeb = Path(f"{temp_dir}/oeb/{name}.oeb.gz")
+                self.assertTrue(oeb.exists(), "OEB file was not created.")
+                mols = read_oeb(oeb)
+                self.assertEqual(len(mols), 1,
+                                 "Ring-conformer groups must be merged into one molecule.")
+                self.assertEqual(mols[0].GetTitle(), name, "Title was not preserved.")
+                self.assertEqual(mols[0].NumConfs(), sdf_conformers(temp_dir, name),
+                                 "OEB and SDF conformer counts differ.")
+                os.chdir(self.path)
+
+        with self.subTest(msg="One OEB library per input file:"):
+            tmp_obj = tempfile.TemporaryDirectory()
+            temp_dir = tmp_obj.name
+            smi, name = cases[1]
+            args = self.generate_mock_arguments([smi], ['gen3d', 'test'], temp_dir)
+            args.prefix = Path(temp_dir)
+            args.format = ['oeb.lib', 'sdf']
+            cli.clean_data(args)
+
+            libraries = list(Path(f"{temp_dir}/oeb").glob("*.oeb.gz"))
+            self.assertEqual(len(libraries), 1, "Exactly one OEB library expected.")
+            mols = read_oeb(libraries[0])
+            self.assertEqual([mol.GetTitle() for mol in mols], [name],
+                             "The library must hold one record per molecule.")
+            self.assertEqual(mols[0].NumConfs(), sdf_conformers(temp_dir, name),
+                             "OEB library and SDF conformer counts differ.")
+
+            # A second pass over the same input (the next chunk of a large file, or a
+            # resumed run) must extend the library, not truncate it or duplicate records.
+            os.chdir(self.path)
+            cli.clean_data(args)
+            mols = read_oeb(libraries[0])
+            self.assertEqual([mol.GetTitle() for mol in mols], [name],
+                             "Re-running must neither drop nor duplicate molecules.")
+            self.assertFalse(list(Path(f"{temp_dir}/oeb").glob("restart_*")),
+                             "The restart copy of the library was not cleaned up.")
         os.chdir(self.path)
         shutil.rmtree(f"{temp_dir}")
         tmp_obj.cleanup()
