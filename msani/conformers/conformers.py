@@ -29,7 +29,7 @@ from rdkit import Chem
 from rdkit.Chem import rdDistGeom, rdForceFieldHelpers, rdMolAlign, PropertyPickleOptions
 
 from msani.io.parsers import CustomHelpFormatter
-from msani.conformers import utils, mol2writer, torsions
+from msani.conformers import utils, mol2writer, oebwriter, torsions
 from msani.filtering import filters
 from msani.io.utils import log_error
 
@@ -1105,6 +1105,31 @@ class ConformerGenerator:
                 mol2_obj = mol2writer.Mol2Writer(ring_conf, mol2_template=self.mol2_str)
                 mol2_obj.write_mol2(filename=f"mol2/{filename}.nr{idx}.mol2")
 
+    def to_oeb(self, filename = None, sddata = None):
+        """
+        Write the conformers to an OpenEye .oeb.gz file.
+
+        One multi-conformer OEMol per ring-conformer group, all sharing the
+        molecule's title - the form FRED and HYBRID read directly. Needs the
+        optional OpenEye toolkits and a licence (OE_LICENSE).
+
+        Args:
+            filename (str): Output basename. If None, defaults to self.name.
+            sddata (dict): Optional SD tags to attach to every molecule written.
+        """
+        if self.conf_sampled == False:
+            raise ValueError("Conformers have not been generated yet. Please call conf_sampling() first.")
+
+        if filename is None:
+            filename = self.name
+
+        if not self.ring_confs:
+            logger.warning(f"Failed to embed {self.name}.")
+            return
+
+        oebwriter.write_oeb(self.ring_confs, f"oeb/{filename}.oeb.gz",
+                            name=self.name, sddata=sddata)
+
     def to_pdbqt(self, filename = None):
         """
         Write the conformers to a PDBQT file using Meeko.
@@ -1356,6 +1381,8 @@ def _write_conformer_outputs(confgen, longname, config, archive):
         confgen.to_sdf()
     if 'mol2' in config.formats:
         confgen.to_mol2()
+    if 'oeb' in config.formats:
+        confgen.to_oeb()
     db2_options = {
         'numConfs': config.num_confs,
         'energywindow': config.energy_window,
@@ -1412,6 +1439,8 @@ def _process_conformer_row(row, config, request_alignment, archive):
                 'Meeko is not available for PDBQT output. Install it with '
                 '"pip install MolSanitizer[pdbqt]".'
             )
+        if 'oeb' in config.formats:
+            oebwriter.require_openeye()
         if config.method == 'obabel' and not OBABEL_AVAILABLE:
             raise ImportError(
                 'Open Babel was selected for embedding, but its obabel executable was not found. '
@@ -1424,7 +1453,7 @@ def _process_conformer_row(row, config, request_alignment, archive):
         if 'pdbqt' in config.formats:
             confgen.to_pdbqt()
         sampling_time = 0.0
-        if config.formats.intersection({'sdf', 'mol2'}):
+        if config.formats.intersection({'sdf', 'mol2', 'oeb'}):
             sampling_started = time.perf_counter()
             confgen.conf_sampling(
                 numConfs=config.num_confs, energywindow=config.energy_window,
@@ -1486,7 +1515,7 @@ def gen_conf_chunk(df: DataFrame, args, input_file='0'):
     if not config.ignore_torlib and args.torsion:
         Torlib.add_custom_rules_from_file(args.torsion, debug=config.verbose)
     request_alignment = Chem.MolFromSmarts(utils.canonicalize_if_smiles(args.rigid)) if args.rigid else None
-    for directory, output_name in (('pdbqt', 'pdbqt'), ('sdf', 'sdf'), ('mol2', 'mol2')):
+    for directory, output_name in (('pdbqt', 'pdbqt'), ('sdf', 'sdf'), ('mol2', 'mol2'), ('oeb', 'oeb')):
         if output_name in config.formats:
             os.makedirs(directory, exist_ok=True)
 
@@ -1530,7 +1559,7 @@ def main():
     parser.add_argument('--input_files', '-i', type=str, default = None, help='Input file containing SMILES strings.')
     parser.add_argument('--smiles', '-s', type = str, default = None, help='Input SMILES string.')
     parser.add_argument('--prefix', '-p', type=str, default = 'db2', help='Prefix for the output files.')
-    parser.add_argument('--format', '-f', type=str, nargs='+', default=['db2.tgz'], choices=['db2', 'db2.tgz', 'pdbqt', 'sdf', 'mol2'], help='Output format(s) (e.g., db2.tgz, pdbqt, sdf, mol2).')
+    parser.add_argument('--format', '-f', type=str, nargs='+', default=['db2.tgz'], choices=['db2', 'db2.tgz', 'pdbqt', 'sdf', 'mol2', 'oeb'], help='Output format(s) (e.g., db2.tgz, pdbqt, sdf, mol2, oeb).')
     parser.add_argument('--mode', '-mode', type=str, default='fixed', choices=['fixed', 'random', 'ignoretorlib'], help='Mode for conformer generation (fixed, random, ignoretorlib).')
     parser.add_argument('--tolerance', '-tol', type=float, default=30, help='Tolerance for dihedral angle sampling (default: 30).')
     parser.add_argument('--allowNonring', '-anr', action='store_true', help='Allow full sampling of non-ring compounds.')

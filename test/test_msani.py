@@ -16,6 +16,14 @@ from msani.io import parsers
 
 OS = platform.system()
 machine = platform.machine().lower()
+
+try:  # OEB output is optional: commercial toolkits + a licence (OE_LICENSE)
+    from openeye import oechem as _oechem
+    OE_LICENSED = _oechem.OEChemIsLicensed()
+except ImportError:
+    OE_LICENSED = False
+
+
 class Test_MolSanitizer(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -397,6 +405,42 @@ class Test_MolSanitizer(unittest.TestCase):
                 del sdf_file
                 if mol is None:
                     raise ValueError("The molecule was not written correctly")
+        os.chdir(self.path)
+
+    @unittest.skipUnless(OE_LICENSED, "OpenEye toolkits not installed or not licensed")
+    def test_oeb_generation(self):
+        """OEB output must carry every conformer the SDF output carries."""
+        from openeye import oechem
+        tmp_obj = tempfile.TemporaryDirectory()
+        temp_dir = tmp_obj.name
+        for smi, name, groups in ((f'{self.path}/in_confgen.smi', '3,4-diclorophenol', 1),
+                                  (f'{self.path}/in_sulfonamide.smi', 'N-Methylbenzenesulfonamide', 2)):
+            with self.subTest(msg=f"Generating OEB file for {name}:"):
+                args = self.generate_mock_arguments([smi], ['gen3d', 'test'], temp_dir)
+                args.prefix = Path(temp_dir)
+                args.format = ['oeb', 'sdf']
+                cli.clean_data(args)
+
+                oeb = Path(f"{temp_dir}/oeb/{name}.oeb.gz")
+                self.assertTrue(oeb.exists(), "OEB file was not created.")
+
+                ifs = oechem.oemolistream()
+                self.assertTrue(ifs.open(str(oeb)), "OEB file could not be read back.")
+                # the iterator reuses one molecule object, so copy each one out
+                mols = [oechem.OEMol(mol) for mol in ifs.GetOEMols()]
+                ifs.close()
+                self.assertEqual(len(mols), groups,
+                                 "One molecule per ring-conformer group expected.")
+                for mol in mols:
+                    self.assertEqual(mol.GetTitle(), name, "Title was not preserved.")
+
+                # every conformer of every group must survive, as in the SDF output
+                sdf_confs = 0
+                for part in sorted(Path(f"{temp_dir}/sdf").glob(f"{name}*.sdf")):
+                    with open(part) as sdf_file:
+                        sdf_confs += sum(1 for line in sdf_file if line.strip().endswith('M  END'))
+                self.assertEqual(sum(mol.NumConfs() for mol in mols), sdf_confs,
+                                 "OEB and SDF conformer counts differ.")
         os.chdir(self.path)
         shutil.rmtree(f"{temp_dir}")
         tmp_obj.cleanup()

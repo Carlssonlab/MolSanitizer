@@ -26,6 +26,14 @@ Meeko is optional and is needed only for PDBQT output. Install it with:
 
     pip install -e "MolSanitizer[pdbqt]"
 
+The OpenEye toolkits are optional and are needed only for OEB output
+(`--format oeb`), which writes one multi-conformer `.oeb.gz` per molecule for
+OpenEye docking (FRED/HYBRID). Install the extra and point OE_LICENSE at your
+own licence file:
+
+    pip install -e "MolSanitizer[oe]"
+    export OE_LICENSE=/path/to/oe_license.txt
+
 Open Babel is also optional. It is used only when selected as the embedding
 method or as a fallback after an RDKit embedding timeout. If that fallback is
 needed but Open Babel is unavailable, the failure reason is written to

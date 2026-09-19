@@ -303,10 +303,10 @@ def parseArguments(args = None, batch_mode = False):
         help='Generate 3D conformers')
     gen3d.add_argument(
         '--format', '-f',
-        choices=['db2', 'db2.tgz', 'pdbqt', 'sdf', 'mol2'],
+        choices=['db2', 'db2.tgz', 'pdbqt', 'sdf', 'mol2', 'oeb'],
         default=defaults.get('format', ['db2.tgz']),
         nargs='*',
-        help='Output file format. Multiple formats simultaneously supported.\n(Default: db2.tgz - Options: sdf, db2, db2.tgz, mol2, pdbqt.)')
+        help='Output file format. Multiple formats simultaneously supported.\n(Default: db2.tgz - Options: sdf, db2, db2.tgz, mol2, pdbqt, oeb.)\noeb needs the optional OpenEye toolkits and OE_LICENSE.')
     gen3d.add_argument(
         '--method', '-m',
         choices=['rdkit', 'obabel', 'corina'],

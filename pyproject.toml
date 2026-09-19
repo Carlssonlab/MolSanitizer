@@ -35,6 +35,7 @@ dependencies = [
 
 [project.optional-dependencies]
 pdbqt = ["meeko>=0.7.1"]
+oe = ["openeye-toolkits"]
 
 [project.urls]
 Homepage = "https://github.com/phonglam3103/MolSanitizer.git"
