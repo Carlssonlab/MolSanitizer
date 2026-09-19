@@ -9,6 +9,26 @@ All notable changes to this project will be documented in this file.
 🚀 Features
 ~~~~~~~~~~~
 
+-  Merge ring-conformer groups in OEB output and add oeb.lib library
+   format -
+   (`7a87158 <https://github.com/phonglam3103/MolSanitizer/commit/7a87158ee88d3d84ca0c8d56871175cdd2e248cb>`__)
+-  Add OEB output (–format oeb) for OpenEye docking -
+   (`aeab8ac <https://github.com/phonglam3103/MolSanitizer/commit/aeab8ac04c6e35082e42d3a74de8d090c7fb5a90>`__)
+
+🐛 Bug Fixes
+~~~~~~~~~~~~
+
+-  Keep earlier chunks in the OEB library and make it resumable -
+   (`a11cf28 <https://github.com/phonglam3103/MolSanitizer/commit/a11cf2869b5bae8b3478f78e9277e6a82e3734fd>`__)
+
+[0.7.0] - 2026-08-28
+--------------------
+
+.. _features-1:
+
+🚀 Features
+~~~~~~~~~~~
+
 -  New descriptors for filtering: TPSA and Fsp3, as suggested by
    @FlavioBallante -
    (`b4440f8 <https://github.com/phonglam3103/MolSanitizer/commit/b4440f86adb9d2ff6947801e176dfb7d04edee76>`__)
@@ -32,6 +52,8 @@ All notable changes to this project will be documented in this file.
    (`5b49383 <https://github.com/phonglam3103/MolSanitizer/commit/5b49383c5d36ff3f44eca24bb5a37930ae67ab89>`__)
 -  Add whole-node batch submission support to SLURM configurations -
    (`8084e0c <https://github.com/phonglam3103/MolSanitizer/commit/8084e0c332f6a04df9e9e407283f13a165ab0310>`__)
+
+.. _bug-fixes-1:
 
 🐛 Bug Fixes
 ~~~~~~~~~~~~
@@ -82,10 +104,12 @@ All notable changes to this project will be documented in this file.
    cyclohexene_sp2-1,2,3\_ -
    (`15774d9 <https://github.com/phonglam3103/MolSanitizer/commit/15774d98a6f2d3ad9202b12050be3523fd3c8eb7>`__)
 
+.. _section-1:
+
 [0.6.0] - 2026-03-12
 --------------------
 
-.. _features-1:
+.. _features-2:
 
 🚀 Features
 ~~~~~~~~~~~
@@ -118,7 +142,7 @@ All notable changes to this project will be documented in this file.
    such as aromatic groups, sulfones, azides to a canonical form. -
    (`3df8882 <https://github.com/phonglam3103/MolSanitizer/commit/3df88828f2c1c6dcf0b7fba9adf0a43da0fb0e1b>`__)
 
-.. _bug-fixes-1:
+.. _bug-fixes-2:
 
 🐛 Bug Fixes
 ~~~~~~~~~~~~
@@ -192,12 +216,12 @@ All notable changes to this project will be documented in this file.
    record “Failed_sampling” to sdf files -
    (`85218a1 <https://github.com/phonglam3103/MolSanitizer/commit/85218a13e508bba6e6297aafa225536d7c1218ad>`__)
 
-.. _section-1:
+.. _section-2:
 
 [0.5.0] - 2025-10-18
 --------------------
 
-.. _bug-fixes-2:
+.. _bug-fixes-3:
 
 🐛 Bug Fixes
 ~~~~~~~~~~~~
@@ -219,12 +243,12 @@ All notable changes to this project will be documented in this file.
    million-sized databases. -
    (`e142a0e <https://github.com/phonglam3103/MolSanitizer/commit/e142a0e7ae87387c738d2dd666ac0fcec719d22e>`__)
 
-.. _section-2:
+.. _section-3:
 
 [0.4.0] - 2025-08-18
 --------------------
 
-.. _features-2:
+.. _features-3:
 
 🚀 Features
 ~~~~~~~~~~~
@@ -281,7 +305,7 @@ All notable changes to this project will be documented in this file.
    compounds. -
    (`6e05081 <https://github.com/phonglam3103/MolSanitizer/commit/6e05081dd4f679ceff0401d56b70e805dc271a05>`__)
 
-.. _bug-fixes-3:
+.. _bug-fixes-4:
 
 🐛 Bug Fixes
 ~~~~~~~~~~~~
@@ -313,12 +337,12 @@ All notable changes to this project will be documented in this file.
 -  Change the name back to MolSanitizer -
    (`20b3af8 <https://github.com/phonglam3103/MolSanitizer/commit/20b3af8abaaac243d148abaebdfb04235ff68245>`__)
 
-.. _section-3:
+.. _section-4:
 
 [0.3.0] - 2025-06-19
 --------------------
 
-.. _features-3:
+.. _features-4:
 
 🚀 Features
 ~~~~~~~~~~~
@@ -357,7 +381,7 @@ All notable changes to this project will be documented in this file.
    for the enumeration of tautomers. -
    (`60a4c1a <https://github.com/phonglam3103/MolSanitizer/commit/60a4c1abdbe035addbaa336c57726131fe2d182b>`__)
 
-.. _bug-fixes-4:
+.. _bug-fixes-5:
 
 🐛 Bug Fixes
 ~~~~~~~~~~~~
@@ -424,12 +448,12 @@ All notable changes to this project will be documented in this file.
    ``pip install -e .`` again. -
    (`567a780 <https://github.com/phonglam3103/MolSanitizer/commit/567a78076dbb9858cc361c6aba7906e80ad03b6b>`__)
 
-.. _section-4:
+.. _section-5:
 
 [0.2.3] - 2025-02-04
 --------------------
 
-.. _features-4:
+.. _features-5:
 
 🚀 Features
 ~~~~~~~~~~~
@@ -477,7 +501,7 @@ All notable changes to this project will be documented in this file.
    range of pH. -
    (`9a779a2 <https://github.com/phonglam3103/MolSanitizer/commit/9a779a2214159a9d177491ca6b436356cfdb96cc>`__)
 
-.. _bug-fixes-5:
+.. _bug-fixes-6:
 
 🐛 Bug Fixes
 ~~~~~~~~~~~~
@@ -552,12 +576,12 @@ All notable changes to this project will be documented in this file.
 -  Update the new goldenData for the unittest.py -
    (`dfe57b8 <https://github.com/phonglam3103/MolSanitizer/commit/dfe57b879df9d245741f480df91298e4bc479e09>`__)
 
-.. _section-5:
+.. _section-6:
 
 [0.2.2] - 2024-11-30
 --------------------
 
-.. _features-5:
+.. _features-6:
 
 🚀 Features
 ~~~~~~~~~~~
@@ -575,7 +599,7 @@ All notable changes to this project will be documented in this file.
    CORINA in msani_configurations.yaml. -
    (`de95bf7 <https://github.com/phonglam3103/MolSanitizer/commit/de95bf7bfafde8c2306236c4a6990dd01cec0d97>`__)
 
-.. _bug-fixes-6:
+.. _bug-fixes-7:
 
 🐛 Bug Fixes
 ~~~~~~~~~~~~
@@ -608,12 +632,12 @@ All notable changes to this project will be documented in this file.
    user want to use. -
    (`358e4dd <https://github.com/phonglam3103/MolSanitizer/commit/358e4dd0ce07ca6e3792eb8f4ea11945083555d5>`__)
 
-.. _section-6:
+.. _section-7:
 
 [0.2.1] - 2024-11-18
 --------------------
 
-.. _features-6:
+.. _features-7:
 
 🚀 Features
 ~~~~~~~~~~~
@@ -647,7 +671,7 @@ All notable changes to this project will be documented in this file.
    each tar.gz depends on the number of lines per job. -
    (`dbd74a4 <https://github.com/phonglam3103/MolSanitizer/commit/dbd74a42537fed8c4e123f1f255b3debbd57d958>`__)
 
-.. _bug-fixes-7:
+.. _bug-fixes-8:
 
 🐛 Bug Fixes
 ~~~~~~~~~~~~
@@ -706,12 +730,12 @@ All notable changes to this project will be documented in this file.
    partial charges and desolvation penalties. -
    (`b99efdf <https://github.com/phonglam3103/MolSanitizer/commit/b99efdf80ef94561b591f4b8bbd4bb107c33e8e8>`__)
 
-.. _section-7:
+.. _section-8:
 
 [0.2.0] - 2024-11-06
 --------------------
 
-.. _features-7:
+.. _features-8:
 
 🚀 Features
 ~~~~~~~~~~~
@@ -752,7 +776,7 @@ All notable changes to this project will be documented in this file.
    errors with stereoisomers and tautomers. -
    (`63750b3 <https://github.com/phonglam3103/MolSanitizer/commit/63750b3d52f3b12ac3a85f44ec7c1bfae015f2ae>`__)
 
-.. _bug-fixes-8:
+.. _bug-fixes-9:
 
 🐛 Bug Fixes
 ~~~~~~~~~~~~
@@ -772,12 +796,12 @@ All notable changes to this project will be documented in this file.
 -  Remove deprecated functions -
    (`9bc63b6 <https://github.com/phonglam3103/MolSanitizer/commit/9bc63b6fde4568f4e83a67823fe0177110cf4773>`__)
 
-.. _section-8:
+.. _section-9:
 
 [0.1.3] - 2024-10-05
 --------------------
 
-.. _features-8:
+.. _features-9:
 
 🚀 Features
 ~~~~~~~~~~~
@@ -818,7 +842,7 @@ All notable changes to this project will be documented in this file.
    conformations -
    (`658d08c <https://github.com/phonglam3103/MolSanitizer/commit/658d08ce81b9f8d25c530b6063bffb3d0f8388ad>`__)
 
-.. _bug-fixes-9:
+.. _bug-fixes-10:
 
 🐛 Bug Fixes
 ~~~~~~~~~~~~
@@ -842,12 +866,12 @@ All notable changes to this project will be documented in this file.
 -  Remove unused codes -
    (`8437f18 <https://github.com/phonglam3103/MolSanitizer/commit/8437f18d4afe59d018dc6b7d7a04f7e659898a1b>`__)
 
-.. _section-9:
+.. _section-10:
 
 [0.1.2] - 2024-09-26
 --------------------
 
-.. _features-9:
+.. _features-10:
 
 🚀 Features
 ~~~~~~~~~~~
@@ -855,7 +879,7 @@ All notable changes to this project will be documented in this file.
 -  Msani not use the reset terminal hydrogen of mol2db2 anymore. -
    (`f4d2d6e <https://github.com/phonglam3103/MolSanitizer/commit/f4d2d6ec6b870f6a24fe4960c3622d983151de04>`__)
 
-.. _bug-fixes-10:
+.. _bug-fixes-11:
 
 🐛 Bug Fixes
 ~~~~~~~~~~~~
@@ -899,12 +923,12 @@ All notable changes to this project will be documented in this file.
    three atoms are matched. -
    (`e060c5a <https://github.com/phonglam3103/MolSanitizer/commit/e060c5aef3bae4e3bb2e259eba901d4232a25ebb>`__)
 
-.. _section-10:
+.. _section-11:
 
 [0.1.1] - 2024-09-22
 --------------------
 
-.. _features-10:
+.. _features-11:
 
 🚀 Features
 ~~~~~~~~~~~
@@ -922,7 +946,7 @@ All notable changes to this project will be documented in this file.
 -  Trial of using smaller num_confs_ring (1 instead of 10) -
    (`725f2ff <https://github.com/phonglam3103/MolSanitizer/commit/725f2ffe659213e45c1488fa95b0f24a4db20f08>`__)
 
-.. _bug-fixes-11:
+.. _bug-fixes-12:
 
 🐛 Bug Fixes
 ~~~~~~~~~~~~
@@ -956,12 +980,12 @@ All notable changes to this project will be documented in this file.
 -  Revert back to 300 initial conformations for better performance -
    (`31fabcb <https://github.com/phonglam3103/MolSanitizer/commit/31fabcb4e8f238f691c27a2cd518e653e37fb85f>`__)
 
-.. _section-11:
+.. _section-12:
 
 [0.1.0] - 2024-09-17
 --------------------
 
-.. _features-11:
+.. _features-12:
 
 🚀 Features
 ~~~~~~~~~~~
@@ -994,7 +1018,7 @@ All notable changes to this project will be documented in this file.
    regioisomers of sulfonamide-like structures -
    (`afd59b1 <https://github.com/phonglam3103/MolSanitizer/commit/afd59b1294846c3346f77c0684d6a769a36075e1>`__)
 
-.. _bug-fixes-12:
+.. _bug-fixes-13:
 
 🐛 Bug Fixes
 ~~~~~~~~~~~~
@@ -1003,12 +1027,12 @@ All notable changes to this project will be documented in this file.
    where no good conformations could be found (fused-ring systems) -
    (`d73bc8e <https://github.com/phonglam3103/MolSanitizer/commit/d73bc8e3559175e3daa7130e53e54c6b80f7678e>`__)
 
-.. _section-12:
+.. _section-13:
 
 [0.0.7] - 2024-09-01
 --------------------
 
-.. _features-12:
+.. _features-13:
 
 🚀 Features
 ~~~~~~~~~~~
@@ -1023,7 +1047,7 @@ All notable changes to this project will be documented in this file.
    before removing it + skip the jobs with more than 1000 subjobs -
    (`9a6b76c <https://github.com/phonglam3103/MolSanitizer/commit/9a6b76c9c52b4534a1dbfc8a168929b6915cbf86>`__)
 
-.. _bug-fixes-13:
+.. _bug-fixes-14:
 
 🐛 Bug Fixes
 ~~~~~~~~~~~~
@@ -1043,12 +1067,12 @@ All notable changes to this project will be documented in this file.
    pruning dependent. -
    (`302e715 <https://github.com/phonglam3103/MolSanitizer/commit/302e7158a72527bd08ebb2f5c9b8240579c38bd6>`__)
 
-.. _section-13:
+.. _section-14:
 
 [0.0.6] - 2024-08-22
 --------------------
 
-.. _features-13:
+.. _features-14:
 
 🚀 Features
 ~~~~~~~~~~~
@@ -1080,12 +1104,12 @@ All notable changes to this project will be documented in this file.
    MolSanitizer (should now output hours:mins:secs) -
    (`a3ff715 <https://github.com/phonglam3103/MolSanitizer/commit/a3ff715dc9ed4b16f84a690d0751e954c74e24a3>`__)
 
-.. _section-14:
+.. _section-15:
 
 [0.0.5] - 2024-08-21
 --------------------
 
-.. _features-14:
+.. _features-15:
 
 🚀 Features
 ~~~~~~~~~~~
@@ -1094,7 +1118,7 @@ All notable changes to this project will be documented in this file.
    generated -
    (`01281aa <https://github.com/phonglam3103/MolSanitizer/commit/01281aa690dcca0b0e56ac19e83fbd8c3557ed09>`__)
 
-.. _bug-fixes-14:
+.. _bug-fixes-15:
 
 🐛 Bug Fixes
 ~~~~~~~~~~~~
@@ -1104,12 +1128,12 @@ All notable changes to this project will be documented in this file.
    -
    (`1c9db8d <https://github.com/phonglam3103/MolSanitizer/commit/1c9db8d5fd254125b218aa0e97e783476c0c014f>`__)
 
-.. _section-15:
+.. _section-16:
 
 [0.0.4] - 2024-08-21
 --------------------
 
-.. _features-15:
+.. _features-16:
 
 🚀 Features
 ~~~~~~~~~~~
@@ -1128,12 +1152,12 @@ All notable changes to this project will be documented in this file.
 -  :fire: Better logger for errorneous compounds -
    (`4627645 <https://github.com/phonglam3103/MolSanitizer/commit/4627645bd555a5b9ae51476762cde4c070003c61>`__)
 
-.. _section-16:
+.. _section-17:
 
 [0.0.3] - 2024-08-20
 --------------------
 
-.. _features-16:
+.. _features-17:
 
 🚀 Features
 ~~~~~~~~~~~
@@ -1142,7 +1166,7 @@ All notable changes to this project will be documented in this file.
    should be stored in another file.)* :zap: -
    (`921c6b9 <https://github.com/phonglam3103/MolSanitizer/commit/921c6b98ff2cbd4bbc3e93e008f8fa60c47f11fe>`__)
 
-.. _bug-fixes-15:
+.. _bug-fixes-16:
 
 🐛 Bug Fixes
 ~~~~~~~~~~~~
@@ -1151,12 +1175,12 @@ All notable changes to this project will be documented in this file.
    heavy_atoms –> boost the performance significantly -
    (`2ab67b2 <https://github.com/phonglam3103/MolSanitizer/commit/2ab67b2d4bc3269186fa2d70e55d860822439ff1>`__)
 
-.. _section-17:
+.. _section-18:
 
 [0.0.2] - 2024-08-19
 --------------------
 
-.. _features-17:
+.. _features-18:
 
 🚀 Features
 ~~~~~~~~~~~
@@ -1170,7 +1194,7 @@ All notable changes to this project will be documented in this file.
    -
    (`60a7958 <https://github.com/phonglam3103/MolSanitizer/commit/60a795852eb6cea3283528b22d75dfb85f0e8b28>`__)
 
-.. _bug-fixes-16:
+.. _bug-fixes-17:
 
 🐛 Bug Fixes
 ~~~~~~~~~~~~
@@ -1204,7 +1228,7 @@ All notable changes to this project will be documented in this file.
 -  :construction: Fix Typos -
    (`e400636 <https://github.com/phonglam3103/MolSanitizer/commit/e400636ea89e660f98c2af31c17c779f0176ce75>`__)
 
-.. _section-18:
+.. _section-19:
 
 [0.0.1] - 2024-08-16
 --------------------

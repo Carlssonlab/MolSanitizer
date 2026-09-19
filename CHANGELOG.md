@@ -2,7 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.7.0] - 2026-08-18
+## [unreleased - most recent changes come first]
+
+### 🚀 Features
+
+- Merge ring-conformer groups in OEB output and add oeb.lib library format - ([7a87158](https://github.com/phonglam3103/MolSanitizer/commit/7a87158ee88d3d84ca0c8d56871175cdd2e248cb))
+- Add OEB output (--format oeb) for OpenEye docking - ([aeab8ac](https://github.com/phonglam3103/MolSanitizer/commit/aeab8ac04c6e35082e42d3a74de8d090c7fb5a90))
+
+### 🐛 Bug Fixes
+
+- Keep earlier chunks in the OEB library and make it resumable - ([a11cf28](https://github.com/phonglam3103/MolSanitizer/commit/a11cf2869b5bae8b3478f78e9277e6a82e3734fd))
+
+## [0.7.0] - 2026-08-28
 
 ### 🚀 Features
 
