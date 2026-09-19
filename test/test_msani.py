@@ -465,6 +465,16 @@ class Test_MolSanitizer(unittest.TestCase):
                              "The library must hold one record per molecule.")
             self.assertEqual(mols[0].NumConfs(), sdf_conformers(temp_dir, name),
                              "OEB library and SDF conformer counts differ.")
+
+            # A second pass over the same input (the next chunk of a large file, or a
+            # resumed run) must extend the library, not truncate it or duplicate records.
+            os.chdir(self.path)
+            cli.clean_data(args)
+            mols = read_oeb(libraries[0])
+            self.assertEqual([mol.GetTitle() for mol in mols], [name],
+                             "Re-running must neither drop nor duplicate molecules.")
+            self.assertFalse(list(Path(f"{temp_dir}/oeb").glob("restart_*")),
+                             "The restart copy of the library was not cleaned up.")
         os.chdir(self.path)
         shutil.rmtree(f"{temp_dir}")
         tmp_obj.cleanup()

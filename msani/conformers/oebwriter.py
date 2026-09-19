@@ -225,6 +225,28 @@ def open_oeb(filename):
     return ofs
 
 
+def restore_library(ofs, previous):
+    """Copy the molecules of an earlier library into `ofs`; return their titles.
+
+    Opening an OEB stream truncates the file, but one input file is processed in
+    several chunks that all feed the same library, and an interrupted run should
+    be resumable. So the earlier library is moved aside first and copied back in
+    here - the same way the db2.tgz archive is restored.
+    """
+    titles = set()
+    ifs = oechem.oemolistream()
+    if not ifs.open(previous):
+        return titles
+    try:
+        for mol in ifs.GetOEMols():
+            if oechem.OEWriteMolecule(ofs, mol) != oechem.OEWriteMolReturnCode_Success:
+                raise RuntimeError(f"Could not restore {mol.GetTitle()} from {previous}")
+            titles.add(mol.GetTitle())
+    finally:
+        ifs.close()
+    return titles
+
+
 def write_to_stream(ofs, rdkit_mols, name=None, sddata=None):
     """Write one molecule (all its ring-conformer groups) to an open stream."""
     written = 0

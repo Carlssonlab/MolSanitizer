@@ -19,7 +19,7 @@ import sys
 import tarfile, io
 import time
 import argparse
-from contextlib import nullcontext
+from contextlib import closing, nullcontext
 from dataclasses import dataclass
 from queue import Empty
 
@@ -1380,7 +1380,7 @@ def _create_conformer_generator(smiles, name, config, request_alignment):
     return generator, time.perf_counter() - start
 
 
-def _write_conformer_outputs(confgen, longname, config, archive, library=None):
+def _write_conformer_outputs(confgen, longname, config, archive, library=None, library_done=()):
     start = time.perf_counter()
     if 'sdf' in config.formats:
         confgen.to_sdf()
@@ -1388,7 +1388,7 @@ def _write_conformer_outputs(confgen, longname, config, archive, library=None):
         confgen.to_mol2()
     if 'oeb' in config.formats:
         confgen.to_oeb()
-    if 'oeb.lib' in config.formats:
+    if 'oeb.lib' in config.formats and confgen.name not in library_done:
         confgen.to_oeb(stream=library)
     db2_options = {
         'numConfs': config.num_confs,
@@ -1432,7 +1432,7 @@ def _restore_db2_archive(archive, restart_tgz):
     return processed_mols
 
 
-def _process_conformer_row(row, config, request_alignment, archive, library=None):
+def _process_conformer_row(row, config, request_alignment, archive, library=None, library_done=()):
     smiles, name = row['smiles'], row['ids']
     longname = row.get('longname') if config.synthon else None
     random.seed(config.random_seed)
@@ -1469,7 +1469,7 @@ def _process_conformer_row(row, config, request_alignment, archive, library=None
                 request_alignment=request_alignment,
             )
             sampling_time = time.perf_counter() - sampling_started
-        output_time = _write_conformer_outputs(confgen, longname, config, archive, library)
+        output_time = _write_conformer_outputs(confgen, longname, config, archive, library, library_done)
     except Exception as error:
         _log_conformer_failure(smiles, name, 'Conformer generation', error)
         return None
@@ -1535,25 +1535,42 @@ def gen_conf_chunk(df: DataFrame, args, input_file='0'):
         logger.info('Restarting from existing DB2 archive: %s', output_tgz)
         shutil.copy2(output_tgz, restart_tgz)
     archive_context = tarfile.open(output_tgz, 'w:gz') if 'db2.tgz' in config.formats else nullcontext(None)
-    # one OEB library per input file, the way db2.tgz is one archive per input file
-    library = oebwriter.open_oeb(f'oeb/{input_file}.oeb.gz') if 'oeb.lib' in config.formats else None
+    # One OEB library per input file, the way db2.tgz is one archive per input file.
+    # An input file is processed in several chunks that all feed this library, and
+    # opening it truncates, so an existing library is moved aside and restored below.
+    library, restart_oeb = None, None
+    if 'oeb.lib' in config.formats:
+        output_oeb = f'oeb/{input_file}.oeb.gz'
+        if not args.smiles and os.path.exists(output_oeb):
+            restart_oeb = f'oeb/restart_{input_file}.oeb.gz'
+            logger.info('Continuing existing OEB library: %s', output_oeb)
+            shutil.move(output_oeb, restart_oeb)
+        library = oebwriter.open_oeb(output_oeb)
+    library_context = closing(library) if library is not None else nullcontext()
     timing_rows = []
-    try:
-        with archive_context as archive:
-            processed_mols = (
-                _restore_db2_archive(archive, restart_tgz)
-                if archive is not None else set()
-            )
-            for _, row in df.iterrows():
-                if row['ids'] in processed_mols:
-                    logger.info('Skipping %s because it is already in %s', row['ids'], output_tgz)
-                    continue
-                timing_row = _process_conformer_row(row, config, request_alignment, archive, library)
-                if timing_row:
-                    timing_rows.append(timing_row)
-    finally:
-        if library is not None:
-            library.close()
+    with archive_context as archive, library_context:
+        processed_mols = (
+            _restore_db2_archive(archive, restart_tgz)
+            if archive is not None else set()
+        )
+        library_done = set()
+        if restart_oeb is not None:
+            try:
+                library_done = oebwriter.restore_library(library, restart_oeb)
+            finally:
+                os.remove(restart_oeb)
+        # nothing else to produce for a molecule the library already holds
+        library_only = config.formats == frozenset({'oeb.lib'})
+        for _, row in df.iterrows():
+            if row['ids'] in processed_mols:
+                logger.info('Skipping %s because it is already in %s', row['ids'], output_tgz)
+                continue
+            if library_only and row['ids'] in library_done:
+                logger.info('Skipping %s because it is already in %s', row['ids'], output_oeb)
+                continue
+            timing_row = _process_conformer_row(row, config, request_alignment, archive, library, library_done)
+            if timing_row:
+                timing_rows.append(timing_row)
     if config.timing:
         header = ('Name,Initial embedding,Torsional sampling,SDF,Total\n'
                   if 'sdf' in config.formats else
