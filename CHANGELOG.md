@@ -6,6 +6,17 @@ All notable changes to this project will be documented in this file.
 
 ### 🚀 Features
 
+- Merge ring-conformer groups in OEB output and add oeb.lib library format - ([7a87158](https://github.com/phonglam3103/MolSanitizer/commit/7a87158ee88d3d84ca0c8d56871175cdd2e248cb))
+- Add OEB output (--format oeb) for OpenEye docking - ([aeab8ac](https://github.com/phonglam3103/MolSanitizer/commit/aeab8ac04c6e35082e42d3a74de8d090c7fb5a90))
+
+### 🐛 Bug Fixes
+
+- Keep earlier chunks in the OEB library and make it resumable - ([a11cf28](https://github.com/phonglam3103/MolSanitizer/commit/a11cf2869b5bae8b3478f78e9277e6a82e3734fd))
+
+## [0.7.0] - 2026-08-28
+
+### 🚀 Features
+
 - New descriptors for filtering: TPSA and Fsp3, as suggested by @FlavioBallante - ([b4440f8](https://github.com/phonglam3103/MolSanitizer/commit/b4440f86adb9d2ff6947801e176dfb7d04edee76))
 - Added AMSOLcpp with memory-based partial charges and desolvation properties assignments. Thanks to @isra3l. No longer manual AMSOL installation needed. - ([31967d1](https://github.com/phonglam3103/MolSanitizer/commit/31967d1f20ca5411b8fe4f2791b9912350363768))
 - Default eps (dielectric constant) is now set to 4, as it compromised better between the numConfs and performance - ([fbe5e53](https://github.com/phonglam3103/MolSanitizer/commit/fbe5e538d6b32cd36456d9cd114836f7db75f48d))

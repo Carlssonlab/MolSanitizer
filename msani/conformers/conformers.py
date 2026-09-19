@@ -19,7 +19,7 @@ import sys
 import tarfile, io
 import time
 import argparse
-from contextlib import nullcontext
+from contextlib import closing, nullcontext
 from dataclasses import dataclass
 from queue import Empty, Queue
 from threading import Thread
@@ -30,7 +30,7 @@ from rdkit import Chem
 from rdkit.Chem import rdDistGeom, rdForceFieldHelpers, rdMolAlign, PropertyPickleOptions
 
 from msani.io.parsers import CustomHelpFormatter
-from msani.conformers import utils, mol2writer, torsions
+from msani.conformers import utils, mol2writer, oebwriter, torsions
 from msani.filtering import filters
 from msani.io.utils import log_error
 
@@ -1150,6 +1150,36 @@ class ConformerGenerator:
                 mol2_obj = mol2writer.Mol2Writer(ring_conf, mol2_template=self.mol2_str)
                 mol2_obj.write_mol2(filename=f"mol2/{filename}.nr{idx}.mol2")
 
+    def to_oeb(self, filename = None, sddata = None, stream = None):
+        """
+        Write the conformers as ONE multi-conformer OpenEye OEMol.
+
+        The ring-conformer groups are merged, so the molecule is a single record
+        and FRED/HYBRID dock it to a single result. Needs the optional OpenEye
+        toolkits and a licence (OE_LICENSE).
+
+        Args:
+            filename (str): Output basename. If None, defaults to self.name.
+            sddata (dict): Optional SD tags to attach to the molecule.
+            stream: An open OEB stream (see oebwriter.open_oeb). If given, the
+                molecule is appended to that library instead of getting its own file.
+        """
+        if self.conf_sampled == False:
+            raise ValueError("Conformers have not been generated yet. Please call conf_sampling() first.")
+
+        if filename is None:
+            filename = self.name
+
+        if not self.ring_confs:
+            logger.warning(f"Failed to embed {self.name}.")
+            return
+
+        if stream is not None:
+            oebwriter.write_to_stream(stream, self.ring_confs, name=self.name, sddata=sddata)
+        else:
+            oebwriter.write_oeb(self.ring_confs, f"oeb/{filename}.oeb.gz",
+                                name=self.name, sddata=sddata)
+
     def to_pdbqt(self, filename = None):
         """
         Write the conformers to a PDBQT file using Meeko.
@@ -1419,12 +1449,16 @@ def _create_conformer_generator(smiles, name, config, request_alignment):
     return generator, time.perf_counter() - start
 
 
-def _write_conformer_outputs(confgen, longname, config, archive):
+def _write_conformer_outputs(confgen, longname, config, archive, library=None, library_done=()):
     start = time.perf_counter()
     if 'sdf' in config.formats:
         confgen.to_sdf()
     if 'mol2' in config.formats:
         confgen.to_mol2()
+    if 'oeb' in config.formats:
+        confgen.to_oeb()
+    if 'oeb.lib' in config.formats and confgen.name not in library_done:
+        confgen.to_oeb(stream=library)
     db2_options = {
         'numConfs': config.num_confs,
         'energywindow': config.energy_window,
@@ -1467,7 +1501,7 @@ def _restore_db2_archive(archive, restart_tgz):
     return processed_mols
 
 
-def _process_conformer_row(row, config, request_alignment, archive):
+def _process_conformer_row(row, config, request_alignment, archive, library=None, library_done=()):
     smiles, name = row['smiles'], row['ids']
     longname = row.get('longname') if config.synthon else None
     random.seed(config.random_seed)
@@ -1488,7 +1522,7 @@ def _process_conformer_row(row, config, request_alignment, archive):
         if 'pdbqt' in config.formats:
             confgen.to_pdbqt()
         sampling_time = 0.0
-        if config.formats.intersection({'sdf', 'mol2'}):
+        if config.formats.intersection({'sdf', 'mol2', 'oeb', 'oeb.lib'}):
             sampling_started = time.perf_counter()
             confgen.conf_sampling(
                 numConfs=config.num_confs, energywindow=config.energy_window,
@@ -1497,7 +1531,7 @@ def _process_conformer_row(row, config, request_alignment, archive):
                 request_alignment=request_alignment,
             )
             sampling_time = time.perf_counter() - sampling_started
-        output_time = _write_conformer_outputs(confgen, longname, config, archive)
+        output_time = _write_conformer_outputs(confgen, longname, config, archive, library, library_done)
     except Exception as error:
         _log_conformer_failure(smiles, name, 'Conformer generation', error)
         return None
@@ -1550,7 +1584,7 @@ def gen_conf_chunk(df: DataFrame, args, input_file='0'):
     if not config.ignore_torlib and args.torsion:
         Torlib.add_custom_rules_from_file(args.torsion, debug=config.verbose)
     request_alignment = Chem.MolFromSmarts(utils.canonicalize_if_smiles(args.rigid)) if args.rigid else None
-    for directory, output_name in (('pdbqt', 'pdbqt'), ('sdf', 'sdf'), ('mol2', 'mol2')):
+    for directory, output_name in (('pdbqt', 'pdbqt'), ('sdf', 'sdf'), ('mol2', 'mol2'), ('oeb', 'oeb'), ('oeb', 'oeb.lib')):
         if output_name in config.formats:
             os.makedirs(directory, exist_ok=True)
 
@@ -1563,17 +1597,40 @@ def gen_conf_chunk(df: DataFrame, args, input_file='0'):
         logger.info('Restarting from existing DB2 archive: %s', output_tgz)
         shutil.copy2(output_tgz, restart_tgz)
     archive_context = tarfile.open(output_tgz, 'w:gz') if 'db2.tgz' in config.formats else nullcontext(None)
+    # One OEB library per input file, the way db2.tgz is one archive per input file.
+    # An input file is processed in several chunks that all feed this library, and
+    # opening it truncates, so an existing library is moved aside and restored below.
+    library, restart_oeb = None, None
+    if 'oeb.lib' in config.formats:
+        output_oeb = f'oeb/{input_file}.oeb.gz'
+        if not args.smiles and os.path.exists(output_oeb):
+            restart_oeb = f'oeb/restart_{input_file}.oeb.gz'
+            logger.info('Continuing existing OEB library: %s', output_oeb)
+            shutil.move(output_oeb, restart_oeb)
+        library = oebwriter.open_oeb(output_oeb)
+    library_context = closing(library) if library is not None else nullcontext()
     timing_rows = []
-    with archive_context as archive:
+    with archive_context as archive, library_context:
         processed_mols = (
             _restore_db2_archive(archive, restart_tgz)
             if archive is not None else set()
         )
+        library_done = set()
+        if restart_oeb is not None:
+            try:
+                library_done = oebwriter.restore_library(library, restart_oeb)
+            finally:
+                os.remove(restart_oeb)
+        # nothing else to produce for a molecule the library already holds
+        library_only = config.formats == frozenset({'oeb.lib'})
         for _, row in df.iterrows():
             if row['ids'] in processed_mols:
                 logger.info('Skipping %s because it is already in %s', row['ids'], output_tgz)
                 continue
-            timing_row = _process_conformer_row(row, config, request_alignment, archive)
+            if library_only and row['ids'] in library_done:
+                logger.info('Skipping %s because it is already in %s', row['ids'], output_oeb)
+                continue
+            timing_row = _process_conformer_row(row, config, request_alignment, archive, library, library_done)
             if timing_row:
                 timing_rows.append(timing_row)
     if config.timing:
@@ -1594,7 +1651,7 @@ def main():
     parser.add_argument('--input_files', '-i', type=str, default = None, help='Input file containing SMILES strings.')
     parser.add_argument('--smiles', '-s', type = str, default = None, help='Input SMILES string.')
     parser.add_argument('--prefix', '-p', type=str, default = 'db2', help='Prefix for the output files.')
-    parser.add_argument('--format', '-f', type=str, nargs='+', default=['db2.tgz'], choices=['db2', 'db2.tgz', 'pdbqt', 'sdf', 'mol2'], help='Output format(s) (e.g., db2.tgz, pdbqt, sdf, mol2).')
+    parser.add_argument('--format', '-f', type=str, nargs='+', default=['db2.tgz'], choices=['db2', 'db2.tgz', 'pdbqt', 'sdf', 'mol2', 'oeb', 'oeb.lib'], help='Output format(s) (e.g., db2.tgz, pdbqt, sdf, mol2, oeb, oeb.lib).')
     parser.add_argument('--mode', '-mode', type=str, default='fixed', choices=['fixed', 'random', 'ignoretorlib'], help='Mode for conformer generation (fixed, random, ignoretorlib).')
     parser.add_argument('--tolerance', '-tol', type=float, default=30, help='Tolerance for dihedral angle sampling (default: 30).')
     parser.add_argument('--allowNonring', '-anr', action='store_true', help='Allow full sampling of non-ring compounds.')

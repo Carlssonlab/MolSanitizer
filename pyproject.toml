@@ -36,6 +36,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+oe = ["openeye-toolkits"]
 pdbqt = ["meeko>=0.7.1", "scipy", "gemmi"]
 
 [project.urls]
