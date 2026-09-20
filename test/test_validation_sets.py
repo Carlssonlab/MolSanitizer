@@ -3,7 +3,7 @@ import tempfile
 import os
 
 from pathlib import Path
-from types import SimpleNamespace
+from msani.io import parsers
 import platform
 
 
@@ -120,67 +120,20 @@ class Test_ValidationSets(unittest.TestCase):
         self.assertEqual(set1, set2, "Files' contents differ")
 
     def generate_mock_arguments(self, in_files: list, modes: list, temp_dir: tempfile.TemporaryDirectory):
-    
-        output_prefix = Path(temp_dir) / 'dummy_output'
+        """Build test arguments from the production parser's current defaults."""
+        args = parsers.parseArguments([])
+        args.input_files = in_files
+        args.prefix = Path(temp_dir) / 'dummy_output'
+        args.max_isomers = 16
 
-        args = {
-            'input_files': in_files,
-            'format': None,
-            'extended': False,
-            'lazy': False,
-            'removesalts' : False, 
-            'tautomers' : False, 
-            'pains': False,
-            'unwanted': None,
-            'create_custom': False,
-            'stereoisomers': False, 
-            'protonation': False,
-            'pH': 7,
-            'pH_range': 0,
-            "neutralize": True, 
-            "debug": False, 
-            "custom":None, 
-            "prefix":output_prefix, 
-            "max_isomers": 8,
-            "numcores": 4,
-            "test": False,
-            "smiles": None,
-            "gen3d": False,
-            "format": None,
-            "method": "rdkit",
-            "mode": "fixed",
-            "numconfs": 2000,
-            "cleanup": True,
-            "randomSeed": 42,
-            "energywindow": 25,
-            "timeout": 2,
-            "timeout_conf": 2,
-            "rmsd": 0.5,
-            "tolerance": 30,
-            "ignoretorlib":False,
-            "timing":False,
-            "synthon": False,
-            "taurdkit": True,
-            "standardize": False,
-            "ha": None,
-            "logp": None,
-            "hba": None,
-            "hbd": None,
-            "mw": None,
-            "chiral": None,
-            "nringconfs": 1,
-            "allowNonring": False,
-            "eps": 1,
-            "rigid": None,
-            "protlib": None,
-            "taulib": None,
-            "create_protlib": False,
-            "create_taulib": False,
-            "stereo_timeout": 60
-         } 
-        for mode in modes: 
-            if (mode not in ['unwanted','custom']): args[mode] = True
-        return SimpleNamespace(**args)
+        for mode in modes:
+            if mode in {'unwanted', 'custom'}:
+                continue
+            if mode.startswith('no-'):
+                setattr(args, mode.removeprefix('no-').replace('-', '_'), False)
+            else:
+                setattr(args, mode.replace('-', '_'), True)
+        return args
  
 if __name__ == '__main__':
         unittest.main()

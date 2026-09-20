@@ -83,7 +83,23 @@ Here, n denotes the number of aromatic rings; m is the number of substructures (
       {"o-benzoquinone", "[#6]1(-[#6](=,:[N,S,O])-[#6]=,:[#6](-[#6]=,:[#6]-1))=,:[N,S,O]", 94},
       {"2-or-3-OH furane and di-OH-pyrrols", "[a;$(c1([OH])[c!$(c~[OX1,OH,SX1,SX2H])][o,s][c!$(c~[OX1,OH,SX1,SX2H])][c!$(c~[OX1,OH,SX1,SX2H])]1),$([c!$(c~[OX1,OH,SX1,SX2H])]1c([OH])[o,s][c!$(c~[OX1,OH,SX1,SX2H])][c!$(c~[OX1,OH,SX1,SX2H])]1),$(c1([OH])[nX3]c([OH])[c!$(c~[OX1,OH,SX1,SX2H])][c!$(c~[OX1,OH,SX1,SX2H])]1),$(c1([OH])[nX3][c!$(c~[OX1,OH,SX1,SX2H])]c([OH])[c!$(c~[OX1,OH,SX1,SX2H])]1)]1aaaa1", -99}}
 
-Tautomers with scores within the range [max_score - 4, max_score] are further filtered based on the placement of isolated double bonds. Because multiple high-scoring tautomers may differ in the position of isolated double bonds, priority is given to those that preserve the same positions as the input molecule. If none of the candidates retain the original double-bond configuration, the highest-scoring tautomer is selected as the canonical form. In cases of tie or no tautomer that can comply with all the requirements, the lexicographically smallest tautomer is chosen.
+Layer 1 selects a structure using the following sequence:
+
+1. Enumerate candidates while preserving specified stereochemistry and the
+   protected functional groups described above, then calculate their scores.
+2. Retain the input structure when it already has the highest score, avoiding
+   unnecessary changes between equally ranked forms.
+3. Otherwise, consider candidates within four score units of the maximum.
+   Rank them by decreasing score, using lexicographic SMILES order to break ties.
+4. Prefer candidates preserving the input's isolated C=C bond positions. If
+   the input has no such bonds, prefer candidates that also have none. Select
+   the highest-ranked qualifying candidate; if none qualifies, use the
+   highest-ranked candidate overall. When the input belongs to the preserving
+   pool and ties its best score, retain the input.
+
+The near-best candidates form a selection pool: Layer 1 passes one selected
+structure to Layer 2. The correction rules in Layer 2 can subsequently produce
+multiple tautomers for chemotypes with alternative preferred forms.
 
 Layer 2: Rule-based tautomerism
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -183,6 +199,12 @@ The following substructures are considered for (de)protonation:
       :width: 600px
       :align: center
    .. image:: _static/SI-PROTO-RULES_p3.png
+      :width: 600px
+      :align: center
+   .. image:: _static/SI-PROTO-RULES_p4.png
+      :width: 600px
+      :align: center
+   .. image:: _static/SI-PROTO-RULES_p5.png
       :width: 600px
       :align: center
 
@@ -565,45 +587,53 @@ Initial embedding
 
 The first step involves generating an initial conformer using the srETKDGv3 (small-ring ETKDGv3) algorithm of RDKit [7]_. However, this algorithm can sometimes produce unfavorable ring conformations such as "boat" or "twist" forms. To address this, MolSanitizer generates up to 50 conformers and filters out the undesirable ones using a curated library of preferred ring conformations. Currently, MolSanitizer supports rings up to eight members in size. In case of alternative configuration, for example in the methylcyclohexane where axial or equatorial configuration is possible, the equatorial configuration will be prioritized.  At the end of the initial embedding process, only the lowest-energy conformer with favorable ring conformations is used for subsequent conformational sampling. In cases where RDKit fails or exceeds a time limit (default: 2 minutes), the embedding method of OpenBabel is used as a backup [8]_.
 
-As recommended by the RDKit developers, the initial conformer is minimized using a force field—in this case, the MMFF94s force field [9]_. However, the minimized conformer may still exhibit systematic errors inherent to such force fields, such as non-planarity of azoles. MolSanitizer addresses these issues by using SMARTS patterns to detect and correct these substructures, ensuring accurate molecular geometries. This initial conformer also serves as the input for desolvation penalty calculations using AMSOL.
+As recommended by the RDKit developers, the initial conformer is minimized using a force field—in this case, the MMFF94s force field [9]_. However, the minimized conformer may still exhibit systematic errors inherent to such force fields, such as non-planarity of azoles. MolSanitizer addresses these issues by using SMARTS patterns to detect and correct these substructures, ensuring accurate molecular geometries. Electrostatic interactions are disabled during this initial minimization to reduce the preference for compact geometries stabilized by intramolecular charges in the absence of explicit solvent. Electrostatics are enabled again during torsional sampling, with a default dielectric constant of 4. This initial conformer also serves as the input for desolvation penalty calculations using AMSOL.
 
 Conformational sampling
 -----------------------
 
-The second step is the conformational sampling based on TorLib. TorLib provides 513 rules, ranging from the most specific to the most general, allowing it to match any rotatable bond. During conformational sampling, hydroxyl groups (-OH) are allowed to rotate, eliminating the need for -reseth or -rotateh steps in the Mol2DB2 process. Dihedrals that involved in symmetric substituents such as (-CH3, -CF3, -C6H5,...) are rescaled to avoid the oversampling of similar conformations. The pseudocode explaining the conformational sampling algorithm is shown below:
+The second step samples non-ring torsions using the modified TorLib v3.
+In the default ``fixed`` mode, preferred torsional distributions are discretized
+in 30-degree increments relative to each peak center, retaining angles within
+TorLib's tolerance-2 interval. Symmetric substituents are rescaled to avoid
+redundant sampling. Small combination spaces can be enumerated; larger spaces
+use stochastic sampling with bond-selection weights favoring bonds near the
+molecular center and angle-selection weights derived from TorLib.
 
-.. code-block:: python
+Candidate core conformers are checked for steric clashes, energy, and structural
+similarity. The default clash threshold is 0.6 times the sum of the atoms' van
+der Waals radii. The default energy window is 25 kcal/mol relative to the
+lowest sampled energy, and the default symmetry-corrected heavy-atom RMSD
+threshold is 0.5 Å. The sampling dielectric constant is 4. These defaults also
+apply to the Python ``ConformerGenerator`` interface.
 
-    def stochastic_sampling(conf, rot_bonds, tolerance, max_confs, max_attempts, e_window):
-        num_confs = 0
-        attempts = 0
-        product = []
-        min_energy = 1e6  # Initialize min_energy if needed
+Polar-hydrogen orientations are expanded separately after core heavy-atom
+conformers have been selected. Aliphatic polar hydrogens have three candidate
+orientations; aromatic polar hydrogens have two, separated by 180 degrees.
+Large orientation spaces are subsampled to limit combinatorial growth.
 
-        while num_confs < max_confs and attempts < max_attempts:
-            Select a random torsion t
-            Select a random peak p from Torlib
-            Select a random angle θ within peak p considering tolerance
-            Rotate dihedral t to angle θ
+The following is a schematic of the default workflow, rather than executable
+Python. The ``random`` and ``ignoretorlib`` modes use different angle sampling
+strategies; see :doc:`usage`.
 
-            if has_clashes(conf) or exists_similar_conf(conf, product):
-                attempts += 1
-                continue
+.. code-block:: text
 
-            # Calculate energy of the conformer
-            energy = calculate_energy(conf)
+    Embed and minimize candidate ring conformations without electrostatics
+    Select preferred ring conformations
+    Discretize TorLib torsions and account for symmetry
+    Enable electrostatics with dielectric constant 4
+    Enumerate small torsion spaces, or sample larger spaces with weighted choices
+        Reject steric clashes
+        Reject candidates outside the energy window
+        Reject candidates too similar to accepted heavy-atom conformers
+        Retain accepted core conformers
+    Expand polar-hydrogen orientations separately
+    Apply final energy filtering and the requested ensemble-size limit
+    Write the requested output formats
 
-            # Update min_energy if this is the first conformer or a lower energy is found
-            if energy < min_energy:
-                min_energy = energy
-
-            if energy <= min_energy + e_window:
-                add conf to product
-                num_confs += 1
-
-        return product
-
-After the conformational sampling, the generated conformers undergo energy window filtering, typically set to 25 kcal/mol by default. The lowest-energy conformer sampled so far is chosen as the reference energy. Conformers within the energy window relative to the reference energy are retained, while the rest are discarded. Finally, the Mol2DB2.py software is used to convert the conformers into the DB2 format required for DOCK3.8, preparing them for docking.
+Sampling is bounded by the requested conformer count, attempt limits, and
+sampling timeout. The requested count is an upper bound, not a guarantee:
+rigid molecules or restrictive filters may produce fewer conformers.
 
 References
 ==========

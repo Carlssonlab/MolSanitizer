@@ -21,7 +21,8 @@ import time
 import argparse
 from contextlib import closing, nullcontext
 from dataclasses import dataclass
-from queue import Empty
+from queue import Empty, Queue
+from threading import Thread
 
 from pandas import DataFrame, read_csv  # only what you use
 from pathlib import Path
@@ -60,14 +61,31 @@ except ImportError:
     AMSOLCPP_AVAILABLE = False
 
 # Check if Meeko is installed
+MEEKO_IMPORT_ERROR = None
 try:
     from meeko.preparation import MoleculePreparation
     from meeko.writer import PDBQTWriterLegacy
     MEEKO_AVAILABLE = True
-except ImportError:
+except ImportError as error:
+    MEEKO_IMPORT_ERROR = error
     MEEKO_AVAILABLE = False
     MoleculePreparation = None
     PDBQTWriterLegacy = None
+
+
+def _require_meeko():
+    """Keep Meeko optional, but do not hide broken installations."""
+    if not MEEKO_AVAILABLE:
+        detail = (
+            f' Original import error: {type(MEEKO_IMPORT_ERROR).__name__}: '
+            f'{MEEKO_IMPORT_ERROR}' if MEEKO_IMPORT_ERROR is not None else ''
+        )
+        raise ImportError(
+            'Meeko could not be imported for PDBQT output. '
+            'Install the optional dependency with '
+            '"pip install MolSanitizer[pdbqt]"; if already installed, '
+            'check its dependencies and compatibility.' + detail
+        ) from MEEKO_IMPORT_ERROR
 
 # Check if the CPP-accelerated sampling module is available
 try:
@@ -104,6 +122,7 @@ class ConformerRunConfig:
     timing: bool
     formats: frozenset
     synthon: bool
+    corina_path: str | None = None
 
     @property
     def ignore_torlib(self):
@@ -115,7 +134,7 @@ class ConformerRunConfig:
                    args.forcefield, args.nringconfs, args.numcores, args.mode,
                    args.tolerance, args.rmsd, args.clash_scale, args.timeout_conf, args.timeout,
                    args.eps, args.allowNonring, args.cleanup, args.debug,
-                   args.timing, frozenset(args.format), args.synthon)
+                   args.timing, frozenset(args.format), args.synthon, getattr(args, 'corinaPath', None))
     
 class ConformerGenerator:
     '''
@@ -178,13 +197,13 @@ class ConformerGenerator:
                  numcores = 1, 
                  request_alignment = None,
                  ignoreTorlib = False,
-                 clash_scale = 0.7,
+                 clash_scale = 0.6,
                  rmsd = 0.5,
                  mode = 'fixed',
                  tolerance = 30,
                  torlib = Torlib,
-
-                 VERBOSE = False):
+                 VERBOSE = False,
+                 corina_path = None):
         """
         Initialize the ConformerGenerator object.
         
@@ -206,6 +225,7 @@ class ConformerGenerator:
         # Validate inputs
         self.smiles = smiles
         self.name = name
+        self.corina_path = corina_path
         self.method = method
         self.randomSeed = randomSeed
         random.seed(self.randomSeed)
@@ -260,18 +280,28 @@ class ConformerGenerator:
                            forcefield = 'MMFF94s',
                            mode:str = 'vs',
                            tolerance = 30,
-                           clash_scale = 0.7,
+                           clash_scale = 0.6,
                            rmsd = 0.5,
-                           VERBOSE=False):
+                           VERBOSE=False,
+                           randomSeed=42,
+                           numcores=1,
+                           num_ring_confs=1):
         """Alternative constructor that initializes from existing data"""
 
         # Create a minimal instance
-        instance = cls(smiles, name=name, pre_embed=True)
+        instance = cls(
+            smiles, name=name, pre_embed=True, forcefield=forcefield,
+            randomSeed=randomSeed, numcores=numcores, num_ring_confs=num_ring_confs,
+            request_alignment=request_alignment, mode=mode, tolerance=tolerance,
+            clash_scale=clash_scale, rmsd=rmsd, VERBOSE=VERBOSE)
         
         # Override the instance attributes
         mol = Chem.Mol(amsol_mol)
         instance.amsol_mol = mol
-        instance.mp = rdForceFieldHelpers.MMFFGetMoleculeProperties(instance.amsol_mol, mmffVariant=forcefield)
+        # MMFF properties depend on topology, already prepared by __init__.
+        # Retain the historical post-reconstruction electrostatics setting.
+        if forcefield.startswith('MMFF'):
+            instance.mp.SetMMFFEleTerm(True)
         instance.method = 'rdkit'
         instance.ring_confs = [Chem.Mol(ring_conf) for ring_conf in ring_confs] if ring_confs else []
         instance.mol2_str = mol2_str
@@ -463,10 +493,9 @@ class ConformerGenerator:
             try:
                 self._embed_smiles_babel()
             except RuntimeError as e:
-                logger.error(f"Error in generating initial conformation using OpenBabel for {self.name}, skipping it {e}")
-                log_error(self.smiles, self.name)
-                self.failed = True
-                return
+                raise RuntimeError(
+                    f'Open Babel fallback could not embed {self.name}: {e}'
+                ) from e
             return
 
         # Improvement for entry Platinum L0B_4AFH
@@ -516,7 +545,7 @@ class ConformerGenerator:
                     conformer, current_descriptors = lowest_energy_entry[0], lowest_energy_entry[2:]
                     scaffold = Chem.Mol(self.empty_mol)
                     conf_id = scaffold.AddConformer(conformer, assignId=True)
-                    # Need to align briefly so that coordinates are not too far apart and disrupt Mol2DB2
+                    # Align so coordinate clustering remains numerically stable for DB2 conversion.
                     if self.ring_confs: rdMolAlign.AlignMol(scaffold, self.ring_confs[0], 0, 0, atomMap=[(i, i) for i in align_on])
                     self.ring_confs.append(Chem.Mol(scaffold, conf_id))
                     num_confs_per_regioisomers += 1
@@ -545,7 +574,7 @@ class ConformerGenerator:
                     conformer, current_descriptors = entry[0], entry[2:]
                     scaffold = Chem.Mol(self.empty_mol)
                     conf_id = scaffold.AddConformer(conformer, assignId=True)
-                    # Need to align briefly so that coordinates are not too far apart and disrupt Mol2DB2
+                    # Align so coordinate clustering remains numerically stable for DB2 conversion.
                     if self.ring_confs: rdMolAlign.AlignMol(scaffold, self.ring_confs[0], 0, 0, atomMap=[(i, i) for i in align_on])
                     self.ring_confs.append(Chem.Mol(scaffold, conf_id))
                     sulfo_7_descriptor_ref = current_descriptors[-1]
@@ -558,7 +587,7 @@ class ConformerGenerator:
                     conformer, current_descriptors = entry[0], entry[2:]
                     scaffold = Chem.Mol(self.empty_mol)
                     conf_id = scaffold.AddConformer(conformer, assignId=True)
-                # Need to align briefly so that coordinates are not too far apart and disrupt Mol2DB2
+                # Align so coordinate clustering remains numerically stable for DB2 conversion.
                 if self.ring_confs: rdMolAlign.AlignMol(scaffold, self.ring_confs[0], 0, 0, atomMap=[(i, i) for i in align_on])
                 self.ring_confs.append(Chem.Mol(scaffold, conf_id))
                 sulfo_7_descriptor_ref = current_descriptors[-1]
@@ -604,7 +633,7 @@ class ConformerGenerator:
                 conformer, current_descriptors = lowest_energy_entry[0], lowest_energy_entry[2:]
                 scaffold = Chem.Mol(self.empty_mol)
                 scaffold.AddConformer(conformer, assignId=True)
-                # Need to align briefly so that coordinates are not too far apart and disrupt Mol2DB2
+                # Align so coordinate clustering remains numerically stable for DB2 conversion.
                 if self.ring_confs: rdMolAlign.AlignMol(scaffold, self.ring_confs[0], 0, 0, atomMap=[(i, i) for i in align_on])
                 self.ring_confs.append(scaffold)
                 temp_list = utils.ring_conf_clusters(current_descriptors, temp_list)
@@ -709,7 +738,7 @@ class ConformerGenerator:
         Embed the SMILES string using CORINA and return the mol, net_charge,
         rigid_scaffolds, and flexible_scaffolds
         '''
-        self.ring_confs = utils.embed_smiles_corina(self.smiles, self.name, self.num_ring_confs, self.VERBOSE)
+        self.ring_confs = utils.embed_smiles_corina(self.smiles, self.name, self.num_ring_confs, self.VERBOSE, self.corina_path)
         if self.ring_confs:
             self.mol_H = Chem.Mol(self.ring_confs[0])
             mol2_obj = mol2writer.Mol2Writer(self.mol_H)
@@ -728,7 +757,7 @@ class ConformerGenerator:
                             numConfs,
                             window = 25,
                             max_attempts = 50000,
-                            eps = 1,
+                            eps = 4,
                             random_method = 'uniform',
                             timeout_conf = 1):
         """
@@ -767,7 +796,7 @@ class ConformerGenerator:
     def conf_sampling(self, 
                       numConfs=2000, 
                       energywindow = 25,
-                      eps = 1, 
+                      eps = 4,
                       ignoreTorlib = False, 
                       AllowNonRing = False, 
                       timeout_conf = 1,
@@ -891,7 +920,7 @@ class ConformerGenerator:
                                max_attempts=50_000,
                                hetero_H_bonds = [],
                                timeout_conf = 1,
-                               eps = 1):
+                               eps = 4):
         """
         Call the C++ extension for stochastic sampling.
         Args:
@@ -947,7 +976,7 @@ class ConformerGenerator:
                         AllowNonRing=False,
                         timeout_conf = 1,
                         request_alignment=None,
-                        eps = 1):
+                        eps = 4):
         """
         Perceive the allowed dihedral angles and call stochastic sampling to generate conformers.
         """
@@ -1045,6 +1074,22 @@ class ConformerGenerator:
 
     # ========== Output to different file formats ===========
 
+    def validate_embedding(self):
+        """Reject failed or non-3D embeddings before sampling and output."""
+        if self.failed:
+            raise ValueError('The given molecule could not be embedded')
+        molecules = [self.amsol_mol, *self.ring_confs]
+        if not self.ring_confs or any(
+            mol.GetNumConformers() == 0
+            or any(not conf.Is3D() for conf in mol.GetConformers())
+            for mol in molecules
+        ):
+            self.failed = True
+            raise ValueError(
+                '3D output skipped: embedding has missing conformers or '
+                'conformers not tagged as 3D'
+            )
+
     def to_sdf(self, filename = None):
         """
         Write the conformers to an SDF file.
@@ -1109,8 +1154,8 @@ class ConformerGenerator:
         """
         Write the conformers as ONE multi-conformer OpenEye OEMol.
 
-        The ring-conformer groups are merged, so the molecule is a single record
-        and FRED/HYBRID dock it to a single result. Needs the optional OpenEye
+        Compatible ring-conformer groups are merged into a single record. Groups
+        that fail the writer's compatibility checks remain separate records. Needs the optional OpenEye
         toolkits and a licence (OE_LICENSE).
 
         Args:
@@ -1142,19 +1187,12 @@ class ConformerGenerator:
         Args:
             filename (str): The name of the output PDBQT file. If None, defaults to self.name.pdbqt.
         """
-        if not MEEKO_AVAILABLE:
-            raise ImportError(
-                'Meeko is required for PDBQT output. Install the optional dependency with '
-                '"pip install MolSanitizer[pdbqt]".'
-            )
+        _require_meeko()
 
         if filename is None:
             filename = self.name
             
         mkprep = MoleculePreparation()
-        if not self.ring_confs:
-            logger.warning(f"Failed to embed {self.name}.")
-            return
         is_multi = len(self.ring_confs) > 1
         for i, mol in enumerate(self.ring_confs):
             prepared_mol = mkprep(Chem.Mol(mol, confId=0))
@@ -1175,7 +1213,7 @@ class ConformerGenerator:
     def to_db2(self, 
                numConfs = 2000,
                energywindow = 25,
-               eps = 1,
+               eps = 4,
                ignoreTorlib = False,
                AllowNonRing = False,
                timeout_conf = 1,
@@ -1253,43 +1291,36 @@ class ConformerGenerator:
 
         ### Output to DB2 ###
         if self.VERBOSE: print("Output to DB2...")
-        os.makedirs(f"db2/{self.name}", exist_ok=True)
+        os.makedirs(f"db2", exist_ok=True)
         try:
-            os.chdir(f"db2/{self.name}")
-            db2_data_all = ""
             topology_writer = mol2writer.Mol2Writer(
                 self.ring_confs[0],
                 mol2_template=self.mol2_str,
             )
-            mol2_topology = topology_writer.to_db2_topology(
+            db2_topology = topology_writer.to_db2_topology(
                 name=self.name,
                 smiles=self.smiles,
                 longname=longname,
             )
+            db2_chunks = []
             for ring_conf in self.ring_confs:
                 for rigid_scaffold in self.atom_maps:
-                    db2_data = utils.Align_ConvertToDb2(
+                    db2_data = utils.align_and_convert_to_db2(
                         ring_conf,
                         rigid_scaffold,
                         solv_obj,
-                        mol2_topology,
+                        db2_topology,
                     )
-                    db2_data_all += db2_data
+                    db2_chunks.append(db2_data)
+            db2_data_all = "".join(db2_chunks)
             if not (as_string):
                 if tarfile: write_to_tarball(tarfile, db2_data_all.encode('utf-8'), name=f"{self.name}.db2")
-                else: write_to_file(db2_data_all, f"../{self.name}.db2")
-            os.chdir("../..")
-            if cleanup:
-                utils.remove_folders([f"db2/{self.name}"])
+                else: write_to_file(db2_data_all, f"db2/{self.name}.db2")
             if as_string:
                 return db2_data_all
                 
         except Exception:
             logger.exception(f"Error in converting {self.name} to DB2 format")
-            os.chdir("../..")
-            try: # Clean up the folders if error occurs. This help to not overfill the disk
-                shutil.rmtree(f"db2/{self.name}", ignore_errors=True)
-            except: pass
             log_error(self.smiles, self.name)
             return
 
@@ -1310,7 +1341,7 @@ def _log_conformer_failure(smiles, name, stage, error):
     log_error(smiles, name, f'{stage}: {error}')
 
 
-def _embed_rdkit_worker(result_queue, smiles, name, config):
+def _embed_rdkit_worker(result_connection, smiles, name, config):
     """Run RDKit embedding in an isolated process so it can be terminated safely."""
     try:
         generator = ConformerGenerator(
@@ -1319,12 +1350,62 @@ def _embed_rdkit_worker(result_queue, smiles, name, config):
             numcores=config.num_cores, mode=config.mode, tolerance=config.tolerance,
             rmsd=config.rmsd, clash_scale=config.clash_scale, VERBOSE=config.verbose,
         )
+        generator.validate_embedding()
         property_flags = PropertyPickleOptions.MolProps | PropertyPickleOptions.PrivateProps
-        result_queue.put((generator.amsol_mol.ToBinary(propertyFlags=property_flags),
+        result_connection.send((generator.amsol_mol.ToBinary(propertyFlags=property_flags),
                           [ring_conf.ToBinary(propertyFlags=property_flags) for ring_conf in generator.ring_confs],
                           generator.mol2_str, None))
     except Exception as error:
-        result_queue.put((None, None, None, str(error)))
+        result_connection.send((None, None, None, str(error)))
+    finally:
+        result_connection.close()
+
+
+def _receive_embedding_result(connection, messages):
+    """Drain IPC on a reader thread so even a partial send has a deadline."""
+    try:
+        messages.put((True, connection.recv()))
+    except (EOFError, OSError) as error:
+        messages.put((False, str(error)))
+
+
+def _run_embedding_worker(smiles, name, config):
+    """Receive before joining; stop and reap the worker on every exit path."""
+    receiver, sender = multiprocessing.Pipe(duplex=False)
+    messages = Queue()
+    process = multiprocessing.Process(
+        target=_embed_rdkit_worker, args=(sender, smiles, name, config))
+    reader = None
+    deadline = time.monotonic() + config.embedding_timeout * 60
+    try:
+        process.start()
+        # Only the child owns the write end now. Its exit produces EOF even
+        # when it crashes during a send. Start the reader after fork/spawn.
+        sender.close()
+        reader = Thread(target=_receive_embedding_result,
+                        args=(receiver, messages), daemon=True)
+        reader.start()
+        remaining = max(0, deadline - time.monotonic())
+        try:
+            received, payload = messages.get(timeout=remaining)
+        except Empty as error:
+            raise TimeoutError('RDKit embedding worker exceeded its deadline') from error
+        if not received:
+            raise RuntimeError('RDKit embedding worker exited without returning a result')
+        process.join(timeout=max(0, deadline - time.monotonic()))
+        if process.is_alive():
+            raise TimeoutError('RDKit embedding worker exceeded its deadline')
+        return payload
+    finally:
+        if process.pid is not None:
+            if process.is_alive():
+                process.terminate()
+            process.join()
+        sender.close()
+        receiver.close()
+        if reader is not None:
+            reader.join(timeout=1)
+        process.close()
 
 
 def _create_conformer_generator(smiles, name, config, request_alignment):
@@ -1337,7 +1418,7 @@ def _create_conformer_generator(smiles, name, config, request_alignment):
     """
     start = time.perf_counter()
     common_kwargs = dict(
-        forcefield=config.forcefield,
+        forcefield=config.forcefield, corina_path=config.corina_path,
         randomSeed=config.random_seed, num_ring_confs=config.ring_confs,
         numcores=config.num_cores, request_alignment=request_alignment,
         mode=config.mode, tolerance=config.tolerance, rmsd=config.rmsd,
@@ -1346,15 +1427,9 @@ def _create_conformer_generator(smiles, name, config, request_alignment):
     if config.method != 'rdkit':
         return ConformerGenerator(smiles, name, method=config.method, **common_kwargs), time.perf_counter() - start
 
-    result_queue = multiprocessing.Queue()
-    process = multiprocessing.Process(target=_embed_rdkit_worker, args=(result_queue, smiles, name, config))
-    process.start()
-    process.join(timeout=config.embedding_timeout * 60)
-    if process.is_alive():
-        process.terminate()
-        process.join()
-        result_queue.close()
-        process.close()
+    try:
+        amsol_mol, ring_confs, mol2_str, error = _run_embedding_worker(smiles, name, config)
+    except TimeoutError:
         if not OBABEL_AVAILABLE:
             raise RuntimeError(
                 f'RDKit embedding timed out for {name}, and Open Babel is not available '
@@ -1362,19 +1437,13 @@ def _create_conformer_generator(smiles, name, config, request_alignment):
             )
         logger.warning('RDKit embedding timed out for %s; falling back to Open Babel.', name)
         return ConformerGenerator(smiles, name, method='obabel', **common_kwargs), time.perf_counter() - start
-    try:
-        amsol_mol, ring_confs, mol2_str, error = result_queue.get(timeout=1)
-    except Empty as error:
-        raise RuntimeError('RDKit embedding worker exited without returning a result') from error
-    finally:
-        result_queue.close()
-        process.close()
     if error:
         raise RuntimeError(error)
     generator = ConformerGenerator.from_existing_data(
         smiles=smiles, name=name, amsol_mol=amsol_mol, ring_confs=ring_confs,
         mol2_str=mol2_str, request_alignment=request_alignment,
         forcefield=config.forcefield, mode=config.mode, tolerance=config.tolerance,
+        randomSeed=config.random_seed, numcores=config.num_cores, num_ring_confs=config.ring_confs,
         rmsd=config.rmsd, clash_scale=config.clash_scale, VERBOSE=config.verbose,
     )
     return generator, time.perf_counter() - start
@@ -1441,22 +1510,15 @@ def _process_conformer_row(row, config, request_alignment, archive, library=None
         print(f'Handling {name}')
     started = time.perf_counter()
     try:
-        if 'pdbqt' in config.formats and not MEEKO_AVAILABLE:
-            raise ImportError(
-                'Meeko is not available for PDBQT output. Install it with '
-                '"pip install MolSanitizer[pdbqt]".'
-            )
-        if config.formats.intersection({'oeb', 'oeb.lib'}):
-            oebwriter.require_openeye()
+        if 'pdbqt' in config.formats:
+            _require_meeko()
         if config.method == 'obabel' and not OBABEL_AVAILABLE:
             raise ImportError(
                 'Open Babel was selected for embedding, but its obabel executable was not found. '
                 'Install Open Babel or use method="rdkit".'
             )
         confgen, embedding_time = _create_conformer_generator(smiles, name, config, request_alignment)
-        if confgen.failed:
-            _log_conformer_failure(smiles, name, 'Conformer generation', 'The given molecule could not be embedded')
-            return None
+        confgen.validate_embedding()
         if 'pdbqt' in config.formats:
             confgen.to_pdbqt()
         sampling_time = 0.0
@@ -1481,8 +1543,8 @@ def _process_conformer_row(row, config, request_alignment, archive, library=None
     amsol_time = getattr(confgen, 'amsol_time', 0.0)
     db2_sampling_time = getattr(confgen, 'db2_sampling_time', 0.0)
     sampling_time += db2_sampling_time
-    mol2db2_time = max(output_time - amsol_time - db2_sampling_time, 0.0)
-    return f'{name},{embedding_time},{amsol_time},{sampling_time},{mol2db2_time},{total_time}\n'
+    db2_conversion_time = max(output_time - amsol_time - db2_sampling_time, 0.0)
+    return f'{name},{embedding_time},{amsol_time},{sampling_time},{db2_conversion_time},{total_time}\n'
 
 
 def _cleanup_conformer_outputs(config):
@@ -1574,7 +1636,7 @@ def gen_conf_chunk(df: DataFrame, args, input_file='0'):
     if config.timing:
         header = ('Name,Initial embedding,Torsional sampling,SDF,Total\n'
                   if 'sdf' in config.formats else
-                  'Name,Initial embedding,AMSOL,Torsional sampling,Mol2DB2,Total\n')
+                  'Name,Initial embedding,AMSOL,Torsional sampling,DB2 conversion,Total\n')
         if not os.path.exists('msani_timing.csv'):
             with open('msani_timing.csv', 'w') as handle:
                 handle.write(header)
@@ -1593,7 +1655,7 @@ def main():
     parser.add_argument('--mode', '-mode', type=str, default='fixed', choices=['fixed', 'random', 'ignoretorlib'], help='Mode for conformer generation (fixed, random, ignoretorlib).')
     parser.add_argument('--tolerance', '-tol', type=float, default=30, help='Tolerance for dihedral angle sampling (default: 30).')
     parser.add_argument('--allowNonring', '-anr', action='store_true', help='Allow full sampling of non-ring compounds.')
-    parser.add_argument('--eps', type=float, default=1, help='The dielectric constant for electrostatic calculations (default: 1 - vacuum).')
+    parser.add_argument('--eps', type=float, default=4, help='The dielectric constant for electrostatic calculations (default: 4).')
     parser.add_argument('--numconfs', '-nconfs', type=int, default=2000, help='Number of conformers to generate (default: 2000).')
     parser.add_argument('--nringconfs', '-nr', type=int, default=1, help='Number of ring conformers to generate (default: 1).')
     parser.add_argument('--debug', '-d', action='store_true', help='Enable verbose output for debugging.')

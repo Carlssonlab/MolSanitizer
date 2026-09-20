@@ -1,0 +1,357 @@
+# Build, repair and clean-install test the binary wheel matrix.
+#
+# Nothing is published from here. The collect job produces one downloadable
+# bundle; uploading it to TestPyPI or PyPI is a deliberate manual step, done
+# with twine from a checkout. See packaging/RELEASE.md.
+#
+# The RDKit SDK is never compiled in this workflow: each job restores the
+# prebuilt SDK produced by sdk-build.yml. Pull requests deliberately build a
+# single Linux interpreter, because macOS runner minutes are ten times the
+# cost of Linux ones and a full matrix is a release-time activity.
+name: Wheels
+
+on:
+  workflow_dispatch:
+    inputs:
+      scope:
+        description: How much of the matrix to build
+        type: choice
+        default: full
+        options: [full, linux-only]
+      sdk_tag:
+        description: Release tag holding the SDK assets
+        default: sdk-2025.09.1
+      rdkit_version:
+        description: RDKit version matching the SDK
+        default: 2025.9.1
+  push:
+    tags: ['v*']
+  # The pull_request trigger is added in a follow-up PR, once the SDK release
+  # exists. Enabling it before then makes every PR fail on the SDK restore
+  # step. To enable, restore:
+  #   pull_request:
+  #     branches: ['**']
+  #     paths-ignore: ['docs/**', '**.md']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wheels-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  SDK_TAG: ${{ inputs.sdk_tag || 'sdk-2025.09.1' }}
+  RDKIT_VERSION: ${{ inputs.rdkit_version || '2025.9.1' }}
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      linux: ${{ steps.plan.outputs.linux }}
+      macos: ${{ steps.plan.outputs.macos }}
+      windows: ${{ steps.plan.outputs.windows }}
+    steps:
+      - name: Choose the matrix
+        id: plan
+        env:
+          # A pull request gets the cheap path whatever the dispatch input says.
+          CHEAP: ${{ github.event_name == 'pull_request' || inputs.scope == 'linux-only' }}
+        run: |
+          set -euo pipefail
+          linux='[{"key":"linux-x86_64","arch":"x86_64","runner":"ubuntu-latest","image":"quay.io/pypa/manylinux_2_28_x86_64"},
+                  {"key":"linux-aarch64","arch":"aarch64","runner":"ubuntu-24.04-arm","image":"quay.io/pypa/manylinux_2_28_aarch64"}]'
+          macos='[{"key":"macos-arm64","arch":"arm64","runner":"macos-15"},
+                  {"key":"macos-x86_64","arch":"x86_64","runner":"macos-15-intel"}]'
+          windows='[{"key":"windows-x64","runner":"windows-latest"}]'
+          pythons='["3.10","3.11","3.12","3.13","3.14"]'
+          if [ "$CHEAP" = true ]; then
+            linux=$(jq -c '[.[0]]' <<<"$linux")
+            macos='[]'
+            windows='[]'
+            pythons='["3.12"]'
+          fi
+          cross() {
+            jq -c --argjson p "$pythons" \
+              '[.[] as $t | $p[] as $v | $t + {python: $v, tag: ("cp" + ($v | gsub("\\."; "")))}]' <<<"$1"
+          }
+          {
+            echo "linux=$(cross "$linux")"
+            echo "macos=$(cross "$macos")"
+            echo "windows=$(cross "$windows")"
+          } >> "$GITHUB_OUTPUT"
+
+  sdist:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6.0.2
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build the source distribution
+        run: pipx run build --sdist --outdir dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sdist
+          path: dist/*.tar.gz
+          if-no-files-found: error
+          retention-days: 14
+
+  linux-build:
+    needs: plan
+    if: needs.plan.outputs.linux != '[]'
+    strategy:
+      fail-fast: false
+      matrix:
+        job: ${{ fromJSON(needs.plan.outputs.linux) }}
+    runs-on: ${{ matrix.job.runner }}
+    container: ${{ matrix.job.image }}
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v6.0.2
+
+      - name: Restore the RDKit SDK
+        run: |
+          set -euo pipefail
+          bash packaging/fetch_sdk.sh "$SDK_TAG" "msani-sdk-${{ matrix.job.key }}.tar.gz"
+          tar -xzf "msani-sdk-${{ matrix.job.key }}.tar.gz" -C /
+          test -d /opt/msani-rdkit && test -d /opt/boost
+          cat /opt/msani-rdkit/share/msani-sdk/msani-sdk.json
+
+      - name: Build and repair the wheel
+        env:
+          MSANI_TAG: ${{ matrix.job.tag }}
+          MSANI_SOURCE: ${{ github.workspace }}
+          MSANI_OUT: ${{ github.workspace }}/wheelhouse
+          MSANI_BUILD_RDKIT: ${{ env.RDKIT_VERSION }}
+          MSANI_BUILD_JOBS: 4
+        run: bash packaging/linux/build_in_container.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheels-${{ matrix.job.key }}-${{ matrix.job.tag }}
+          path: wheelhouse/*.whl
+          if-no-files-found: error
+          retention-days: 14
+
+  # A wheel that needs libraries from the manylinux build image is not
+  # redistributable, so the suite runs in a bare python:X.Y-slim image.
+  linux-test:
+    needs: [plan, linux-build]
+    if: needs.plan.outputs.linux != '[]'
+    strategy:
+      fail-fast: false
+      matrix:
+        job: ${{ fromJSON(needs.plan.outputs.linux) }}
+    runs-on: ${{ matrix.job.runner }}
+    container: python:${{ matrix.job.python }}-slim
+    timeout-minutes: 60
+    steps:
+      - name: Install git for the checkout action
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends git ca-certificates
+
+      - uses: actions/checkout@v6.0.2
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: wheels-${{ matrix.job.key }}-${{ matrix.job.tag }}
+          path: wheelhouse
+
+      - name: Install the wheel and run the suite
+        env:
+          MSANI_TAG: ${{ matrix.job.tag }}
+          MSANI_WHEELS: ${{ github.workspace }}/wheelhouse
+          MSANI_TESTS: ${{ github.workspace }}/test
+        run: bash packaging/linux/test_in_container.sh
+
+  macos:
+    needs: plan
+    if: needs.plan.outputs.macos != '[]'
+    strategy:
+      fail-fast: false
+      matrix:
+        job: ${{ fromJSON(needs.plan.outputs.macos) }}
+    runs-on: ${{ matrix.job.runner }}
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v6.0.2
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: astral-sh/setup-uv@v6
+
+      # Unpacked at the workspace-relative path the SDK was built at; a conda
+      # prefix does not relocate.
+      - name: Restore the RDKit SDK
+        run: |
+          set -euo pipefail
+          bash packaging/fetch_sdk.sh "$SDK_TAG" "msani-sdk-${{ matrix.job.key }}.tar.gz"
+          tar -xzf "msani-sdk-${{ matrix.job.key }}.tar.gz" -C "$GITHUB_WORKSPACE"
+          test -f "build/macos-${{ matrix.job.arch }}/sdk/lib/cmake/rdkit/rdkit-config.cmake"
+
+      - name: Build, delocate and test the wheel
+        run: |
+          python packaging/macos/build_wheels.py \
+            --uv "$(command -v uv)" \
+            --sdk "$GITHUB_WORKSPACE/build/macos-${{ matrix.job.arch }}/sdk" \
+            --rdkit-version "$RDKIT_VERSION" \
+            --arch "${{ matrix.job.arch }}" \
+            --versions "${{ matrix.job.python }}" \
+            --jobs 3
+
+      - name: Collect the repaired wheel
+        run: |
+          set -euo pipefail
+          mkdir -p wheelhouse
+          mv dist/macos-*/wheels/*.whl wheelhouse/
+
+      - name: Upload build logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: logs-${{ matrix.job.key }}-${{ matrix.job.tag }}
+          path: dist/macos-*/logs/*
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheels-${{ matrix.job.key }}-${{ matrix.job.tag }}
+          path: wheelhouse/*.whl
+          if-no-files-found: error
+          retention-days: 14
+
+  windows:
+    needs: plan
+    if: needs.plan.outputs.windows != '[]'
+    strategy:
+      fail-fast: false
+      matrix:
+        job: ${{ fromJSON(needs.plan.outputs.windows) }}
+    runs-on: ${{ matrix.job.runner }}
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v6.0.2
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.job.python }}
+
+      # msani-sdk.json records absolute dependency prefixes, so the SDK is
+      # restored to the exact path sdk-build.yml built it at.
+      - name: Restore the RDKit SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash packaging/fetch_sdk.sh "$SDK_TAG" "msani-sdk-${{ matrix.job.key }}.tar.gz"
+          mkdir -p /c/msani-sdk
+          tar -xzf "msani-sdk-${{ matrix.job.key }}.tar.gz" -C /c/msani-sdk
+          test -f "/c/msani-sdk/windows-$RDKIT_VERSION-conda/rdkit/msani-sdk.json"
+
+      - name: Build, repair and test the wheel
+        shell: cmd
+        run: |
+          packaging\windows\build_wheels.cmd ^
+            --sdk "C:\msani-sdk\windows-%RDKIT_VERSION%-conda\rdkit" ^
+            --rdkit-version %RDKIT_VERSION% ^
+            --versions ${{ matrix.job.python }} ^
+            --python-provider venv ^
+            --base-python "%pythonLocation%\python.exe" ^
+            --jobs 4
+
+      - name: Collect the repaired wheel
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p wheelhouse
+          mv dist/windows-wheels-*/wheels/*.whl wheelhouse/
+
+      - name: Upload build logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: logs-${{ matrix.job.key }}-${{ matrix.job.tag }}
+          path: dist/windows-wheels-*/logs/*
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheels-${{ matrix.job.key }}-${{ matrix.job.tag }}
+          path: wheelhouse/*.whl
+          if-no-files-found: error
+          retention-days: 14
+
+  collect:
+    needs: [sdist, linux-test, macos, windows]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6.0.2
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: wheels-*
+          merge-multiple: true
+          path: dist
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: sdist
+          path: dist
+
+      - name: Check metadata and hash the bundle
+        run: |
+          set -euo pipefail
+          python -m pip install --quiet twine
+          python -m twine check --strict dist/*
+          (cd dist && sha256sum ./* | tee SHA256SUMS)
+
+      # A tag must not produce a bundle whose version it does not match.
+      - name: Verify the tag matches the project version
+        if: github.ref_type == 'tag'
+        run: |
+          set -euo pipefail
+          version=$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
+          tag="${GITHUB_REF_NAME#v}"
+          if [ "$version" != "$tag" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match pyproject version $version"
+            exit 1
+          fi
+
+      - name: Summarise the bundle
+        run: |
+          {
+            echo '### Distributions'
+            echo
+            echo '| file | size |'
+            echo '| --- | --- |'
+            for f in dist/*.whl dist/*.tar.gz; do
+              [ -e "$f" ] || continue
+              printf '| `%s` | %s |\n' "$(basename "$f")" "$(du -h "$f" | cut -f1)"
+            done
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: molsanitizer-dist
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 30
+
+      # Runs after the bundle is saved, so a partial matrix is still
+      # downloadable for debugging while the run is still marked failed.
+      - name: Fail if any build job failed
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: |
+          echo "::error::One or more build jobs did not succeed; the bundle is incomplete."
+          exit 1

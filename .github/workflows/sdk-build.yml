@@ -1,0 +1,189 @@
+# Build the pinned RDKit C++ SDK for one or more packaging targets and attach
+# the result to a durable pre-release.
+#
+# The SDK is an input to the wheel build, not part of any published artifact.
+# Release assets are used deliberately in place of actions/cache: they never
+# expire, are visible from every branch, and consume no cache or artifact
+# quota. Rebuild only when the RDKit pin or a packaging script changes.
+name: SDK
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Which SDK to build
+        type: choice
+        default: all
+        options:
+          - all
+          - linux-x86_64
+          - linux-aarch64
+          - macos-arm64
+          - macos-x86_64
+          - windows-x64
+      rdkit_ref:
+        description: RDKit git tag to compile (Linux and Windows)
+        default: Release_2025_09_1
+      rdkit_version:
+        description: Matching RDKit release version (conda and PyPI spelling)
+        default: 2025.9.1
+      sdk_tag:
+        description: Release tag holding the SDK assets
+        default: sdk-2025.09.1
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sdk-${{ inputs.sdk_tag }}
+  cancel-in-progress: false
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      linux: ${{ steps.plan.outputs.linux }}
+      macos: ${{ steps.plan.outputs.macos }}
+      windows: ${{ steps.plan.outputs.windows }}
+    steps:
+      - name: Select targets
+        id: plan
+        env:
+          TARGET: ${{ inputs.target }}
+        run: |
+          set -euo pipefail
+          linux='[{"key":"linux-x86_64","arch":"x86_64","runner":"ubuntu-latest","image":"quay.io/pypa/manylinux_2_28_x86_64"},
+                  {"key":"linux-aarch64","arch":"aarch64","runner":"ubuntu-24.04-arm","image":"quay.io/pypa/manylinux_2_28_aarch64"}]'
+          macos='[{"key":"macos-arm64","arch":"arm64","runner":"macos-15"},
+                  {"key":"macos-x86_64","arch":"x86_64","runner":"macos-15-intel"}]'
+          windows='[{"key":"windows-x64","arch":"x64","runner":"windows-latest"}]'
+          # 'select' is a bash keyword, so this helper cannot be named after it.
+          pick() { jq -c --arg t "$TARGET" '[.[] | select($t == "all" or .key == $t)]' <<<"$1"; }
+          {
+            echo "linux=$(pick "$linux")"
+            echo "macos=$(pick "$macos")"
+            echo "windows=$(pick "$windows")"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Ensure the SDK release exists
+        run: |
+          set -euo pipefail
+          if ! gh release view "${{ inputs.sdk_tag }}" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "${{ inputs.sdk_tag }}" --repo "$GITHUB_REPOSITORY" \
+              --prerelease --title "RDKit SDK ${{ inputs.rdkit_version }}" \
+              --notes "Build inputs for MolSanitizer wheels. Not a MolSanitizer release."
+          fi
+
+  linux:
+    needs: plan
+    if: needs.plan.outputs.linux != '[]'
+    strategy:
+      fail-fast: false
+      matrix:
+        target: ${{ fromJSON(needs.plan.outputs.linux) }}
+    runs-on: ${{ matrix.target.runner }}
+    container: ${{ matrix.target.image }}
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v6.0.2
+
+      - name: Build static RDKit and Boost
+        env:
+          RDKIT_REF: ${{ inputs.rdkit_ref }}
+          MSANI_BUILD_JOBS: 4
+        run: bash packaging/linux/build_sdk.sh all
+
+      # Absolute /opt paths are reproduced on restore, so nothing needs
+      # relocating when a wheel job unpacks this at the filesystem root.
+      - name: Pack the SDK
+        run: |
+          set -euo pipefail
+          tar -czf "msani-sdk-${{ matrix.target.key }}.tar.gz" -C / opt/msani-rdkit opt/boost
+          ls -lh "msani-sdk-${{ matrix.target.key }}.tar.gz"
+
+      - name: Upload to the SDK release
+        shell: bash
+        run: bash packaging/upload_sdk.sh "${{ inputs.sdk_tag }}" "msani-sdk-${{ matrix.target.key }}.tar.gz"
+
+  macos:
+    needs: plan
+    if: needs.plan.outputs.macos != '[]'
+    strategy:
+      fail-fast: false
+      matrix:
+        target: ${{ fromJSON(needs.plan.outputs.macos) }}
+    runs-on: ${{ matrix.target.runner }}
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v6.0.2
+
+      - uses: conda-incubator/setup-miniconda@v3
+        with:
+          auto-update-conda: true
+          activate-environment: ""
+
+      - name: Provision the conda-forge RDKit SDK
+        shell: bash -el {0}
+        env:
+          MSANI_BUILD_RDKIT: ${{ inputs.rdkit_version }}
+        run: bash packaging/macos/build_sdk.sh
+
+      # A conda prefix is not relocatable, so the asset is unpacked at the same
+      # workspace-relative path it was built at. That path is fixed on hosted
+      # runners; a local checkout will differ, which is why this asset is a CI
+      # input only and packaging/macos/build_sdk.sh stays the local entry point.
+      - name: Pack the SDK
+        run: |
+          set -euo pipefail
+          tar -czf "msani-sdk-${{ matrix.target.key }}.tar.gz" \
+            -C "$GITHUB_WORKSPACE" "build/macos-${{ matrix.target.arch }}/sdk"
+          ls -lh "msani-sdk-${{ matrix.target.key }}.tar.gz"
+
+      - name: Upload to the SDK release
+        shell: bash
+        run: bash packaging/upload_sdk.sh "${{ inputs.sdk_tag }}" "msani-sdk-${{ matrix.target.key }}.tar.gz"
+
+  windows:
+    needs: plan
+    if: needs.plan.outputs.windows != '[]'
+    strategy:
+      fail-fast: false
+      matrix:
+        target: ${{ fromJSON(needs.plan.outputs.windows) }}
+    runs-on: ${{ matrix.target.runner }}
+    timeout-minutes: 360
+    env:
+      # build_sdk.py records absolute dependency prefixes in msani-sdk.json, so
+      # the SDK must be restored to the exact path it was built at.
+      MSANI_SDK_ROOT: C:\msani-sdk\windows-${{ inputs.rdkit_version }}-conda
+    steps:
+      - uses: actions/checkout@v6.0.2
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Compile the shared RDKit SDK with MSVC
+        shell: cmd
+        run: |
+          set CONDA_EXE=%CONDA%\Scripts\conda.exe
+          packaging\windows\build_sdk.cmd --root "%MSANI_SDK_ROOT%" --jobs 4
+
+      - name: Pack the SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          root=$(cygpath -u "$MSANI_SDK_ROOT")
+          tar -czf "msani-sdk-${{ matrix.target.key }}.tar.gz" \
+            -C "$(dirname "$root")" \
+            "$(basename "$root")/rdkit" \
+            "$(basename "$root")/msani_build/Library" \
+            "$(basename "$root")/conda-win-64.lock.txt"
+          ls -lh "msani-sdk-${{ matrix.target.key }}.tar.gz"
+
+      - name: Upload to the SDK release
+        shell: bash
+        run: bash packaging/upload_sdk.sh "${{ inputs.sdk_tag }}" "msani-sdk-${{ matrix.target.key }}.tar.gz"

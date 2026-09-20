@@ -6,6 +6,11 @@ Preparing the input file
 
 The program requires a white-space or tab-delimited file containing two columns (SMILES, moleculeID) without headers. 
 
+Input files may be uncompressed, gzip-compressed, bzip2-compressed, or
+xz-compressed. MolSanitizer detects gzip, bzip2, and xz from the file contents
+(so the extension is optional) and streams decompressed rows to pandas in
+chunks rather than loading the whole file into memory.
+
 .. code-block:: console
    
    COCCC(=O)Nc1ncc(s1)Br  CP000000418470
@@ -50,7 +55,13 @@ The program by default will conduct the preparation and filtering in the order b
 Default settings
 -----------------------------------
 
-Many of the default values of msani described below, both in the SINGLE MODE and BATCH MODE can be modified in `msani/msani_configurations.yaml <https://github.com/phonglam3103/msani/blob/main/msani_configurations.yaml>`__ file. It is for the convenience of the  user so that he/she does not have to specify the values (such as numConfs, --max_stereoisomers, etc) every time the program is run. If the user specify the values in the command line, the values in the configuration file will be overwritten.
+To customize defaults for future runs, use ``msani config init`` and edit the
+personal ``msani_configurations.yaml`` at the location printed by the command.
+Both single and batch mode load this file automatically. Use ``msani config use
+PATH`` to remember a different configuration location, and ``msani config show``
+to inspect effective defaults. Explicit command-line options override personal
+defaults. See :doc:`config` for platform locations, precedence, and examples.
+
 
 The users are asked to provide CORINA path if the he/she wants to use it for the generation of 3D coordinates. The path should be provided in the `CORINA` field.
 
@@ -90,18 +101,19 @@ Help message
 .. code-block:: console
 
     usage: msani [--input_files INPUT_FILES [INPUT_FILES ...]] [--input_list INPUT_LIST] [--smiles SMILES [SMILES ...]] [--extended] [--prefix PREFIX] [--synthon] [--removesalts] [--create_custom] [--custom CUSTOM]
-             [--unwanted [{all,regular,special,optional} ...]] [--pains] [--neutralize | --no-neutralize | -neu] [--stereoisomers | --no-stereoisomers | -st] [--max_isomers MAX_ISOMERS] [--tautomers] [--protonation] [--pH PH]
-             [--pH_range PH_RANGE] [--standardize] [--gen3d] [--format [{db2,db2.tgz,pdbqt,sdf,mol2} ...]] [--method {rdkit,obabel,corina}] [--numconfs NUMCONFS] [--timeout TIMEOUT] [--energywindow ENERGYWINDOW] [--nringconfs NRINGCONFS]
-             [--mode {fixed,random,ignoretorlib}] [--allowNonring] [--rmsd RMSD] [--config CONFIG] [--create_config] [--lazy] [--numcores NUMCORES] [--help] [--help_advanced] [--version]
+                [--unwanted [{all,regular,special,optional} ...]] [--pains] [--neutralize | --no-neutralize | -neu] [--stereoisomers | --no-stereoisomers | -st] [--max_isomers MAX_ISOMERS] [--stereo_timeout STEREO_TIMEOUT] [--tautomers]
+                [--extended-tautomers] [--protonation] [--pH PH] [--pH_range PH_RANGE] [--standardize] [--gen3d] [--format [{db2,db2.tgz,pdbqt,sdf,mol2,oeb,oeb.lib} ...]] [--method {rdkit,obabel,corina}] [--corinaPath CORINAPATH]
+                [--numconfs NUMCONFS] [--timeout TIMEOUT] [--energywindow ENERGYWINDOW] [--nringconfs NRINGCONFS] [--mode {fixed,random,ignoretorlib}] [--allowNonring] [--rmsd RMSD] [--config CONFIG] [--create_config] [--lazy]
+                [--numcores NUMCORES] [--help] [--help_advanced] [--version]
 
     MolSanitizer - A package to prepare SMILES databases
 
     Input and output options:
-    --input_files, -i     Input files containing chemical structures
+    --input_files, -i     Input files containing chemical structures (plain, gzip, bzip2, or xz)
     --input_list, -il     Path to a text file containing one or more input file paths (one per line).
     --smiles, -s          Input SMILES strings
     --extended, -e        Extended SMILES reading (tab-separated files supported only).
-    --prefix, -pre        Prefix for the output files. (defalt: input file name).
+    --prefix, -pre        Prefix for the output files. (default: input file name).
     --synthon, -stn       Synthon mode (Additional metadata about the capping groups required)
 
     Filtering options:
@@ -111,7 +123,7 @@ Help message
         Greater than / Less than: Use > or < (e.g., ">17", "<25").
         Exact match: Match a specific value (e.g., 17).
         For logP, the exact match format applies as 'less than or equal to'.
-        
+
         Use --ha, --logp, --hba, --hbd, --mw, --tpsa, --fsp3, --chiral to apply these filters.
 
     --removesalts         Remove salts from the structures.
@@ -129,7 +141,13 @@ Help message
     --stereoisomers, -st  Stereoisomers enumeration.
                             Will be applied by default when gen3d is on (use --no-stereoisomers to disable)
     --max_isomers, -ms    Maximum number of stereoisomers to consider (default: 8)
+    --stereo_timeout, -sto
+                            Per-molecule timeout in seconds for stereoisomer enumeration (default: 60).
+                            If the timeout is reached, any stereoisomers found up to that point are kept; if none are found, the input SMILES is kept unchanged.
     --tautomers, -tau     Tautomers enumeration.
+    --extended-tautomers, -et
+                            Extended tautomers enumeration using additional tautomerization rules (will also activate '--tautomers')
+                            This option will enumerate to less probable tautomeric forms.
     --protonation, -prot  (De)protonate the structures
     --pH, -p              pH for the protonation (default: 7)
     --pH_range, -r        pH range for the protonation (default: 0)
@@ -138,8 +156,11 @@ Help message
     Generate 3D conformers options:
     --gen3d, -3d          Generate 3D conformers
     --format, -f          Output file format. Multiple formats simultaneously supported.
-                            (Default: db2.tgz - Options: sdf, db2, db2.tgz, mol2, pdbqt.)
+                            (Default: db2.tgz - Options: sdf, db2, db2.tgz, mol2, pdbqt, oeb, oeb.lib.)
+                            oeb: one .oeb.gz per molecule; oeb.lib: one library per input file.
+                            Both need the optional OpenEye toolkits and OE_LICENSE.
     --method, -m          Embedding method (default: rdkit - options: rdkit, obabel, corina)
+    --corinaPath          Path to the CORINA executable 
     --numconfs, -nconfs   Maximum number of conformers to generate (default: 2000)
     --timeout, -to        Timeout for the initial embedding for each entry before using OpenBabel
                             Default: 2 minutes
@@ -147,7 +168,7 @@ Help message
     --nringconfs, -nr     Maximum number of ring conformers to generate (default: 1)
     --mode, -mode         Mode for generating conformers
                             Default: fixed - Options: fixed, random, ignoretorlib
-    --allowNonring        Allow the full sampling of non-ring comdpounds (default undersample to 30 confs).
+    --allowNonring        Allow the full sampling of non-ring compounds (default undersample to 30 confs).
     --rmsd, -rmsd         Minimum RMSD between two conformers (default: 0.5 Å).
 
     Miscellaneous:
@@ -164,16 +185,17 @@ Help message
             C1CC(C(=O)NC1)SCCC=CBr  CP000000432409
             CC(C)(C)CNC(=O)c1ccsc1Br  CP000001634597
 
-    Extended SMILES is supported with the -e flag (SMILES and IDs need to be tab-separated):        
+    Extended SMILES is supported with the -e flag (SMILES and IDs need to be tab-separated):
             CC[C@H]1[C@H](C(=O)N[C@H](C)CCCC(=O)NOCC(F)(F)F)CCN1C |&1:2,3|  Cmp0001
             CCC(CC(=O)N(CC)CCC(=O)N1CCO[C@H]2COC[C@H]21)C(F)F |&1:17,21|    Cmp0002
             CC(C)CC(CNC(=O)C1CSC1)C(=O)N[C@H]1C[C@@H](O)[C@H](F)C1 |&1:16,18,20|    Cmp0003
-                
+
     Example usage:
         msani -i example.smi --removesalts --pains --unwanted all --stereoisomers --protonation
         msani -i example.smi --logp "<=500" --hba "<=10" --hbd "<=5" --mw "<=500" -3d -f pdbqt
         msani -i example.smi --pains --unwanted regular optional --stereoisomers --protonation
-        msani -i example.smi --pains --unwanted all -prot -p 7 -tau -ste -3d -f db2.tgz
+        msani -i example.smi --pains --unwanted all -prot -p 7 -tau -st -3d -f db2.tgz
+
 
 Available filters and preparation steps
 -------------------------------------------
@@ -345,7 +367,9 @@ The following supported flags:
     Generate 3D conformers options:
     --gen3d, -3d          Generate 3D conformers
     --format, -f          Output file format. Multiple formats simultaneously supported.
-                            (Default: db2.tgz - Options: sdf, db2, db2.tgz, mol2, pdbqt.)
+                            (Default: db2.tgz - Options: sdf, db2, db2.tgz, mol2, pdbqt, oeb, oeb.lib.)
+                            oeb: one .oeb.gz per molecule; oeb.lib: one library per input file.
+                            Both need the optional OpenEye toolkits and OE_LICENSE.
     --method, -m          Embedding method (default: rdkit - options: rdkit, obabel, corina)
     --numconfs, -nconfs   Maximum number of conformers to generate (default: 2000)
     --timeout, -to        Timeout for the initial embedding for each entry before using OpenBabel
@@ -375,11 +399,16 @@ Three sampling modes are supported (``--mode`` or ``-mode`` flag):
 * ignoretorlib: the program will ignore the TorsionLibrary and sample every 30 degrees.
 
 
-Multiple output formats are now supported, including DB2, PDBQT, SDF, and MOL2. The default output format is DB2, which could be modified by the ``--format`` or ``-f`` flag. Multiple formats at the same time is supported.
+Supported output formats are ``db2``, ``db2.tgz``, ``pdbqt``, ``sdf``, ``mol2``,
+``oeb``, and ``oeb.lib``. The default is the compressed DB2 archive
+``db2.tgz``. Select one or more formats with ``--format`` or ``-f``.
+PDBQT requires the optional Meeko dependencies; both OEB formats require
+the optional OpenEye toolkits and a valid licence (see :doc:`installation`).
+See :doc:`outputs` for OEB record grouping, file naming, and restart behavior.
 
 For DB2 generation, AMSOLcpp assigns desolvation penalties and partial charges
 directly from the in-memory RDKit molecule. These values are passed directly to
-the DB2 hierarchy writer without intermediate AMSOL or ``.solv`` files.
+the DB2 layout writer without intermediate AMSOL or ``.solv`` files.
 
 .. code-block:: console
 
@@ -427,7 +456,7 @@ The advanced options can be accessed using the ``--help_advanced`` or ``-xh`` fl
     --tolerance, -tol       Minimum angle for differentiating two conformers (default: 30)
     --nringconfs, -nr       Maximum number of ring conformers to generate (default: 1)
     --allowNonring          Allow the full sampling of non-ring compounds (default undersample to 30 confs).
-    --eps                   The dielectric constant for electrostatic calculations (default: 1 - vacuum).
+    --eps                   The dielectric constant for electrostatic calculations (default: 4).
     --debug                 Enable debug mode
     --timing                Enable timing information
     --create_protlib      Create a template for customized protonation scheme
@@ -442,7 +471,27 @@ Running in batch mode
 -----------------------------------
 
 
-msani now supports the batch mode ``msani_batch``, which allows handling bigger SMILES databases on the SLURM-based cluster. Nearly all the flags supported by the standalone msani are supported by the batch mode. In principle, ``msani_batch`` will split the input file into chunks of smaller input files, which is defined by the ``-l`` or ``--lines_per_job`` flag (default: 200). The split files will then be submitted to the SLURM cluster using an array of jobs. By default, a maximum of 500 jobs will be submitted simultaneously to avoid interfering with other users within the same project, but you can change this limit with the ``--max_jobs`` flag.
+msani now supports the batch mode ``msani_batch``, which allows handling bigger SMILES databases on a SLURM-based cluster. Nearly all flags supported by standalone ``msani`` are available in batch mode. The ``-l`` or ``--lines_per_job`` option (default: 200) defines how many input records each array job processes. By default, a maximum of 500 jobs run simultaneously, but this can be changed with ``--max_jobs``.
+
+Batch mode accepts plain, gzip-compressed, bzip2-compressed, and xz-compressed
+inputs. Each input gets a corresponding batch directory containing
+``input.data``, ``input.offsets``, and the submission script. For plain input,
+``input.data`` is a symbolic link to the original file. Compressed input is
+decompressed once into the single ``input.data`` staging file. During that same
+pass, MolSanitizer records one byte boundary per job in ``input.offsets``.
+Array tasks use these offsets to copy only their assigned range to node-local
+scratch space, so the shared filesystem does not contain thousands of input
+chunks. The temporary task input is removed when the task exits.
+
+Each input is validated and submitted independently. An input that exceeds the
+array-size or currently available project capacity is skipped without
+preventing later inputs from being considered. With cleanup enabled, shared
+staging data and its offset index are removed after every task succeeds; they
+remain available when tasks must be retried. Successful output shards are
+sorted by their numeric job identifier and atomically concatenated into
+``in/processed/processed.smi``. Rejected-output shards are similarly merged into
+``in/removed/removed.smi``. Individual shards are deleted only after their merge
+succeeds.
 
 The additional flags supported by ``msani_batch`` so far:
 
@@ -453,8 +502,8 @@ The additional flags supported by ``msani_batch`` so far:
     --timelimit, -tl            Time limit in hours for each SLURM job (default: 96)
     --max_jobs, -mj             Maximum number of jobs to run simultaneously (default: 500)
 
-Usage
-=====
+Batch examples
+~~~~~~~~~~~~~~
 
 .. code-block:: console
 
@@ -467,3 +516,32 @@ It is also possible to submit the batch jobs for multiple input files. The progr
 .. code-block:: console
 
     $ msani_batch -i example.smi example2.smi -3d -f db2 --protonation --stereoisomers
+
+
+Structure standardization
+-------------------------
+
+Use ``--standardize`` to obtain a parent representation for applications such
+as descriptor calculation or machine learning:
+
+.. code-block:: console
+
+    $ msani -i example.smi --standardize
+
+After invalid and unsupported structures are removed, the standardization
+branch applies RDKit ``Cleanup``, selects the ``FragmentParent``, and applies
+``Uncharger`` before writing canonical SMILES. It also excludes entries
+containing the metal elements listed by the standardization filter.
+Neutralization is attempted where possible; permanent charges can remain.
+This does not assign protonation states at a specified pH.
+
+In the current implementation, explicitly requested salt removal and descriptor
+filters still run before standardization. The standardization branch then
+returns before the separate neutralizer, tautomerizer, PAINS/custom/unwanted
+filters, ionizer, and stereoisomer enumerator. Consequently, those preparation
+options do not run in combination with ``--standardize``. Requested ``--gen3d``
+output is still generated afterwards from the standardized structures.
+For standardization alone, use the command above without other processing flags.
+
+The output follows the usual ``_clean`` naming convention. See :doc:`outputs`
+for output files, failures, and reruns.

@@ -15,6 +15,7 @@ from pandas import DataFrame, read_csv  # only what you use
 from rdkit import Chem, rdBase
 
 from msani.io import parsers, loggers
+from msani.io.readers import detect_input_compression
 from msani.api import Msani  
 
 logger = logging.getLogger('msani')
@@ -74,6 +75,16 @@ def get_output_files(args, input_file_path):
     return output_file, rejected_file
 
 def read_input_file(input_file, is_enamine, is_synthon):
+    compression = detect_input_compression(input_file)
+    if compression:
+        logger.info(f'Using {compression} compression for input')
+
+    read_options = {
+        'header': None,
+        'chunksize': 100_000,
+        'compression': compression,
+    }
+
     if is_synthon:
         logger.info('Using Synthon format for parsing')
         return read_csv(
@@ -81,9 +92,8 @@ def read_input_file(input_file, is_enamine, is_synthon):
             sep=r'\s+',
             names=['smiles', 'ids', 'longname'],
             usecols=[0, 1, 2],
-            header=None,
-            chunksize=100_000,
-            dtype={'smiles': str, 'ids': str, 'longname': str}  # Enforce string types
+            dtype={'smiles': str, 'ids': str, 'longname': str},
+            **read_options,
         )
     if is_enamine:
         logger.info('Using Enamine format for parsing')
@@ -92,9 +102,8 @@ def read_input_file(input_file, is_enamine, is_synthon):
             sep='\t',
             names=['smiles', 'ids'],
             usecols=[0, 1],
-            header=None,
-            chunksize=100_000,
-            dtype={'smiles': str, 'ids': str}  # Enforce string types
+            dtype={'smiles': str, 'ids': str},
+            **read_options,
         )
     else:
         return read_csv(
@@ -102,9 +111,8 @@ def read_input_file(input_file, is_enamine, is_synthon):
             sep=r'\s+',
             names=['smiles', 'ids'],
             usecols=[0, 1],
-            header=None,
-            chunksize=100_000,
-            dtype={'smiles': str, 'ids': str}  # Enforce string types
+            dtype={'smiles': str, 'ids': str},
+            **read_options,
         )
     
 def process_files(processor: Msani, args):
@@ -187,19 +195,21 @@ def clean_data(args):
     processor = Msani(
         removesalts=args.removesalts, custom= args.custom, unwanted=args.unwanted,
         pains=args.pains, ha=args.ha, logp=args.logp, hba=args.hba, hbd=args.hbd, 
-        mw=args.mw, tpsa=getattr(args, 'tpsa', None), fsp3=getattr(args, 'fsp3', None),
+        mw=args.mw, tpsa=args.tpsa, fsp3=args.fsp3,
         chiral = args.chiral,
-        tautomers=args.tautomers, taurdkit=args.taurdkit,
+        tautomers=args.tautomers, extended_tautomers=args.extended_tautomers, taurdkit=args.taurdkit,
         neutralize=args.neutralize, stereoisomers=args.stereoisomers, 
         max_stereoisomers=args.max_isomers, protonation=args.protonation, pH=args.pH, 
         pH_range=args.pH_range, numcores=args.numcores, randomSeed=args.randomSeed, 
-        stereo_timeout=args.stereo_timeout, standardize=args.standardize,
+        stereo_timeout=args.stereo_timeout, useCorina= (args.method == 'corina'),
+        corinaPath=args.corinaPath, standardize=args.standardize,
         protonation_library=args.protlib, tautomer_library=args.taulib,  
         debug=args.debug)       
-    if args.smiles:
-        process_smiles(processor, args)
-    elif args.input_files:
-        process_files(processor, args)
+    with processor:
+        if args.smiles:
+            process_smiles(processor, args)
+        elif args.input_files:
+            process_files(processor, args)
 
     log_execution_time(start_time, args.test)
 
@@ -222,6 +232,9 @@ def generateCustomTemplate(args, filename):
         print(f"Generated template file: {output_filename}")
 
 def main():
+    from msani.config import dispatch
+    if dispatch(sys.argv[1:]):
+        return
     if os.getenv('SLURM_JOB_ID') is None: print(logo)
     if len(sys.argv) == 1:
         print(version_text)

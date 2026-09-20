@@ -1,0 +1,18 @@
+cmake_minimum_required(VERSION 3.28)
+project(msani_sdk_probe LANGUAGES CXX)
+find_package(RDKit CONFIG REQUIRED)
+foreach(component RDGeneral GraphMol SmilesParse RDGeometryLib SubstructMatch
+        EigenSolvers Alignment ForceField ForceFieldHelpers DistGeometry
+        DistGeomHelpers MolTransforms)
+    if(NOT TARGET RDKit::${component})
+        message(FATAL_ERROR "SDK is missing RDKit::${component}")
+    endif()
+    get_target_property(kind RDKit::${component} TYPE)
+    if(NOT kind STREQUAL "SHARED_LIBRARY")
+        message(FATAL_ERROR "RDKit::${component} must be a shared library")
+    endif()
+endforeach()
+add_executable(msani_sdk_probe main.cpp)
+target_compile_features(msani_sdk_probe PRIVATE cxx_std_20)
+target_compile_definitions(msani_sdk_probe PRIVATE RDKIT_DYN_LINK)
+target_link_libraries(msani_sdk_probe PRIVATE RDKit::SmilesParse RDKit::GraphMol)

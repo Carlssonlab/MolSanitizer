@@ -6,16 +6,15 @@ channels:
   - rdkit
 
 dependencies:
-  - python>=3.10,<3.13
+  - python>=3.10,<3.15
   - numpy
   - pandas
   - pip
-  - rdkit>=2024.09.3
+  - rdkit>=2025.9.1
   - librdkit-dev
   - libboost-devel
   - scikit-build-core
   - openbabel
-  - scipy
   - pyaml
   - gemmi
   - cmake<=3.29
