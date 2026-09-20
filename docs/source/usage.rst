@@ -102,7 +102,7 @@ Help message
 
     usage: msani [--input_files INPUT_FILES [INPUT_FILES ...]] [--input_list INPUT_LIST] [--smiles SMILES [SMILES ...]] [--extended] [--prefix PREFIX] [--synthon] [--removesalts] [--create_custom] [--custom CUSTOM]
                 [--unwanted [{all,regular,special,optional} ...]] [--pains] [--neutralize | --no-neutralize | -neu] [--stereoisomers | --no-stereoisomers | -st] [--max_isomers MAX_ISOMERS] [--stereo_timeout STEREO_TIMEOUT] [--tautomers]
-                [--extended-tautomers] [--protonation] [--pH PH] [--pH_range PH_RANGE] [--standardize] [--gen3d] [--format [{db2,db2.tgz,pdbqt,sdf,mol2} ...]] [--method {rdkit,obabel,corina}] [--corinaPath CORINAPATH]
+                [--extended-tautomers] [--protonation] [--pH PH] [--pH_range PH_RANGE] [--standardize] [--gen3d] [--format [{db2,db2.tgz,pdbqt,sdf,mol2,oeb,oeb.lib} ...]] [--method {rdkit,obabel,corina}] [--corinaPath CORINAPATH]
                 [--numconfs NUMCONFS] [--timeout TIMEOUT] [--energywindow ENERGYWINDOW] [--nringconfs NRINGCONFS] [--mode {fixed,random,ignoretorlib}] [--allowNonring] [--rmsd RMSD] [--config CONFIG] [--create_config] [--lazy]
                 [--numcores NUMCORES] [--help] [--help_advanced] [--version]
 
@@ -156,7 +156,9 @@ Help message
     Generate 3D conformers options:
     --gen3d, -3d          Generate 3D conformers
     --format, -f          Output file format. Multiple formats simultaneously supported.
-                            (Default: db2.tgz - Options: sdf, db2, db2.tgz, mol2, pdbqt.)
+                            (Default: db2.tgz - Options: sdf, db2, db2.tgz, mol2, pdbqt, oeb, oeb.lib.)
+                            oeb: one .oeb.gz per molecule; oeb.lib: one library per input file.
+                            Both need the optional OpenEye toolkits and OE_LICENSE.
     --method, -m          Embedding method (default: rdkit - options: rdkit, obabel, corina)
     --corinaPath          Path to the CORINA executable 
     --numconfs, -nconfs   Maximum number of conformers to generate (default: 2000)
@@ -365,7 +367,9 @@ The following supported flags:
     Generate 3D conformers options:
     --gen3d, -3d          Generate 3D conformers
     --format, -f          Output file format. Multiple formats simultaneously supported.
-                            (Default: db2.tgz - Options: sdf, db2, db2.tgz, mol2, pdbqt.)
+                            (Default: db2.tgz - Options: sdf, db2, db2.tgz, mol2, pdbqt, oeb, oeb.lib.)
+                            oeb: one .oeb.gz per molecule; oeb.lib: one library per input file.
+                            Both need the optional OpenEye toolkits and OE_LICENSE.
     --method, -m          Embedding method (default: rdkit - options: rdkit, obabel, corina)
     --numconfs, -nconfs   Maximum number of conformers to generate (default: 2000)
     --timeout, -to        Timeout for the initial embedding for each entry before using OpenBabel
@@ -395,7 +399,12 @@ Three sampling modes are supported (``--mode`` or ``-mode`` flag):
 * ignoretorlib: the program will ignore the TorsionLibrary and sample every 30 degrees.
 
 
-Multiple output formats are now supported, including DB2, PDBQT, SDF, and MOL2. The default output format is DB2, which could be modified by the ``--format`` or ``-f`` flag. Multiple formats at the same time is supported.
+Supported output formats are ``db2``, ``db2.tgz``, ``pdbqt``, ``sdf``, ``mol2``,
+``oeb``, and ``oeb.lib``. The default is the compressed DB2 archive
+``db2.tgz``. Select one or more formats with ``--format`` or ``-f``.
+PDBQT requires the optional Meeko dependencies; both OEB formats require
+the optional OpenEye toolkits and a valid licence (see :doc:`installation`).
+See :doc:`outputs` for OEB record grouping, file naming, and restart behavior.
 
 For DB2 generation, AMSOLcpp assigns desolvation penalties and partial charges
 directly from the in-memory RDKit molecule. These values are passed directly to

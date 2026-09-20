@@ -201,6 +201,12 @@ The following substructures are considered for (de)protonation:
    .. image:: _static/SI-PROTO-RULES_p3.png
       :width: 600px
       :align: center
+   .. image:: _static/SI-PROTO-RULES_p4.png
+      :width: 600px
+      :align: center
+   .. image:: _static/SI-PROTO-RULES_p5.png
+      :width: 600px
+      :align: center
 
 
 3. Stereoisomerism

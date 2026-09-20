@@ -3,9 +3,9 @@
 Why this exists
 ---------------
 MolSanitizer already covers db2 (UCSF DOCK), pdbqt (AutoDock/Vina) and the
-generic sdf/mol2 formats. The one docking format still missing is OpenEye's
-binary .oeb.gz, which is what FRED and HYBRID read fastest. Adding it means a
-single msani pass can feed DOCK, AutoDock/Vina and OpenEye docking from the
+generic sdf/mol2 formats. This writer adds OpenEye's binary .oeb.gz for
+FRED and HYBRID, so a single msani pass can feed DOCK, AutoDock/Vina and
+OpenEye docking from the
 same sanitized library, with no per-user conversion step in between.
 
 What it does
@@ -27,8 +27,9 @@ Output layout
                       what FRED and HYBRID take as their database (the same
                       relation db2.tgz has to db2)
 
-Either way the ring-conformer groups of a molecule are merged into a single
-OEMol, so every ligand is one record and docks to one result.
+In both formats, compatible ring-conformer groups are merged into a single
+OEMol. Groups that fail the atom-count or atomic-number-order checks are kept
+as separate records.
 
 Licensing
 ---------

@@ -1154,8 +1154,8 @@ class ConformerGenerator:
         """
         Write the conformers as ONE multi-conformer OpenEye OEMol.
 
-        The ring-conformer groups are merged, so the molecule is a single record
-        and FRED/HYBRID dock it to a single result. Needs the optional OpenEye
+        Compatible ring-conformer groups are merged into a single record. Groups
+        that fail the writer's compatibility checks remain separate records. Needs the optional OpenEye
         toolkits and a licence (OE_LICENSE).
 
         Args:

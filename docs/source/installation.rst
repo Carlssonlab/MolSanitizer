@@ -56,6 +56,10 @@ Optional dependencies
 - `Meeko <https://pypi.org/project/meeko/>`_ is required only for PDBQT output.
   Install it with ``pip install "molsanitizer[pdbqt]"``.
 
+- OpenEye toolkits are required only for ``--format oeb`` and
+  ``--format oeb.lib``. Install the ``oe`` extra and configure your own valid
+  OEChem licence as shown below. The licence is not included with MolSanitizer.
+
 - `Open Babel <https://openbabel.org/docs/dev/Installation/install.html>`_ is
   required only when ``obabel`` is selected as the embedding method or used as
   the fallback after an RDKit embedding timeout. If it is unavailable after a
@@ -79,6 +83,21 @@ In order to also generate PDBQT files, install the optional dependency Meeko:
 .. code-block:: console
 
    $ pip install "molsanitizer[pdbqt]"
+
+For OEB output, install the optional OpenEye toolkits and set the licence path
+(in a macOS/Linux shell):
+
+.. code-block:: console
+
+   $ pip install "molsanitizer[oe]"
+   $ export OE_LICENSE=/path/to/oe_license.txt
+
+For a source checkout, use ``pip install -e "MolSanitizer[oe]"`` instead.
+On Windows, set the ``OE_LICENSE`` environment variable to the licence path.
+To install both docking extras, use ``pip install "molsanitizer[pdbqt,oe]"``.
+The OpenEye toolkits have their own platform and Python compatibility
+requirements; MolSanitizer's supported version range does not guarantee
+availability of this optional dependency.
 
 From Conda-forge
 ^^^^^^^^^^^^^^^^^^

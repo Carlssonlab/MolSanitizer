@@ -23,6 +23,10 @@ Outputs are written relative to the working directory. For a plain input named
        Multiple ring conformations may add an ``.nr`` suffix.
    * - ``db2/example.db2.tgz``
      - DB2 archive when ``--format db2.tgz`` is selected (the default 3D format).
+   * - ``oeb/<molecule ID>.oeb.gz``
+     - Per-molecule multi-conformer output with ``--format oeb``.
+   * - ``oeb/example.oeb.gz``
+     - Multi-molecule library with ``--format oeb.lib``.
    * - ``msani.log``
      - Execution log; ``--prefix run1`` changes the log name to ``run1.log``.
    * - ``msani_error.err``
@@ -39,6 +43,23 @@ Tautomer/protomer expansion appends underscore indices, for example ``mol_1``
 and ``mol_2``. Stereoisomer enumeration appends dot indices, such as ``mol_1.1``
 and ``mol_1.2``. Larger expansions use zero-padded indices. Use unique input IDs
 so per-molecule files do not collide, and keep the input to trace derived IDs.
+
+OpenEye records and naming
+--------------------------
+
+Both OEB formats export sampled conformers. Ring-conformer groups are normally
+merged into one multi-conformer ``OEMol`` per prepared molecule, titled with
+its identifier, rather than separate records for each conformer. Groups that
+fail the writer's atom-count or atomic-number-order checks are retained as
+separate records. Distinct prepared tautomers, protomers, and stereoisomers
+remain separate molecules.
+
+The library filename uses the input basename with its final extension removed:
+``example.smi`` produces ``oeb/example.oeb.gz`` and ``example.smi.gz`` produces
+``oeb/example.smi.oeb.gz``. ``--prefix`` does not rename this library.
+When requesting both ``oeb`` and ``oeb.lib``, ensure no prepared molecule ID
+matches that input basename: both formats use the same directory and extension,
+so their files would collide. Use separate working directories if necessary.
 
 Rejected and failed molecules
 -----------------------------
@@ -61,6 +82,10 @@ Common problems
   when appropriate for your project.
 * **Missing PDBQT output:** install ``molsanitizer[pdbqt]`` in the environment
   running the command and inspect the molecule's error message.
+* **Missing OEB output:** install ``molsanitizer[oe]`` in the environment
+  running the command and set ``OE_LICENSE`` to a valid licence file. Missing
+  toolkits and an unlicensed OEChem installation produce distinct errors.
+  Inspect the execution log and ``msani_error.err`` for details.
 * **Embedding timeout:** ``--timeout`` is measured in minutes (default 2).
   When RDKit embedding times out, MolSanitizer tries Open Babel. If Open Babel
   is unavailable or the fallback fails, the reason is recorded and processing
@@ -83,6 +108,20 @@ DB2 members and skip their molecule IDs. This supports restarting interrupted
 work with the same inputs and settings. An unreadable archive is logged and
 processing starts fresh. Use a separate directory for a new preparation rather
 than reusing an old archive with changed settings.
+
+For file input with ``oeb.lib``, an existing library is moved aside and its
+records are copied back before new molecules are added. This retains records
+across input chunks and supports reruns with the same input and settings.
+Restored molecule titles are used to avoid adding those molecules again; use
+unique IDs. With only ``oeb.lib`` selected, restored molecules skip conformer
+generation. With other formats selected, they may still be processed for those
+outputs. This is not a guarantee of recovery from a corrupt or partially
+written library; keep a backup of valuable output before retrying.
+
+When ``db2.tgz`` and ``oeb.lib`` are requested together, IDs already restored
+from the DB2 archive skip all processing, including OEB output. A rerun therefore
+does not repair an OEB library missing those IDs. Regenerate in a fresh directory
+if the two outputs are inconsistent.
 
 SLURM batch recovery
 --------------------

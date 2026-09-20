@@ -1,9 +1,9 @@
 # MolSanitizer - A package to prepare SMILES databases
-[![python](https://img.shields.io/badge/python-v3.10--3.12-blue)]()
+[![python](https://img.shields.io/badge/python-v3.10--3.14-blue)]()
 [![anaconda](https://img.shields.io/badge/Anaconda.org-2.1.0-green.svg?style=flat-square)](https://docs.anaconda.com/anaconda/install/index.html)
 [![Documentation](https://img.shields.io/badge/documentations-orange)](https://msani.readthedocs.io/)
 ![GitHub forks](https://img.shields.io/github/forks/:user/:repo)
-[![license](https://img.shields.io/badge/license-GPLv2-yellow)](LICENSE)
+[![license](https://img.shields.io/badge/license-Apache2-yellow)](LICENSE)
 
 
 MolSanitizer is a package for preparation (remove salts, stereoisomers enumeration, protonation, ...) and filtering undesirable substructures (PAINS, reactive functional groups, ...) for drug discovery projects.
@@ -29,12 +29,22 @@ Meeko is optional and is needed only for PDBQT output. Install it with:
 The OpenEye toolkits are optional and are needed only for OEB output, the
 multi-conformer format OpenEye docking (FRED/HYBRID) reads directly. `--format
 oeb` writes one `.oeb.gz` per molecule; `--format oeb.lib` writes one `.oeb.gz`
-library per input file, ready to be used as a docking database. Either way each
-molecule is a single record carrying all of its conformers. Install the extra
+library per input file, ready to be used as a docking database. Both formats
+normally merge each molecule's ring-conformer groups into one
+multi-conformer record; groups that fail the writer's compatibility checks
+remain separate records. Install the extra
 and point OE_LICENSE at your own licence file:
 
     pip install -e "MolSanitizer[oe]"
     export OE_LICENSE=/path/to/oe_license.txt
+
+For example, generate a docking library with:
+
+    msani -i example.smi --gen3d --format oeb.lib
+
+This writes `oeb/example.oeb.gz`; `--format oeb` instead writes
+`oeb/<molecule ID>.oeb.gz`. See the [output documentation](https://msani.readthedocs.io/en/latest/outputs.html)
+for restart behavior and naming constraints when combining these formats.
 
 Open Babel is also optional. It is used only when selected as the embedding
 method or as a fallback after an RDKit embedding timeout. If that fallback is

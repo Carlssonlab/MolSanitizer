@@ -142,7 +142,7 @@ ConformerGenerator
 
 The **ConformerGenerator** class is responsible for generating conformers of molecules. It provides methods to generate conformers from a SMILES string, from RDKit Mol object, or a DataFrame. The conformer generation process can be customized by specifying the number of conformers to generate and the conformer generation method to use.
 
-Two main steps are involved, first, initial embedding of the molecule (generate 3D), then torsional sampling. Finally, the conformers can be saved in various formats such as PDBQT, SDF, MOL2, or DB2.
+Two main steps are involved, first, initial embedding of the molecule (generate 3D), then torsional sampling. Finally, the conformers can be saved in various formats such as PDBQT, SDF, MOL2, DB2, or OEB.
 
 .. code-block:: python
 
@@ -165,3 +165,21 @@ Two main steps are involved, first, initial embedding of the molecule (generate 
     confgen.to_sdf()
     confgen.to_mol2()
     confgen.to_db2()
+
+
+With the optional OpenEye toolkits installed and licensed, save the sampled
+ensemble as OEB. Create the output directory when using the Python API directly:
+
+.. code-block:: python
+
+    from pathlib import Path
+    from contextlib import closing
+    from msani.conformers import oebwriter
+
+    Path("oeb").mkdir(exist_ok=True)
+    confgen.to_oeb()  # oeb/test.oeb.gz
+
+    # Open once, then append each sampled ConformerGenerator to the library.
+    # Opening an existing file truncates it; this API does not resume a run.
+    with closing(oebwriter.open_oeb("oeb/library.oeb.gz")) as stream:
+        confgen.to_oeb(stream=stream)

@@ -57,5 +57,22 @@ Successful generation creates ``pdbqt/acetate.pdbqt`` and
 structure, with rotatable bonds for docking; it does not export the sampled
 SDF ensemble. To request both formats in one run, use ``--format sdf pdbqt``.
 
+Generate an OpenEye docking library
+----------------------------------
+
+Install the ``oe`` extra and configure ``OE_LICENSE`` as described in
+:doc:`installation`, then run:
+
+.. code-block:: console
+
+    $ msani -i example_clean.smi --gen3d --format oeb.lib --numconfs 20
+
+This writes ``oeb/example_clean.oeb.gz`` for use as a FRED/HYBRID docking
+library. Each prepared molecule normally has one multi-conformer record,
+combining its sampled ring-conformer groups. To write individual files such as
+``oeb/acetate.oeb.gz`` instead, select ``--format oeb``. Both formats trigger
+conformer sampling. You can export an SDF ensemble alongside the library with
+``--format sdf oeb.lib``.
+
 See :doc:`usage` for filtering and other processing options, and :doc:`outputs`
 for logs, output naming, and recovery when a molecule fails.
