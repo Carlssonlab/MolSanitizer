@@ -101,7 +101,7 @@ jobs:
       - name: Pack the SDK
         run: |
           set -euo pipefail
-          tar -czf "msani-sdk-${{ matrix.target.key }}.tar.gz" -C / opt/msani-rdkit opt/boost
+          tar -czf "msani-sdk-${{ matrix.target.key }}.tar.gz" -C / opt/msani-rdkit opt/boost opt/eigen
           ls -lh "msani-sdk-${{ matrix.target.key }}.tar.gz"
 
       - name: Upload to the SDK release

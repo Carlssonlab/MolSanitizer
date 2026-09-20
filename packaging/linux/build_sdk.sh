@@ -10,14 +10,35 @@ set -euo pipefail
 RDKIT_REF=${RDKIT_REF:-Release_2025_09_1}
 RDKIT_PREFIX=${RDKIT_PREFIX:-/opt/msani-rdkit}
 BOOST_PREFIX=${BOOST_PREFIX:-/opt/boost}
+EIGEN_REF=${EIGEN_REF:-3.4.0}
+EIGEN_PREFIX=${EIGEN_PREFIX:-/opt/eigen}
 BOOST_VERSION=${BOOST_VERSION:-1.85.0}
 BOOST_SHA256=${BOOST_SHA256:-be0d91732d5b0cc6fbb275c7939974457e79b54d6f07ce2e3dfdd68bef883b0b}
 JOBS=${MSANI_BUILD_JOBS:-$(nproc)}
 
 stage_deps() {
-    dnf -y install git cmake ninja-build eigen3-devel \
+    # Deliberately no eigen3-devel: Eigen is pinned and installed into the SDK
+    # by stage_eigen, so the wheel build uses the same headers RDKit was
+    # compiled against and needs nothing from /usr.
+    dnf -y install git cmake ninja-build \
         curl tar gzip zlib-devel bzip2-devel xz-devel libzstd-devel
     dnf clean all
+}
+
+# Header-only, so this is an install rather than a build. Pinned by git tag for
+# the same reason RDKit is: an archive URL is not content-addressed.
+stage_eigen() {
+    rm -rf /tmp/eigen /tmp/eigen-build
+    git clone --depth 1 --branch "$EIGEN_REF" \
+        https://gitlab.com/libeigen/eigen.git /tmp/eigen
+    cmake -S /tmp/eigen -B /tmp/eigen-build -G Ninja \
+        -DCMAKE_INSTALL_PREFIX="$EIGEN_PREFIX" \
+        -DBUILD_TESTING=OFF \
+        -DEIGEN_BUILD_DOC=OFF
+    cmake --install /tmp/eigen-build
+    install -d "$EIGEN_PREFIX/share/msani-sdk"
+    git -C /tmp/eigen rev-parse HEAD > "$EIGEN_PREFIX/share/msani-sdk/eigen-commit.txt"
+    rm -rf /tmp/eigen /tmp/eigen-build
 }
 
 # Pinned, position-independent static Boost. RDKit and MolSanitizer must agree
@@ -50,7 +71,7 @@ stage_rdkit() {
     cmake -S /tmp/rdkit -B /tmp/rdkit-build -G Ninja \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_INSTALL_PREFIX="$RDKIT_PREFIX" \
-        -DCMAKE_PREFIX_PATH="$BOOST_PREFIX" \
+        -DCMAKE_PREFIX_PATH="$BOOST_PREFIX;$EIGEN_PREFIX" \
         -DRDK_INSTALL_INTREE=OFF \
         -DRDK_BUILD_STATIC_LIBS_ONLY=ON \
         -DRDK_BUILD_PYTHON_WRAPPERS=OFF \
@@ -67,16 +88,17 @@ stage_rdkit() {
     install -d "$RDKIT_PREFIX/share/msani-sdk"
     git -C /tmp/rdkit rev-parse HEAD > "$RDKIT_PREFIX/share/msani-sdk/rdkit-commit.txt"
     install -m 0644 /tmp/rdkit/license.txt "$RDKIT_PREFIX/share/msani-sdk/RDKit-license.txt"
-    printf '{"rdkit_ref":"%s","boost_version":"%s","arch":"%s","linkage":"static"}\n' \
-        "$RDKIT_REF" "$BOOST_VERSION" "$(uname -m)" \
+    printf '{"rdkit_ref":"%s","boost_version":"%s","eigen_ref":"%s","arch":"%s","linkage":"static"}\n' \
+        "$RDKIT_REF" "$BOOST_VERSION" "$EIGEN_REF" "$(uname -m)" \
         > "$RDKIT_PREFIX/share/msani-sdk/msani-sdk.json"
     rm -rf /tmp/rdkit /tmp/rdkit-build
 }
 
 case "${1:-all}" in
     deps) stage_deps ;;
+    eigen) stage_eigen ;;
     boost) stage_boost ;;
     rdkit) stage_rdkit ;;
-    all) stage_deps; stage_boost; stage_rdkit ;;
-    *) printf 'Usage: %s [deps|boost|rdkit|all]\n' "$0" >&2; exit 2 ;;
+    all) stage_deps; stage_eigen; stage_boost; stage_rdkit ;;
+    *) printf 'Usage: %s [deps|eigen|boost|rdkit|all]\n' "$0" >&2; exit 2 ;;
 esac

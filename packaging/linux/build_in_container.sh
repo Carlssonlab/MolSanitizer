@@ -21,6 +21,7 @@ rdkit=${MSANI_BUILD_RDKIT:-2025.9.1}
 jobs=${MSANI_BUILD_JOBS:-2}
 rdkit_prefix=${RDKIT_PREFIX:-/opt/msani-rdkit}
 boost_prefix=${BOOST_PREFIX:-/opt/boost}
+eigen_prefix=${EIGEN_PREFIX:-/opt/eigen}
 
 # manylinux_2_28 is the packaging target on every supported architecture.
 plat=${MSANI_PLAT:-manylinux_2_28_$(uname -m)}
@@ -45,7 +46,7 @@ python -m pip install scikit-build-core pybind11 twine "rdkit==$rdkit"
 python -m pip wheel . --no-build-isolation --no-deps \
     -Cbuild-dir="$work/native-build" \
     -Ccmake.define.MSANI_RDKIT_LINKAGE=static \
-    -Ccmake.define.CMAKE_PREFIX_PATH="$rdkit_prefix;$boost_prefix" \
+    -Ccmake.define.CMAKE_PREFIX_PATH="$rdkit_prefix;$boost_prefix;$eigen_prefix" \
     --wheel-dir "$work/raw"
 
 auditwheel show "$work"/raw/molsanitizer-*.whl

@@ -21,8 +21,8 @@ Pick `all` for a new pin, or a single target to repair one asset. The run
 creates the `sdk-<version>` pre-release if it does not exist and attaches:
 
 ```
-msani-sdk-linux-x86_64.tar.gz     static RDKit + Boost under /opt
-msani-sdk-linux-aarch64.tar.gz    static RDKit + Boost under /opt
+msani-sdk-linux-x86_64.tar.gz     static RDKit + Boost + Eigen under /opt
+msani-sdk-linux-aarch64.tar.gz    static RDKit + Boost + Eigen under /opt
 msani-sdk-macos-arm64.tar.gz      conda-forge prefix, workspace-relative
 msani-sdk-macos-x86_64.tar.gz     conda-forge prefix, workspace-relative
 msani-sdk-windows-x64.tar.gz      shared MSVC SDK + Boost, C:\msani-sdk\...

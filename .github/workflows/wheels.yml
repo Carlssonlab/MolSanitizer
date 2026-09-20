@@ -111,12 +111,20 @@ jobs:
     steps:
       - uses: actions/checkout@v6.0.2
 
+      # The upstream manylinux image is bare. The SDK tarball carries RDKit,
+      # Boost and Eigen, but Boost.Iostreams links the distro compression
+      # libraries, so restore the same packages the SDK was built against.
+      - name: Install system build dependencies
+        run: bash packaging/linux/build_sdk.sh deps
+
       - name: Restore the RDKit SDK
         run: |
           set -euo pipefail
           bash packaging/fetch_sdk.sh "$SDK_TAG" "msani-sdk-${{ matrix.job.key }}.tar.gz"
           tar -xzf "msani-sdk-${{ matrix.job.key }}.tar.gz" -C /
-          test -d /opt/msani-rdkit && test -d /opt/boost
+          for prefix in /opt/msani-rdkit /opt/boost /opt/eigen; do
+            test -d "$prefix" || { echo "::error::SDK asset is missing $prefix. Rebuild it with the SDK workflow."; exit 1; }
+          done
           cat /opt/msani-rdkit/share/msani-sdk/msani-sdk.json
 
       - name: Build and repair the wheel
