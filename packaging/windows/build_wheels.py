@@ -36,7 +36,12 @@ def main():
     parser.add_argument('--extra-prefixes', default='')
     parser.add_argument('--versions', nargs='+', default=['3.10', '3.11', '3.12', '3.13', '3.14'])
     parser.add_argument('--jobs', type=int, default=2)
-    parser.add_argument('--python-provider', choices=['conda', 'launcher'], default='conda')
+    parser.add_argument('--python-provider', choices=['conda', 'launcher', 'venv'],
+                        default='conda',
+                        help="'venv' builds from --base-python; use it in CI, where a\n"
+                             'single interpreter is provisioned per job.')
+    parser.add_argument('--base-python', type=Path,
+                        help='Interpreter for --python-provider venv (one version per run).')
     args = parser.parse_args()
     if sys.platform != 'win32':
         parser.error('Run on native Windows, not WSL.')
@@ -50,6 +55,12 @@ def main():
         parser.error('Install the Windows Python launcher and standalone CPython versions.')
     if args.python_provider == 'conda' and (not conda or not Path(conda).is_file()):
         parser.error('Activate conda in this Command Prompt; CONDA_EXE must identify conda.exe.')
+    if args.python_provider == 'venv':
+        if not args.base_python or not args.base_python.is_file():
+            parser.error('--python-provider venv requires --base-python PATH_TO_PYTHON_EXE.')
+        # One interpreter cannot seed environments for several versions.
+        if len(set(args.versions)) != 1:
+            parser.error('--python-provider venv builds exactly one --versions entry.')
     repo = Path(__file__).resolve().parents[2]
     sdk = Path(args.sdk).resolve()
     # Accept either a conda environment or an independent SDK prefix. Using
@@ -88,6 +99,12 @@ def main():
     # Keep the SDK outside interpreter environments. Conda caches package
     # downloads automatically, while each interpreter environment stays fresh.
     def create_environment(prefix, version, env, cwd, log):
+        if args.python_provider == 'venv':
+            # --seed is unavailable here; ensurepip provides pip in the venv.
+            run([args.base_python, '-m', 'venv', prefix], env=env, cwd=cwd, log=log)
+            python = prefix / 'Scripts/python.exe'
+            run([python, '-m', 'pip', 'install', '--upgrade', 'pip'], env=env, cwd=cwd, log=log)
+            return python
         if args.python_provider == 'conda':
             conda_env = os.environ.copy()
             conda_env['CONDA_SUBDIR'] = 'win-64'
@@ -101,6 +118,8 @@ def main():
 
     def interpreter_path(prefix):
         paths = [prefix, prefix / 'Scripts']
+        if args.python_provider == 'venv':
+            return os.pathsep.join(map(str, paths))
         if args.python_provider == 'conda':
             paths.append(prefix / 'Library/bin')
         return os.pathsep.join(map(str, paths))
@@ -109,6 +128,7 @@ def main():
         'sdk': str(sdk), 'rdkit_version': args.rdkit_version,
         'versions': args.versions, 'extra_prefixes': args.extra_prefixes,
         'python_provider': args.python_provider,
+        'base_python': str(args.base_python) if args.base_python else None,
         'compiler_options': compiler_options,
     }, indent=2), encoding='utf-8')
     for version in dict.fromkeys(args.versions):

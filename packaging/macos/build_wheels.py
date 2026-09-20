@@ -1,4 +1,9 @@
-"""Build, delocate, and clean-install test the native macOS arm64 wheel matrix."""
+"""Build, delocate, and clean-install test a native macOS wheel matrix.
+
+Supports arm64 and x86_64. Builds are always native: the target architecture
+must match the host, because every wheel is import-tested and run against the
+repository suite before it is accepted.
+"""
 import argparse
 import hashlib
 import json
@@ -13,6 +18,8 @@ import tempfile
 
 
 VERSIONS = ['3.10', '3.11', '3.12', '3.13', '3.14']
+# conda subdir and delocate/CMake spellings for each supported host.
+ARCHITECTURES = {'arm64': 'osx-arm64', 'x86_64': 'osx-64'}
 
 
 def run(command, *, env, cwd, log):
@@ -37,11 +44,16 @@ def main():
     parser.add_argument('--rdkit-version', required=True, help='Matching PyPI RDKit version')
     parser.add_argument('--versions', nargs='+', choices=VERSIONS, default=VERSIONS)
     parser.add_argument('--jobs', type=int, default=2)
+    parser.add_argument('--arch', choices=sorted(ARCHITECTURES), default=platform.machine(),
+                        help='Target architecture; must match the host.')
     parser.add_argument('--deployment-target', default='11.0')
     parser.add_argument('--uv', default='uv', help='uv executable (manages standalone CPython)')
     args = parser.parse_args()
-    if sys.platform != 'darwin' or platform.machine() != 'arm64':
-        parser.error('Run with native arm64 Python on Apple Silicon, outside Rosetta.')
+    if sys.platform != 'darwin':
+        parser.error('Run on macOS.')
+    if platform.machine() != args.arch:
+        parser.error(f'--arch {args.arch} needs a native {args.arch} host and Python, '
+                     f'not {platform.machine()} (check for Rosetta).')
     if args.jobs < 1:
         parser.error('--jobs must be positive.')
     try:
@@ -62,14 +74,14 @@ def main():
             if (tuple(map(int, record['version'].split('.'))) !=
                     tuple(map(int, args.rdkit_version.split('.')))):
                 parser.error('--rdkit-version does not match the SDK.')
-            if record.get('subdir') != 'osx-arm64':
-                parser.error('SDK must be built for osx-arm64.')
+            if record.get('subdir') != ARCHITECTURES[args.arch]:
+                parser.error(f'SDK must be built for {ARCHITECTURES[args.arch]}.')
     subprocess.run(['xcrun', '--find', 'clang++'], check=True)
     repo = Path(__file__).resolve().parents[2]
-    cache = repo / 'build/macos'
+    cache = repo / f'build/macos-{args.arch}'
     cache.mkdir(parents=True, exist_ok=True)
     (repo / 'dist').mkdir(exist_ok=True)
-    output = Path(tempfile.mkdtemp(prefix='macos-arm64-wheels-', dir=repo / 'dist'))
+    output = Path(tempfile.mkdtemp(prefix=f'macos-{args.arch}-wheels-', dir=repo / 'dist'))
     wheels, logs = output / 'wheels', output / 'logs'
     wheels.mkdir()
     logs.mkdir()
@@ -87,7 +99,7 @@ def main():
                 UV_PYTHON_PREFERENCE='only-managed',
                 PIP_CACHE_DIR=str(cache / 'pip-cache'))
     (output / 'build-settings.json').write_text(json.dumps({
-        'sdk': str(sdk), 'rdkit_version': args.rdkit_version,
+        'sdk': str(sdk), 'rdkit_version': args.rdkit_version, 'arch': args.arch,
         'versions': args.versions, 'deployment_target': args.deployment_target,
         'jobs': args.jobs,
     }, indent=2) + '\n')
@@ -103,7 +115,7 @@ def main():
                     run([uv, 'venv', '--seed', '--python', version, prefix], env=base, cwd=work, log=log)
                     python = prefix / 'bin/python'
                     run([python, '-c', 'import platform,sys,sysconfig; '
-                         "assert platform.machine() == 'arm64'; "
+                         f"assert platform.machine() == '{args.arch}'; "
                          "assert platform.python_implementation() == 'CPython'; "
                          f'assert sys.version_info[:2] == {tuple(map(int, version.split(".")))}; '
                          "assert not sysconfig.get_config_var('Py_GIL_DISABLED'); print(sys.version)"],
@@ -113,7 +125,8 @@ def main():
                 env = base.copy()
                 env.update(PATH=str(python.parent) + ':' + base['PATH'], RDBASE=str(sdk),
                            CMAKE_GENERATOR='Ninja', CMAKE_BUILD_PARALLEL_LEVEL=str(args.jobs),
-                           MACOSX_DEPLOYMENT_TARGET=args.deployment_target, ARCHFLAGS='-arch arm64',
+                           MACOSX_DEPLOYMENT_TARGET=args.deployment_target,
+                           ARCHFLAGS=f'-arch {args.arch}',
                            CC='/usr/bin/clang', CXX='/usr/bin/clang++')
                 run([python, '-m', 'pip', 'install', 'scikit-build-core', 'pybind11', 'cmake',
                      'ninja', 'delocate', 'twine', f'rdkit=={args.rdkit_version}'], env=env, cwd=work, log=log)
@@ -122,22 +135,22 @@ def main():
                 run([python, '-m', 'pip', 'wheel', repo, '--no-build-isolation', '--no-deps',
                      f'-Cbuild-dir={work / "native"}', '-Ccmake.define.MSANI_RDKIT_LINKAGE=shared',
                      f'-Ccmake.define.CMAKE_PREFIX_PATH={sdk}',
-                     '-Ccmake.define.CMAKE_OSX_ARCHITECTURES=arm64',
+                     f'-Ccmake.define.CMAKE_OSX_ARCHITECTURES={args.arch}',
                      f'-Ccmake.define.CMAKE_OSX_DEPLOYMENT_TARGET={args.deployment_target}',
                      f'-Ccmake.define.Python3_EXECUTABLE={python}',
                      f'-Ccmake.define.Python_EXECUTABLE={python}', '--wheel-dir', raw],
                     env=env, cwd=work, log=log)
-                candidates = list(raw.glob(f'*-{tag}-{tag}-macosx_*_arm64.whl'))
+                candidates = list(raw.glob(f'*-{tag}-{tag}-macosx_*_{args.arch}.whl'))
                 if len(candidates) != 1:
-                    raise RuntimeError(f'Expected one arm64 {tag} wheel, found {candidates}')
+                    raise RuntimeError(f'Expected one {args.arch} {tag} wheel, found {candidates}')
                 # CMake deliberately removes build-machine RPATHs. Give only the
                 # repair step a library search path, then remove it for tests.
                 repair_env = env.copy()
                 repair_env['DYLD_LIBRARY_PATH'] = str(sdk / 'lib')
-                run([python.parent / 'delocate-wheel', '--require-archs', 'arm64',
+                run([python.parent / 'delocate-wheel', '--require-archs', args.arch,
                      '--sanitize-rpaths', '-v', '-w', wheels, candidates[0]],
                     env=repair_env, cwd=work, log=log)
-                repaired = list(wheels.glob(f'*-{tag}-{tag}-macosx_*_arm64.whl'))
+                repaired = list(wheels.glob(f'*-{tag}-{tag}-macosx_*_{args.arch}.whl'))
                 if len(repaired) != 1:
                     raise RuntimeError(f'Expected one repaired wheel, found {repaired}')
                 wheel = repaired[0]  # delocate may raise the minimum macOS tag.

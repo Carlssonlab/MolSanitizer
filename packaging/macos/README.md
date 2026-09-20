@@ -1,7 +1,10 @@
-# Local macOS arm64 wheels
+# Local macOS wheels
 
-Run on Apple Silicon with native arm64 Conda and Apple's Xcode Command Line
-Tools (`xcode-select --install`). Network access is needed for the SDK,
+Run natively on the Mac whose architecture you are targeting: Apple Silicon
+produces arm64 wheels, an Intel Mac produces x86_64 wheels. Cross-architecture
+builds are not supported, because every wheel is import-tested and run against
+the suite before it is accepted. Needs native Conda for that architecture and
+Apple's Xcode Command Line Tools (`xcode-select --install`). Network access is needed for the SDK,
 standalone CPython interpreters, and Python packages.
 
 From the repository root:
@@ -11,10 +14,10 @@ bash packaging/macos/build_wheels.sh
 ```
 
 The wrapper provisions an isolated Conda C++ SDK with RDKit 2025.09.1, Boost
-1.86, and Eigen 3.4 under `build/macos/sdk`. It installs uv into a local tool
+1.86, and Eigen 3.4 under `build/macos-<arch>/sdk`. It installs uv into a local tool
 venv and uses uv-managed CPython to build and test Python 3.10–3.14. Existing
 Conda environments are not changed. SDK packages are recorded in
-`build/macos/sdk-explicit.txt`; caches and interpreters stay in `build/macos`.
+`build/macos-<arch>/sdk-explicit.txt`; caches and interpreters stay in `build/macos-<arch>`.
 
 For a smaller matrix or more build workers:
 
@@ -35,7 +38,7 @@ Eigen development packages. The PyPI RDKit version must match the SDK.
 `MSANI_MACOS_SDK`, `MSANI_BUILD_RDKIT`, `MSANI_BUILD_JOBS`, and
 `MSANI_BOOTSTRAP_PYTHON` override the wrapper defaults.
 
-Each run creates `dist/macos-arm64-wheels-*/` containing repaired wheels,
+Each run creates `dist/macos-<arch>-wheels-*/` containing repaired wheels,
 build/test logs, build settings, `status.txt`, and `SHA256SUMS`. The script
 returns nonzero if any version fails. Check `status.txt` before distributing:
 a repaired wheel can still be present when its installation tests fail.

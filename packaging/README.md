@@ -23,5 +23,24 @@ manylinux container for the wider `manylinux_2_28_x86_64` production target.
 
 - Linux x86_64: `linux/build_wheels.sh` (Docker).
 - Windows x64: [Windows instructions](windows/README.md).
-- macOS arm64: [Apple Silicon instructions](macos/README.md), or run
-  `bash packaging/macos/build_wheels.sh` on a native Apple Silicon Mac.
+- macOS arm64 and x86_64: [macOS instructions](macos/README.md), or run
+  `bash packaging/macos/build_wheels.sh` on a native Mac of that architecture.
+
+## Shared build steps
+
+The SDK provisioning and the per-interpreter build and test commands live in
+scripts that both local runs and GitHub Actions invoke, so CI wheels and local
+wheels come from identical commands:
+
+| Script | Used by |
+| --- | --- |
+| `linux/build_sdk.sh` | `linux/Dockerfile` (per stage) and the SDK workflow |
+| `linux/build_in_container.sh` | `linux/build_wheels.sh` and the wheel workflow |
+| `linux/test_in_container.sh` | the same two, in a clean `python:X.Y-slim` image |
+| `macos/build_sdk.sh` | `macos/build_wheels.sh` and the SDK workflow |
+| `fetch_sdk.sh`, `upload_sdk.sh` | the workflows, to move SDK release assets |
+
+## Continuous integration
+
+See [RELEASE.md](RELEASE.md) for the two workflows and the manual upload step.
+Wheels are never published automatically.

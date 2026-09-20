@@ -53,9 +53,23 @@ Optional settings:
 MSANI_BUILD_JOBS=4 bash packaging/linux/build_wheels.sh
 ```
 
+Build a single interpreter while iterating:
+
+```bash
+MSANI_PYTHON_VERSIONS=3.12 bash packaging/linux/build_wheels.sh
+```
+
 `MSANI_BUILD_IMAGE` overrides the SDK image name. `MSANI_BUILD_RDKIT` overrides
 the build-time Python RDKit version; keep it matched to the SDK in that image.
-Defaults are `msani-builder:rdkit-2025.09.1` and `2025.9.1`.
+`MSANI_PYTHON_VERSIONS` selects interpreters, and `MSANI_DOCKER_PLATFORM`
+selects the Docker platform (`linux/arm64` for a native aarch64 host).
+Defaults are `msani-builder:rdkit-2025.09.1`, `2025.9.1`, all five versions
+and `linux/amd64`.
+
+The build and test commands themselves live in `build_in_container.sh` and
+`test_in_container.sh`, and the SDK provisioning in `build_sdk.sh`, which the
+Dockerfile copies into the image. GitHub Actions runs those same scripts, so a
+local run exercises the CI code path.
 
 ## Build or upgrade the SDK image
 
