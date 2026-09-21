@@ -2,16 +2,48 @@
 
 All notable changes to this project will be documented in this file.
 
-## [unreleased - most recent changes come first]
+## [sdk-2025.09.1] - 2026-09-20
 
 ### 🚀 Features
 
+- New config interface, allowing the user to modify the config without needing to modify the bundled parameters. Prepare for PyPi release. Check with msani config -h. - ([6deca71](https://github.com/phonglam3103/MolSanitizer/commit/6deca71332d0cfdfac634b38f6a5b7a52317e40b))
+- Support both the UCSF logP and normal logp values for filtering - ([beec999](https://github.com/phonglam3103/MolSanitizer/commit/beec9993548cd523969bbd1200046e92abefc786))
+- Support bz2 format and more efficient mechanism of submitting SLURM jobs - ([2b6db9d](https://github.com/phonglam3103/MolSanitizer/commit/2b6db9dc181a7bcdb8428b13030b8ebdf75f0607))
+- Use CORINA to accelerate stereoisomer enumeration if the user use 3D mode == CORINA. - ([546d6bf](https://github.com/phonglam3103/MolSanitizer/commit/546d6bff9961c8875f75bede4cd25b50a26ab629))
+- Support gzip and xzip files as inputs - ([c34fd4f](https://github.com/phonglam3103/MolSanitizer/commit/c34fd4f68d1bbf1fc3dc6d73e88d6b67a8d91c67))
+- Static RDKit packaging pipeline for PyPI wheels - ([61b3f36](https://github.com/phonglam3103/MolSanitizer/commit/61b3f3616c6dfe6a69afade752a341050ef09b46))
+- New `--extended_tautomers` mode, which enumerate tautomers more extensively (likely produce non-dominant tautomers as well) - ([dcef8c3](https://github.com/phonglam3103/MolSanitizer/commit/dcef8c369eb2cfe71144f9d58febc638b1222792))
 - Merge ring-conformer groups in OEB output and add oeb.lib library format - ([7a87158](https://github.com/phonglam3103/MolSanitizer/commit/7a87158ee88d3d84ca0c8d56871175cdd2e248cb))
 - Add OEB output (--format oeb) for OpenEye docking - ([aeab8ac](https://github.com/phonglam3103/MolSanitizer/commit/aeab8ac04c6e35082e42d3a74de8d090c7fb5a90))
 
 ### 🐛 Bug Fixes
 
+- *(conformers)* Drain embedding results and preserve settings - ([9a35b2b](https://github.com/phonglam3103/MolSanitizer/commit/9a35b2b7b390c7cc544f7c7f206969abb3b25ce7))
+- *(native)* Validate sampling inputs and own temporary coordinates - ([beac42e](https://github.com/phonglam3103/MolSanitizer/commit/beac42ef709a8dd05c4256c01533b82e9c0f6dde))
+- Fix S.ar atomtype in mol2. 3D generated checks before outputing the 3D formats. Add fallback for inorganic compounds. Resolve #58 repported by @H-EKE - ([14014b6](https://github.com/phonglam3103/MolSanitizer/commit/14014b60874ac81dd7338a81b23749685e96ac08))
 - Keep earlier chunks in the OEB library and make it resumable - ([a11cf28](https://github.com/phonglam3103/MolSanitizer/commit/a11cf2869b5bae8b3478f78e9277e6a82e3734fd))
+
+### 🚜 Refactor
+
+- Simplify CMake configuration by removing RDKit version detection and enforcing C++20 for RDKit 2025.9+ - ([87a83a9](https://github.com/phonglam3103/MolSanitizer/commit/87a83a986113489e5171c6e95dad70b863bb835e))
+
+### 📚 Documentation
+
+- Update README and documentation for OpenEye support and new output formats. Update new protonation rules - ([0943230](https://github.com/phonglam3103/MolSanitizer/commit/09432301a19cdfe38c58309c5ced8b3afa7dba33))
+- Update contributors list and enhance documentation with quickstart and outputs sections - ([88bb900](https://github.com/phonglam3103/MolSanitizer/commit/88bb90065a80aa26042beb07339ed21616320238))
+- Docs update to match the newest performance validation. Updated contributor list - ([ff43bb6](https://github.com/phonglam3103/MolSanitizer/commit/ff43bb6b358b0538607b0cdf0c50735b713109fe))
+
+### ⚡ Performance
+
+- *(conformers)* Bound hydroxyl sampling and cache peak weights - ([485ebfc](https://github.com/phonglam3103/MolSanitizer/commit/485ebfc0d4f1f46eec92eb346fb41412cc2eb337))
+- *(mol2)* Extract conformer coordinates in bulk - ([22270c6](https://github.com/phonglam3103/MolSanitizer/commit/22270c64c063a8a32083ac0e949f2a3878364931))
+- *(pipeline)* Reuse transformation workers across chunks - ([ae1218d](https://github.com/phonglam3103/MolSanitizer/commit/ae1218d84c5d4e6303dc1ee847b8ffb49bc11714))
+- *(tautomers)* Avoid redundant SMILES generation and sorting - ([d9bc16b](https://github.com/phonglam3103/MolSanitizer/commit/d9bc16b51e46d5e3f8807409c2bf4eca69d55ee2))
+- Speed up of 8 times for substructure filtering by using RDKit native functions. - ([401266c](https://github.com/phonglam3103/MolSanitizer/commit/401266ce034c528d1dcd1abe01ae939a3cf7257f))
+
+### ⚙️ Miscellaneous Tasks
+
+- Build and test the wheel matrix on GitHub Actions - ([49cf758](https://github.com/phonglam3103/MolSanitizer/commit/49cf758b5f4e50d1df7cc2fff40877271192a783))
 
 ## [0.7.0] - 2026-08-28
 

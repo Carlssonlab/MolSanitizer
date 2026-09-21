@@ -3,12 +3,31 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
-[unreleased - most recent changes come first]
----------------------------------------------
+[sdk-2025.09.1] - 2026-09-20
+----------------------------
 
 🚀 Features
 ~~~~~~~~~~~
 
+-  New config interface, allowing the user to modify the config without
+   needing to modify the bundled parameters. Prepare for PyPi release.
+   Check with msani config -h. -
+   (`6deca71 <https://github.com/phonglam3103/MolSanitizer/commit/6deca71332d0cfdfac634b38f6a5b7a52317e40b>`__)
+-  Support both the UCSF logP and normal logp values for filtering -
+   (`beec999 <https://github.com/phonglam3103/MolSanitizer/commit/beec9993548cd523969bbd1200046e92abefc786>`__)
+-  Support bz2 format and more efficient mechanism of submitting SLURM
+   jobs -
+   (`2b6db9d <https://github.com/phonglam3103/MolSanitizer/commit/2b6db9dc181a7bcdb8428b13030b8ebdf75f0607>`__)
+-  Use CORINA to accelerate stereoisomer enumeration if the user use 3D
+   mode == CORINA. -
+   (`546d6bf <https://github.com/phonglam3103/MolSanitizer/commit/546d6bff9961c8875f75bede4cd25b50a26ab629>`__)
+-  Support gzip and xzip files as inputs -
+   (`c34fd4f <https://github.com/phonglam3103/MolSanitizer/commit/c34fd4f68d1bbf1fc3dc6d73e88d6b67a8d91c67>`__)
+-  Static RDKit packaging pipeline for PyPI wheels -
+   (`61b3f36 <https://github.com/phonglam3103/MolSanitizer/commit/61b3f3616c6dfe6a69afade752a341050ef09b46>`__)
+-  New ``--extended_tautomers`` mode, which enumerate tautomers more
+   extensively (likely produce non-dominant tautomers as well) -
+   (`dcef8c3 <https://github.com/phonglam3103/MolSanitizer/commit/dcef8c369eb2cfe71144f9d58febc638b1222792>`__)
 -  Merge ring-conformer groups in OEB output and add oeb.lib library
    format -
    (`7a87158 <https://github.com/phonglam3103/MolSanitizer/commit/7a87158ee88d3d84ca0c8d56871175cdd2e248cb>`__)
@@ -18,8 +37,57 @@ All notable changes to this project will be documented in this file.
 🐛 Bug Fixes
 ~~~~~~~~~~~~
 
+-  *(conformers)* Drain embedding results and preserve settings -
+   (`9a35b2b <https://github.com/phonglam3103/MolSanitizer/commit/9a35b2b7b390c7cc544f7c7f206969abb3b25ce7>`__)
+-  *(native)* Validate sampling inputs and own temporary coordinates -
+   (`beac42e <https://github.com/phonglam3103/MolSanitizer/commit/beac42ef709a8dd05c4256c01533b82e9c0f6dde>`__)
+-  Fix S.ar atomtype in mol2. 3D generated checks before outputing the
+   3D formats. Add fallback for inorganic compounds. Resolve #58
+   repported by @H-EKE -
+   (`14014b6 <https://github.com/phonglam3103/MolSanitizer/commit/14014b60874ac81dd7338a81b23749685e96ac08>`__)
 -  Keep earlier chunks in the OEB library and make it resumable -
    (`a11cf28 <https://github.com/phonglam3103/MolSanitizer/commit/a11cf2869b5bae8b3478f78e9277e6a82e3734fd>`__)
+
+🚜 Refactor
+~~~~~~~~~~~
+
+-  Simplify CMake configuration by removing RDKit version detection and
+   enforcing C++20 for RDKit 2025.9+ -
+   (`87a83a9 <https://github.com/phonglam3103/MolSanitizer/commit/87a83a986113489e5171c6e95dad70b863bb835e>`__)
+
+📚 Documentation
+~~~~~~~~~~~~~~~~
+
+-  Update README and documentation for OpenEye support and new output
+   formats. Update new protonation rules -
+   (`0943230 <https://github.com/phonglam3103/MolSanitizer/commit/09432301a19cdfe38c58309c5ced8b3afa7dba33>`__)
+-  Update contributors list and enhance documentation with quickstart
+   and outputs sections -
+   (`88bb900 <https://github.com/phonglam3103/MolSanitizer/commit/88bb90065a80aa26042beb07339ed21616320238>`__)
+-  Docs update to match the newest performance validation. Updated
+   contributor list -
+   (`ff43bb6 <https://github.com/phonglam3103/MolSanitizer/commit/ff43bb6b358b0538607b0cdf0c50735b713109fe>`__)
+
+⚡ Performance
+~~~~~~~~~~~~~~
+
+-  *(conformers)* Bound hydroxyl sampling and cache peak weights -
+   (`485ebfc <https://github.com/phonglam3103/MolSanitizer/commit/485ebfc0d4f1f46eec92eb346fb41412cc2eb337>`__)
+-  *(mol2)* Extract conformer coordinates in bulk -
+   (`22270c6 <https://github.com/phonglam3103/MolSanitizer/commit/22270c64c063a8a32083ac0e949f2a3878364931>`__)
+-  *(pipeline)* Reuse transformation workers across chunks -
+   (`ae1218d <https://github.com/phonglam3103/MolSanitizer/commit/ae1218d84c5d4e6303dc1ee847b8ffb49bc11714>`__)
+-  *(tautomers)* Avoid redundant SMILES generation and sorting -
+   (`d9bc16b <https://github.com/phonglam3103/MolSanitizer/commit/d9bc16b51e46d5e3f8807409c2bf4eca69d55ee2>`__)
+-  Speed up of 8 times for substructure filtering by using RDKit native
+   functions. -
+   (`401266c <https://github.com/phonglam3103/MolSanitizer/commit/401266ce034c528d1dcd1abe01ae939a3cf7257f>`__)
+
+⚙️ Miscellaneous Tasks
+~~~~~~~~~~~~~~~~~~~~~~
+
+-  Build and test the wheel matrix on GitHub Actions -
+   (`49cf758 <https://github.com/phonglam3103/MolSanitizer/commit/49cf758b5f4e50d1df7cc2fff40877271192a783>`__)
 
 [0.7.0] - 2026-08-28
 --------------------
@@ -74,11 +142,15 @@ All notable changes to this project will be documented in this file.
    correctly from msani_batch to subjobs. -
    (`7adb5ae <https://github.com/phonglam3103/MolSanitizer/commit/7adb5ae3348116d0499c34661af66c8c218c89c1>`__)
 
+.. _refactor-1:
+
 🚜 Refactor
 ~~~~~~~~~~~
 
 -  Refactor gen_conf_chunk function for better maintenance. -
    (`89e7cd9 <https://github.com/phonglam3103/MolSanitizer/commit/89e7cd93d527f361358018480442b4a0d7354166>`__)
+
+.. _performance-1:
 
 ⚡ Performance
 ~~~~~~~~~~~~~~
@@ -175,7 +247,7 @@ All notable changes to this project will be documented in this file.
    of SaltRemover and avoid Python loop overhead. Fix #28 -
    (`01db117 <https://github.com/phonglam3103/MolSanitizer/commit/01db117dc823c4a5896db0748fae87e350d8e35d>`__)
 
-.. _refactor-1:
+.. _refactor-2:
 
 🚜 Refactor
 ~~~~~~~~~~~
@@ -198,7 +270,7 @@ All notable changes to this project will be documented in this file.
    CLI. Other yaml based file should keep as is. -
    (`caacf37 <https://github.com/phonglam3103/MolSanitizer/commit/caacf3780b205511f16bff8a1d6d4876bdbebba4>`__)
 
-.. _performance-1:
+.. _performance-2:
 
 ⚡ Performance
 ~~~~~~~~~~~~~~
@@ -229,7 +301,7 @@ All notable changes to this project will be documented in this file.
 -  Fix a typo in confgen that makes embedding using CORINA is broken -
    (`69e0ef9 <https://github.com/phonglam3103/MolSanitizer/commit/69e0ef9b9813ee788996a1b4f858fd7fb36013f8>`__)
 
-.. _performance-2:
+.. _performance-3:
 
 ⚡ Performance
 ~~~~~~~~~~~~~~
@@ -324,7 +396,7 @@ All notable changes to this project will be documented in this file.
 -  Updated p-EWG phenol rule, remove redundant duplicated rules. -
    (`dde92a8 <https://github.com/phonglam3103/MolSanitizer/commit/dde92a8b57dd3fda15e0093902f70e7d99a26ce7>`__)
 
-.. _refactor-2:
+.. _refactor-3:
 
 🚜 Refactor
 ~~~~~~~~~~~
@@ -422,7 +494,7 @@ All notable changes to this project will be documented in this file.
    single script properly. -
    (`16df3eb <https://github.com/phonglam3103/MolSanitizer/commit/16df3eb8041000348e4a0de40da9471c4fcc26fb>`__)
 
-.. _refactor-3:
+.. _refactor-4:
 
 🚜 Refactor
 ~~~~~~~~~~~
@@ -438,7 +510,7 @@ All notable changes to this project will be documented in this file.
    intuitive. -
    (`6de0647 <https://github.com/phonglam3103/MolSanitizer/commit/6de0647233345c60791cda6ea07349a44d32921a>`__)
 
-.. _performance-3:
+.. _performance-4:
 
 ⚡ Performance
 ~~~~~~~~~~~~~~
@@ -524,7 +596,7 @@ All notable changes to this project will be documented in this file.
    (more realistic) instead of planar. -
    (`640cc55 <https://github.com/phonglam3103/MolSanitizer/commit/640cc5561f3597ef0cb6dbb99b7448bc25a07076>`__)
 
-.. _refactor-4:
+.. _refactor-5:
 
 🚜 Refactor
 ~~~~~~~~~~~
@@ -540,6 +612,8 @@ All notable changes to this project will be documented in this file.
    beginning. -
    (`0017709 <https://github.com/phonglam3103/MolSanitizer/commit/0017709b92af88a57aed7a13177bb9e6e5c118d0>`__)
 
+.. _documentation-1:
+
 📚 Documentation
 ~~~~~~~~~~~~~~~~
 
@@ -547,7 +621,7 @@ All notable changes to this project will be documented in this file.
    method. -
    (`9497d19 <https://github.com/phonglam3103/MolSanitizer/commit/9497d19224f416690974b99022d05d7caa31fbe7>`__)
 
-.. _performance-4:
+.. _performance-5:
 
 ⚡ Performance
 ~~~~~~~~~~~~~~
@@ -608,7 +682,7 @@ All notable changes to this project will be documented in this file.
    stereocenters. -
    (`907e799 <https://github.com/phonglam3103/MolSanitizer/commit/907e7994bb15de84401d6b06fae3f1b970d11d47>`__)
 
-.. _performance-5:
+.. _performance-6:
 
 ⚡ Performance
 ~~~~~~~~~~~~~~
@@ -688,7 +762,7 @@ All notable changes to this project will be documented in this file.
    -
    (`f1f82b7 <https://github.com/phonglam3103/MolSanitizer/commit/f1f82b7b7705b1bb5e32a3624fa7890e49b5a773>`__)
 
-.. _refactor-5:
+.. _refactor-6:
 
 🚜 Refactor
 ~~~~~~~~~~~
@@ -702,7 +776,7 @@ All notable changes to this project will be documented in this file.
 -  Remove deprecated script that is not used anymore. -
    (`3cfa3b8 <https://github.com/phonglam3103/MolSanitizer/commit/3cfa3b87c545e416eee007c0ca643b3a27e21246>`__)
 
-.. _documentation-1:
+.. _documentation-2:
 
 📚 Documentation
 ~~~~~~~~~~~~~~~~
@@ -710,7 +784,7 @@ All notable changes to this project will be documented in this file.
 -  Redirect MolSanitizer README to the read-the-docs page. -
    (`6e6bc43 <https://github.com/phonglam3103/MolSanitizer/commit/6e6bc434bc69180c67b24950fb476b21898907ea>`__)
 
-.. _performance-6:
+.. _performance-7:
 
 ⚡ Performance
 ~~~~~~~~~~~~~~
@@ -788,7 +862,7 @@ All notable changes to this project will be documented in this file.
    names -> make all the DB2 files have the same name as \****\* -
    (`755d696 <https://github.com/phonglam3103/MolSanitizer/commit/755d69641b1eb5df29a70b9d569e3b3a9c3f94d1>`__)
 
-.. _refactor-6:
+.. _refactor-7:
 
 🚜 Refactor
 ~~~~~~~~~~~
@@ -858,7 +932,7 @@ All notable changes to this project will be documented in this file.
    the earlier version. -
    (`e17a0a1 <https://github.com/phonglam3103/MolSanitizer/commit/e17a0a13189a3c17fcf0faf3000fd932e46dfc75>`__)
 
-.. _refactor-7:
+.. _refactor-8:
 
 🚜 Refactor
 ~~~~~~~~~~~
@@ -908,7 +982,7 @@ All notable changes to this project will be documented in this file.
    to generate DB2 files. -
    (`4b0d04b <https://github.com/phonglam3103/MolSanitizer/commit/4b0d04b56ef7b87a7c799688dcc0201655c15d2f>`__)
 
-.. _refactor-8:
+.. _refactor-9:
 
 🚜 Refactor
 ~~~~~~~~~~~
@@ -954,7 +1028,7 @@ All notable changes to this project will be documented in this file.
 -  Fix an error that find_sulfonamide not function as expected -
    (`1818ea7 <https://github.com/phonglam3103/MolSanitizer/commit/1818ea71c6b8856d0603f125c5860639d09886ab>`__)
 
-.. _refactor-9:
+.. _refactor-10:
 
 🚜 Refactor
 ~~~~~~~~~~~
@@ -964,7 +1038,7 @@ All notable changes to this project will be documented in this file.
 -  Remove unused files in the repository -
    (`744f694 <https://github.com/phonglam3103/MolSanitizer/commit/744f694c98720177145d3d3edeeefa29d729a7ae>`__)
 
-.. _documentation-2:
+.. _documentation-3:
 
 📚 Documentation
 ~~~~~~~~~~~~~~~~
@@ -1058,7 +1132,7 @@ All notable changes to this project will be documented in this file.
 -  :bug: Fix a typo in torsion scan that crash msani -
    (`4275824 <https://github.com/phonglam3103/MolSanitizer/commit/4275824384d8567703a5234da77e015561a69e17>`__)
 
-.. _performance-7:
+.. _performance-8:
 
 ⚡ Performance
 ~~~~~~~~~~~~~~
@@ -1084,7 +1158,7 @@ All notable changes to this project will be documented in this file.
    screen to notify the user -
    (`36846e1 <https://github.com/phonglam3103/MolSanitizer/commit/36846e13334c7c290a6620aa16a0ec75f27602c0>`__)
 
-.. _performance-8:
+.. _performance-9:
 
 ⚡ Performance
 ~~~~~~~~~~~~~~
@@ -1207,7 +1281,7 @@ All notable changes to this project will be documented in this file.
    with AMSOL.)* :sparkles: -
    (`e190e96 <https://github.com/phonglam3103/MolSanitizer/commit/e190e9675a87f9a13161586510ea5d43c0286529>`__)
 
-.. _documentation-3:
+.. _documentation-4:
 
 📚 Documentation
 ~~~~~~~~~~~~~~~~
