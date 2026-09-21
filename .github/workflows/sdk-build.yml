@@ -55,8 +55,8 @@ jobs:
           TARGET: ${{ inputs.target }}
         run: |
           set -euo pipefail
-          linux='[{"key":"linux-x86_64","arch":"x86_64","runner":"ubuntu-latest","image":"quay.io/pypa/manylinux_2_28_x86_64"},
-                  {"key":"linux-aarch64","arch":"aarch64","runner":"ubuntu-24.04-arm","image":"quay.io/pypa/manylinux_2_28_aarch64"}]'
+          linux='[{"key":"linux-x86_64","arch":"x86_64","runner":"ubuntu-latest","image":"quay.io/pypa/manylinux_2_28_x86_64","jobs":4},
+                  {"key":"linux-aarch64","arch":"aarch64","runner":"ubuntu-24.04-arm","image":"quay.io/pypa/manylinux_2_28_aarch64","jobs":2}]'
           macos='[{"key":"macos-arm64","arch":"arm64","runner":"macos-15"},
                   {"key":"macos-x86_64","arch":"x86_64","runner":"macos-15-intel"}]'
           windows='[{"key":"windows-x64","arch":"x64","runner":"windows-latest"}]'
@@ -93,7 +93,7 @@ jobs:
       - name: Build static RDKit and Boost
         env:
           RDKIT_REF: ${{ inputs.rdkit_ref }}
-          MSANI_BUILD_JOBS: 4
+          MSANI_BUILD_JOBS: ${{ matrix.target.jobs }}
         run: bash packaging/linux/build_sdk.sh all
 
       # Absolute /opt paths are reproduced on restore, so nothing needs
@@ -129,7 +129,11 @@ jobs:
         shell: bash -el {0}
         env:
           MSANI_BUILD_RDKIT: ${{ inputs.rdkit_version }}
-        run: bash packaging/macos/build_sdk.sh
+        run: |
+          set -euo pipefail
+          export CONDA_EXE="${CONDA_EXE:-$CONDA/bin/conda}"
+          test -x "$CONDA_EXE"
+          bash packaging/macos/build_sdk.sh
 
       # A conda prefix is not relocatable, so the asset is unpacked at the same
       # workspace-relative path it was built at. That path is fixed on hosted
