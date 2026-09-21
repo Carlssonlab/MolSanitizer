@@ -19,9 +19,10 @@ All developers past and present
 
 * Phong Lam
 * Szymon Pach
-* Flavio Ballante
 * Israel Cabeza de Vaca Lopez
+* Hocine El Khaoudi Enyoury
 * Philip Ullmann
+* Flavio Ballante
 * Ruth Brenk
 
 Scientific input
