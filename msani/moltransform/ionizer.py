@@ -445,7 +445,8 @@ class Ionizer:
             initializer=_init_ionizer_worker,
             initargs=(self,))
         with pool_context as pool:
-            for res in pool.imap_unordered(_process_single_ionization_row, rows, chunksize=10):
+            # Ordered results keep the output and its id numbering reproducible.
+            for res in pool.imap(_process_single_ionization_row, rows, chunksize=10):
                 if res:
                     results.extend(res)
                     

@@ -160,7 +160,8 @@ class Stereoisomerizer:
             initializer=_init_stereoisomerizer_worker,
             initargs=(self,))
         with pool_context as pool:
-            for res in pool.imap_unordered(_process_single_stereoisomer_row, rows, chunksize=10):
+            # Ordered results keep the output order reproducible.
+            for res in pool.imap(_process_single_stereoisomer_row, rows, chunksize=10):
                 if res:
                     results.extend(res)
                     

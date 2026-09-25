@@ -14,6 +14,9 @@ exception_groups = [
     AllChem.ReactionFromSmarts('[SH+;$(S-[*-]):1]>>[SH0&+:1]') # Neutralize fake positive SH
     ]
 
+# SMARTS pattern to find charged atoms that can be neutralized
+neutralizable_pattern = Chem.MolFromSmarts("[+1!h0!$([*]~[-1,-2,-3,-4]),-1!$([*]~[+1,+2,+3,+4])!$([BX4&-;!$(B-[OH])])]")
+
 class Neutralizer:
     """
     A class for neutralizing molecules.
@@ -41,8 +44,8 @@ class Neutralizer:
         -----
         Adapted from RDKit Cookbook: https://rdkit.org/docs/Cookbook.html
         """
+        input_mol = mol
         try:
-            smiles = Chem.MolToSmiles(mol)
             for rxn in exception_groups:
                 while mol.HasSubstructMatch(rxn.GetReactantTemplate(0)):
                     #print(f"Applying reaction {AllChem.ReactionToSmarts(rxn)} to {smiles}")
@@ -54,14 +57,13 @@ class Neutralizer:
                         logger.info(f"Error sanitizing molecule: {Chem.MolToSmiles(mol)}")
                         return None
         
-            # SMARTS pattern to find charged atoms that can be neutralized
-            pattern = Chem.MolFromSmarts("[+1!h0!$([*]~[-1,-2,-3,-4]),-1!$([*]~[+1,+2,+3,+4])!$([BX4&-;!$(B-[OH])])]")
-
             # Find all matching atoms
-            at_matches = mol.GetSubstructMatches(pattern)
+            at_matches = mol.GetSubstructMatches(neutralizable_pattern)
             at_matches_list = [y[0] for y in at_matches]
             # If there are charged atoms to neutralize
             if len(at_matches_list) > 0:
+                # Edit a copy so the input stays intact for the error message
+                mol = Chem.Mol(mol)
                 for at_idx in at_matches_list:
                     # Get the atom and its properties
                     atom = mol.GetAtomWithIdx(at_idx)
@@ -84,7 +86,7 @@ class Neutralizer:
                 # No charged atoms to neutralize
                 return mol
         except Exception as e:
-            logger.info(f"Error in neutralizing molecule {smiles} ({e})")
+            logger.info(f"Error in neutralizing molecule {Chem.MolToSmiles(input_mol)} ({e})")
             return None
 
     @classmethod
