@@ -4,7 +4,7 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "MolSanitizer"
-version = "0.7.1a1"
+version = "0.7.2a1"
 description = "An Efficient In-silico Refinement pipeline for Virtual Screening (protonation, tautomers,...)"
 readme = "README.md"
 authors = [

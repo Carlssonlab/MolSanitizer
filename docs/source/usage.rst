@@ -419,9 +419,9 @@ A modified version of `TorsionLibrary v3 <https://pubs.acs.org/doi/10.1021/acs.j
 
 Three sampling modes are supported (``--mode`` or ``-mode`` flag):
 
-* fixed (default): the peaks (with tolerance) in the TorsionLibrary is discretinized into central angles with +-30 degrees offset (as long as they are within the tolernace 2), then combinatorially sampled to generate the conformers until the number of conformers is reached. Symmetric substructures (such as phenyl, carboxylates, etc.) are removed by SMARTS matching in advance.
-* random: each peak combination is sampled multiple times. Two conformers are regarded distinct if they differ by at least 30 degrees in any dihedral angle.
-* ignoretorlib: the program will ignore the TorsionLibrary and sample every 30 degrees.
+* `fixed (default)`: the peaks (with tolerance) in the TorsionLibrary is discretinized into central angles with +-30 degrees offset (as long as they are within the tolernace 2), then combinatorially sampled to generate the conformers until the number of conformers is reached. Symmetric substructures (such as phenyl, carboxylates, etc.) are removed by SMARTS matching in advance.
+* `random`: each peak combination is sampled multiple times. Two conformers are regarded distinct if they differ by at least 30 degrees in any dihedral angle.
+* `ignoretorlib`: the program will ignore the TorsionLibrary and sample every 30 degrees.
 
 
 Supported output formats are ``db2``, ``db2.tgz``, ``pdbqt``, ``sdf``, ``mol2``,

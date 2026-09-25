@@ -57,6 +57,30 @@ Successful generation creates ``pdbqt/acetate.pdbqt`` and
 structure, with rotatable bonds for docking; it does not export the sampled
 SDF ensemble. To request both formats in one run, use ``--format sdf pdbqt``.
 
+Generate DB2 for docking
+--------------------------
+
+No additional dependencies are required to prepare DB2 files for docking with DOCK3 and DOCK6. Run:
+
+.. code-block:: console
+
+    $ msani -i example_clean.smi --gen3d --format db2
+
+Successful generation creates ``db2/acetate.db2`` and ``db2/phenyl.db2``.
+
+.. caution::
+
+    DOCK reads the DB2 molecule name as a fixed 16-character field, so
+    MolSanitizer, like the ZINC pipeline, keeps only the last 16 characters of
+    longer IDs: ``ZINC000000198632_1`` becomes ``NC000000198632_1``.
+    ``OUTDOCK``, the poses, and ``top_poses.scores`` show this short name. The
+    full ID is kept only in the DB2 filename, which DOCK does not report, so map
+    results back from there (``full_name[-16:] -> full_name``).
+
+    If two IDs end with the same 16 characters, DOCK cannot tell them apart and
+    ``top_poses.py`` keeps only the better-scoring one. IDs should therefore be
+    unique in their last 16 characters; ZINC and ChEMBL IDs normally are.
+
 Generate an OpenEye docking library
 ----------------------------------
 
