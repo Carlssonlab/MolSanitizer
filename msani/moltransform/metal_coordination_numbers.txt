@@ -1,0 +1,18 @@
+# This coordination-number table is part of the MolSanitizer project.
+# Comment lines (starting with #) and empty lines are skipped.
+# The rules are constructed as: ION	COORDINATION_NUMBERS
+# An ion is written in square brackets with its formal charge, e.g. [Bi+3];
+# [Pd+0] denotes the explicitly neutral atom. An entry with no charge sign,
+# e.g. [Bi], is a fallback that applies to any oxidation state of that
+# element with no entry of its own. A specific-charge line always takes
+# precedence over the element-only fallback.
+# Multiple coordination numbers are separated by commas.
+# IMPORTANT: enter the donor count expected from the ligand SMILES alone.
+# Published values often include inner-sphere solvent (e.g. bound waters)
+# that never appears in the SMILES; subtract those before entering a value.
+# Last update: September 22nd, 2026
+
+# ION	COORDINATION_NUMBERS
+[Bi+3]	3,5,6,7,8,9
+[Gd+3]	7,8,9
+[Fe]	2,3,6,10
