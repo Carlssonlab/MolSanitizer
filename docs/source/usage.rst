@@ -36,7 +36,7 @@ This is an example of a lazy pipeline that uses all the preparation and processi
 
 .. code-block:: console
 
-    $ msani -i example.smi --enamine --lazy  # For enamine format
+    $ msani -i example.smi --extended --lazy  # For extended SMILES format
     $ msani -i example.smi --lazy
 
     # This is equivalent to:

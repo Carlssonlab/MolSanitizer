@@ -637,6 +637,7 @@ def Sanitycheck(args: dict):
         if not args.unwanted: args.unwanted=['regular']
         if 'all' in args.unwanted: args.unwanted=['regular','special','optional']
         args.unwanted=[word.title() for word in args.unwanted]
+
     if args.extended_tautomers and not args.tautomers:
         print("It seems like you forget the --tautomers flag. We turned it on for you.")
         args.tautomers = True
