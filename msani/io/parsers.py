@@ -7,6 +7,7 @@ from yaml import safe_load
 
 
 from msani.config import ConfigError, load_defaults
+from msani.moltransform.metal_complex import MAX_COMBINATIONS, MAX_VARIANTS
 
 info_standalone = """MolSanitizer - A package to prepare SMILES databases
 """
@@ -239,6 +240,36 @@ def parseArguments(args = None, batch_mode = False):
 
     # Group 3: SMILES processing options
     smiles_group = parser.add_argument_group("SMILES processing options")
+    smiles_group.add_argument(
+        '--metal', '-mtl',
+        choices=['strict', 'soft', 'off'],
+        default=defaults.get('metal', 'strict'),
+        help='Connect dissociated metal complexes (metal and ligands given as separate\n'
+             'fragments) with dative bonds, before any other step (default: strict).\n'
+             '- strict: one structure per record, filling the coordination sphere by donor priority.\n'
+             '- soft: every plausible binding mode, as separate records (id_1, id_2, ...).\n'
+             '- off: leave metal records unchanged.'
+    )
+    smiles_group.add_argument(
+        '--metal_error_file',
+        type=str,
+        default=defaults.get('metal_error_file', None),
+        help='File for metal records that cannot be prepared (SMILES ID reason).\n'
+             'Default: <prefix or input name>_metal_error.smi; batch jobs merge theirs\n'
+             'into in/removed/metal_error.smi.'
+    )
+    smiles_group.add_argument(
+        '--metal_max_variants',
+        type=int,
+        default=defaults.get('metal_max_variants', MAX_VARIANTS),
+        help=f'Maximum structures per metal record in soft mode; strict mode keeps one\nof at most this many ties (default: {MAX_VARIANTS})' if show_advanced_help else argparse.SUPPRESS
+    )
+    smiles_group.add_argument(
+        '--metal_max_combinations',
+        type=int,
+        default=defaults.get('metal_max_combinations', MAX_COMBINATIONS),
+        help=f'Maximum donor combinations tried per metal record (default: {MAX_COMBINATIONS})' if show_advanced_help else argparse.SUPPRESS
+    )
     smiles_group.add_argument(
         '--neutralize', '-neu',
         action=argparse.BooleanOptionalAction,
@@ -533,6 +564,8 @@ def parseArguments(args = None, batch_mode = False):
     args = parser.parse_args(args)
     if args.input_files and args.smiles:
         parser.error('Please provide either input files or SMILES strings, not both.')
+    if args.metal_max_variants < 1 or args.metal_max_combinations < 1:
+        parser.error('--metal_max_variants and --metal_max_combinations must be positive.')
 
     if args.input_list is not None:
         if not Path(args.input_list).is_file():

@@ -6,7 +6,8 @@ from rdkit import Chem, RDLogger
 from pandas import DataFrame, Series, concat  # only what you use
 from pathlib import Path
 
-from msani.filtering.filters import Filters, against_humanity, hold_up, loadSMARTSdata
+from msani.filtering.filters import Filters, loadSMARTSdata
+from msani.moltransform import metal_complex
 from msani.moltransform.tautomerizer import Tautomerizer
 from msani.moltransform.ionizer import Ionizer
 from msani.moltransform.neutralizer import Neutralizer
@@ -77,15 +78,28 @@ class Msani:
                 tpsa = None,
                 fsp3 = None,
                 debug = False,
-                parallel_min_rows = 256
+                parallel_min_rows = 256,
+                metal = 'strict',
+                metal_max_variants = metal_complex.MAX_VARIANTS,
+                metal_max_combinations = metal_complex.MAX_COMBINATIONS,
                 ):
 
         if parallel_min_rows < 0:
             raise ValueError('parallel_min_rows must be nonnegative')
+        if metal not in ('strict', 'soft', 'off'):
+            raise ValueError("metal must be 'strict', 'soft' or 'off'")
+        if metal_max_variants < 1 or metal_max_combinations < 1:
+            raise ValueError('metal enumeration limits must be positive')
+        # Dissociated metal complexes are connected before any other step:
+        # 'strict' keeps one structure per record, 'soft' every plausible one.
+        self.metal = metal
+        self.metal_max_variants = metal_max_variants
+        self.metal_max_combinations = metal_max_combinations
         self.parallel_min_rows = parallel_min_rows
         self._transformers = {}
         self._transformer_keys = {}
         self._pool = None
+        self._pool_processes = 0
         self._session_depth = 0
         self.removesalts = removesalts
         self.ha = str(ha) if ha is not None else None
@@ -197,12 +211,17 @@ class Msani:
             self._transformer_keys = keys
 
     def _get_pool(self, rows):
+        processes = min(self.numcores, rows)
+        if self._pool is not None and self._pool_processes < processes:
+            # A small first chunk must not cap the workers of later chunks.
+            self.close()
         if self._pool is None:
             method = 'forkserver' if platform.system() == 'Linux' else 'spawn'
             self._pool = mp.get_context(method).Pool(
-                processes=min(self.numcores, rows),
+                processes=processes,
                 initializer=_initialize_transform_workers,
                 initargs=(self._transformers,))
+            self._pool_processes = processes
         return self._pool
 
     def __repr__(self):
@@ -211,23 +230,33 @@ class Msani:
         return f'{cls_name}\n({attrs})'
     
     
-    def expand_ids(self, group):
-        if len(group) == 1:
-            return group
-        two_digits = len(group) >= 10
-        new_id = [f"{group.iloc[0]}_{i+1:02}" if two_digits else f"{group.iloc[0]}_{i+1}" for i in range(len(group))]
-        return Series(new_id, index=group.index)
+    def expand_ids(self, ids: Series) -> Series:
+        """Suffix repeated ids with _1, _2, ... in order of appearance.
+
+        Suffixes are zero-padded to two digits for ids repeated ten or more
+        times. Unique and missing ids are left unchanged.
+        """
+        is_repeated = ids.duplicated(keep=False) & ids.notna()
+        if not is_repeated.any():
+            return ids
+        repeated = ids[is_repeated]
+        groups = repeated.groupby(repeated, sort=False)
+        number = (groups.cumcount() + 1).astype(str)
+        number = number.mask(groups.transform('size') >= 10, number.str.zfill(2))
+        return ids.mask(is_repeated, repeated.astype(str) + '_' + number)
     
-    def run(self, df: DataFrame, rejected_file = None) -> DataFrame:
+    def run(self, df: DataFrame, rejected_file = None, metal_error_file = None) -> DataFrame:
         """Process a chunk. Use ``with Msani(...) as processor`` to reuse workers.
 
         Small tautomer/protonation chunks run serially when no pool is warm.
         Set parallel_min_rows=0 to always use the requested worker count.
         A standalone call releases its workers before returning. Configuration
         changes are applied on the next call. Instances are not thread-safe.
+        Metal records that cannot be prepared are appended to metal_error_file
+        (SMILES ID reason), when one is given.
         """
         try:
-            return self._run(df, rejected_file)
+            return self._run(df, rejected_file, metal_error_file)
         except BaseException:
             self.close(terminate=True)
             raise
@@ -235,7 +264,7 @@ class Msani:
             if not self._session_depth:
                 self.close()
 
-    def _run(self, df: DataFrame, rejected_file = None) -> DataFrame:
+    def _run(self, df: DataFrame, rejected_file = None, metal_error_file = None) -> DataFrame:
         """
         Perform preparation on the input DataFrame using the specified filters and rule-based chemical modifications.
         
@@ -246,9 +275,15 @@ class Msani:
             DataFrame: A new DataFrame chunk with molecules that passed the filters.
         """
         df.loc[:, 'mol'] = df['smiles'].apply(lambda x: Chem.MolFromSmiles(x))
-        # df.loc[:, 'against_humanity'] = df['mol'].apply(lambda x: x.HasSubstructMatch(against_humanity) if x else False)
-        # if len(df[df['against_humanity'] == True]) > 0: print(hold_up)
         df = Filters.remove_invalid_SMILES(df)
+        # Connect metal and ligands before salt stripping and the filters, which
+        # would otherwise treat them as separate fragments. Standardization
+        # drops organometallics anyway.
+        if self.metal != 'off' and not self.standardize:
+            df, _ = metal_complex.partition_dataframe(
+                df, rejectedFile=metal_error_file, mode=self.metal,
+                max_variants=self.metal_max_variants,
+                max_combinations=self.metal_max_combinations, provenance=False)
         if self.standardize: df = Filters.remove_exotic_chem_to_db2(df)
         if self.removesalts: df = Filters.saltstripping(df, debug=self.debug)
         if self.ha is not None: df = Filters.filter_by_ha(df, self.ha, rejectedFile=rejected_file, debug=self.debug)
@@ -303,13 +338,9 @@ class Msani:
             df = df.drop_duplicates(subset=['smiles', 'ids'], keep='first')
             # Sort to match original order
             df = df.sort_values(by=['original_idx', 'ids']).reset_index(drop=True)
-            # Find duplicate ids
-            duplicated_ids = df['ids'][df['ids'].duplicated(keep=False)]
+            # Number the variants that share an id
+            df['ids'] = self.expand_ids(df['ids'])
 
-            if not duplicated_ids.empty:
-                # Group duplicates and expand
-                df.loc[duplicated_ids.index, 'ids'] = df.loc[duplicated_ids.index, 'ids'].groupby(df['ids']).transform(self.expand_ids)
-            
         if self.stereoisomers:
             df = self._transformers['stereo'].enumerate_df(
                 df, pool=pool, parallel=parallel)

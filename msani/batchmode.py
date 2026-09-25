@@ -127,14 +127,10 @@ rm -f "$slurm_out_file"
 if [ "$task_count" -eq 0 ]; then
     echo "Proceeding with cleanup..."
 
-    # Find and delete empty directories in the 3d directory
-    find 3d -type d -empty -delete
-
-    # Find and delete empty directories in the solv directory
-    find solv -type d -empty -delete
     mkdir -p in/processed in/removed log
     mv *.log log
     mv in*_rejected* in/removed -f 2>/dev/null
+    mv in*_metal_error* in/removed -f 2>/dev/null
     mv in*_clean* in/processed -f 2>/dev/null
 
     merge_shards() {
@@ -171,6 +167,10 @@ if [ "$task_count" -eq 0 ]; then
     fi
     if ! merge_shards in/removed 'in*_rejected*' in/removed/removed.smi; then
         echo "Failed to merge rejected output shards; retaining staging data for recovery."
+        exit 1
+    fi
+    if ! merge_shards in/removed 'in*_metal_error*' in/removed/metal_error.smi; then
+        echo "Failed to merge metal error shards; retaining staging data for recovery."
         exit 1
     fi
 
@@ -451,7 +451,7 @@ def parse_flags_single_job(args: dict, parser):
         str: The flags for a single job
     """
     flags = []
-    omitted_args = ["input_files", "input_list", "config", "smiles", "proj_name", "timelimit", "lines", "max_jobs", "help", "whole_node", "whole_node_cores", "partition"]
+    omitted_args = ["input_files", "input_list", "config", "smiles", "proj_name", "timelimit", "lines", "max_jobs", "help", "whole_node", "whole_node_cores", "partition", "metal_error_file"]
     # Load the config file to see if the defaults are really the defaults by intention or already set
     # by the config file
     config_defaults = {}

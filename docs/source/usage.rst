@@ -101,10 +101,10 @@ Help message
 .. code-block:: console
 
     usage: msani [--input_files INPUT_FILES [INPUT_FILES ...]] [--input_list INPUT_LIST] [--smiles SMILES [SMILES ...]] [--extended] [--prefix PREFIX] [--synthon] [--removesalts] [--create_custom] [--custom CUSTOM]
-                [--unwanted [{all,regular,special,optional} ...]] [--pains] [--neutralize | --no-neutralize | -neu] [--stereoisomers | --no-stereoisomers | -st] [--max_isomers MAX_ISOMERS] [--stereo_timeout STEREO_TIMEOUT] [--tautomers]
-                [--extended-tautomers] [--protonation] [--pH PH] [--pH_range PH_RANGE] [--standardize] [--gen3d] [--format [{db2,db2.tgz,pdbqt,sdf,mol2,oeb,oeb.lib} ...]] [--method {rdkit,obabel,corina}] [--corinaPath CORINAPATH]
-                [--numconfs NUMCONFS] [--timeout TIMEOUT] [--energywindow ENERGYWINDOW] [--nringconfs NRINGCONFS] [--mode {fixed,random,ignoretorlib}] [--allowNonring] [--rmsd RMSD] [--config CONFIG] [--create_config] [--lazy]
-                [--numcores NUMCORES] [--help] [--help_advanced] [--version]
+                [--unwanted [{all,regular,special,optional} ...]] [--pains] [--metal {strict,soft,off}] [--metal_error_file METAL_ERROR_FILE] [--neutralize | --no-neutralize | -neu] [--stereoisomers | --no-stereoisomers | -st]
+                [--max_isomers MAX_ISOMERS] [--stereo_timeout STEREO_TIMEOUT] [--tautomers] [--extended-tautomers] [--protonation] [--pH PH] [--pH_range PH_RANGE] [--standardize] [--gen3d]
+                [--format [{db2,db2.tgz,pdbqt,sdf,mol2,oeb,oeb.lib} ...]] [--method {rdkit,obabel,corina}] [--corinaPath CORINAPATH] [--numconfs NUMCONFS] [--timeout TIMEOUT] [--energywindow ENERGYWINDOW] [--nringconfs NRINGCONFS]
+                [--mode {fixed,random,ignoretorlib}] [--allowNonring] [--rmsd RMSD] [--config CONFIG] [--create_config] [--lazy] [--numcores NUMCORES] [--help] [--help_advanced] [--version]
 
     MolSanitizer - A package to prepare SMILES databases
 
@@ -136,6 +136,14 @@ Help message
     --pains               Remove PAINS violations from the structures.
 
     SMILES processing options:
+    --metal, -mtl         Connect dissociated metal complexes (metal and ligands given as separate
+                            fragments) with dative bonds, before any other step (default: strict).
+                            - strict: one structure per record, filling the coordination sphere by donor priority.
+                            - soft: every plausible binding mode, as separate records (id_1, id_2, ...).
+                            - off: leave metal records unchanged.
+    --metal_error_file    File for metal records that cannot be prepared (SMILES ID reason).
+                            Default: <prefix or input name>_metal_error.smi; batch jobs merge theirs
+                            into in/removed/metal_error.smi.
     --neutralize, -neu    Neutralize molecules.
                             Will be applied after removesalts and before tautomerization/protonation (use --no-neutralize to disable).
     --stereoisomers, -st  Stereoisomers enumeration.
@@ -200,7 +208,24 @@ Help message
 Available filters and preparation steps
 -------------------------------------------
 
-1. Remove salts
+1. Metal complexes
+~~~~~~~~~~~~~~~~~~
+
+Metal complexes are often stored with the metal and its ligands as separate fragments, for example ``C1CC(C1)(C(=O)O)C(=O)O.[NH2-].[NH2-].[Pt+2]`` for carboplatin. Before any other step, MolSanitizer connects them into one structure with dative bonds, so that salt removal and the filters see a complex rather than loose fragments. Only records containing a metal (Sc-As, Y-Sb, La-Bi) are touched, and complexes already drawn as one fragment are left as they are.
+
+- ``--metal strict`` (default) writes one structure per record, filling the coordination sphere by donor priority. When several binding options tie, the lexicographically first canonical SMILES is kept and a warning is written to the log.
+- ``--metal soft`` writes every plausible binding mode, for example both the C- and the N-bound cyanide, as separate records numbered ``id_1``, ``id_2``, ... (at most ``--metal_max_variants``, default 16).
+- ``--metal off`` leaves metal records unchanged.
+
+Records that cannot be prepared, such as polynuclear clusters or ligands without a donor atom, are removed and written with their reason to ``<prefix or input name>_metal_error.smi``; use ``--metal_error_file`` to choose another file. Batch jobs merge theirs into ``in/removed/metal_error.smi``.
+
+*Caution:* the regular unwanted-substructure list (``--unwanted``) removes compounds of the common organometallic elements (``most_popular_organometallic_compounds``), connected or not.
+
+.. code-block:: console
+
+    $ msani -i example.smi --metal soft
+
+2. Remove salts
 ~~~~~~~~~~~~~~~
 
 
@@ -212,7 +237,7 @@ To use the remove salts function, simply use the ``--removesalts`` flag. The pro
 
     $ msani -i example.smi --removesalts
 
-2. Neutralization
+3. Neutralization
 ~~~~~~~~~~~~~~~~~~~~~~
 
 Molecules can be neutralized using the ``--neutralize`` or ``-neu`` flag. The neutralization will be applied after the salt removal and before the tautomerization/protonation steps. If the user does not want to neutralize the molecules, he/she can use the ``--no-neutralize`` flag.
@@ -223,7 +248,7 @@ Molecules can be neutralized using the ``--neutralize`` or ``-neu`` flag. The ne
     $ msani -i example.smi -neu  # Short version
     $ msani -i example.smi --removesalts --no-neutralize  # To disable neutralization when using removesalts
 
-3. Tautomers enumeration
+4. Tautomers enumeration
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
@@ -233,7 +258,7 @@ The tautomers could be generated using the ``--tautomers`` flag. msani uses a tw
 
     $ msani -i example.smi --tautomers
 
-4. Descriptor-based filtering
+5. Descriptor-based filtering
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The following descriptors are supported for filtering: heavy atoms (HA), logP, hydrogen bond acceptors (HBA), hydrogen bond donors (HBD), molecular weight (MW), topological polar surface area (TPSA), fraction of sp3 carbon atoms (FSP3), and number of unspecified chiral centers. The descriptors can be filtered using the following flags:
@@ -258,7 +283,7 @@ For example, to retain molecules with TPSA up to 100 and FSP3 of at least 0.25:
     $ msani -i example.smi --tpsa "<=100" --fsp3 ">=0.25"
 
 
-5. PAINS filtering
+6. PAINS filtering
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Molecules that contain PAINS substructures can be efficiently eliminated using the ``--pains`` flag. The violated structures will be stored in the **_rejected** file.
@@ -277,7 +302,7 @@ Example of the **_rejected** output is as below:
     COCC1(CC(=O)NCc2cc(O)ccc2O)CC1                    Z2832180283   "PAINS violation: Mannich_a(296)"
     CCCCN(Cc1ccc(OS(=O)(=O)F)cc1)Cc1ccccc1O           Z4607533150   "PAINS violation: Mannich_a(296)"
 
-6. Unwanted substructures filtering
+7. Unwanted substructures filtering
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Molecules that contain unwanted substructures can be efficiently eliminated using the ``--unwanted`` flag. msani uses an expert-curated list that contains undesirable substructures, accompanied by the reasons and references for filtering. The list can be obtained from `msani/Data/filter_out.csv <https://github.com/phonglam3103/msani/blob/main/msani/Data/filter_out.csv>`_.
@@ -304,7 +329,7 @@ The first two columns (SMARTS and LABEL) are required for the program to parse, 
     $ msani -i example.smi --custom templates.txt
     $ msani -i example.smi --unwanted all --custom templates.tsv
 
-7. Protonation
+8. Protonation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 msani supports the assignment of protonation states at various pH values using the ``--protonation`` flag. By default, the pH is set to 7 (configurable via ``-p`` or ``--pH``), and the pH range is set to 0 (specified using ``-r`` or ``--range``). This configuration protonates molecules at a specific pH of 7. However, it is also possible to enumerate potential protonation states across a pH range. For instance, setting ``--range 2`` explores pH values within 7 ± 2. The program evaluates each pH value in the specified range and assigns the possible protonation states of the molecule at those pH levels. Only unique products are output to a file. Functional groups with multiple protonation possibilities (e.g., piperazine, amidine) are expanded, with an underscore (`_`) appended to their names to indicate variations.
@@ -328,7 +353,7 @@ The program employs SMARTS-based reactions to iteratively assign protonation sta
    O=C([O-])C1C2C(O)C2CN1C(=O)CN1CC[NH2+]CC1 mol4_2
 
 
-8. Stereoisomers enumeration
+9. Stereoisomers enumeration
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
@@ -353,7 +378,7 @@ It is possible to define the maximum number of stereoisomers generated for each 
 
     $ msani -i example.smi --stereoisomers --max_stereoisomers 32
 
-9. Conformer generator
+10. Conformer generator
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Basic usage

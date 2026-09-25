@@ -1,7 +1,70 @@
 #!/usr/bin/env python3
 """
-RDKit script for processing mononuclear metal complexes with donor combination splitting,
-output deduplication, hydroxide preservation, and ring-bond path evaluation.
+Connect dissociated mononuclear metal complexes -- a metal and its ligands
+written as separate fragments -- into single structures with dative bonds.
+
+Scope
+    One metal centre per record, the metal being Sc-As, Y-Sb or La-Bi
+    (METAL_ATOMIC_NUMS). Records without a metal and complexes already drawn
+    as one fragment pass through unchanged. Polynuclear and multi-centre
+    records, and records that cannot be built, are rejected with a reason
+    (REJECT_*) rather than altered.
+
+Method, per record (prepare_complex)
+    1. Triage. A string prefilter (has_metal) skips organic SMILES without
+       parsing them; per-fragment metal counts tell a cluster apart from
+       several mononuclear centres in one row.
+    2. Spectators. The listed spectator ions (SPECTATOR_SMILES: Li+, Na+,
+       K+, Rb+, Cs+, NH4+, BF4-, PF6-) are removed. No other fragment is
+       dropped, except by strict mode below.
+    3. Ligand preparation (process_step2), per ligand: S/P ylides are
+       redrawn with double bonds, charges are neutralized except deliberate
+       ones (NEUTRALIZATION_EXCEPTIONS: hydroxide, oxide, charged carbon,
+       charge-separated pairs), and COMPONENT_REACTIONS re-ionize the groups
+       that bind as anions (acids, phenols, thiols, HX, HCN, acidic N-H).
+       Every edit is recorded; metal charges are never inferred.
+    4. Donors (find_donor_candidates). DONOR_SMARTS, in priority order;
+       WEAK_DONOR_SMARTS (ether and carbonyl O) only when a ligand has no
+       stronger donor.
+    5. Conflicts (classify_donor_conflict). Two donors of one ligand
+       conflict when they would close a chelate ring smaller than
+       MIN_CHELATE_RING -- linkage alternatives such as S- versus N-bound
+       thiocyanate -- or when more than one bond of the path between them
+       lies in a small rigid ring (denticity). Bipyridine-type N-N paths,
+       rings of MACROCYCLE_RING_CUTOFF atoms or more and eta-5
+       cyclopentadienide rings do not count against binding together.
+    6. Soft mode lists every chemically plausible structure. Per ligand it
+       keeps each maximal conflict-free donor set: all linkage alternatives,
+       but only the largest, best-priority set when denticity is ambiguous.
+       Ligand choices are then combined (permutations of identical ligands
+       skipped), capped by the coordination limit, max_combinations and
+       max_variants; each combination is one output.
+    7. Strict mode returns one structure. It fills the coordination sphere
+       once for all ligands together, priority tier by priority tier, up to
+       the largest reachable coordination number (from
+       metal_coordination_numbers.txt, else coordination_limit). Ties are
+       built and the lexicographically first canonical SMILES is kept;
+       ligands left without a seat are dropped. Both are reported.
+    8. Build (connect_ligands). Dative donor-to-metal bonds, sanitization
+       and stereo re-perception; every SMILES must parse back as a single
+       fragment. Candidates are then checked against the tabulated
+       coordination numbers for the metal and charge, where there is an
+       entry; a result that reaches none is kept but flagged.
+
+Performance
+    Conflict-free donor subsets are found on bitmasks (Bron-Kerbosch for
+    maximal sets, a memoized exact search for the largest ones) instead of
+    trying all 2**n subsets. Strict mode remembers each conflict
+    classification per ordered atom pair and stops as soon as
+    max_combinations is exceeded. Strict branches that a symmetry of the
+    ligands maps onto each other -- identical ligand copies, or a ligand's
+    own stereo-preserving symmetry -- are built once. SMILES are written and
+    parsed only where the result is new.
+
+Entry points
+    prepare_complex for one record; partition_dataframe for Msani
+    DataFrames, used by msani.api.Msani (--metal strict|soft|off);
+    process_file and main for standalone use of this file.
 """
 
 import itertools
@@ -121,14 +184,24 @@ MAX_COMBINATIONS = 128
 MAX_VARIANTS = 16
 
 # These are spectator ions, not a general salt/solvent removal catalogue.
-SPECTATOR_SMILES = frozenset(Chem.MolToSmiles(Chem.MolFromSmiles(s)) for s in (
+SPECTATOR_SMILES = frozenset(Chem.CanonSmiles(s) for s in (
     '[Li+]', '[Na+]', '[K+]', '[Rb+]', '[Cs+]', '[NH4+]',
     'F[B-](F)(F)F', 'F[P-](F)(F)(F)(F)F',
 ))
+# A SMILES spells out every atom of its fragment, so a fragment with more atoms
+# than the largest spectator can never match; prepare_complex uses this to skip
+# writing SMILES for every real ligand just to rule it out.
+SPECTATOR_MAX_ATOMS = max(Chem.MolFromSmiles(s).GetNumAtoms() for s in SPECTATOR_SMILES)
 
 
 class EnumerationLimit(ValueError):
     pass
+
+
+class NeedsReview(str):
+    """A note on a kept result that a person should check, such as an
+    arbitrary tie-break. It is an ordinary string everywhere; Msani logs
+    these notes as warnings and every other note as info."""
 
 
 # ============================================================================
@@ -220,12 +293,14 @@ def neutralize_ligand(comp, changes=None):
     if valid): a charge that cannot be removed by a valid neutral structure
     is not a protonation site and is left untouched.
     """
+    # Nothing charged means no trial edit below could ever run.
+    if not any(atom.GetFormalCharge() for atom in comp.GetAtoms()):
+        return comp
     exception_atoms = set()
     for pattern in NEUTRALIZATION_EXCEPTION_PATTERNS:
         for match in comp.GetSubstructMatches(pattern):
             exception_atoms.update(match)
 
-    before = Chem.MolToSmiles(comp)
     working = Chem.Mol(comp)
     touched = False
     for atom_idx in range(working.GetNumAtoms()):
@@ -249,7 +324,8 @@ def neutralize_ligand(comp, changes=None):
     if not touched:
         return comp
     if changes is not None:
-        after = Chem.MolToSmiles(working)
+        # comp itself is never edited, so its SMILES can wait until needed.
+        before, after = Chem.MolToSmiles(comp), Chem.MolToSmiles(working)
         if after != before:
             changes.append(f'neutralized (exceptions protected): {before} -> {after}')
     return working
@@ -272,6 +348,7 @@ def prepare_ligand(component):
 
 def _apply_reactions(comp, reactions, label, changes=None):
     """Apply each reaction repeatedly until it no longer changes the ligand."""
+    comp_smi = None  # SMILES of the current comp, written once per molecule
     for i, reaction in enumerate(reactions, 1):
         for _ in range(comp.GetNumAtoms() + 1):
             products = reaction.RunReactants((comp,), maxProducts=1)
@@ -279,12 +356,15 @@ def _apply_reactions(comp, reactions, label, changes=None):
                 break
             new_comp = products[0][0]
             Chem.SanitizeMol(new_comp)
-            old_smi, new_smi = Chem.MolToSmiles(comp), Chem.MolToSmiles(new_comp)
-            if old_smi == new_smi:
+            if comp_smi is None:
+                comp_smi = Chem.MolToSmiles(comp)
+            new_smi = Chem.MolToSmiles(new_comp)
+            if comp_smi == new_smi:
                 break
             comp = new_comp
             if changes is not None:
-                changes.append(f'{label} {i}: {old_smi} -> {new_smi}')
+                changes.append(f'{label} {i}: {comp_smi} -> {new_smi}')
+            comp_smi = new_smi
     return comp
 
 
@@ -297,6 +377,12 @@ def process_step2(mol, changes=None):
     This deliberately does not infer oxidation states from formal metal charges.
     Mixed covalent/dative charge conventions are flagged by prepare_complex.
     """
+    final = _prepare_ligands(mol, changes)
+    return final, Chem.MolToSmiles(final)
+
+
+def _prepare_ligands(mol, changes=None):
+    """process_step2 without the result's SMILES, which prepare_complex never reads."""
     processed = []
     for comp in Chem.GetMolFrags(mol, asMols=True):
         if comp.HasSubstructMatch(METAL_PATTERN):
@@ -307,8 +393,7 @@ def process_step2(mol, changes=None):
         comp = neutralize_ligand(comp, changes=changes)
         comp = _apply_reactions(comp, COMPONENT_REACTION_OBJECTS, 'ligand rule', changes)
         processed.append(comp)
-    final = combine_components(processed)
-    return final, Chem.MolToSmiles(final)
+    return combine_components(processed)
 
 
 # ============================================================================
@@ -481,6 +566,112 @@ def classify_donor_conflict(comp, idx_a, idx_b):
     return None
 
 
+class _ConflictMemo(dict):
+    """classify_donor_conflict for one ligand, remembered per atom pair.
+
+    Strict mode asks about the same pairs again for every branch and tier,
+    and once more for the unrestricted maximum. The key keeps the argument
+    order: when several shortest paths exist, GetShortestPath can pick a
+    different one for (b, a) than for (a, b), and the kind follows the path.
+    """
+
+    def __init__(self, comp):
+        super().__init__()
+        self.comp = comp
+
+    def __missing__(self, pair):
+        kind = self[pair] = classify_donor_conflict(self.comp, *pair)
+        return kind
+
+
+# Conflict-free donor subsets on bitmasks: candidates are numbered by list
+# position, and bit j of adj[i] is set when candidates i and j conflict. Both
+# searches return exactly what scanning every subset would, without visiting
+# all 2**n of them -- sugars and cyclodextrins easily carry 20+ same-priority
+# -OH donors, where that scan takes seconds to minutes.
+
+def _bit_indices(mask):
+    """Positions of the set bits of mask, lowest first."""
+    return [i for i in range(mask.bit_length()) if mask >> i & 1]
+
+
+def _maximal_conflict_free_masks(adj):
+    """Every maximal conflict-free subset, as bitmasks, in no particular order.
+
+    Bron-Kerbosch with pivoting on the compatibility graph, whose maximal
+    cliques are exactly the maximal conflict-free subsets.
+    """
+    full = (1 << len(adj)) - 1
+    compatible = [full & ~(conflicts | 1 << i) for i, conflicts in enumerate(adj)]
+    found = []
+
+    def expand(chosen, pool, excluded):
+        if not pool:
+            if not excluded:
+                found.append(chosen)
+            return
+        pivot = max(_bit_indices(pool | excluded),
+                    key=lambda i: (compatible[i] & pool).bit_count())
+        for i in _bit_indices(pool & ~compatible[pivot]):
+            expand(chosen | 1 << i, pool & compatible[i], excluded & compatible[i])
+            pool &= ~(1 << i)
+            excluded |= 1 << i
+
+    expand(0, full, 0)
+    return found
+
+
+def _max_conflict_free_size(mask, adj, memo):
+    """Size of the largest conflict-free subset of the candidates in mask."""
+    if not mask:
+        return 0
+    if mask in memo:
+        return memo[mask]
+    # Grow the set of candidates linked to the lowest one through conflicts;
+    # if that is not all of mask, the two parts are independent problems.
+    part = frontier = mask & -mask
+    while frontier:
+        low = frontier & -frontier
+        frontier ^= low
+        linked = adj[low.bit_length() - 1] & mask & ~part
+        part |= linked
+        frontier |= linked
+    if part != mask:
+        size = (_max_conflict_free_size(part, adj, memo)
+                + _max_conflict_free_size(mask & ~part, adj, memo))
+    else:
+        # Leave out the most-conflicted candidate, or take it and drop its conflicts.
+        v = max(_bit_indices(mask), key=lambda i: (adj[i] & mask).bit_count())
+        rest = mask & ~(1 << v)
+        size = 1 if not rest else max(
+            _max_conflict_free_size(rest, adj, memo),
+            1 + _max_conflict_free_size(rest & ~adj[v], adj, memo))
+    memo[mask] = size
+    return size
+
+
+def _conflict_free_subsets(adj, size, memo):
+    """Yield every conflict-free subset of exactly `size` candidates, as index
+    tuples in itertools.combinations order. Branches that cannot reach `size`
+    are cut using _max_conflict_free_size, whose memo is shared.
+    """
+    chosen = []
+
+    def extend(allowed):
+        if len(chosen) == size:
+            yield tuple(chosen)
+            return
+        while allowed and len(chosen) + _max_conflict_free_size(allowed, adj, memo) >= size:
+            low = allowed & -allowed
+            allowed ^= low
+            i = low.bit_length() - 1
+            chosen.append(i)
+            yield from extend(allowed & ~adj[i])
+            chosen.pop()
+
+    yield from extend((1 << len(adj)) - 1)
+
+
 def get_valid_donor_combinations(comp, candidates):
     """Split candidates into non-conflicting donor combinations for a ligand.
 
@@ -492,7 +683,7 @@ def get_valid_donor_combinations(comp, candidates):
     if len(candidates) <= 1:
         return [candidates], set()
 
-    conflicts = set()
+    adj = [0] * len(candidates)
     kinds = set()
     for i in range(len(candidates)):
         for j in range(i + 1, len(candidates)):
@@ -500,29 +691,20 @@ def get_valid_donor_combinations(comp, candidates):
                 comp, candidates[i]['atom_idx'], candidates[j]['atom_idx']
             )
             if kind:
-                conflicts.add((i, j))
+                adj[i] |= 1 << j
+                adj[j] |= 1 << i
                 kinds.add(kind)
 
-    if not conflicts:
+    if not any(adj):
         return [candidates], kinds
 
-    valid_combinations = []
-    for r in range(len(candidates), 0, -1):
-        for combo_indices in itertools.combinations(range(len(candidates)), r):
-            has_conflict = any(
-                (i, j) in conflicts or (j, i) in conflicts
-                for i, j in itertools.combinations(combo_indices, 2)
-            )
-            if not has_conflict:
-                combo = [candidates[i] for i in combo_indices]
-                if not any(
-                    set(c['atom_idx'] for c in existing)
-                    >= set(c['atom_idx'] for c in combo)
-                    for existing in valid_combinations
-                ):
-                    valid_combinations.append(combo)
-
-    return valid_combinations, kinds
+    # Every maximal conflict-free subset, largest first, then in
+    # itertools.combinations order: the same list, in the same order, as
+    # scanning all subsets largest-first and keeping each one that no
+    # earlier pick contains.
+    masks = sorted(_maximal_conflict_free_masks(adj),
+                   key=lambda mask: (-mask.bit_count(), _bit_indices(mask)))
+    return [[candidates[i] for i in _bit_indices(mask)] for mask in masks], kinds
 
 
 def select_donor_combinations(combinations, kinds):
@@ -598,36 +780,76 @@ def _raw_ligand_fragments(mol, metal_idx):
     return metal_comp, fragments
 
 
-def _maximal_conflict_free(comp, candidates, max_size=None):
+def _maximal_conflict_free(comp, candidates, max_size=None, conflicts=None):
     """All maximal (non-dominated), same-size conflict-free subsets of
     candidates from ONE fragment, capped at max_size donors.
 
     Called by strict_donor_selection one priority tier at a time, so
     "candidates" only ever holds same-priority donors here -- more than one
     subset coming back means a genuine tie that priority alone cannot break.
+
+    conflicts is an optional _ConflictMemo for comp, shared between calls.
     """
     n = len(candidates)
     cap = n if max_size is None else max(0, min(n, max_size))
     if cap == 0:
         return [[]]
-    conflicts = set()
+    if conflicts is None:
+        conflicts = _ConflictMemo(comp)
+    adj = [0] * n
     for i in range(n):
         for j in range(i + 1, n):
-            if classify_donor_conflict(comp, candidates[i]['atom_idx'],
-                                       candidates[j]['atom_idx']) is not None:
-                conflicts.add((i, j))
-    for r in range(cap, 0, -1):
-        found = [
-            [candidates[i] for i in combo]
-            for combo in itertools.combinations(range(n), r)
-            if not any((a, b) in conflicts for a, b in itertools.combinations(combo, 2))
-        ]
-        if found:
-            return found
-    return [[]]
+            if conflicts[candidates[i]['atom_idx'], candidates[j]['atom_idx']] is not None:
+                adj[i] |= 1 << j
+                adj[j] |= 1 << i
+    # The largest size within the cap that any conflict-free subset reaches,
+    # then every subset of that size, in itertools.combinations order.
+    memo = {}
+    size = min(cap, _max_conflict_free_size((1 << n) - 1, adj, memo))
+    return [[candidates[i] for i in combo]
+            for combo in _conflict_free_subsets(adj, size, memo)]
 
 
-def strict_donor_selection(ligand_fragments, target, max_combinations=MAX_COMBINATIONS):
+def _grow_strict_branches(ligand_fragments, branches, priority, conflicts):
+    """Yield every extension of each branch by the donors of one priority
+    tier, in order and with duplicates (strict_donor_selection drops those).
+    """
+    for accepted, remaining in branches:
+        if remaining <= 0:
+            yield accepted, remaining
+            continue
+        per_fragment_options = {}
+        for fid, (mapped, cands) in enumerate(ligand_fragments):
+            tier = [c for c in cands if c['priority'] == priority]
+            if not tier:
+                continue
+            fixed = accepted.get(fid, [])
+            tier = [c for c in tier if not any(
+                conflicts[fid][c['atom_idx'], f['atom_idx']] is not None
+                for f in fixed
+            )]
+            if tier:
+                per_fragment_options[fid] = _maximal_conflict_free(
+                    mapped, tier, conflicts=conflicts[fid])
+        if not per_fragment_options:
+            yield accepted, remaining
+            continue
+        # Fragments never conflict with each other, so their own tie
+        # options combine freely; only the shared capacity constrains them.
+        frag_ids = list(per_fragment_options)
+        for combo in itertools.product(*(per_fragment_options[fid] for fid in frag_ids)):
+            union = [(fid, c) for fid, opt in zip(frag_ids, combo) for c in opt]
+            pieces = ([union] if len(union) <= remaining
+                      else itertools.combinations(union, remaining))
+            for piece in pieces:
+                grown = {k: list(v) for k, v in accepted.items()}
+                for fid, c in piece:
+                    grown.setdefault(fid, []).append(c)
+                yield grown, remaining - len(piece)
+
+
+def strict_donor_selection(ligand_fragments, target, max_combinations=MAX_COMBINATIONS,
+                           conflicts=None):
     """Global, donor-priority-ordered greedy fill of a metal's coordination
     sphere, to exactly 'target' donors where achievable.
 
@@ -648,45 +870,22 @@ def strict_donor_selection(ligand_fragments, target, max_combinations=MAX_COMBIN
     seat(s). Both are treated the same way -- enumerate every distinct way
     to fill the tied seats -- capped by max_combinations like every other
     enumeration in this module. (prepare_complex then keeps one branch.)
+
+    conflicts is an optional list of one _ConflictMemo per fragment, so that
+    repeated calls on the same fragments classify each donor pair once.
     """
+    if conflicts is None:
+        conflicts = [_ConflictMemo(mapped) for mapped, _ in ligand_fragments]
     priorities = sorted({c['priority'] for _, cands in ligand_fragments for c in cands})
     branches = [({}, target)]
     for p in priorities:
-        new_branches = []
-        for accepted, remaining in branches:
-            if remaining <= 0:
-                new_branches.append((accepted, remaining))
-                continue
-            per_fragment_options = {}
-            for fid, (mapped, cands) in enumerate(ligand_fragments):
-                tier = [c for c in cands if c['priority'] == p]
-                if not tier:
-                    continue
-                fixed = accepted.get(fid, [])
-                tier = [c for c in tier if not any(
-                    classify_donor_conflict(mapped, c['atom_idx'], f['atom_idx']) is not None
-                    for f in fixed
-                )]
-                if tier:
-                    per_fragment_options[fid] = _maximal_conflict_free(mapped, tier)
-            if not per_fragment_options:
-                new_branches.append((accepted, remaining))
-                continue
-            # Fragments never conflict with each other, so their own tie
-            # options combine freely; only the shared capacity constrains them.
-            frag_ids = list(per_fragment_options)
-            for combo in itertools.product(*(per_fragment_options[fid] for fid in frag_ids)):
-                union = [(fid, c) for fid, opt in zip(frag_ids, combo) for c in opt]
-                pieces = ([union] if len(union) <= remaining
-                          else [list(s) for s in itertools.combinations(union, remaining)])
-                for piece in pieces:
-                    grown = {k: list(v) for k, v in accepted.items()}
-                    for fid, c in piece:
-                        grown.setdefault(fid, []).append(c)
-                    new_branches.append((grown, remaining - len(piece)))
         seen = set()
         deduped = []
-        for accepted, remaining in new_branches:
+        # Branches are grown lazily so that a runaway tier stops at the cap.
+        # Only first occurrences are kept and the count never shrinks, so
+        # once past the cap it would still be past it at the end of the tier.
+        for accepted, remaining in _grow_strict_branches(ligand_fragments, branches, p,
+                                                         conflicts):
             key = tuple(sorted(
                 (fid, tuple(sorted(c['atom_idx'] for c in cs)))
                 for fid, cs in accepted.items()
@@ -694,14 +893,14 @@ def strict_donor_selection(ligand_fragments, target, max_combinations=MAX_COMBIN
             if key not in seen:
                 seen.add(key)
                 deduped.append((accepted, remaining))
+                if len(deduped) > max_combinations:
+                    raise EnumerationLimit(
+                        f'too many tied strict-mode candidate branches (> {max_combinations})')
         branches = deduped
-        if len(branches) > max_combinations:
-            raise EnumerationLimit(
-                f'too many tied strict-mode candidate branches (> {max_combinations})')
     return [accepted for accepted, _ in branches]
 
 
-def _strict_natural_max(ligand_fragments, max_combinations=MAX_COMBINATIONS):
+def _strict_natural_max(ligand_fragments, max_combinations=MAX_COMBINATIONS, conflicts=None):
     """Size of the unrestricted maximum, via the real algorithm.
 
     This MUST use strict_donor_selection itself, not a cheaper simplified
@@ -720,7 +919,7 @@ def _strict_natural_max(ligand_fragments, max_combinations=MAX_COMBINATIONS):
     """
     unbounded = sum(len(cands) for _, cands in ligand_fragments)
     branches = strict_donor_selection(ligand_fragments, unbounded,
-                                      max_combinations=max_combinations)
+                                      max_combinations=max_combinations, conflicts=conflicts)
     return max((sum(len(v) for v in b.values()) for b in branches), default=0)
 
 
@@ -761,6 +960,158 @@ def connect_ligands(metal_comp, ligand_combo, metal_idx, verbose=True):
     # stereo against the final neighbour ordering.
     Chem.AssignStereochemistry(result, cleanIt=True, force=True)
     return result
+
+
+def _build_candidate(metal_comp, selection, metal_idx, known=()):
+    """Build one donor selection: (canonical SMILES, molecule), or None if it fails.
+
+    The SMILES is also parsed back, the serialization downstream tools will
+    read, unless it is in `known`: those were checked already.
+    """
+    try:
+        connected = connect_ligands(metal_comp, selection, metal_idx, verbose=False)
+        if connected is None:
+            return None
+        connected = Chem.RemoveHs(connected)
+        smi = Chem.MolToSmiles(connected)
+        if smi not in known:
+            parsed = Chem.MolFromSmiles(smi)
+            if parsed is None or len(Chem.GetMolFrags(parsed)) != 1:
+                return None
+    except Exception:
+        return None
+    return smi, connected
+
+
+# ----------------------------------------------------------------------------
+# Strict mode builds every tied branch only to keep the lexicographically
+# first SMILES, and most ties come from symmetry: identical ligand copies
+# competing for the last seats, or equivalent donors on one ligand (the -OH
+# groups of an inositol, the carbons of a Cp ring). Branches that a symmetry
+# of the ligands maps onto each other build the same structure, so only the
+# first of them needs building.
+# ----------------------------------------------------------------------------
+
+# Self-matches examined per ligand. The cap can only hide a symmetry, so
+# fewer branches are recognized as equivalent, never a wrong pair.
+MAX_SYMMETRIES = 256
+
+_TETRAHEDRAL = (Chem.ChiralType.CHI_TETRAHEDRAL_CW, Chem.ChiralType.CHI_TETRAHEDRAL_CCW)
+_ORDINARY_BONDS = (Chem.BondType.SINGLE, Chem.BondType.DOUBLE, Chem.BondType.TRIPLE,
+                   Chem.BondType.AROMATIC)
+
+
+def _ligand_symmetries(mol, donors):
+    """How the symmetries of a ligand move its donors: one tuple per distinct
+    action, giving the image of each atom in `donors`, identity included.
+
+    A symmetry is a self-match of the ligand -- which already keeps elements,
+    charges, isotopes, radicals and bond types -- that also keeps hydrogens,
+    map numbers and the handedness of every tetrahedral centre. Mirror-related
+    centres (a meso ligand) therefore do not count: they would build the
+    enantiomer. Stereo and directional bonds, unusual bond types and other
+    kinds of stereo centre must stay put together with their neighbours.
+    """
+    identity = tuple(donors)
+    if len(donors) < 2:
+        return [identity]
+    probe = Chem.Mol(mol)  # ranking and matching must not touch the ligand itself
+    ranks = list(Chem.CanonicalRankAtoms(probe, breakTies=False))
+    if len({ranks[i] for i in donors}) == len(donors):
+        return [identity]  # symmetries keep ranks, so no donor can move
+    classes, atom_class, centres, fixed = {}, [], {}, set()
+    for atom in probe.GetAtoms():
+        idx, tag = atom.GetIdx(), atom.GetChiralTag()
+        invariant = (atom.GetTotalNumHs(), atom.GetNumExplicitHs(), atom.GetNoImplicit(),
+                     atom.GetIsAromatic(), atom.GetAtomMapNum(),
+                     'tetrahedral' if tag in _TETRAHEDRAL else tag)
+        atom_class.append(classes.setdefault(invariant, len(classes)))
+        if tag in _TETRAHEDRAL:
+            centres[idx] = (tag, [b.GetOtherAtomIdx(idx) for b in atom.GetBonds()])
+        elif tag != Chem.ChiralType.CHI_UNSPECIFIED:
+            fixed.add(idx)
+            fixed.update(nb.GetIdx() for nb in atom.GetNeighbors())
+    for bond in probe.GetBonds():
+        bond_type = bond.GetBondType()
+        if (bond.GetStereo() != Chem.BondStereo.STEREONONE
+                or bond.GetBondDir() != Chem.BondDir.NONE
+                or bond_type not in _ORDINARY_BONDS
+                or bond.GetIsAromatic() != (bond_type == Chem.BondType.AROMATIC)):
+            for end in (bond.GetBeginAtom(), bond.GetEndAtom()):
+                fixed.add(end.GetIdx())
+                fixed.update(nb.GetIdx() for nb in end.GetNeighbors())
+    for group in probe.GetStereoGroups():
+        fixed.update(a.GetIdx() for a in group.GetAtoms())
+
+    def keeps_handedness(perm):
+        # A centre keeps its handedness when its tag, read in the order of
+        # its mapped neighbours, equals the tag of the atom it maps onto.
+        for idx, (tag, neighbours) in centres.items():
+            image_tag, image_neighbours = centres[perm[idx]]
+            order = [image_neighbours.index(perm[n]) for n in neighbours]
+            odd = sum(a > b for i, a in enumerate(order) for b in order[i + 1:]) % 2
+            if (tag == image_tag) == bool(odd):
+                return False
+        return True
+
+    actions = {identity}
+    for perm in probe.GetSubstructMatches(probe, uniquify=False, useChirality=True,
+                                          maxMatches=MAX_SYMMETRIES):
+        if ([atom_class[j] for j in perm] == atom_class
+                and all(perm[i] == i for i in fixed)
+                and keeps_handedness(perm)):
+            actions.add(tuple(perm[i] for i in donors))
+    return sorted(actions)
+
+
+def _branch_keys(metal_comp, metal_idx, ligand_fragments, branches):
+    """One key per strict-mode branch, equal only when a symmetry of the
+    ligands maps one branch's donors onto the other's: identical ligand
+    copies may trade places, and each ligand may map onto itself (see
+    _ligand_symmetries). Such branches build the same structure, or fail the
+    same way. Without a usable symmetry, every key differs.
+    """
+    # Stereo at the metal would depend on the order its new bonds arrive in.
+    metal = metal_comp.GetAtomWithIdx(metal_idx)
+    if (len(branches) < 2 or metal.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED
+            or any(b.GetStereo() != Chem.BondStereo.STEREONONE
+                   or b.GetBondDir() != Chem.BondDir.NONE for b in metal.GetBonds())):
+        return list(range(len(branches)))
+    donor_sets = [[tuple(sorted(c['atom_idx'] for c in branch.get(fid, ())))
+                   for fid in range(len(ligand_fragments))] for branch in branches]
+    # Byte-identical pickles are the same molecule in the same atom order,
+    # down to stereo, hydrogens and map numbers: copies of one kind.
+    kinds, kind = {}, []
+    for mapped, _ in ligand_fragments:
+        kind.append(kinds.setdefault(mapped.ToBinary(), len(kinds)))
+    members = {}
+    for fid, k in enumerate(kind):
+        members.setdefault(k, []).append(fid)
+    # A lone ligand with the same donors in every branch cannot tell them apart.
+    varying = [k for k, fids in members.items()
+               if len(fids) > 1 or len({sets[fids[0]] for sets in donor_sets}) > 1]
+    actions, canonical = {}, {}
+
+    def canonical_donors(fid, chosen):
+        # Symmetries map the donor candidates onto themselves, so none or
+        # all of them has only one form.
+        if len(chosen) in (0, len(ligand_fragments[fid][1])):
+            return chosen
+        k = kind[fid]
+        if (k, chosen) not in canonical:
+            if k not in actions:
+                mapped, cands = ligand_fragments[fid]
+                donors = [c['atom_idx'] for c in cands]
+                actions[k] = (_ligand_symmetries(mapped, donors),
+                              {atom: pos for pos, atom in enumerate(donors)})
+            images, position = actions[k]
+            canonical[k, chosen] = min(tuple(sorted(image[position[a]] for a in chosen))
+                                       for image in images)
+        return canonical[k, chosen]
+
+    return [tuple((k, tuple(sorted(canonical_donors(fid, sets[fid]) for fid in members[k])))
+                  for k in varying)
+            for sets in donor_sets]
 
 
 # ============================================================================
@@ -922,9 +1273,9 @@ def select_by_coordination_number(outputs, donor_counts, allowed, metal_atom, wa
     best_n = donor_counts[best]
     symbol = _PTABLE.GetElementSymbol(metal_atom.GetAtomicNum())
     charge = metal_atom.GetFormalCharge()
-    warnings.append(
+    warnings.append(NeedsReview(
         f'no candidate reaches coordination number {sorted(allowed)} known for '
-        f'{symbol}{charge:+d}; kept closest match (CN {best_n}) -- flagged, verify manually')
+        f'{symbol}{charge:+d}; kept closest match (CN {best_n}) -- flagged, verify manually'))
     return {s: m for s, m in outputs.items() if donor_counts[s] == best_n}
 
 
@@ -940,8 +1291,10 @@ def _donor_selections(ligands):
         return (Chem.MolToSmiles(mol),
                 tuple(tuple(c['atom_idx'] for c in combo) for combo in combos))
 
-    ordered = sorted(ligands, key=signature)
-    signatures = [signature(item) for item in ordered]
+    # Stable sort on the signature alone, computed once per ligand.
+    keyed = sorted(((signature(item), item) for item in ligands), key=lambda pair: pair[0])
+    ordered = [item for _, item in keyed]
+    signatures = [sig for sig, _ in keyed]
     selection = []
     indices = []
 
@@ -1022,11 +1375,12 @@ def prepare_complex(mol, smiles=None, *, max_variants=MAX_VARIANTS,
     result = PreparationResult(PROCESS)
     components = []
     for component in Chem.GetMolFrags(mol, asMols=True):
-        smi = Chem.MolToSmiles(component)
-        if smi in SPECTATOR_SMILES:
-            result.removed_fragments.append(smi)
-        else:
-            components.append(component)
+        if component.GetNumAtoms() <= SPECTATOR_MAX_ATOMS:
+            smi = Chem.MolToSmiles(component)
+            if smi in SPECTATOR_SMILES:
+                result.removed_fragments.append(smi)
+                continue
+        components.append(component)
     if result.removed_fragments:
         result.warnings.append('removed recognized spectator ions: '
                                + '.'.join(result.removed_fragments))
@@ -1038,7 +1392,7 @@ def prepare_complex(mol, smiles=None, *, max_variants=MAX_VARIANTS,
     try:
         working = combine_components(components)
         initial_charge = Chem.GetFormalCharge(working)
-        final, _ = process_step2(working, changes=result.changes)
+        final = _prepare_ligands(working, changes=result.changes)
         result.charge_delta = Chem.GetFormalCharge(final) - initial_charge
         if result.changes:
             result.warnings.append(
@@ -1046,9 +1400,9 @@ def prepare_complex(mol, smiles=None, *, max_variants=MAX_VARIANTS,
                 '(excluding removed spectators)')
         if metal.GetFormalCharge() < 0 and any(
                 b.GetBondType() != Chem.BondType.DATIVE for b in metal.GetBonds()):
-            result.warnings.append(
+            result.warnings.append(NeedsReview(
                 'mixed covalent/dative charge representation; metal oxidation state '
-                'was not inferred, candidate charge needs review')
+                'was not inferred, candidate charge needs review'))
         metal_idx = final.GetSubstructMatches(METAL_PATTERN)[0][0]
 
         if mode == 'soft':
@@ -1084,35 +1438,27 @@ def prepare_complex(mol, smiles=None, *, max_variants=MAX_VARIANTS,
             search_truncated = False
             for attempt, selection in enumerate(_donor_selections(ligands)):
                 if attempt >= max_combinations:
-                    result.warnings.append(f'candidate search truncated at {max_combinations} combinations')
+                    result.warnings.append(NeedsReview(
+                        f'candidate search truncated at {max_combinations} combinations'))
                     search_truncated = True
                     break
                 n_donors = sum(len(cands) for _, cands in selection)
                 if n_donors > available:
                     continue
-                try:
-                    connected = connect_ligands(metal_comp, selection, metal_idx, verbose=False)
-                    if connected is None:
-                        failed += 1
-                        continue
-                    connected = Chem.RemoveHs(connected)
-                    smi = Chem.MolToSmiles(connected)
-                    # Check the actual serialization that downstream tools will parse.
-                    parsed = Chem.MolFromSmiles(smi)
-                    if parsed is None or len(Chem.GetMolFrags(parsed)) != 1:
-                        failed += 1
-                        continue
-                except Exception:
+                built = _build_candidate(metal_comp, selection, metal_idx, known=outputs)
+                if built is None:
                     failed += 1
                     continue
-                if smi not in outputs:
-                    if len(outputs) >= max_variants:
-                        result.warnings.append(f'output truncated at {max_variants} variants')
-                        break
-                    outputs[smi] = connected
-                    # Total coordination: bonds already drawn to the metal
-                    # in the input plus the new dative bonds.
-                    donor_counts[smi] = n_donors + existing_bonds
+                smi, connected = built
+                if smi in outputs:
+                    continue  # a duplicate: already checked and kept
+                if len(outputs) >= max_variants:
+                    result.warnings.append(NeedsReview(f'output truncated at {max_variants} variants'))
+                    break
+                outputs[smi] = connected
+                # Total coordination: bonds already drawn to the metal
+                # in the input plus the new dative bonds.
+                donor_counts[smi] = n_donors + existing_bonds
             if failed:
                 result.warnings.append(f'{failed} candidate builds failed sanitization')
             if not outputs:
@@ -1137,7 +1483,9 @@ def prepare_complex(mol, smiles=None, *, max_variants=MAX_VARIANTS,
             # Largest number of NEW dative bonds reachable at all, computed
             # with the same algorithm as the final selection (see
             # _strict_natural_max).
-            n_max = _strict_natural_max(ligand_fragments, max_combinations=max_combinations)
+            conflicts = [_ConflictMemo(mapped) for mapped, _ in ligand_fragments]
+            n_max = _strict_natural_max(ligand_fragments, max_combinations=max_combinations,
+                                        conflicts=conflicts)
             if known_cns:
                 # Fill to the LARGEST allowed TOTAL coordination number
                 # (bonds already drawn to the metal + new dative bonds) this
@@ -1151,47 +1499,48 @@ def prepare_complex(mol, smiles=None, *, max_variants=MAX_VARIANTS,
                 else:
                     symbol = _PTABLE.GetElementSymbol(local_metal.GetAtomicNum())
                     charge = local_metal.GetFormalCharge()
-                    result.warnings.append(
+                    result.warnings.append(NeedsReview(
                         f'no candidate reaches coordination number {sorted(known_cns)} '
                         f'known for {symbol}{charge:+d}; kept closest match '
-                        f'(CN {existing_bonds + n_max}) -- flagged, verify manually')
+                        f'(CN {existing_bonds + n_max}) -- flagged, verify manually'))
                     target = n_max
             else:
                 target = coordination_limit(local_metal) - existing_bonds
 
             branches = strict_donor_selection(ligand_fragments, target,
-                                              max_combinations=max_combinations)
+                                              max_combinations=max_combinations,
+                                              conflicts=conflicts)
             outputs = {}
             uncoordinated = {}
             failed = 0
-            for branch in branches:
+            outcome = {}  # branch key -> SMILES it built, or None if the build failed
+            keys = _branch_keys(metal_comp, metal_idx, ligand_fragments, branches)
+            for branch, key in zip(branches, keys):
+                if key in outcome:
+                    # Symmetric to a branch built already: it would build the
+                    # same SMILES, or fail in the same way.
+                    if outcome[key] is None:
+                        failed += 1
+                    continue
                 combo_input = [(ligand_fragments[fid][0], cands) for fid, cands in branch.items()]
+                built = _build_candidate(metal_comp, combo_input, metal_idx, known=outputs)
+                outcome[key] = built[0] if built else None
+                if built is None:
+                    failed += 1
+                    continue
+                smi, connected = built
+                if smi in outputs:
+                    continue  # a tie that built the same structure again
+                if len(outputs) >= max_variants:
+                    result.warnings.append(NeedsReview(f'output truncated at {max_variants} variants'))
+                    break
+                outputs[smi] = connected
                 # Fragments that got no seat in this branch are not part of
                 # the connected output; remembered so the kept result can
                 # report them.
-                dropped = sorted(Chem.MolToSmiles(ligand_fragments[fid][0])
-                                 for fid in range(len(ligand_fragments))
-                                 if not branch.get(fid))
-                try:
-                    connected = connect_ligands(metal_comp, combo_input, metal_idx, verbose=False)
-                    if connected is None:
-                        failed += 1
-                        continue
-                    connected = Chem.RemoveHs(connected)
-                    smi = Chem.MolToSmiles(connected)
-                    parsed = Chem.MolFromSmiles(smi)
-                    if parsed is None or len(Chem.GetMolFrags(parsed)) != 1:
-                        failed += 1
-                        continue
-                except Exception:
-                    failed += 1
-                    continue
-                if smi not in outputs:
-                    if len(outputs) >= max_variants:
-                        result.warnings.append(f'output truncated at {max_variants} variants')
-                        break
-                    outputs[smi] = connected
-                    uncoordinated[smi] = dropped
+                uncoordinated[smi] = sorted(Chem.MolToSmiles(ligand_fragments[fid][0])
+                                            for fid in range(len(ligand_fragments))
+                                            if not branch.get(fid))
             if failed:
                 result.warnings.append(f'{failed} candidate builds failed sanitization')
             if not outputs:
@@ -1201,9 +1550,9 @@ def prepare_complex(mol, smiles=None, *, max_variants=MAX_VARIANTS,
             ordered = sorted(outputs)
             if uncoordinated[ordered[0]]:
                 dropped = uncoordinated[ordered[0]]
-                result.warnings.append(
+                result.warnings.append(NeedsReview(
                     f'{len(dropped)} ligand fragment(s) left uncoordinated (coordination '
-                    f'sphere full) and not included in the output: ' + '.'.join(dropped))
+                    f'sphere full) and not included in the output: ' + '.'.join(dropped)))
             if len(ordered) > 1:
                 # A genuine priority tie (see strict_donor_selection) with no
                 # way to prefer one option over another -- e.g. which of
@@ -1211,9 +1560,9 @@ def prepare_complex(mol, smiles=None, *, max_variants=MAX_VARIANTS,
                 # leftover coordination slot. Keep one, deterministically
                 # (lexicographically first by canonical SMILES), rather than
                 # returning every indistinguishable variant.
-                result.warnings.append(
+                result.warnings.append(NeedsReview(
                     f'{len(ordered)} equivalent binding options tied on donor '
-                    f'priority; arbitrarily kept the lexicographically first')
+                    f'priority; arbitrarily kept the lexicographically first'))
                 ordered = ordered[:1]
             result.molecules = [outputs[key] for key in ordered]
             return result
@@ -1234,54 +1583,79 @@ def triage(mol, smiles, reject_covalent=False, mode='soft'):
 
 def partition_dataframe(df, rejectedFile=None, debug=False, reject_covalent=False,
                         *, max_variants=MAX_VARIANTS, max_combinations=MAX_COMBINATIONS,
-                        mode='soft'):
-    """Prepare and expand rows, returning (prepared, rejected) with provenance.
+                        mode='soft', provenance=True):
+    """Prepare and expand rows, returning (prepared, rejected).
 
-    All original columns survive. Rejected rows carry metal_reason. A rejection
-    file uses the existing Msani convention: original SMILES, ID, reason.
+    Only rows whose SMILES holds a metal (or whose mol is missing) are
+    prepared; every other row, and every metal row that needs no change,
+    passes through untouched and in order. All original columns survive.
+    With provenance=True both frames also carry metal_* columns recording
+    what happened to each row. With provenance=False rows keep only their
+    own columns, the rejected frame gains metal_reason, and a frame without
+    metal rows is returned as it is.
+
+    The outputs of one record are numbered id_1, id_2, ... (two digits from
+    ten outputs on, like Msani's own numbering). Notes are logged per
+    record: as warnings when they ask for a manual look (NeedsReview), as
+    info otherwise. A rejection file uses the existing Msani convention:
+    original SMILES, ID, reason.
     """
     import logging
     import pandas as pd
     logger = logging.getLogger('msani')
     if max_variants < 1 or max_combinations < 1:
         raise ValueError('metal enumeration limits must be positive')
-    base = df.reset_index(drop=True).copy()
-    defaults = dict(metal_original_smiles=base['smiles'], metal_parent_id=base['ids'],
-                    metal_variant=0, metal_status=KEEP, metal_reason=None,
-                    metal_warnings=[()] * len(base), metal_changes=[()] * len(base),
-                    metal_removed_fragments=[()] * len(base), metal_charge_delta=0)
-    for key, default in defaults.items():
-        if key not in base:
-            base[key] = default
-    columns = list(base.columns)
     # Organic rows bypass per-row RDKit work and reconstruction entirely. The
     # API requires smiles/mol to describe the same input, as the Msani parser does.
-    candidate_mask = base['smiles'].map(has_metal) | base['mol'].isna()
+    candidate_mask = df['smiles'].map(has_metal) | df['mol'].isna()
+    if not provenance and not candidate_mask.any():
+        return df, df.iloc[:0].assign(metal_reason=None)
+    base = df.reset_index(drop=True).copy()
+    candidate_mask = candidate_mask.reset_index(drop=True)
+    if provenance:
+        defaults = dict(metal_original_smiles=base['smiles'], metal_parent_id=base['ids'],
+                        metal_variant=0, metal_status=KEEP, metal_reason=None,
+                        metal_warnings=[()] * len(base), metal_changes=[()] * len(base),
+                        metal_removed_fragments=[()] * len(base), metal_charge_delta=0)
+        for key, default in defaults.items():
+            if key not in base:
+                base[key] = default
+    columns = list(base.columns)
+    unchanged = ~candidate_mask
     kept, positions, rejected = [], [], []
     reserved_ids = set(base['ids'].astype(str))
     for position, row in base.loc[candidate_mask].iterrows():
         result = prepare_complex(row['mol'], row['smiles'], max_variants=max_variants,
                                  max_combinations=max_combinations,
                                  reject_covalent=reject_covalent, mode=mode)
+        if result.action == KEEP:
+            # Already connected, or no metal after all: nothing to correct.
+            unchanged[position] = True
+            continue
         entry = row.to_dict()
-        # Already prepared, connected structures keep their earlier provenance.
-        if result.action != KEEP:
-            entry.update(metal_status=result.action, metal_reason=result.reason,
-                         metal_warnings=tuple(result.warnings), metal_changes=tuple(result.changes),
+        if provenance:
+            entry.update(metal_status=result.action, metal_warnings=tuple(result.warnings),
+                         metal_changes=tuple(result.changes),
                          metal_removed_fragments=tuple(result.removed_fragments),
                          metal_charge_delta=result.charge_delta)
         if result.action == REJECT:
+            entry['metal_reason'] = result.reason
             rejected.append(entry)
+            logger.info('Metal preparation %s rejected (%s)%s', row['ids'], result.reason,
+                        ''.join(f'; {note}' for note in result.warnings))
             continue
-        for warning in result.warnings:
-            logger.warning('Metal preparation %s: %s', row['ids'], warning)
+        for note in result.warnings:
+            logger.log(logging.WARNING if isinstance(note, NeedsReview) else logging.INFO,
+                       'Metal preparation %s: %s', row['ids'], note)
+        count = len(result.molecules)
+        width = 2 if count >= 10 else 1
         for i, mol in enumerate(result.molecules, 1):
             output = dict(entry)
             output.update(mol=mol, smiles=Chem.MolToSmiles(mol))
-            if result.action == PROCESS:
+            if provenance:
                 output['metal_variant'] = i
-            if len(result.molecules) > 1:
-                candidate = f"{row['ids']}_metal{i}"
+            if count > 1:
+                candidate = f"{row['ids']}_{i:0{width}d}"
                 while candidate in reserved_ids:
                     candidate += '_'
                 reserved_ids.add(candidate)
@@ -1289,15 +1663,17 @@ def partition_dataframe(df, rejectedFile=None, debug=False, reject_covalent=Fals
             kept.append(output)
             positions.append(position)
     prepared_df = pd.DataFrame(kept, columns=columns, index=positions)
-    passthrough = base.loc[~candidate_mask]
+    passthrough = base.loc[unchanged]
     parts = [part for part in (passthrough, prepared_df) if not part.empty]
     kept_df = (pd.concat(parts).sort_index(kind='stable').reset_index(drop=True)
                if parts else base.iloc[:0].copy())
-    rejected_df = pd.DataFrame(rejected, columns=columns)
+    rejected_df = pd.DataFrame(
+        rejected, columns=columns if provenance else columns + ['metal_reason'])
 
     if not rejected_df.empty:
         if rejectedFile is not None:
-            rejected_df[['metal_original_smiles', 'ids', 'metal_reason']].to_csv(
+            original = 'metal_original_smiles' if provenance else 'smiles'
+            rejected_df[[original, 'ids', 'metal_reason']].to_csv(
                 rejectedFile, index=False, mode='a', sep=' ', header=False)
         logger.info('Rejected %d metal records: %s', len(rejected_df),
                     rejected_df['metal_reason'].value_counts().to_dict())
@@ -1354,7 +1730,7 @@ def process_file(input_file, verbose=True, *, rejected_file=None, output_file=No
 
 def main():
     import argparse
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description=__doc__.strip().split('\n\n')[0])
     parser.add_argument('input_file')
     parser.add_argument('--rejected-file',
                         help='write rejected records here as SMILES NAME REASON, '

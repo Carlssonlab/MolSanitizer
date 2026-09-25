@@ -40,6 +40,10 @@ def arguments(args):
     if args.extended: 
         logger.info(f"Parsing the extended SMILES format: {args.extended}")
 
+    if args.metal != 'off' and not args.standardize:
+        logger.info(f"Metal complexes: {args.metal} (max variants {args.metal_max_variants}, "
+                    f"max combinations {args.metal_max_combinations})")
+
     if args.removesalts:
         logger.info(f"Remove salts and retain largest fragments: {args.removesalts}")
         if args.debug:
