@@ -1,3 +1,5 @@
+import contextlib
+import io
 import unittest
 import tempfile
 import os
@@ -14,13 +16,14 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 
-from pandas import Series, read_csv
+from pandas import DataFrame, Series, read_csv
 from rdkit import Chem
 
 from msani import cli
 from msani.batchmode import (
     Split_Submit_jobs,
     cleanup_script,
+    parse_flags_single_job,
     prepare_batch_input,
 )
 from msani.conformers import mol2writer, utils
@@ -1234,6 +1237,61 @@ class Test_MolSanitizer(unittest.TestCase):
     def clear_temp_txt(self, temp_dir: str):
         for path in Path(temp_dir).glob("*.txt"):
             path.unlink()
+
+    def test_metal_modes(self):
+        """--metal connects dissociated complexes before every other step.
+        Metal rows equal the module's reference outputs, records that cannot
+        be prepared go to the metal error file, and 'off' changes nothing."""
+        for mode in ('strict', 'soft', 'off'):
+            with self.subTest(mode=mode), tempfile.TemporaryDirectory() as temp_dir:
+                args = self.generate_mock_arguments([f'{self.path}/in_organometalics.smi'],
+                                                    ['test'], temp_dir)
+                args.metal = mode
+                cli.clean_data(args)
+                output = Path(temp_dir) / 'dummy_output_clean.txt'
+                self.compareFiles(output, self.path / f'out_metal_msani_{mode}.smi')
+                errors = Path(temp_dir) / 'dummy_output_metal_error.smi'
+                if mode == 'off':
+                    self.assertFalse(errors.exists())
+                    continue
+                self.compareFiles(errors, self.path / 'out_metal_msani_error.smi')
+                reference = (self.path / f'out_metal_{mode}.smi').read_text().splitlines()
+                names = {line.split()[1] for line in reference}
+                produced = output.read_text().splitlines()
+                self.assertEqual([line for line in produced if line.split()[1] in names],
+                                 reference)
+
+    def test_metal_strict_tie_is_logged_as_warning(self):
+        """Keeping one of several tied structures is a warning, routine notes
+        are info, and the returned frame keeps its own columns."""
+        from msani.api import Msani
+        df = DataFrame({'smiles': ['[Ti+4].[Cl-].[Cl-].[cH-]1cccc1.[cH-]1cccc1', 'CCO'],
+                        'ids': ['titanocene', 'ethanol']})
+        with self.assertLogs('msani', level='INFO') as logs:
+            out = Msani(metal='strict').run(df)
+        self.assertEqual(list(out['ids']), ['titanocene', 'ethanol'])
+        self.assertEqual(list(out.columns), ['smiles', 'ids', 'mol'])
+        tie = [r.levelname for r in logs.records
+               if 'equivalent binding options tied' in r.getMessage()]
+        repairs = [r.levelname for r in logs.records
+                   if 'protonation repairs applied' in r.getMessage()]
+        self.assertEqual(tie, ['WARNING'])
+        self.assertEqual(repairs, ['INFO'])
+
+    def test_metal_arguments(self):
+        """--metal defaults to strict. Batch jobs receive it, but each writes
+        its own metal error file for the cleanup to merge."""
+        self.assertEqual(parsers.parseArguments([]).metal, 'strict')
+        args, parser = parsers.parseArguments(
+            ['--metal', 'soft', '--metal_error_file', 'errors.smi',
+             '--metal_max_variants', '4'], batch_mode=True)
+        flags = parse_flags_single_job(args, parser)
+        self.assertIn("--metal 'soft'", flags)
+        self.assertIn("--metal_max_variants '4'", flags)
+        self.assertNotIn('metal_error_file', flags)
+        self.assertIn("'in*_metal_error*' in/removed/metal_error.smi", cleanup_script)
+        with self.assertRaises(SystemExit), contextlib.redirect_stderr(io.StringIO()):
+            parsers.parseArguments(['--metal_max_variants', '0'])
 
     def compare_relative(self, newfile: str, goldenfile: str):
         # Read the files into dataframes

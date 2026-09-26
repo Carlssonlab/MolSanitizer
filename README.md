@@ -1,98 +1,142 @@
-# MolSanitizer - A package to prepare SMILES databases
-[![python](https://img.shields.io/badge/python-v3.10--3.14-blue)]()
-[![anaconda](https://img.shields.io/badge/Anaconda.org-2.1.0-green.svg?style=flat-square)](https://docs.anaconda.com/anaconda/install/index.html)
-[![Documentation](https://img.shields.io/badge/documentations-orange)](https://msani.readthedocs.io/)
-![GitHub forks](https://img.shields.io/github/forks/:user/:repo)
-[![license](https://img.shields.io/badge/license-Apache2-yellow)](LICENSE)
+# MolSanitizer
 
+[![Python](https://img.shields.io/badge/python-3.10--3.14-blue)](https://github.com/carlssonlab/MolSanitizer/blob/main/pyproject.toml)
+[![Documentation](https://img.shields.io/badge/docs-msani.readthedocs.io-orange)](https://msani.readthedocs.io/)
+[![License](https://img.shields.io/badge/license-Apache%202.0-yellow)](https://github.com/carlssonlab/MolSanitizer/blob/main/LICENSE)
 
-MolSanitizer is a package for preparation (remove salts, stereoisomers enumeration, protonation, ...) and filtering undesirable substructures (PAINS, reactive functional groups, ...) for drug discovery projects.
+MolSanitizer (`msani`) prepares SMILES libraries for structure-based drug
+discovery. It standardizes molecules (salt removal, tautomer and protonation
+state enumeration, stereoisomer enumeration), filters undesirable substructures
+(PAINS, reactive functional groups, and more), and generates 3D conformers in
+formats ready for docking.
 
-## Installation and getting started
+<img src="https://raw.githubusercontent.com/carlssonlab/MolSanitizer/main/docs/source/_static/Workflow.png" width="1000" alt="MolSanitizer workflow">
 
-We will set up the environment using [Anaconda](https://docs.anaconda.com/anaconda/install/index.html). Clone the current repository:
+## Installation
 
-    git clone https://github.com/carlssonlab/MolSanitizer.git
-    OR
-    git clone https://ghp_token@github.com/carlssonlab/MolSanitizer.git  #Put your personal token so that you don't have to sign in every time.
-    
-Example of how to set up a working conda environment to run the code on Mac OS and Linux:
-    
-    conda env create -f MolSanitizer/environment.yml # Trick: use mamba (if you have) for much faster installation
-    conda activate msani
-    pip install -e MolSanitizer
+```bash
+pip install molsanitizer
+```
 
-Meeko is optional and is needed only for PDBQT output. Install it with:
+Prebuilt wheels are available for MacOS, Linux and Windows. For building from source
+and details on dependencies, see the
+[installation guide](https://msani.readthedocs.io/en/latest/installation.html).
 
-    pip install -e "MolSanitizer[pdbqt]"
+### Optional dependencies
 
-The OpenEye toolkits are optional and are needed only for OEB output, the
-multi-conformer format OpenEye docking (FRED/HYBRID) reads directly. `--format
-oeb` writes one `.oeb.gz` per molecule; `--format oeb.lib` writes one `.oeb.gz`
-library per input file, ready to be used as a docking database. Both formats
-normally merge each molecule's ring-conformer groups into one
-multi-conformer record; groups that fail the writer's compatibility checks
-remain separate records. Install the extra
-and point OE_LICENSE at your own licence file:
+| Feature | Install | Notes |
+| --- | --- | --- |
+| PDBQT output | `pip install "molsanitizer[pdbqt]"` | Requires Meeko. |
+| OEB output | `pip install "molsanitizer[oe]"` | Requires OpenEye toolkits and a licence (`export OE_LICENSE=/path/to/oe_license.txt`). |
+| Open Babel embedding | `conda install openbabel` | Used when selected as the embedding method, or as a fallback after an RDKit embedding timeout. |
 
-    pip install -e "MolSanitizer[oe]"
-    export OE_LICENSE=/path/to/oe_license.txt
+## Quick start
 
-For example, generate a docking library with:
+Create `example.smi` (one SMILES and ID per line, no header):
 
-    msani -i example.smi --gen3d --format oeb.lib
+```text
+CC(=O)O acetate
+c1ccccc1 benzene
+```
 
-This writes `oeb/example.oeb.gz`; `--format oeb` instead writes
-`oeb/<molecule ID>.oeb.gz`. See the [output documentation](https://msani.readthedocs.io/en/latest/outputs.html)
-for restart behavior and naming constraints when combining these formats.
+Prepare the SMILES (strip salts, enumerate tautomers, protonate at pH 7):
 
-Open Babel is also optional. It is used only when selected as the embedding
-method or as a fallback after an RDKit embedding timeout. If that fallback is
-needed but Open Babel is unavailable, the failure reason is written to
-`msani_error.err` and processing continues with the remaining molecules.
+```bash
+msani -i example.smi --removesalts --tautomers --protonation --pH 7
+```
 
-For Windows users, we recommend them to follow the instruction [here](https://msani.readthedocs.io/en/latest/installation.html). More information on the installation and dependencies could be found in the same page
+This writes `example_clean.smi`, where acetic acid is deprotonated:
 
-## New C++ implementation since October 18, 2025
+```text
+CC(=O)[O-] acetate
+c1ccccc1 benzene
+```
 
-Since version 0.5.0, MolSanitizer has transferred the heavily demanding parts to C++, hence more dependencies are required to build and compile the program. If the users happen to have created the conda environment using the above instruction, they need to install the additional dependencies for C++:
+Generate 3D structures for docking from the prepared file:
 
-    mamba env update --name msani --file environment.yml
+```bash
+msani -i example_clean.smi --gen3d --format sdf --numconfs 20   # SDF conformer ensembles
+msani -i example_clean.smi --gen3d --format db2                 # DOCK3/DOCK6
+msani -i example_clean.smi --gen3d --format mol2                # Mol2 format
+msani -i example_clean.smi --gen3d --format pdbqt               # AutoDock Vina (needs [pdbqt])
+msani -i example_clean.smi --gen3d --format oeb.lib             # OpenEye FRED/HYBRID (needs [oe])
+```
 
-After that, re-install the package:
+Each format is written to its own directory (`sdf/`, `db2/`, `pdbqt/`, `oeb/`, `mol2/`).
+Several formats can be requested at once, e.g. `--format sdf db2`. Run
+`msani -h` for all options, and see the
+[quickstart](https://msani.readthedocs.io/en/latest/quickstart.html) and
+[output documentation](https://msani.readthedocs.io/en/latest/outputs.html)
+for details.
 
-    pip install -e MolSanitizer
+## Configuration
+
+MolSanitizer runs with bundled defaults out of the box. To set personal
+defaults (for example, tool paths or cluster settings), create a config file:
+
+```bash
+msani config init
+```
+
+The command prints the location of `msani_configurations.yaml`
+(`~/.config/msani/` on Linux, `~/Library/Application Support/msani/` on macOS,
+`%LOCALAPPDATA%\msani\` on Windows). Add only the settings you want to override:
+
+```yaml
+CORINA: /opt/corina/corina
+SLURM_ACCOUNT: my-project
+NUMCONFS: 1000
+MAX_JOBS: 100
+```
+
+Useful commands:
+
+```bash
+msani config show                            # merged settings and where each comes from
+msani config use /shared/mygroup/msani.yaml  # select an existing config file
+msani config reset-path                      # return to the standard location
+```
+
+Command-line arguments always take priority over the config file. For a
+one-off override, set `MSANI_CONFIG=/path/to/config.yaml`. See the
+[configuration guide](https://msani.readthedocs.io/en/latest/config.html) for
+precedence rules and batch jobs.
 
 ## Documentation
 
-To start to use msani, use the `-h` or `--help` flag for available options:
-
-    msani -h
-
-Documentation on the theory behind MolSanitizer and how to use it can be found [here](https://msani.readthedocs.io)
-
-<img src="./docs/source/_static/Workflow.png" width="1000">
-
-## Notes about AMSOLcpp
-
-DB2 partial charges and solvation descriptors are calculated in memory through
-the [AMSOLcpp](https://github.com/isra3l/AMSOLcpp) Python binding. The legacy
-AMSOL 7.1 executables and intermediate input/output files are no longer used.
+Full documentation, including the methodology behind MolSanitizer, is available
+at [msani.readthedocs.io](https://msani.readthedocs.io).
 
 
-## Contribution
+## Contributing
 
-Python workflows live in `msani/`, while native implementations and Python/C++
-bindings are grouped in [`msani/cpp/`](msani/cpp/README.md). That directory's
-README maps each component to its source files and build target.
+Contributions are welcome — bug reports, feature suggestions, and pull
+requests alike. Please read [CONTRIBUTING.md](https://github.com/carlssonlab/MolSanitizer/blob/main/CONTRIBUTING.md) before getting
+started. Python workflows live in `msani/`; native code and bindings are in
+[`msani/cpp/`](https://github.com/carlssonlab/MolSanitizer/blob/main/msani/cpp/README.md).
 
-We warmly welcome contributions of all kinds, whether it's reporting a bug, suggesting a feature, or developing new functionality. To get started, please refer to our [CONTRIBUTING.md](CONTRIBUTING.md) guide, which details the steps for contributing, from opening an issue to submitting a pull request.
+MolSanitizer is rule-based and draws on experience from prior drug discovery
+projects. Suggestions for new filter, tautomer, or protonation rules are
+especially appreciated — please open an issue.
 
+## Citation
 
-## Feedback
-MolSanitizer is a rule-based program that relies on our experience from previous drug discovery projects. We are committed to continuously improving the program's performance by adding more rules to the filters and tautomers/protonation. If you have any ideas or suggestions, please don't hesitate to open an issue or contact us.
+If you use MolSanitizer in your research, please cite:
+
+> Lam, T.-P.; Pach, S.; Ullmann, P.; et al. MolSanitizer: An open-source
+> pipeline to prepare large-scale small-molecule databases for virtual
+> screening. *ChemRxiv* **2026**. DOI: [TBA](TODO)
+
+## License
+
+Distributed under the Apache License 2.0. See [LICENSE](https://github.com/carlssonlab/MolSanitizer/blob/main/LICENSE).
 
 ## Contact
-1. Thua-Phong Lam, phong.lam@icm.uu.se
-2. Szymon Pach, szymon.pach@icm.uu.se
-3. Israel Cabeza de Vaca Lopez, israel.cabezadevaca@icm.uu.se
+
+- Thua-Phong Lam — phong.lam@icm.uu.se
+- Szymon Pach — szymon.pach@icm.uu.se
+- Israel Cabeza de Vaca Lopez — israel.cabezadevaca@icm.uu.se
+
+## Acknowledgements
+
+This work was funded by the Knut and Alice Wallenberg Foundation (KAW 2019.0130), the Swedish strategic research program eSSENCE, the Swedish Cancer Society (25 4860 Pj), the Swedish Brain Foundation (FO2026-0435), and the Swedish Research Council (2025-06266 and 2025-06720). The computational work was enabled by resources provided by the National Academic Infrastructure for Supercomputing in Sweden (NAISS) and the Swedish National Infrastructure for Computing (SNIC) at NSC, partially funded by the Swedish Research Council through grant agreement nos. 2022-06725 and 2018-05973. The Chemical Biology Consortium Sweden (CBCS), node KI, is a national research infrastructure funded by the Swedish Research Council (dr.nr. 2021-00179) and SciLifeLab.

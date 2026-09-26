@@ -28,6 +28,8 @@ pains: false
 # logp: 350
 
 # SMILES processing options
+# metal: strict # Connect dissociated metal complexes: strict, soft or off
+# metal_error_file: metal_errors.smi # Default: <prefix or input name>_metal_error.smi
 tautomers: true
 protonation: true
 pH: 7

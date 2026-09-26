@@ -4,6 +4,24 @@ Python scripting
 
 MolSanitizer is designed to be used as a Python package, allowing users to integrate its functionalities into their own scripts or applications. The package provides a set of functions and classes that can be imported and utilized for various molecular preparation tasks. There are several classes that can be used by the users, including:
 
+.. note::
+
+    MolSanitizer starts its multiprocessing workers with ``forkserver`` on
+    Linux and ``spawn`` on macOS and Windows. This applies to ionization,
+    tautomerization, stereoisomer enumeration, the shared ``Msani`` worker
+    pool, and the isolated RDKit 3D embedding worker. These methods avoid
+    directly forking a threaded parent process, which can deadlock and
+    produces a warning in Python 3.12 when multiple threads are detected.
+
+    In standalone Python scripts, place calls that start workers inside a
+    function invoked under ``if __name__ == '__main__':``, as shown in the
+    examples below. This also applies to a single DataFrame when multiprocessing
+    is enabled. The main module must be importable by worker
+    processes. No global ``multiprocessing.set_start_method()`` call or CLI
+    option is needed. If supplying your own initialized pool through the
+    transformation methods' ``pool=`` argument, create it with a compatible
+    ``forkserver`` or ``spawn`` context as well.
+
 Msani
 -----
 
@@ -14,17 +32,23 @@ The **Msani** class is the main entry point for using MolSanitizer. It provides 
     import pandas as pd
     from msani.api import Msani
 
-    df = pd.read_csv('input.csv', names=['smiles', 'name']) 
+    def main():
+        df = pd.read_csv('input.csv', names=['smiles', 'ids'])
+        molsani = Msani(
+            removesalts=True,
+            tautomers=True,
+            protonation=True,
+            pH=7,
+            unwanted=['regular'],
+            pains=True,
+            stereoisomers=True,
+            numcores=2,
+        )
+        processed_df = molsani.run(df)
+        processed_df.to_csv('prepared.csv', index=False)
 
-    # Process with msani
-    molsani = Msani(removesalts = True,
-                    tautomers = True,
-                    protonation = True,
-                    pH = 7,
-                    unwanted = 'regular',
-                    pains = True, 
-                    stereoisomers=stereoisomers)
-    processed_df = molsani.run(df)
+    if __name__ == '__main__':
+        main()
 
 
 For chunked input, use a context manager to share one worker pool across

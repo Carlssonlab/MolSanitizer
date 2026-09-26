@@ -104,6 +104,9 @@
      
      August 6 2026
       Added small peaks +/- 30 for rule [c:1][$(S(=O)=O):2]!@[NX3&amp;!+1:3](-[*;!$([C&amp;r3])!$(C=A):4])-[*;!$([C&amp;r3])!$(C=A):5]
+
+     Sept 21 2026
+      Added a new rule for thioimide ($(C=O):1][NX3H1:2]!@[CX3:3]=[SH0:4]) only limited to 0/180
 --> 
 
 <library>
@@ -56237,6 +56240,12 @@ All the angles here were added to make the hydroxyl coplanar with the ring-->
      <bin count="28" />
     </histogram_shifted>
    </torsionRule>
+   <torsionRule smarts="[$(C=O):1][NX3H1:2]!@[CX3:3]=[SH0:4]">
+   <angleList>
+     <angle score="26.17" tolerance1="10" tolerance2="10" value="180" />
+     <angle score="11.11" tolerance1="20" tolerance2="20" value="0" />
+    </angleList>
+   </torsionRule>   
    <torsionRule smarts="[$(C=O):1][NX3H1:2]!@[CX3:3]=[*H0:4]">
     <angleList>
      <angle score="26.17" tolerance1="10" tolerance2="30" value="180" />

@@ -38,8 +38,8 @@ def process_enamine_name(chunk):
     chunk['smiles'] = chunk['smiles'].apply(lambda x: x.split()[0])
     return chunk
 
-def apply_processes(chunk, processor, rejected_file):
-    chunk = processor.run(chunk, rejected_file)
+def apply_processes(chunk, processor, rejected_file, metal_error_file=None):
+    chunk = processor.run(chunk, rejected_file, metal_error_file)
     return chunk
 
 def log_step_time(elapsed_time, step):
@@ -73,6 +73,17 @@ def get_output_files(args, input_file_path):
         os.remove(output_file)
 
     return output_file, rejected_file
+
+def get_metal_error_file(args, input_file_path=None):
+    """Where unsupported metal records go: --metal_error_file if given, else
+    named after the prefix or input file (msani_metal_error.smi for -s)."""
+    if args.metal_error_file:
+        return pathlib.Path(args.metal_error_file)
+    if input_file_path is None:
+        return pathlib.Path('msani_metal_error.smi')
+    if args.prefix:
+        return pathlib.Path(f"{args.prefix}_metal_error.smi")
+    return pathlib.Path(f"{input_file_path.stem}_metal_error.smi")
 
 def read_input_file(input_file, is_enamine, is_synthon):
     compression = detect_input_compression(input_file)
@@ -119,18 +130,24 @@ def process_files(processor: Msani, args):
     if args.standardize:
         logger.warning('standardize predictor format preparation selected. Will skip all other flags and only standardize the molecules using RDKit default functions.')
 
+    metal_error_files = set()
     for input_file in args.input_files:
         input_file_path = pathlib.Path(input_file)
         logger.info(f'Processing: {input_file}')
 
         output_file, rejected_file = get_output_files(args, input_file_path)
         if os.path.exists(rejected_file): os.remove(rejected_file)
+        metal_error_file = get_metal_error_file(args, input_file_path)
+        # Clear a stale file once per run, so inputs sharing a name all append.
+        if metal_error_file not in metal_error_files:
+            metal_error_file.unlink(missing_ok=True)
+            metal_error_files.add(metal_error_file)
         
         df_input = read_input_file(input_file, args.extended, args.synthon)
 
         for step, chunk in enumerate(df_input, start=1):
             new_start_time = time.time()
-            chunk = apply_processes(chunk, processor, rejected_file)
+            chunk = apply_processes(chunk, processor, rejected_file, metal_error_file)
             if not chunk.empty:
                 if args.synthon and not(args.standardize):
                     chunk.to_csv(output_file,
@@ -176,8 +193,10 @@ def process_smiles(processor: Msani, args):
         mols.append(mol)
         names.append(name)
     chunk = DataFrame({'smiles': smiles_list, 'ids': names, 'mol': mols})
+    metal_error_file = get_metal_error_file(args)
+    metal_error_file.unlink(missing_ok=True)
     
-    chunk = apply_processes(chunk, processor, rejected_file)
+    chunk = apply_processes(chunk, processor, rejected_file, metal_error_file)
 
     if args.gen3d:
         from msani.conformers import conformers
@@ -204,7 +223,8 @@ def clean_data(args):
         stereo_timeout=args.stereo_timeout, useCorina= (args.method == 'corina'),
         corinaPath=args.corinaPath, standardize=args.standardize,
         protonation_library=args.protlib, tautomer_library=args.taulib,  
-        debug=args.debug)       
+        debug=args.debug, metal=args.metal, metal_max_variants=args.metal_max_variants,
+        metal_max_combinations=args.metal_max_combinations)       
     with processor:
         if args.smiles:
             process_smiles(processor, args)

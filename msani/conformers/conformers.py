@@ -12,6 +12,7 @@
 import logging
 import os
 import multiprocessing
+import platform
 import subprocess
 import shutil
 import random
@@ -95,6 +96,9 @@ except:
     CPP_AVAILABLE = False
 
 logger = logging.getLogger('msani')
+
+# Avoid forking the threaded parent, matching the molecule transformation workers.
+_MP_START_METHOD = 'forkserver' if platform.system() == 'Linux' else 'spawn'
 
 SRLib = torsions.SmallRingLibrary()
 Torlib = torsions.TorsionLibrary()
@@ -1371,9 +1375,10 @@ def _receive_embedding_result(connection, messages):
 
 def _run_embedding_worker(smiles, name, config):
     """Receive before joining; stop and reap the worker on every exit path."""
-    receiver, sender = multiprocessing.Pipe(duplex=False)
+    ctx = multiprocessing.get_context(_MP_START_METHOD)
+    receiver, sender = ctx.Pipe(duplex=False)
     messages = Queue()
-    process = multiprocessing.Process(
+    process = ctx.Process(
         target=_embed_rdkit_worker, args=(sender, smiles, name, config))
     reader = None
     deadline = time.monotonic() + config.embedding_timeout * 60
