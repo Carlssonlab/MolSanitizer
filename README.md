@@ -18,7 +18,7 @@ formats ready for docking.
 pip install molsanitizer
 ```
 
-Prebuilt wheels are available for Linux and Windows. For building from source
+Prebuilt wheels are available for MacOS, Linux and Windows. For building from source
 and details on dependencies, see the
 [installation guide](https://msani.readthedocs.io/en/latest/installation.html).
 
@@ -57,7 +57,7 @@ Generate 3D structures for docking from the prepared file:
 ```bash
 msani -i example_clean.smi --gen3d --format sdf --numconfs 20   # SDF conformer ensembles
 msani -i example_clean.smi --gen3d --format db2                 # DOCK3/DOCK6
-msani -i example_clean.smi --gen3d --format mol2                 # Mol2 format
+msani -i example_clean.smi --gen3d --format mol2                # Mol2 format
 msani -i example_clean.smi --gen3d --format pdbqt               # AutoDock Vina (needs [pdbqt])
 msani -i example_clean.smi --gen3d --format oeb.lib             # OpenEye FRED/HYBRID (needs [oe])
 ```
@@ -136,3 +136,7 @@ Distributed under the Apache License 2.0. See [LICENSE](https://github.com/carls
 - Thua-Phong Lam — phong.lam@icm.uu.se
 - Szymon Pach — szymon.pach@icm.uu.se
 - Israel Cabeza de Vaca Lopez — israel.cabezadevaca@icm.uu.se
+
+## Acknowledgements
+
+This work was funded by the Knut and Alice Wallenberg Foundation (KAW 2019.0130), the Swedish strategic research program eSSENCE, the Swedish Cancer Society (25 4860 Pj), the Swedish Brain Foundation (FO2026-0435), and the Swedish Research Council (2025-06266 and 2025-06720). The computational work was enabled by resources provided by the National Academic Infrastructure for Supercomputing in Sweden (NAISS) and the Swedish National Infrastructure for Computing (SNIC) at NSC, partially funded by the Swedish Research Council through grant agreement nos. 2022-06725 and 2018-05973. The Chemical Biology Consortium Sweden (CBCS), node KI, is a national research infrastructure funded by the Swedish Research Council (dr.nr. 2021-00179) and SciLifeLab.
