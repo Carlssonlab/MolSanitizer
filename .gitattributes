@@ -1,0 +1,2 @@
+# Golden test data (DOCK .db2 text), not SQL source
+*.db2 linguist-detectable=false linguist-generated
