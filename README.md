@@ -1,8 +1,8 @@
 # MolSanitizer
 
-[![Python](https://img.shields.io/badge/python-3.10--3.14-blue)](pyproject.toml)
+[![Python](https://img.shields.io/badge/python-3.10--3.14-blue)](https://github.com/carlssonlab/MolSanitizer/blob/main/pyproject.toml)
 [![Documentation](https://img.shields.io/badge/docs-msani.readthedocs.io-orange)](https://msani.readthedocs.io/)
-[![License](https://img.shields.io/badge/license-Apache%202.0-yellow)](LICENSE)
+[![License](https://img.shields.io/badge/license-Apache%202.0-yellow)](https://github.com/carlssonlab/MolSanitizer/blob/main/LICENSE)
 
 MolSanitizer (`msani`) prepares SMILES libraries for structure-based drug
 discovery. It standardizes molecules (salt removal, tautomer and protonation
@@ -10,7 +10,7 @@ state enumeration, stereoisomer enumeration), filters undesirable substructures
 (PAINS, reactive functional groups, and more), and generates 3D conformers in
 formats ready for docking.
 
-<img src="./docs/source/_static/Workflow.png" width="1000" alt="MolSanitizer workflow">
+<img src="https://raw.githubusercontent.com/carlssonlab/MolSanitizer/main/docs/source/_static/Workflow.png" width="1000" alt="MolSanitizer workflow">
 
 ## Installation
 
@@ -36,7 +36,7 @@ Create `example.smi` (one SMILES and ID per line, no header):
 
 ```text
 CC(=O)O acetate
-c1ccccc1 phenyl
+c1ccccc1 benzene
 ```
 
 Prepare the SMILES (strip salts, enumerate tautomers, protonate at pH 7):
@@ -49,7 +49,7 @@ This writes `example_clean.smi`, where acetic acid is deprotonated:
 
 ```text
 CC(=O)[O-] acetate
-c1ccccc1 phenyl
+c1ccccc1 benzene
 ```
 
 Generate 3D structures for docking from the prepared file:
@@ -57,11 +57,12 @@ Generate 3D structures for docking from the prepared file:
 ```bash
 msani -i example_clean.smi --gen3d --format sdf --numconfs 20   # SDF conformer ensembles
 msani -i example_clean.smi --gen3d --format db2                 # DOCK3/DOCK6
+msani -i example_clean.smi --gen3d --format mol2                 # Mol2 format
 msani -i example_clean.smi --gen3d --format pdbqt               # AutoDock Vina (needs [pdbqt])
 msani -i example_clean.smi --gen3d --format oeb.lib             # OpenEye FRED/HYBRID (needs [oe])
 ```
 
-Each format is written to its own directory (`sdf/`, `db2/`, `pdbqt/`, `oeb/`).
+Each format is written to its own directory (`sdf/`, `db2/`, `pdbqt/`, `oeb/`, `mol2/`).
 Several formats can be requested at once, e.g. `--format sdf db2`. Run
 `msani -h` for all options, and see the
 [quickstart](https://msani.readthedocs.io/en/latest/quickstart.html) and
@@ -110,9 +111,9 @@ at [msani.readthedocs.io](https://msani.readthedocs.io).
 ## Contributing
 
 Contributions are welcome — bug reports, feature suggestions, and pull
-requests alike. Please read [CONTRIBUTING.md](CONTRIBUTING.md) before getting
+requests alike. Please read [CONTRIBUTING.md](https://github.com/carlssonlab/MolSanitizer/blob/main/CONTRIBUTING.md) before getting
 started. Python workflows live in `msani/`; native code and bindings are in
-[`msani/cpp/`](msani/cpp/README.md).
+[`msani/cpp/`](https://github.com/carlssonlab/MolSanitizer/blob/main/msani/cpp/README.md).
 
 MolSanitizer is rule-based and draws on experience from prior drug discovery
 projects. Suggestions for new filter, tautomer, or protonation rules are
@@ -124,11 +125,11 @@ If you use MolSanitizer in your research, please cite:
 
 > Lam, T.-P.; Pach, S.; Ullmann, P.; et al. MolSanitizer: An open-source
 > pipeline to prepare large-scale small-molecule databases for virtual
-> screening. *ChemRxiv* **2026**. DOI: [TODO](TODO)
+> screening. *ChemRxiv* **2026**. DOI: [TBA](TODO)
 
 ## License
 
-Distributed under the Apache License 2.0. See [LICENSE](LICENSE).
+Distributed under the Apache License 2.0. See [LICENSE](https://github.com/carlssonlab/MolSanitizer/blob/main/LICENSE).
 
 ## Contact
 

@@ -8,12 +8,12 @@ with these two lines, without a header (both tab and space are accepted as separ
 .. code-block:: text
 
     CC(=O)O acetate
-    c1ccccc1 phenyl
+    c1ccccc1 benzene
 
-Enhanced SMILES are supported, but the user needs to use the ``-e`` or ``--extended`` flag to enable them with tab separation. For example, the following line is valid:
+Extended SMILES are supported, but the user needs to use the ``-e`` or ``--extended`` flag to enable them with tab separation. For example, the following line is valid:
 
 .. code-block:: text
-    
+
     CC[C@H]1[C@H](C(=O)N[C@H](C)CCCC(=O)NOCC(F)(F)F)CCN1C |&1:2,3|      Cmp0001
     CCC(CC(=O)N(CC)CCC(=O)N1CCO[C@H]2COC[C@H]21)C(F)F |&1:17,21|        Cmp0002
     CC(C)CC(CNC(=O)C1CSC1)C(=O)N[C@H]1C[C@@H](O)[C@H](F)C1 |&1:16,18,20|        Cmp0003
@@ -31,7 +31,7 @@ original identifiers. Acetic acid is deprotonated and benzene remains neutral:
 .. code-block:: text
 
     CC(=O)[O-] acetate
-    c1ccccc1 phenyl
+    c1ccccc1 benzene
 
 Personal defaults can affect a run; inspect them with ``msani config show``.
 For a project, save your selected options in a job configuration as described
@@ -44,7 +44,7 @@ Generate SDF conformers
 
     $ msani -i example_clean.smi --gen3d --format sdf --numconfs 20
 
-Successful generation creates ``sdf/acetate.sdf`` and ``sdf/phenyl.sdf``.
+Successful generation creates ``sdf/acetate.sdf`` and ``sdf/benzene.sdf``.
 Each SDF can contain multiple conformer records, up to the requested limit;
 these rigid examples may produce fewer than 20. The command also writes
 ``example_clean_clean.smi``. Unspecified stereochemistry is enumerated by
@@ -61,7 +61,7 @@ Install the optional dependencies, then prepare PDBQT files:
     $ msani -i example_clean.smi --gen3d --format pdbqt
 
 Successful generation creates ``pdbqt/acetate.pdbqt`` and
-``pdbqt/phenyl.pdbqt``. PDBQT is prepared with Meeko from the initial embedded
+``pdbqt/benzene.pdbqt``. PDBQT is prepared with Meeko from the initial embedded
 structure, with rotatable bonds for docking; it does not export the sampled
 SDF ensemble. To request both formats in one run, use ``--format sdf pdbqt``.
 
@@ -74,7 +74,7 @@ No additional dependencies are required to prepare DB2 files for docking with DO
 
     $ msani -i example_clean.smi --gen3d --format db2
 
-Successful generation creates ``db2/acetate.db2`` and ``db2/phenyl.db2``.
+Successful generation creates ``db2/acetate.db2`` and ``db2/benzene.db2``.
 
 .. caution::
 

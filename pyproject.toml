@@ -4,8 +4,8 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "MolSanitizer"
-version = "0.7.2a1"
-description = "An Efficient In-silico Refinement pipeline for Virtual Screening (protonation, tautomers,...)"
+version = "0.7.2a3"
+description = "An open-source pipeline to prepare large-scale small-molecule databases for virtual screening"
 readme = "README.md"
 authors = [
     {name = "Thua-Phong Lam", email = "phong.lam@icm.uu.se"},
@@ -14,7 +14,7 @@ authors = [
 ]
 license = "Apache-2.0"
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Programming Language :: Python :: 3.10",
     'Programming Language :: Python :: 3.11',
     'Programming Language :: Python :: 3.12',
@@ -25,7 +25,7 @@ classifiers = [
     "Operating System :: Microsoft :: Windows",
     "Topic :: Scientific/Engineering :: Chemistry",
 ]
-keywords = ["docking", "drug design"]
+keywords = ["docking", "drug design", "virtual screening", "cheminformatics", "molecular modeling", "ligand preparation"]
 requires-python = ">=3.10,<3.15"
 dependencies = [
     "pandas",
@@ -49,9 +49,6 @@ strain = "msani.filtering.strain_filter:main"
 m_ionizer = "msani.moltransform.ionizer:main"
 m_tautomerizer = "msani.moltransform.tautomerizer:main"
 gen3d = "msani.conformers.conformers:main"
-
-[tool.setuptools]
-packages = ["msani"]
 
 [tool.scikit-build]
 cmake.source-dir = "."
