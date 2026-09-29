@@ -39,6 +39,17 @@ CC(=O)O acetate
 c1ccccc1 benzene
 ```
 
+CXSMILES is recognized automatically. Use tab-separated structures and IDs,
+or wrap the complete CXSMILES field in double quotes for space-separated input:
+
+```text
+"C[C@H](O)F |&1:1|" compound_001
+CCO ethanol
+```
+
+Keep column separators consistent throughout the file. The optional `-e` flag
+forces tab-separated parsing; omit it for the space-separated example above.
+
 Prepare the SMILES (strip salts, enumerate tautomers, protonate at pH 7):
 
 ```bash

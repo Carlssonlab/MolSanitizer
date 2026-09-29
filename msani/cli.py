@@ -15,7 +15,9 @@ from pandas import DataFrame, read_csv  # only what you use
 from rdkit import Chem, rdBase
 
 from msani.io import parsers, loggers
-from msani.io.readers import detect_input_compression
+from msani.io.readers import (
+    detect_input_compression, detect_input_separator, validate_input_chunk,
+)
 from msani.api import Msani  
 
 logger = logging.getLogger('msani')
@@ -85,7 +87,7 @@ def get_metal_error_file(args, input_file_path=None):
         return pathlib.Path(f"{args.prefix}_metal_error.smi")
     return pathlib.Path(f"{input_file_path.stem}_metal_error.smi")
 
-def read_input_file(input_file, is_enamine, is_synthon):
+def read_input_file(input_file, is_extended, is_synthon):
     compression = detect_input_compression(input_file)
     if compression:
         logger.info(f'Using {compression} compression for input')
@@ -106,25 +108,20 @@ def read_input_file(input_file, is_enamine, is_synthon):
             dtype={'smiles': str, 'ids': str, 'longname': str},
             **read_options,
         )
-    if is_enamine:
-        logger.info('Using Enamine format for parsing')
-        return read_csv(
-            input_file,
-            sep='\t',
-            names=['smiles', 'ids'],
-            usecols=[0, 1],
-            dtype={'smiles': str, 'ids': str},
-            **read_options,
-        )
-    else:
-        return read_csv(
-            input_file,
-            sep=r'\s+',
-            names=['smiles', 'ids'],
-            usecols=[0, 1],
-            dtype={'smiles': str, 'ids': str},
-            **read_options,
-        )
+    separator = '\t' if is_extended else detect_input_separator(input_file, compression)
+    if is_extended:
+        logger.info('Using Extended SMILES format for parsing')
+    elif separator == '\t':
+        logger.info('Detected tab-separated input; CXSMILES extensions will be preserved')
+    return read_csv(
+        input_file,
+        sep=separator,
+        engine='c',
+        names=['smiles', 'ids'],
+        usecols=[0, 1],
+        dtype={'smiles': str, 'ids': str},
+        **read_options,
+    )
     
 def process_files(processor: Msani, args):
     if args.standardize:
@@ -143,41 +140,43 @@ def process_files(processor: Msani, args):
             metal_error_file.unlink(missing_ok=True)
             metal_error_files.add(metal_error_file)
         
-        df_input = read_input_file(input_file, args.extended, args.synthon)
+        with read_input_file(input_file, args.extended, args.synthon) as df_input:
+            record_offset = 0
+            for step, chunk in enumerate(df_input, start=1):
+                validate_input_chunk(chunk, input_file, record_offset)
+                record_offset += len(chunk)
+                new_start_time = time.time()
+                chunk = apply_processes(chunk, processor, rejected_file, metal_error_file)
+                if not chunk.empty:
+                    if args.synthon and not(args.standardize):
+                        chunk.to_csv(output_file,
+                                     index=False,
+                                     mode='a',
+                                     columns=['smiles', 'ids', 'longname'],
+                                     header=False,
+                                     sep=' ')
+                    else:
+                        chunk.to_csv(output_file,
+                                     index=False,
+                                     mode='a',
+                                     columns=['smiles', 'ids'],
+                                     header=False,
+                                     sep=' ')
 
-        for step, chunk in enumerate(df_input, start=1):
-            new_start_time = time.time()
-            chunk = apply_processes(chunk, processor, rejected_file, metal_error_file)
-            if not chunk.empty:
-                if args.synthon and not(args.standardize):
-                    chunk.to_csv(output_file,
-                                 index=False,
-                                 mode='a',
-                                 columns=['smiles', 'ids', 'longname'],
-                                 header=False,
-                                 sep=' ')
-                else:
-                    chunk.to_csv(output_file,
-                                 index=False,
-                                 mode='a',
-                                 columns=['smiles', 'ids'],
-                                 header=False,
-                                 sep=' ')
+                if args.gen3d:
+                    from msani.conformers import conformers
+                    conformers.gen_conf_chunk(chunk, args, input_file_path.stem)
 
-            if args.gen3d:
-                from msani.conformers import conformers
-                conformers.gen_conf_chunk(chunk, args, input_file_path.stem)
-            
-            if not args.test:
-                if step == 1: 
-                    time_step1 = time.time()-new_start_time
-                # Only log time for step 1 if there are more than 1 chunk, otherwise it will be logged in the whole program level
-                if step == 2:
-                    log_step_time(time_step1, 1)
-                    log_step_time(time.time()-new_start_time, 2)
-                elif step > 2:
-                    log_step_time(time.time()-new_start_time, step)
-                
+                if not args.test:
+                    if step == 1:
+                        time_step1 = time.time()-new_start_time
+                    # Only log time for step 1 if there are more than 1 chunk, otherwise it will be logged in the whole program level
+                    if step == 2:
+                        log_step_time(time_step1, 1)
+                        log_step_time(time.time()-new_start_time, 2)
+                    elif step > 2:
+                        log_step_time(time.time()-new_start_time, step)
+
 
 def process_smiles(processor: Msani, args):
     rejected_file = "msani_rejected.txt"

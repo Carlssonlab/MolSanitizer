@@ -75,8 +75,9 @@ Common problems
 ---------------
 
 * **Invalid SMILES:** check the input syntax, the two-column layout, and the
-  absence of a header. Extended SMILES require tab-separated input and
-  ``--extended``.
+  absence of a header. Use tab-separated input for unquoted CXSMILES, or quote
+  the entire CXSMILES field in double quotes for space-separated input.
+  ``--extended`` forces tab-separated parsing; omit it for space-separated input.
 * **No molecules remain:** inspect the rejection reasons and enabled filters.
   ``--lazy`` enables all unwanted-filter categories; choose narrower options
   when appropriate for your project.

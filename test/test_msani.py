@@ -106,7 +106,7 @@ class Test_MolSanitizer(unittest.TestCase):
                     )
                     with cli.read_input_file(
                         input_path,
-                        is_enamine=False,
+                        is_extended=False,
                         is_synthon=False,
                     ) as chunks:
                         self.assertEqual(chunks.chunksize, 100_000)
