@@ -491,6 +491,7 @@ The advanced options can be accessed using the ``--help_advanced`` or ``-xh`` fl
     --noneutralize          Do not neutralize the molecule before tautomerization and protonation
     --notaurdkit            Do not use RDKit to canonicalize the tautomeric form of the input SMILES
     --rigid, -r             Only align the DB2 on this rigid scaffold in SMARTS format. All rings if not provided.
+    --rigid_exclude         One or more SMILES/SMARTS that must not be part of the rigid part (molecules left without one are skipped).
     --tolerance, -tol       Minimum angle for differentiating two conformers (default: 30)
     --nringconfs, -nr       Maximum number of ring conformers to generate (default: 1)
     --allowNonring          Allow the full sampling of non-ring compounds (default undersample to 30 confs).

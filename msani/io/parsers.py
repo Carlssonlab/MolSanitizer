@@ -395,6 +395,13 @@ def parseArguments(args = None, batch_mode = False):
         default=defaults.get('rigid', None),
         help='Only align the DB2 on this rigid scaffold in SMARTS format. All rings if not provided.' if show_advanced_help else argparse.SUPPRESS)
     gen3d.add_argument(
+        '--rigid_exclude',
+        type = str,
+        nargs = '+',
+        default=defaults.get('rigid_exclude', None),
+        help='One or more SMILES/SMARTS substructures that must not be part of the rigid part used for DB2 alignment.\n'
+             'Molecules without any remaining rigid part are skipped.' if show_advanced_help else argparse.SUPPRESS)
+    gen3d.add_argument(
         '--nringconfs', '-nr',
         type=int,
         default=defaults.get('nringconfs', 1),

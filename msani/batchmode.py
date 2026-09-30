@@ -6,6 +6,7 @@ from msani import __version__
 
 
 import os
+import shlex
 import sys
 import time
 import math
@@ -486,7 +487,7 @@ def parse_flags_single_job(args: dict, parser):
                 flags.append(f"--{arg}")
         elif isinstance(current_value, list):
             # List arguments
-            value_str = " ".join(map(str, current_value))
+            value_str = " ".join(shlex.quote(str(value)) for value in current_value)
             flags.append(f"--{arg} {value_str}")
         else:
             # Other arguments
