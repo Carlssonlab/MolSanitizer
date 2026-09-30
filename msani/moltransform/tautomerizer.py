@@ -417,6 +417,11 @@ class Tautomerizer:
         Returns:
             dict: Canonical SMILES deduplication keys mapped to molecules.
         """
+        # TautomerEnumerator outputs keep stale stereo perception, which gives a
+        # non-canonical key for pseudo-asymmetric ring centers (e.g. 1,3-cyclobutanes)
+        # and lets the same tautomer be collected twice.
+        mol = Chem.Mol(mol)
+        Chem.AssignStereochemistry(mol, cleanIt=True, force=True)
         initial_smiles = Chem.MolToSmiles(mol)
         unique_smiles = [initial_smiles]
         unique_mols = {initial_smiles: mol}
