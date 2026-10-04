@@ -2,7 +2,6 @@ from pathlib import Path
 import re
 
 from rdkit import Chem, RDLogger, rdBase
-from rdkit.Chem import FilterCatalog as RDFilterCatalog
 from rdkit.Chem import SaltRemover, rdMolDescriptors
 from rdkit.Chem.Descriptors import MolLogP
 from rdkit.Chem.MolStandardize import rdMolStandardize
@@ -675,6 +674,7 @@ class Filters():
         global _pains_catalog
         if rdBase.rdkitVersion < '2025.09.3':
             print('\nThe warning is expected and can be ignored.\n')
+        from rdkit.Chem import FilterCatalog as RDFilterCatalog
         if _pains_catalog is None:
             params = RDFilterCatalog.FilterCatalogParams()
             params.AddCatalog(RDFilterCatalog.FilterCatalogParams.FilterCatalogs.PAINS)
@@ -747,6 +747,9 @@ class Filters():
     @staticmethod
     def buildSMARTScatalog(smarts_df: DataFrame):
         """Compile ordered SMARTS patterns into an RDKit FilterCatalog."""
+        if rdBase.rdkitVersion < '2025.09.3':
+            print('\nThe warning is expected and can be ignored.\n')
+        from rdkit.Chem import FilterCatalog as RDFilterCatalog
         catalog = RDFilterCatalog.FilterCatalog()
         for substructure in smarts_df.itertuples(index=False):
             label = str(substructure.label)
