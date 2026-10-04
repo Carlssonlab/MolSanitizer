@@ -174,6 +174,7 @@ The file will be created in the current working directory with the name ``config
     # numconfs: 2000
     # energywindow: 25
     # rigid: None
+    # rigid_exclude: None # One or more SMILES/SMARTS, e.g. [c1ccoc1]
     # torsion: None # In case of modified torsion definitions
 
 Multiple-value arguments
@@ -184,6 +185,7 @@ The following arguments accept multiple values and can be specified as a list in
 - input_files:  list of input files
 - unwanted: choice of category for unwanted substructures filtering (options: all, regular, special, optional)
 - format: 3D output formats (options: db2.tgz, db2, mol2, pdbqt, sdf, oeb, oeb.lib)
+- rigid_exclude: SMILES/SMARTS substructures that must not be part of the rigid part
 
 These arguments can be specified as a list in the config file in the Python format:
 

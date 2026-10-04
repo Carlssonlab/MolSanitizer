@@ -44,4 +44,5 @@ pH_range: 0
 # numconfs: 2000
 # energywindow: 25
 # rigid: None
+# rigid_exclude: None # One or more SMILES/SMARTS, e.g. [c1ccoc1]
 # torsion: None # In case of modified torsion definitions

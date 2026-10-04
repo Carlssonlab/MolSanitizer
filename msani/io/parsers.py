@@ -17,11 +17,15 @@ epilog ="""  Example input file (space or tab-separated file):
         C1CC(C(=O)NC1)SCCC=CBr  CP000000432409
         CC(C)(C)CNC(=O)c1ccsc1Br  CP000001634597
 
-  Extended SMILES is supported with the -e flag (SMILES and IDs need to be tab-separated):        
+  Unquoted CXSMILES uses tab-separated input (-e optionally forces tab separation):
         CC[C@H]1[C@H](C(=O)N[C@H](C)CCCC(=O)NOCC(F)(F)F)CCN1C |&1:2,3|	Cmp0001
         CCC(CC(=O)N(CC)CCC(=O)N1CCO[C@H]2COC[C@H]21)C(F)F |&1:17,21|	Cmp0002
         CC(C)CC(CNC(=O)C1CSC1)C(=O)N[C@H]1C[C@@H](O)[C@H](F)C1 |&1:16,18,20|	Cmp0003
             
+  For space-separated input, double-quote the complete CXSMILES field and omit -e:
+        "C[C@H](O)F |&1:1|" compound_001
+        CCO ethanol
+
   Personal defaults:
     Bundled defaults are used when no personal configuration exists.
     Run msani config init to customize pH, energywindow, numConfs,
@@ -109,9 +113,6 @@ def parseArguments(args = None, batch_mode = False):
 
     if batch_mode: info = info_batch
     else: info = info_standalone
-    if (set(['--db2', '-db2','--pdbqt','--långben']).intersection(set(args))):
-        print('\nThe flags --db2,--pdbqt,--långben are deprecated.\nCheck the help message for more information.\n')
-        exit(1)
     
     if '--help_advanced' in args or '-xh' in args: show_advanced_help = True
     else: show_advanced_help = False
@@ -146,7 +147,7 @@ def parseArguments(args = None, batch_mode = False):
         '--extended', '-e', 
         action='store_true', 
         default=defaults.get('extended', False), 
-        help='Extended SMILES reading (tab-separated files supported only).')
+        help='Force tab-separated SMILES/CXSMILES input (otherwise detected automatically).')
     io_group.add_argument(
         '--prefix', '-pre', 
         default=defaults.get('prefix', None), 
@@ -323,13 +324,13 @@ def parseArguments(args = None, batch_mode = False):
         '--pH', '-p',
         type=int,
         default=defaults.get('pH', pH),
-        help='pH for the protonation (default: 7)'
+        help=f'pH for the protonation (default: {pH})'
     )
     smiles_group.add_argument(
         '--pH_range', '-r',
         type=int,
         default=defaults.get('pH_range', pH_range),
-        help='pH range for the protonation (default: 0)'
+        help=f'pH range for the protonation (default: {pH_range})'
     )
     smiles_group.add_argument(
         '--notaurdkit',
@@ -393,6 +394,13 @@ def parseArguments(args = None, batch_mode = False):
         type = str,
         default=defaults.get('rigid', None),
         help='Only align the DB2 on this rigid scaffold in SMARTS format. All rings if not provided.' if show_advanced_help else argparse.SUPPRESS)
+    gen3d.add_argument(
+        '--rigid_exclude',
+        type = str,
+        nargs = '+',
+        default=defaults.get('rigid_exclude', None),
+        help='One or more SMILES/SMARTS substructures that must not be part of the rigid part used for DB2 alignment.\n'
+             'Molecules without any remaining rigid part are skipped.' if show_advanced_help else argparse.SUPPRESS)
     gen3d.add_argument(
         '--nringconfs', '-nr',
         type=int,

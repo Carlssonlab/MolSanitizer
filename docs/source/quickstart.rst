@@ -10,13 +10,15 @@ with these two lines, without a header (both tab and space are accepted as separ
     CC(=O)O acetate
     c1ccccc1 benzene
 
-Extended SMILES are supported, but the user needs to use the ``-e`` or ``--extended`` flag to enable them with tab separation. For example, the following line is valid:
+CXSMILES (extended SMILES) is recognized automatically. Unquoted CXSMILES needs
+tab-separated structures and IDs throughout the file. Alternatively, enclose the
+complete CXSMILES field in double quotes to use space-separated input:
 
 .. code-block:: text
 
-    CC[C@H]1[C@H](C(=O)N[C@H](C)CCCC(=O)NOCC(F)(F)F)CCN1C |&1:2,3|      Cmp0001
-    CCC(CC(=O)N(CC)CCC(=O)N1CCO[C@H]2COC[C@H]21)C(F)F |&1:17,21|        Cmp0002
-    CC(C)CC(CNC(=O)C1CSC1)C(=O)N[C@H]1C[C@@H](O)[C@H](F)C1 |&1:16,18,20|        Cmp0003
+    "C[C@H](O)F |&1:1|" compound_001
+    CCO ethanol
+
 
 Prepare SMILES
 --------------

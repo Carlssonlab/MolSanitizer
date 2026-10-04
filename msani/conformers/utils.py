@@ -561,25 +561,31 @@ def count_confs_by_rotbonds(mol,
     return int(total_confs), match_torlib_clean, hetero_H_bonds
 
 
-def find_rigid_part(mol, request_alignment=None):
+def find_excluded_atoms(mol, exclude_alignment=None):
+    '''Return the atom indices matched by any of the exclusion patterns.'''
+    excluded = set()
+    for pattern in exclude_alignment or []:
+        for match in mol.GetSubstructMatches(pattern):
+            excluded.update(match)
+    return excluded
+
+def find_rigid_part(mol, request_alignment=None, exclude_alignment=None):
     '''Find fused ring system of the molecule as the rigid part, 
-    if none, use the hierarchical rules in rigid_part_rules.txt'''
+    if none, use the hierarchical rules in rigid_part_rules.txt.
+    Rigid parts sharing any atom with a match of exclude_alignment
+    (a list of SMARTS query mols) are discarded.'''
 
     rigid_part = []
     rule_label = None
+    excluded = find_excluded_atoms(mol, exclude_alignment)
     
     # If the user request for only a specific ring as rigid segment.
     if request_alignment:
-        matches = mol.GetSubstructMatches((request_alignment))
-        if len(matches) != 0:
-            if len(matches) > 1: 
-                logger.warning(f"Multiple matches found for the requested alignment: {Chem.MolToSmiles(Chem.RemoveHs(mol))}. Will align by both.")
-            for match in matches:
-                rigid_part.append(match)
-            rule_label = None
-        else:
-            rigid_part = []
-            rule_label = None
+        matches = [match for match in mol.GetSubstructMatches((request_alignment))
+                   if excluded.isdisjoint(match)]
+        if len(matches) > 1: 
+            logger.warning(f"Multiple matches found for the requested alignment: {Chem.MolToSmiles(Chem.RemoveHs(mol))}. Will align by both.")
+        rigid_part = list(matches)
         return rigid_part, rule_label
     
     # Find fused ring systems
@@ -598,14 +604,32 @@ def find_rigid_part(mol, request_alignment=None):
         rigid_part.append(fused_set)
     
     rigid_part = sorted(rigid_part, key = lambda x: len(x), reverse = True)
+    if excluded:
+        has_rings = bool(rigid_part)
+        rigid_part = [part for part in rigid_part if excluded.isdisjoint(part)]
+        # All ring systems were excluded, do not fall back to the non-ring rules
+        if has_rings: return rigid_part, rule_label
     if len(rigid_part) == 0: 
         for rule in rigid_rules.itertuples():
-            matches = mol.GetSubstructMatches(rule.mol)
+            matches = [match for match in mol.GetSubstructMatches(rule.mol)
+                       if excluded.isdisjoint(match)]
             if len(matches) > 0:
                 rigid_part = [matches[0]]
                 rule_label = rule.label
                 break
     return rigid_part, rule_label
+
+def parse_rigid_exclude(patterns):
+    '''Convert --rigid_exclude SMILES/SMARTS strings into query mols.'''
+    if not patterns: return None
+    if isinstance(patterns, str): patterns = [patterns]
+    queries = []
+    for pattern in patterns:
+        query = Chem.MolFromSmarts(canonicalize_if_smiles(pattern))
+        if query is None:
+            raise ValueError(f"Invalid SMILES/SMARTS for --rigid_exclude: {pattern}")
+        queries.append(query)
+    return queries
     
 def align_and_convert_to_db2(ring_conf, rigid_scaffold, solv_obj, db2_topology):
     """

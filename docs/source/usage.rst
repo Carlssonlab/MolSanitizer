@@ -19,13 +19,26 @@ chunks rather than loading the whole file into memory.
    c1c(coc1Br)C(=O)NC2CCSC2  CP000001645677
    c1c(c([nH]n1)C(=O)NCC2(CC2)N)Br  CP000001647414
 
-Extended SMILES is supported (by the ``-e`` or ``--extended`` flag, but the database needs to be tab-separated.
+CXSMILES (extended SMILES) is recognized automatically. For unquoted CXSMILES,
+use tabs between the complete SMILES/CXSMILES field and the molecule ID on every
+line, including ordinary SMILES records. Alternatively, space-separated files
+can wrap the complete CXSMILES field in double quotes (example below).
+MolSanitizer inspects at most 64 KiB
+to select the separator from the first nonblank record, then uses pandas'
+chunked C parser. The ``-e`` or ``--extended`` flag forces tab-separated parsing.
+Unquoted space-separated CXSMILES and inconsistent column separators are not supported.
+Missing IDs or CX extensions found in the ID column stop processing before the
+affected chunk is processed; earlier chunks may already have produced output.
 
 .. code-block:: console
 
     CC[C@H]1[C@H](C(=O)N[C@H](C)CCCC(=O)NOCC(F)(F)F)CCN1C |&1:2,3|	Cmp0001
     CCC(CC(=O)N(CC)CCC(=O)N1CCO[C@H]2COC[C@H]21)C(F)F |&1:17,21|	Cmp0002
     CC(C)CC(CNC(=O)C1CSC1)C(=O)N[C@H]1C[C@@H](O)[C@H](F)C1 |&1:16,18,20|	Cmp0003
+
+For space-separated input, quote the entire structure, including its CX extension.
+The file reader removes the enclosing double quotes before passing the structure
+to RDKit. Ordinary SMILES without spaces do not need quotes. 
 
 Overview
 -----------------------------------
@@ -36,7 +49,7 @@ This is an example of a lazy pipeline that uses all the preparation and processi
 
 .. code-block:: console
 
-    $ msani -i example.smi --extended --lazy  # For extended SMILES format
+    $ msani -i example.smi --extended --lazy  # Optional: force tab-separated input
     $ msani -i example.smi --lazy
 
     # This is equivalent to:
@@ -112,7 +125,7 @@ Help message
     --input_files, -i     Input files containing chemical structures (plain, gzip, bzip2, or xz)
     --input_list, -il     Path to a text file containing one or more input file paths (one per line).
     --smiles, -s          Input SMILES strings
-    --extended, -e        Extended SMILES reading (tab-separated files supported only).
+    --extended, -e        Force tab-separated SMILES/CXSMILES input (otherwise detected automatically).
     --prefix, -pre        Prefix for the output files. (default: input file name).
     --synthon, -stn       Synthon mode (Additional metadata about the capping groups required)
 
@@ -193,7 +206,7 @@ Help message
             C1CC(C(=O)NC1)SCCC=CBr  CP000000432409
             CC(C)(C)CNC(=O)c1ccsc1Br  CP000001634597
 
-    Extended SMILES is supported with the -e flag (SMILES and IDs need to be tab-separated):
+    Unquoted CXSMILES uses tab-separated input (-e optionally forces tab separation):
             CC[C@H]1[C@H](C(=O)N[C@H](C)CCCC(=O)NOCC(F)(F)F)CCN1C |&1:2,3|  Cmp0001
             CCC(CC(=O)N(CC)CCC(=O)N1CCO[C@H]2COC[C@H]21)C(F)F |&1:17,21|    Cmp0002
             CC(C)CC(CNC(=O)C1CSC1)C(=O)N[C@H]1C[C@@H](O)[C@H](F)C1 |&1:16,18,20|    Cmp0003
@@ -478,6 +491,7 @@ The advanced options can be accessed using the ``--help_advanced`` or ``-xh`` fl
     --noneutralize          Do not neutralize the molecule before tautomerization and protonation
     --notaurdkit            Do not use RDKit to canonicalize the tautomeric form of the input SMILES
     --rigid, -r             Only align the DB2 on this rigid scaffold in SMARTS format. All rings if not provided.
+    --rigid_exclude         One or more SMILES/SMARTS that must not be part of the rigid part (molecules left without one are skipped).
     --tolerance, -tol       Minimum angle for differentiating two conformers (default: 30)
     --nringconfs, -nr       Maximum number of ring conformers to generate (default: 1)
     --allowNonring          Allow the full sampling of non-ring compounds (default undersample to 30 confs).

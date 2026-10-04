@@ -106,7 +106,7 @@ class Test_MolSanitizer(unittest.TestCase):
                     )
                     with cli.read_input_file(
                         input_path,
-                        is_enamine=False,
+                        is_extended=False,
                         is_synthon=False,
                     ) as chunks:
                         self.assertEqual(chunks.chunksize, 100_000)
@@ -315,6 +315,15 @@ class Test_MolSanitizer(unittest.TestCase):
             cli.clean_data(args)
             self.compare_relative(f'{temp_dir}/dummy_output_clean.txt',
                                   f'{self.path}/out_pseudochiral.txt')
+
+    def test_tautomers_pseudo_chiral_no_duplicates(self):
+        """The enumeration seed from TautomerEnumerator must get a canonical key,
+        otherwise cis/trans ring stereo lets the same tautomer be collected twice."""
+        from msani.moltransform.tautomerizer import Tautomerizer
+        tautomers = Tautomerizer().tautomerize(
+            smiles='Cc1nc(O)nc(C(NC[C@H]2C[C@H](C2)C(NCC3CCCC3)=O)=O)c1')
+        self.assertEqual(len(tautomers), 2)
+        self.assertEqual(tautomers, [Chem.CanonSmiles(smiles) for smiles in tautomers])
 
     def test_painsfilter(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -1361,6 +1370,80 @@ class TestRigidPart(unittest.TestCase):
             Chem.MolFromSmiles(self.SMILES), Chem.MolFromSmarts('CC'))
         self.assertEqual(parts, [])
         self.assertIsNone(label)
+
+    # Xtal-like ligand: benzene + linker + furan
+    BENZYL_FURAN = 'c1ccccc1CCc1ccco1'
+
+    def test_rigid_exclude_removes_ring_system(self):
+        mol = Chem.MolFromSmiles(self.BENZYL_FURAN)
+        parts, _ = utils.find_rigid_part(mol)
+        self.assertEqual(len(parts), 2)
+        parts, label = utils.find_rigid_part(mol, exclude_alignment=utils.parse_rigid_exclude(['c1ccoc1']))
+        self.assertEqual(len(parts), 1)
+        self.assertEqual({mol.GetAtomWithIdx(i).GetSymbol() for i in parts[0]}, {'C'})
+        self.assertEqual(len(parts[0]), 6)
+        self.assertIsNone(label)
+
+    def test_rigid_exclude_any_overlap_and_multiple_patterns(self):
+        # Fused benzofuran shares atoms with furan, so the whole system is excluded
+        mol = Chem.MolFromSmiles('c1ccc2occc2c1CCc1ccsc1')
+        parts, _ = utils.find_rigid_part(mol, exclude_alignment=utils.parse_rigid_exclude('o1cccc1'))
+        self.assertEqual([len(part) for part in parts], [5])
+        parts, _ = utils.find_rigid_part(mol, exclude_alignment=utils.parse_rigid_exclude(['o1cccc1', 'c1ccsc1']))
+        self.assertEqual(parts, [])
+
+    def test_rigid_exclude_no_fallback_when_all_rings_excluded(self):
+        parts, label = utils.find_rigid_part(
+            Chem.MolFromSmiles('CCc1ccco1'), exclude_alignment=utils.parse_rigid_exclude(['c1ccoc1']))
+        self.assertEqual(parts, [])
+        self.assertIsNone(label)
+
+    def test_rigid_exclude_acyclic_rule_skips_excluded_atoms(self):
+        mol = Chem.MolFromSmiles('CCO')
+        parts, label = utils.find_rigid_part(mol, exclude_alignment=utils.parse_rigid_exclude(['[CH3]']))
+        self.assertEqual(label, 'One_C_with_nonH')
+        self.assertNotIn(0, parts[0])
+
+    def test_rigid_exclude_with_requested_alignment(self):
+        mol = Chem.MolFromSmiles('c1ccccc1Cc1ccccc1C(=O)O')
+        request = Chem.MolFromSmarts('c1ccccc1')
+        parts, _ = utils.find_rigid_part(mol, request)
+        self.assertEqual(len(parts), 2)
+        parts, _ = utils.find_rigid_part(mol, request, utils.parse_rigid_exclude(['cC(=O)O']))
+        self.assertEqual(len(parts), 1)
+        self.assertNotIn(12, parts[0])  # ring carbon bearing the acid
+
+    def test_rigid_exclude_invalid_pattern(self):
+        with self.assertRaises(ValueError):
+            utils.parse_rigid_exclude(['c1cc[oops'])
+        self.assertIsNone(utils.parse_rigid_exclude(None))
+
+    def test_rigid_exclude_sampling_skips_molecule(self):
+        generator = ConformerGenerator('CCc1ccco1', exclude_alignment=utils.parse_rigid_exclude(['c1ccoc1']))
+        with patch('msani.conformers.conformers.log_error') as log_error:
+            generator.conf_sampling(numConfs=30)
+        log_error.assert_called_once()
+        self.assertEqual(generator.atom_maps, [])
+
+    def test_rigid_exclude_db2_blocks(self):
+        def count_rigid_blocks(**kwargs):
+            db2 = ConformerGenerator(self.BENZYL_FURAN, name='benzyl_furan', **kwargs).to_db2(numConfs=100, as_string=True)
+            return sum(line.startswith('M ') for line in db2.splitlines()) / 5  # 5 lines per rigid scaffold
+        cwd = os.getcwd()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            os.chdir(temp_dir)
+            try:
+                self.assertEqual(count_rigid_blocks(), 2)
+                self.assertEqual(count_rigid_blocks(exclude_alignment=utils.parse_rigid_exclude(['c1ccoc1'])), 1)
+            finally:
+                os.chdir(cwd)
+
+    def test_rigid_exclude_cli_and_batch_flags(self):
+        args, parser = parsers.parseArguments(
+            ['--rigid_exclude', 'c1ccoc1', '[#6]1:[#6]:[#6]:[#16]:[#6]:1'], batch_mode=True)
+        self.assertEqual(args.rigid_exclude, ['c1ccoc1', '[#6]1:[#6]:[#6]:[#16]:[#6]:1'])
+        flags = parse_flags_single_job(args, parser)
+        self.assertIn("--rigid_exclude c1ccoc1 '[#6]1:[#6]:[#6]:[#16]:[#6]:1'", flags)
 
     def test_carbon_free_sampling(self):
         for mode in ('fixed', 'random', 'ignoretorlib'):

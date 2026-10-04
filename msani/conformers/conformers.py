@@ -164,6 +164,8 @@ class ConformerGenerator:
         The number of CPU cores to use, by default 1.
     request_alignment : str, optional
         The ring alignment in SMILES or SMARTS to support constrained docking, by default None.
+    exclude_alignment : list, optional
+        SMARTS query mols; rigid parts sharing any atom with their matches are not used for alignment, by default None.
     ignoreTorlib : bool, optional
         Whether to ignore the torsion library, by default False.
     clash_scale : float, optional
@@ -200,6 +202,7 @@ class ConformerGenerator:
                  num_ring_confs = 1, 
                  numcores = 1, 
                  request_alignment = None,
+                 exclude_alignment = None,
                  ignoreTorlib = False,
                  clash_scale = 0.6,
                  rmsd = 0.5,
@@ -220,6 +223,7 @@ class ConformerGenerator:
             num_ring_confs (int): Number of ring conformers to generate
             numcores (int): Number of CPU cores to use
             request_alignment (str): Ring alignment in SMILES or SMARTS to support constrained docking
+            exclude_alignment (list): SMARTS query mols whose matches must not be part of the rigid part
             ignoreTorlib (bool): Whether to ignore the torsion library
             clash_scale (float): Scale applied to the sum of van der Waals radii when detecting non-bonded clashes.
             mode (str): Mode for conformer sampling ('fixed', 'random', 'ignoretorlib)
@@ -236,6 +240,7 @@ class ConformerGenerator:
         self.num_ring_confs = num_ring_confs
         self.numcores = numcores
         self.request_alignment = request_alignment
+        self.exclude_alignment = exclude_alignment
         self.ignoreTorlib = ignoreTorlib
         self.conf_sampled = False
         self.clash_scale = clash_scale
@@ -281,6 +286,7 @@ class ConformerGenerator:
                            ring_confs = None,
                            mol2_str = None,
                            request_alignment = None,
+                           exclude_alignment = None,
                            forcefield = 'MMFF94s',
                            mode:str = 'vs',
                            tolerance = 30,
@@ -296,8 +302,8 @@ class ConformerGenerator:
         instance = cls(
             smiles, name=name, pre_embed=True, forcefield=forcefield,
             randomSeed=randomSeed, numcores=numcores, num_ring_confs=num_ring_confs,
-            request_alignment=request_alignment, mode=mode, tolerance=tolerance,
-            clash_scale=clash_scale, rmsd=rmsd, VERBOSE=VERBOSE)
+            request_alignment=request_alignment, exclude_alignment=exclude_alignment,
+            mode=mode, tolerance=tolerance, clash_scale=clash_scale, rmsd=rmsd, VERBOSE=VERBOSE)
         
         # Override the instance attributes
         mol = Chem.Mol(amsol_mol)
@@ -850,10 +856,11 @@ class ConformerGenerator:
         
 
         # Find the rigid part only once outside the loop to save processing time
-        self.atom_maps, self.label_map = utils.find_rigid_part(self.ring_confs[0], request_alignment)
+        self.atom_maps, self.label_map = utils.find_rigid_part(self.ring_confs[0], request_alignment, self.exclude_alignment)
         # Molecules which don't have rings are not of interest --> only sample limitedly.
-        if request_alignment and not self.atom_maps:
+        if (request_alignment or self.exclude_alignment) and not self.atom_maps:
             log_error(self.smiles, self.name)
+            logger.error(f'No rigid part left for {self.name} after applying --rigid/--rigid_exclude. No conformers are generated')
             return
         # For very flexible molecules, we need to sample more, then filter by energy later
         else:
@@ -1000,11 +1007,11 @@ class ConformerGenerator:
                 print(f"\t{angle_map[idx]} {score_map[idx]}")
 
         # Find the rigid part only once outside the loop to save processing time
-        self.atom_maps, self.label_map = utils.find_rigid_part(self.ring_confs[0], request_alignment)
+        self.atom_maps, self.label_map = utils.find_rigid_part(self.ring_confs[0], request_alignment, self.exclude_alignment)
 
-        if request_alignment and not self.atom_maps:
+        if (request_alignment or self.exclude_alignment) and not self.atom_maps:
             log_error(self.smiles, self.name)
-            logger.error('No substructure found for the requested alignment. No conformers are generated')
+            logger.error(f'No rigid part left for {self.name} after applying --rigid/--rigid_exclude. No conformers are generated')
             return
         else:
             # In case of sulfonamides and cycloheptatrienes, we divine the numConfs by the number of ring conformers
@@ -1293,6 +1300,10 @@ class ConformerGenerator:
                                request_alignment = request_alignment)
             self.db2_sampling_time += time.perf_counter() - sampling_started
 
+        # Nothing to align on (e.g. --rigid unmatched or all rings excluded), already logged in conf_sampling
+        if not getattr(self, 'atom_maps', None):
+            return
+
         ### Output to DB2 ###
         if self.VERBOSE: print("Output to DB2...")
         os.makedirs(f"db2", exist_ok=True)
@@ -1413,7 +1424,7 @@ def _run_embedding_worker(smiles, name, config):
         process.close()
 
 
-def _create_conformer_generator(smiles, name, config, request_alignment):
+def _create_conformer_generator(smiles, name, config, request_alignment, exclude_alignment=None):
     """Create an embedder, enforcing the RDKit timeout with an OpenBabel fallback.
 
     Returns
@@ -1426,7 +1437,7 @@ def _create_conformer_generator(smiles, name, config, request_alignment):
         forcefield=config.forcefield, corina_path=config.corina_path,
         randomSeed=config.random_seed, num_ring_confs=config.ring_confs,
         numcores=config.num_cores, request_alignment=request_alignment,
-        mode=config.mode, tolerance=config.tolerance, rmsd=config.rmsd,
+        exclude_alignment=exclude_alignment, mode=config.mode, tolerance=config.tolerance, rmsd=config.rmsd,
         clash_scale=config.clash_scale, VERBOSE=config.verbose,
     )
     if config.method != 'rdkit':
@@ -1447,7 +1458,7 @@ def _create_conformer_generator(smiles, name, config, request_alignment):
     generator = ConformerGenerator.from_existing_data(
         smiles=smiles, name=name, amsol_mol=amsol_mol, ring_confs=ring_confs,
         mol2_str=mol2_str, request_alignment=request_alignment,
-        forcefield=config.forcefield, mode=config.mode, tolerance=config.tolerance,
+        exclude_alignment=exclude_alignment, forcefield=config.forcefield, mode=config.mode, tolerance=config.tolerance,
         randomSeed=config.random_seed, numcores=config.num_cores, num_ring_confs=config.ring_confs,
         rmsd=config.rmsd, clash_scale=config.clash_scale, VERBOSE=config.verbose,
     )
@@ -1506,7 +1517,7 @@ def _restore_db2_archive(archive, restart_tgz):
     return processed_mols
 
 
-def _process_conformer_row(row, config, request_alignment, archive, library=None, library_done=()):
+def _process_conformer_row(row, config, request_alignment, archive, library=None, library_done=(), exclude_alignment=None):
     smiles, name = row['smiles'], row['ids']
     longname = row.get('longname') if config.synthon else None
     random.seed(config.random_seed)
@@ -1522,7 +1533,7 @@ def _process_conformer_row(row, config, request_alignment, archive, library=None
                 'Open Babel was selected for embedding, but its obabel executable was not found. '
                 'Install Open Babel or use method="rdkit".'
             )
-        confgen, embedding_time = _create_conformer_generator(smiles, name, config, request_alignment)
+        confgen, embedding_time = _create_conformer_generator(smiles, name, config, request_alignment, exclude_alignment)
         confgen.validate_embedding()
         if 'pdbqt' in config.formats:
             confgen.to_pdbqt()
@@ -1589,6 +1600,7 @@ def gen_conf_chunk(df: DataFrame, args, input_file='0'):
     if not config.ignore_torlib and args.torsion:
         Torlib.add_custom_rules_from_file(args.torsion, debug=config.verbose)
     request_alignment = Chem.MolFromSmarts(utils.canonicalize_if_smiles(args.rigid)) if args.rigid else None
+    exclude_alignment = utils.parse_rigid_exclude(getattr(args, 'rigid_exclude', None))
     for directory, output_name in (('pdbqt', 'pdbqt'), ('sdf', 'sdf'), ('mol2', 'mol2'), ('oeb', 'oeb'), ('oeb', 'oeb.lib')):
         if output_name in config.formats:
             os.makedirs(directory, exist_ok=True)
@@ -1635,7 +1647,7 @@ def gen_conf_chunk(df: DataFrame, args, input_file='0'):
             if library_only and row['ids'] in library_done:
                 logger.info('Skipping %s because it is already in %s', row['ids'], output_oeb)
                 continue
-            timing_row = _process_conformer_row(row, config, request_alignment, archive, library, library_done)
+            timing_row = _process_conformer_row(row, config, request_alignment, archive, library, library_done, exclude_alignment)
             if timing_row:
                 timing_rows.append(timing_row)
     if config.timing:
@@ -1672,6 +1684,7 @@ def main():
     parser.add_argument('--timing', action='store_true', help='Log timing information for each step.')
     parser.add_argument('--nocleanup', action='store_false', dest='cleanup', help='Do not remove intermediate files after processing.')
     parser.add_argument('--rigid', '-r', type=str, default=None, help='SMILES/SMARTS for conformers to be aligned to.')
+    parser.add_argument('--rigid_exclude', type=str, nargs='+', default=None, help='SMILES/SMARTS substructures that must not be part of the rigid part.')
     parser.add_argument("--help", "-h", action="help", help="Show this help message and exit")
     parser.add_argument('--randomSeed', '-rs',type=int, default=42, help=argparse.SUPPRESS)
     parser.add_argument('--test', action='store_true', help=argparse.SUPPRESS)
