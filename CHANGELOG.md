@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [unreleased - most recent changes come first]
+
+### 🚀 Features
+
+- Rigid_exclude to exclude the ring not of interest from being used as rigid scaffold. Requested by #50 - ([3d8c14b](https://github.com/phonglam3103/MolSanitizer/commit/3d8c14bc40f733964027a956fecc27816099e327))
+- Automatically detects the extended SMILES format - ([ba665af](https://github.com/phonglam3103/MolSanitizer/commit/ba665af42d9c98a81cfc8e5ff822e8307de2e323))
+- New organometallic handler, trying to connect the dative bonds to metal atoms by default before further processing. Check with `-mtl`. - ([41b8dab](https://github.com/phonglam3103/MolSanitizer/commit/41b8dab346664c57cfb6557343b78f00c47cb3ef))
+
+### 🐛 Bug Fixes
+
+- *(conformers)* Avoid forking threaded parents during RDKit embedding - ([08293ce](https://github.com/phonglam3103/MolSanitizer/commit/08293ce17a9bb6dab97dfc4ecb78daa7d7b481c3))
+- Fix a bug inherrited from a recent optimization of tautomerizer, the same pseudochiral compound being written out twice with different SMILES format - ([3413bd2](https://github.com/phonglam3103/MolSanitizer/commit/3413bd28b9e2926e079474a7f1aa52cd426274e7))
+
 ## [sdk-2025.09.1] - 2026-09-20
 
 ### 🚀 Features
