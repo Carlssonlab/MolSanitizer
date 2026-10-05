@@ -46,7 +46,6 @@
 #include <mutex>
 #endif
 
-// #define DEBUG_EMBEDDING 1
 
 #ifdef M_PI_2
 #undef M_PI_2
@@ -267,7 +266,6 @@ bool _sameSide(const RDGeom::Point3D &v1, const RDGeom::Point3D &v2,
   RDGeom::Point3D normal = (v2 - v1).crossProduct(v3 - v1);
   double d1 = normal.dotProduct(v4 - v1);
   double d2 = normal.dotProduct(p0 - v1);
-  // std::cerr << "     " << d1 << " - " << d2 << std::endl;
   if (fabs(d1) < tol || fabs(d2) < tol) {
     return false;
   }
@@ -287,7 +285,6 @@ bool _centerInVolume(unsigned int idx0, unsigned int idx1, unsigned int idx2,
                      (*positions[idx3])[2]);
   RDGeom::Point3D p4((*positions[idx4])[0], (*positions[idx4])[1],
                      (*positions[idx4])[2]);
-  // RDGeom::Point3D centroid = (p1+p2+p3+p4)/4.;
   if (verbose) {
     std::cerr << _sameSide(p1, p2, p3, p4, p0, tol) << " "
               << _sameSide(p2, p3, p4, p1, p0, tol) << " "
@@ -315,8 +312,6 @@ bool _centerInVolume(const DistGeom::ChiralSetPtr &chiralSet,
 bool _boundsFulfilled(const std::vector<int> &atoms,
                       const DistGeom::BoundsMatrix &mmat,
                       const RDGeom::PointPtrVect &positions) {
-  // unsigned int N = mmat.numRows();
-  // std::cerr << N << " " << atoms.size() << std::endl;
   // loop over all pair of atoms
   for (unsigned int i = 0; i < atoms.size() - 1; ++i) {
     for (unsigned int j = i + 1; j < atoms.size(); ++j) {
@@ -490,7 +485,6 @@ bool minimizeFourthDimension(RDGeom::PointPtrVect *positions,
   }
 
   field2->initialize();
-  // std::cerr << "FIELD2 E: " << field2->calcEnergy() << std::endl;
   if (field2->calcEnergy() > ERROR_TOL) {
     int needMore = 1;
     while (needMore) {

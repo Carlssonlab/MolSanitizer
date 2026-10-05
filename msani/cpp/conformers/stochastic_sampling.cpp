@@ -126,8 +126,6 @@ ProductList stochasticSamplingDiscrete(RDKit::ROMol& mol,
             return products;
         }
         
-        // // Set MMFF variant (MMFF94 or MMFF94s)
-        // mmffMolProperties->setMMFFVariant(mmff_variant);
         
         // Set dielectric constant (eps)
         mmffMolProperties->setMMFFDielectricConstant(eps);

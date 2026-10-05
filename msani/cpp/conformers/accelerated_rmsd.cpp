@@ -28,7 +28,7 @@ void symmetrizeTerminalAtoms(RDKit::RWMol &mol) {
     // Matches patterns like C(=O)[O-] and C([O-])=O allowing flexible matching
     const std::string qsmarts = 
         "[O,N;D1;$([O,N;D1]-[*]=[O,N;D1]),$([O,N;D1]=[*]-[O,N;D1])]~[*;!$(P([*X{2-}])([*X{2-}])(=O)[O-])]";
-        //"[O,N;D1;$([O,N;D1]-[*]=[O,N;D1]),$([O,N;D1]=[*]-[O,N;D1])]~[*]"; Removed the non-terminal P(=O)[O-] group to avoid over-symmetrization
+    // Exclude non-terminal P(=O)[O-] groups to avoid over-symmetrization.
     
     try {
         std::unique_ptr<RDKit::ROMol> qry(RDKit::SmartsToMol(qsmarts));

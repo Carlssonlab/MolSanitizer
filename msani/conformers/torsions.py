@@ -286,7 +286,6 @@ class TorsionLibrary:
             conf.SetAtomPosition(dummy_idx, lone_pair_position)
             diff_angle1_lp = round(abs(rdMolTransforms.GetDihedralDeg(conf,*(dummy_idx, idx_2, idx_3, idx_4))), 2)
             diff_angle2_lp = round(abs(rdMolTransforms.GetDihedralDeg(conf,*(dummy_idx, idx_2, idx_3, idx_5))), 2)
-            #print(diff_angle1_lp, diff_angle2_lp)
             # What we want:                                                In case we choose the wrong reference for rotating, we have:
             #                                 lp                                    
             #                                 |                                              | (not in 0 to -90 deg)
@@ -298,10 +297,8 @@ class TorsionLibrary:
             # else, choose 1,2,3,5
             rdMolTransforms.SetDihedralDeg(temp_conf,*(idx_1, idx_2, idx_3, idx_4),value = 90)
             angle_2 = rdMolTransforms.GetDihedralDeg(temp_conf,*(idx_1, idx_2, idx_3, idx_5))
-            #print(angle_2)
             new_angles = []
             if within_tolerance(angle_2, -45, 45):
-                #print("first assumption correct")
                 for angle in rule[3]:
                     new_angle = list(angle)
                     new_angle[0] = round(normalize_angle(new_angle[0] - diff_angle1_lp), 1)
@@ -321,7 +318,6 @@ class TorsionLibrary:
             if len(matches)>0:
                 matches_atoms = get_atoms_mol(matches, rule[2])
                 if len(matches_atoms[0]) == 5: #Handle lonepair rules
-                    #print(matches_atoms[0])
                     for (a, b, c, d, e) in matches_atoms: 
                         if ((b,c) not in seen) and ((c,b) not in seen):
                             seen.add((b,c))
@@ -380,7 +376,6 @@ class SmallRingLibrary:
             for dihedral_set in ring.find('dihedral_sets').findall('set'):
                 dihedral_str = dihedral_set.get('dihedral')  # Extract dihedral string
                 dihedral_list = parse_dihedral_set(dihedral_str)  # Parse dihedral to list of ints
-                #value = int(dihedral_set.get('value'))  # Extract the value
                 dihedral_sets.append(tuple(dihedral_list))
             
             # Append the tuple of extracted data

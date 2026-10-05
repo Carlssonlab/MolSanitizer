@@ -48,7 +48,6 @@ class Neutralizer:
         try:
             for rxn in exception_groups:
                 while mol.HasSubstructMatch(rxn.GetReactantTemplate(0)):
-                    #print(f"Applying reaction {AllChem.ReactionToSmarts(rxn)} to {smiles}")
                     new_mol = rxn.RunReactants((mol,))[0][0]
                     error = Chem.SanitizeMol(new_mol, catchErrors=True)
                     if error == 0:

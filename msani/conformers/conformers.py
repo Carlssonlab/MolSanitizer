@@ -342,8 +342,6 @@ class ConformerGenerator:
         if forcefield.startswith('MMFF'):
             self.mp = rdForceFieldHelpers.MMFFGetMoleculeProperties(self.mol_H, mmffVariant=forcefield)
             self.mp.SetMMFFEleTerm(False)
-        # elif forcefield == 'UFF': Not supported now...
-        #    self.mp = rdForceFieldHelpers.UFFGetMoleculeProperties(self.mol_H)
         
         # Store forcefield type for later use
         self.forcefield = forcefield
@@ -450,7 +448,6 @@ class ConformerGenerator:
                 # If there are flippable C or N atoms, we need to generate more to filter out the favorable
                 params.pruneRmsThresh = 0.35 
             params.randomSeed = self.randomSeed # For reproducibility
-            #params.useRandomCoords = True
             conf_ring_descriptors_df = DataFrame()
             if CPP_AVAILABLE:
                 result_mols = cpp_sampler.embed_multiple_confs(mol = self.mol_H, 
@@ -528,7 +525,6 @@ class ConformerGenerator:
                     conf_idx = temp_mol.AddConformer(row.iloc[0], assignId=True)
                     w.write(temp_mol, confId=conf_idx)
         # Remove the conformers that do not compromise all the non-planar rings       
-        #conf_ring_descriptors_df.to_csv(f"{self.name}_conf_ring_descriptors.csv", index=False)
         conf_ring_descriptors_df = utils.remove_unfavorable_confs(conf_ring_descriptors_df, self.name)
 
         if len(conf_ring_descriptors_df) == 0:
@@ -543,7 +539,6 @@ class ConformerGenerator:
             return
 
         # Process rigid scaffolds based on sulfo descriptors
-        #conf_ring_descriptors_df.to_csv(f'{self.name}_confs.csv')
         if self.sulfo_matches:
             align_on = self.sulfo_matches[0]
             for sulfo_match in conf_ring_descriptors_df['sulfo_descriptors'].unique():
@@ -1209,7 +1204,6 @@ class ConformerGenerator:
             prepared_mol = mkprep(Chem.Mol(mol, confId=0))
             pdbqt_string, success, error_msg = PDBQTWriterLegacy.write_string(prepared_mol[0])
             if success:
-                #print(pdbqt_string)
                 if is_multi:
                     with open(f"pdbqt/{filename}.nr{i}.pdbqt", 'w') as f:
                         for line in pdbqt_string:
@@ -1712,8 +1706,6 @@ def main():
             gen_conf_chunk(df, args)
         else:
             parser.error('Please provide either input files or SMILES strings.')
-    # Call the main function
-    #process_files(args)
    
 if __name__ == "__main__":
     main()

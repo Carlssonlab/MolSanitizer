@@ -25,9 +25,6 @@ sulfonamide_cycloheptane = Chem.MolFromSmarts("[S;$(S(=*)=*)]-!@[N&+0&r7;!$([NH2
 substituted_C_cyclohexane = Chem.MolFromSmarts('[!#1;!$(*-!@[CH]1-[*^2;!O]~[*^2;!O]~*~[*^2;!O]~[*^2;!O]-1)]-!@[CH]1-[*]~[*]~[*]~[*]-[A]-1') # Ignore check for theoretically planar cyclohexanes
 flippable_Ns_1 = Chem.MolFromSmarts("[!#1:1]-!@[NH+;!$(N-*=*):2]1-[A:3]-[A:4]-[A]-[A:6]-[A:5]-1")
 flippable_Ns_2 = Chem.MolFromSmarts("[*:1]-!@[N+0;!$(N-*=*):2]1-[A:3]-[A:4]-[A]-[A:6]-[A:5]-1")
-# substituted_C_cyclohexane = Chem.MolFromSmarts('[!#1:1]-!@[CH:2]1-[A^3:3]-[A^3:4]-[A]-[A^3:6]-[A^3:5]-1')
-# substituted_C_cyclohex_23_enyl = Chem.MolFromSmarts('[!#1:1]-!@[CH:2]1-[*^2]~[*^2]-[A^3]-[A^3]-[A^3]-1')
-# substituted_C_cyclohex_34_enyl = Chem.MolFromSmarts('[!#1:1]-!@[CH:2]1-[A^3]-[*^2]~[*^2]-[A^3]-[A^3]-1')
 
 conjugated_substituted_nitrogen_5aro = Chem.MolFromSmarts('*-[nX3&+0:1]1[a:2][a:3][a:4][a:5]1')
 conjugated_substituted_nitrogen_6aro = Chem.MolFromSmarts('*-[nX3&+0:1]1[a:2][a:3][a:4][a:5][a:6]1')
@@ -142,8 +139,6 @@ def find_flipped_carbon(mol_H: Mol):
     Find the flippable carbon in the molecule. Mainly for substituted cyclohexane
     '''
     return mol_H.GetSubstructMatches(substituted_C_cyclohexane) 
-            # mol_H.GetSubstructMatches(substituted_C_cyclohex_23_enyl) +\
-            # mol_H.GetSubstructMatches(substituted_C_cyclohex_34_enyl)
 
 def find_conjugated_substituted_nitrogen_5aro(mol_H: Mol):
     '''
@@ -420,7 +415,6 @@ def remove_unfavorable_confs(conf_ring_descriptors_df: DataFrame, name: str ='0'
     for column in conf_ring_descriptors_df.columns[2:-2]:
         if (conf_ring_descriptors_df[column] == -1).all():
             conf_ring_descriptors_df.drop(columns=[column], inplace=True)
-            #print(f"\t While handling {name}, found no good conformation of ring: {column}")
 
     # Step 2: Drop rows where any value in remaining columns (2 onwards) is -1
     for column in conf_ring_descriptors_df.columns[2:-2]:
@@ -708,7 +702,6 @@ def discretinize_dihedrals(typical, tolerance, step = 30):
     if tolerance < step: return [typical]
     n_steps = int(tolerance / step)
     angles = [typical + i * step for i in range(-n_steps, n_steps + 1)]
-    #angles = [typical, typical - step, typical + step] #Only sample 3 angles for each dihedral
 
     normalized_angles = [round((angle + 180) % 360 - 180, 1) for angle in angles]
     return normalized_angles

@@ -325,8 +325,6 @@ class Mol2Writer:
                 return 'N.4'
             if hyb == HybridizationType.SP:
                 return 'N.1'
-            #elif is_amide_nitrogen(): # This is already handled by the SMARTS
-            #    return 'N.am'
             elif hyb == HybridizationType.SP2:
                 has_double_bond = any(b.GetBondTypeAsDouble() >= 2.0 for b in bonds)
                 if has_double_bond:

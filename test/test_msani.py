@@ -341,7 +341,6 @@ class Test_MolSanitizer(unittest.TestCase):
             args.unwanted = ['Regular','Special','Optional']
             cli.clean_data(args)
             with self.subTest(msg="Checking unwanted all:"):
-            #self.compareFiles(f'{temp_dir}/dummy_output_clean.txt', f'{self.path}/out_unwanted_all_clean.txt')
                 self.compare_relative(f'{temp_dir}/dummy_output_rejected.txt',
                                       f'{self.path}/out_unwanted_all_rejected.txt')
          
@@ -1075,7 +1074,6 @@ class Test_MolSanitizer(unittest.TestCase):
         tmp_obj.cleanup()
         
     def test_pdbqt_generation(self):
-        #with tempfile.TemporaryDirectory() as temp_dir:
             try:
                 import meeko
             except ImportError:

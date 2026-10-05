@@ -237,7 +237,6 @@ class Tautomerizer:
         This is the first step to make the input result in a canonical tautomer for later fixes."""
 
         try:
-            #canonical_tautomer = te.Canonicalize(mol, score_func)
             canonical_tautomer = None
             tautomers = [] # The tautomers would be list of (mol, score)
             max_score = -9999
@@ -323,18 +322,12 @@ class Tautomerizer:
                     potential_pool = []
                     for tautomer, score, smiles in (equal_tautomers): 
                         match_vinyl, config_vinyl = Tautomerizer._get_substruct_configurations(tautomer, vinyl, ref_vinyl)
-                        # print('\t'+smiles)
-                        # print(f"\tAcrylic: {match_acrylic} {ref_acrylic}")
-                        # print(f"\tVinyl: {match_vinyl} {ref_vinyl}")
                         if len(match_vinyl) != len(ref_vinyl): continue
                         # Check for the same bonds as in the reference, whether the bond configurations changed
                         if config_vinyl == ref_conf_vinyl:
-                            # if self.debug: print(f'\tChanged to {smiles}')
                             if self.debug: print(f'\tAdding {smiles} to the potential pool')
                             potential_pool.append((tautomer, score ,smiles))
                             continue
-                            # canonical_tautomer = tautomer
-                            # break
                     if potential_pool:
                         input_smiles = Chem.MolToSmiles(mol)
                         if any(input_smiles == smiles for _, _, smiles in potential_pool):

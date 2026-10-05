@@ -82,7 +82,6 @@ py::object createMoleculeWithConformersDirectly(py::object mol_obj, const std::v
     }
     
     if (products.empty()) {
-        // py::print("No conformers generated from stochastic sampling");
         mol_obj.attr("SetBoolProp")("Failed_sampling", true);
         return mol_obj;  // Return original molecule if no conformers generated
     }

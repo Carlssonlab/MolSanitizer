@@ -27,7 +27,6 @@ def setup_logger(log_file):
     logger.addHandler(file_handler)
     logger.addHandler(stream_handler)
 
-    # return logger
 
 def arguments(args):
     # Print the parsed arguments 
