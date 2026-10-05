@@ -1,6 +1,6 @@
 
 
-# <img src="assets/icon_text.png" width="600" alt="MolSanitizer logo">
+# <img src="https://raw.githubusercontent.com/carlssonlab/MolSanitizer/main/assets/icon_text.png" width="600" alt="MolSanitizer logo">
 
 
 
@@ -15,7 +15,12 @@ state enumeration, stereoisomer enumeration), filters undesirable substructures
 (PAINS, reactive functional groups, and more), and generates 3D conformers in
 formats ready for docking.
 
-<img src="docs/source/_static/Workflow.png" width="1000" alt="MolSanitizer workflow">
+
+<img src="https://raw.githubusercontent.com/carlssonlab/MolSanitizer/main/docs/source/_static/Workflow.png" width="1000" alt="MolSanitizer workflow">
+
+## Trying quickly
+
+A web app is available to try at [carlssonlabtools.icm.uu.se/molsani](https://carlssonlabtools.icm.uu.se/molsani).
 
 ## Installation
 
