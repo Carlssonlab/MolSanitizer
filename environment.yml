@@ -10,8 +10,9 @@ dependencies:
   - numpy
   - pandas
   - pip
-  - rdkit>=2025.9.1
-  - librdkit-dev
+  # Keep CI's Python package and C++ headers aligned with the release SDK.
+  - rdkit=2025.9.1
+  - librdkit-dev=2025.9.1
   - libboost-devel
   - scikit-build-core
   - openbabel
