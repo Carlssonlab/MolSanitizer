@@ -51,8 +51,10 @@ templates_path = ['_templates']
 # -- Options for HTML output
 
 html_theme = 'sphinx_rtd_theme'
+html_logo = '../../assets/icon_text.png'
 
 html_theme_options = {    # Toc options
+    'logo_only': True,
     'collapse_navigation': True,
     'sticky_navigation': True,
     'navigation_depth': 3,

@@ -1,8 +1,9 @@
 # Build, repair and clean-install test the binary wheel matrix.
 #
-# Nothing is published from here. The collect job produces one downloadable
-# bundle; uploading it to TestPyPI or PyPI is a deliberate manual step, done
-# with twine from a checkout. See packaging/RELEASE.md.
+# The collect job produces one downloadable bundle. Publishing is opt-in and
+# uses PyPI Trusted Publishing (OIDC, no stored token): pushing a version tag
+# publishes to PyPI, and a manual run can publish to TestPyPI. Both publish
+# jobs wait for the whole matrix to pass. See packaging/RELEASE.md.
 #
 # The RDKit SDK is never compiled in this workflow: each job restores the
 # prebuilt SDK produced by sdk-build.yml. Pull requests deliberately build a
@@ -24,8 +25,13 @@ on:
       rdkit_version:
         description: RDKit version matching the SDK
         default: 2025.9.1
+      publish_testpypi:
+        description: Upload the bundle to TestPyPI when the matrix passes
+        type: boolean
+        default: false
   push:
-    tags: ['v*']
+    # Tags are bare versions (0.7.3) or v-prefixed (v0.7.3).
+    tags: ['v[0-9]*', '[0-9]*']
   # The pull_request trigger is added in a follow-up PR, once the SDK release
   # exists. Enabling it before then makes every PR fail on the SDK restore
   # step. To enable, restore:
@@ -363,3 +369,59 @@ jobs:
         run: |
           echo "::error::One or more build jobs did not succeed; the bundle is incomplete."
           exit 1
+
+  # Trusted Publishing: PyPI trusts this repository, workflow file and
+  # environment name, so no API token is stored anywhere. Only wheels are
+  # uploaded; the sdist needs an RDKit C++ SDK and cannot be built from PyPI.
+  publish-pypi:
+    needs: collect
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/MolSanitizer/
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: molsanitizer-dist
+          path: dist
+
+      - name: Keep only the wheels
+        run: |
+          set -euo pipefail
+          find dist -type f ! -name '*.whl' -delete
+          ls -l dist
+
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist
+          skip-existing: true
+
+  publish-testpypi:
+    needs: collect
+    if: github.event_name == 'workflow_dispatch' && inputs.publish_testpypi
+    runs-on: ubuntu-latest
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/project/MolSanitizer/
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: molsanitizer-dist
+          path: dist
+
+      - name: Keep only the wheels
+        run: |
+          set -euo pipefail
+          find dist -type f ! -name '*.whl' -delete
+          ls -l dist
+
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          packages-dir: dist
+          skip-existing: true
