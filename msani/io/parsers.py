@@ -69,7 +69,7 @@ def parseArguments(args = None, batch_mode = False):
         raise SystemExit(f'Configuration error: {exc}') from exc
     slurm_account = configurations.get('SLURM_ACCOUNT', None)
     slurm_partition = configurations.get('SLURM_PARTITION', None)
-    time_limit = configurations.get('TIME_LIMIT', 96)
+    time_limit = configurations.get('TIME_LIMIT', 72)
     lines_per_job = configurations.get('LINES_PER_JOB', 200)
     max_jobs = configurations.get('MAX_JOBS', 1000)
     whole_node = configurations.get('WHOLE_NODE', False)

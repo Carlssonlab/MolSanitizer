@@ -145,7 +145,7 @@ especially appreciated — please open an issue.
 If you use MolSanitizer in your research, please cite:
 
 > Lam, T.-P.; Pach, S.; Ullmann, P.; et al. MolSanitizer: An open-source
-> pipeline to prepare large-scale small-molecule databases for virtual
+> pipeline to prepare small-molecule databases for large-scale virtual
 > screening. *ChemRxiv* **2026**. DOI: [TBA](TODO)
 
 ## License

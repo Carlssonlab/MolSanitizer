@@ -36,8 +36,8 @@ original identifiers. Acetic acid is deprotonated and benzene remains neutral:
     c1ccccc1 benzene
 
 Personal defaults can affect a run; inspect them with ``msani config show``.
-For a project, save your selected options in a job configuration as described
-in :doc:`config`.
+To modify the default configurations or save options for a project, see
+:doc:`config`.
 
 Generate SDF conformers
 -----------------------
@@ -107,6 +107,25 @@ combining its sampled ring-conformer groups. To write individual files such as
 ``oeb/acetate.oeb.gz`` instead, select ``--format oeb``. Both formats trigger
 conformer sampling. You can export an SDF ensemble alongside the library with
 ``--format sdf oeb.lib``.
+
+Submit SLURM batch jobs
+----------------------
+
+On a SLURM cluster, activate the environment containing MolSanitizer and use
+``msani_batch`` to submit processing as a job array:
+
+.. code-block:: console
+
+    $ msani_batch -i example_clean.smi -l 200 -A my-project -tl 2 \
+        --gen3d --format sdf --numconfs 20
+
+Each task processes up to 200 input records (``-l``) with a two-hour time limit
+(``-tl``). Replace ``my-project`` with your SLURM account; omit ``-A`` if your
+cluster does not require one. Add ``--partition`` if you need a specific
+partition. The command creates an ``example_clean/`` batch directory containing
+``submit_msani.sh`` and submits it automatically with ``sbatch``. See
+:doc:`usage` for more batch options and :doc:`outputs` for recovery of failed
+tasks. The default batch configurations could be changed according to :doc:`config`.
 
 See :doc:`usage` for filtering and other processing options, and :doc:`outputs`
 for logs, output naming, and recovery when a molecule fails.
