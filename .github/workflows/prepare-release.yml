@@ -1,0 +1,81 @@
+# Open a pull request that bumps the version and regenerates the changelog.
+#
+# main is protected, so nothing here pushes to it. The PR is authored by the
+# github-actions bot, which means a maintainer can review and approve it
+# normally. After it is merged, tag the merge commit (vX.Y.Z) and the Wheels
+# workflow builds and publishes. See packaging/RELEASE.md.
+#
+# Needs Settings -> Actions -> General -> "Allow GitHub Actions to create and
+# approve pull requests". PRs opened with the default token do not trigger
+# other workflows; to have CI run on them, add a RELEASE_BOT_TOKEN secret (a
+# GitHub App token or a PAT from a bot account, not from the reviewer).
+name: Prepare release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: New version, as in pyproject.toml (no leading v)
+        required: true
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6.0.2
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Update version in files
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          [[ "$VERSION" =~ ^[0-9]+(\.[0-9]+)*([a-z]+[0-9]+)?(\.(post|dev)[0-9]+)?$ ]] || { echo "::error::Bad version '$VERSION'"; exit 1; }
+          # pyproject.toml is the single source of truth; cli.py and
+          # batchmode.py read it through importlib.metadata.
+          sed -i "s/^version = \".*\"/version = \"$VERSION\"/" pyproject.toml
+          sed -i "s/^release = .*/release = \"$VERSION\"/" docs/source/conf.py
+          sed -i "s/^version = .*/version = \"$VERSION\"/" docs/source/conf.py
+
+      - name: Generate changelog
+        uses: orhun/git-cliff-action@v4
+        with:
+          config: cliff.toml
+          args: --verbose --tag v${{ inputs.version }}
+        env:
+          OUTPUT: CHANGELOG.md
+          GITHUB_REPO: ${{ github.repository }}
+
+      - name: Convert changelog for the docs
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pandoc
+          pandoc CHANGELOG.md -o docs/source/changes.rst
+
+      - uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.RELEASE_BOT_TOKEN || github.token }}
+          branch: release/${{ inputs.version }}
+          base: main
+          commit-message: "Update version to ${{ inputs.version }} and changelog"
+          title: "Release ${{ inputs.version }}"
+          body: |
+            Bumps the version to `${{ inputs.version }}` and regenerates the changelog.
+
+            After merging, tag the merge commit:
+
+            ```
+            git tag v${{ inputs.version }} && git push origin v${{ inputs.version }}
+            ```
+          add-paths: |
+            pyproject.toml
+            docs/source/conf.py
+            docs/source/changes.rst
+            CHANGELOG.md
+          delete-branch: true

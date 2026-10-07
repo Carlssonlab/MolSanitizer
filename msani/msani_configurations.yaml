@@ -26,16 +26,16 @@ PH_RANGE: 0 # 0 means choose specific pH=7 (default), 2 means will sample pH 5 a
 # If you have ~ 5000 compounds, it will take around 3 days to process all of them. 
 # But for the safety, we recommend to set the time limit to 5 days (120 hours).
 # LINE_PER_JOB: Number of compounds per job
-# TIME_LIMIT: Time limit for each job in hours (default: 96 hours)
+# TIME_LIMIT: Time limit for each job in hours (default: 72 hours)
 # MAX_ARRAY_SIZE: Maximum of jobs per array allowed to be submitted at the same time 
-#                 (for Tetralith is 2000. Check by: 'scontrol show config | grep MaxArraySize')
+#                 (Check by: 'scontrol show config | grep MaxArraySize')
 # MAX_JOBS: Maximum number of jobs running at the same time
 # MAX_LIMIT_PROJECT: Maximum number of jobs allowed for a project account (for example: naiss2023-3-39 is 5000 jobs)
 SLURM_ACCOUNT: null # Can be set to null if you don't need it in the submitting script.
 SLURM_PARTITION: null # If it is set to null, the default partition of the cluster will be used.
 LINES_PER_JOB: 200
-TIME_LIMIT: 96
-MAX_ARRAY_SIZE: 2000
+TIME_LIMIT: 72
+MAX_ARRAY_SIZE: 1000
 MAX_JOBS: 2000
 MAX_LIMIT_PROJECT: 5000
 WHOLE_NODE: false # Only for clusters supporting the only whole-node jobs

@@ -95,7 +95,7 @@ Below is the default configuration file:
     #================BATCH MODE=================
     SLURM_ACCOUNT: 'PROJECT_NAME' # The account that will be charged by the SLURM cluster for running tasks
     LINES_PER_JOB: 200
-    TIME_LIMIT: 96
+    TIME_LIMIT: 72
     MAX_ARRAY_SIZE: 2000
     MAX_JOBS: 1000
     MAX_LIMIT_PROJECT: 5000
