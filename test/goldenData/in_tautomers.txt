@@ -117,6 +117,8 @@ C1=C(O)NC=N1 4-OH-imidazoles_to_4-keto-CH1
 CC1=CC=C(O)O1 2-OH-furan/thiophene/pyrrole_to_5H-keto-CH0
 OC1=CC(C)=CO1 2-OH-furan/thiophene/pyrrole_to_5H-keto-CH1
 CC1=CC=C(S1)O 2-OH-5-sp2-furan/thiophene/pyrrole_to_3H-keto
+CC1C=CC(=S)S1 5H-thioketo-furan/thiophene/pyrrole_to_2-SH-CH1
+S=C1C=CCS1 5H-thioketo-furan/thiophene/pyrrole_to_2-SH-CH2
 O=S1(C2=C(C(C(C)N1)=O)C=CC=C2)=O restore_oxicam-CH1
 O=S1(C2=C(C(CN1)=O)C=CC=C2)=O restore_oxicam-CH2
 OC(OC=C1)=CC1=O 4-ketocoumarin_to_4-OH-coumarin
@@ -163,6 +165,8 @@ O=C1C=C(O)NC=N1 6-OH-pyrimidine-4(1H)-one_to_4(3H)-one
 O=C1N=CC=C(N)N1 3H-cytosine_to_1H
 O=C1N(C)NC=CC1=O pyridazine-3,4-dione_to_4-OH-3-one
 O=C1N=C2C=CC=CC2=CN1 3H-quinazoline_to_1H
+O=c1cc[nH]c2ccc3cccnc3c12 7H-1,7-phenathroline-10-one_to_OH
+O=c1ccnc2ccc3ccc[nH]c3c12 1H-1,7-phenathroline-10-one_to_OH
 N1=CNC=N1 4H-1,2,4-triazole_to_1H
 ClC1=CN=CN1 EWG-imidazole
 ClC1=CC=NN1 EWG-pyrazole
@@ -189,9 +193,10 @@ C12=C(C=CC=C3)C3=NN1NC=C2 fused-1H-pyrazolo[1,5-b]pyrazole_to_6H
 CC1=CN2C(N1)=NC=C2 1H-imidazo[1,2-a]imidazole_to_7H
 CC1=CN2C(N1)=CC=N2 1H-imidazo[1,2-b]pyrazole_to_4H
 CC1=CC2=CC=NN2N1 1H-pyrazolo[1,5-b]pyrazole_to_6H
-CN=C1C=CC2=CC=CNC2=C1 8H-pyrrolo[3,2-g]quinoline_to_1H
-CN=C1C2=CC=CNC2=CC=C1 6H-pyrrolo[2,3-f]quinoline_to_1H
-CN=C1C=C2C=CNC=C2C=C1 6H-pyrrolo[2,3-g]isoquinoline_to_1H
+c1c[nH]c2cc3nccc3cc2c1 8H-pyrrolo[3,2-g]quinoline_to_1H
+c1c[nH]c2ccc3ccnc3c2c1 6H-pyrrolo[2,3-f]quinoline_to_1H
+c1cc2cc3c[nH]ccc3cc2n1 6H-pyrrolo[2,3-g]isoquinoline_to_1H
+c1c[nH]c2cc3ccnc3cc2c1 6H-pyrrolo[2,3-g]quinoline_to_1H
 N=C=NC carbodiimide_to_cyanamide
 CC(C)=CNO vinyl-hydroxylamine/hydrazine_to_oxime/hydrazone-CH0
 CC=CNO vinyl-hydroxylamine/hydrazine_to_oxime/hydrazone-CH1
