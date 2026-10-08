@@ -317,7 +317,7 @@ CCSc1[nH]c2ccccc2c(=O)c1C(=O)OC 636
 CCOC(=O)c1c[nH]c(C)c(C(=O)OCC)c1=O 638
 CCOC(=O)c1c(-c2ccccc2)[nH]c(-c2ccccc2)c(C(=O)OCC)c1=O 639
 CCOC(=O)c1c(-c2ccccn2)[nH]c(-c2ccccn2)c(C(=O)OCC)c1=O 640
-O=c1cc[nH]c2ccc3c(Cl)ccnc3c12 643
+Oc1ccnc2ccc3c(Cl)ccnc3c12 643
 O=c1cc[nH]c2c1ccc1[nH]ccc(=O)c12 644
 c1ccc(Cc2ccccn2)cc1 647
 O=S(Cc1ccccn1)Oc1ccccc1 648
