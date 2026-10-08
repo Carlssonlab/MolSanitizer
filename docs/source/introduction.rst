@@ -104,7 +104,7 @@ multiple tautomers for chemotypes with alternative preferred forms.
 Layer 2: Rule-based tautomerism
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Output from the first layer is then processed by a set of SMARTS reactions to ensure that the tautomer is in the most stable form. The SMARTS reactions are designed to correct the tautomer to its most stable form based on the literature. The reactions are applied iteratively until no further changes can be made, ensuring that the final tautomer is chemically stable and biologically relevant. In case of multiple possibilities of tautomerization (eg. imidazole), the output will be expanded to include all possible tautomers. The SMARTS rules are readily accessible at `msani/Data/tautomers_v3.txt <https://github.com/phonglam3103/MolSanitizer/blob/main/msani/Data/tautomers_v3.txt>`_.
+Output from the first layer is then processed by a set of SMARTS reactions to ensure that the tautomer is in the most stable form. The SMARTS reactions are designed to correct the tautomer to its most stable form based on the literature. The reactions are applied iteratively until no further changes can be made, ensuring that the final tautomer is chemically stable and biologically relevant. In case of multiple possibilities of tautomerization (eg. imidazole), the output will be expanded to include all possible tautomers. The SMARTS rules are readily accessible at `msani/Data/tautomers_v3.txt <https://github.com/carlssonlab/MolSanitizer/blob/main/msani/Data/tautomers_v3.txt>`_.
 
 2. Ionization
 ================
@@ -186,7 +186,7 @@ Protonation states are assigned according to the relationship between pH and pKa
 
 When a pH range is specified (e.g., 5-9 for near-physiological conditions), the above rules are applied iteratively for each unit within the range. This results in a predictable and controllable enumeration of protomers for drug-like molecules.
 
-The SMARTS reaction library (`msani/Data/ionizations_v3.txt <https://github.com/phonglam3103/MolSanitizer/blob/main/msani/Data/ionizations_v3.txt>`_) is organized such that the most basic groups (highest pKa) and the most acidic groups (lowest pKa) are processed first. Protonation and deprotonation are then applied in the order of decreasing basicity and increasing acidity, ensuring consistency across molecules.
+The SMARTS reaction library (`msani/Data/ionizations_v3.txt <https://github.com/carlssonlab/MolSanitizer/blob/main/msani/Data/ionizations_v3.txt>`_) is organized such that the most basic groups (highest pKa) and the most acidic groups (lowest pKa) are processed first. Protonation and deprotonation are then applied in the order of decreasing basicity and increasing acidity, ensuring consistency across molecules.
 
 The following substructures are considered for (de)protonation:
 
@@ -255,7 +255,7 @@ MolSanitizer provides a dedicated option to remove PAINS molecules via  the ``--
 Undesirable and custom substructure filters
 -------------------------------------------
 
-Beyond PAINS, MolSanitizer enables filtering of other undesirable substructures using SMARTS pattern matching. A built-in library of 73 common undesirable substructures is provided (`msani/Data/filter_out.txt <https://github.com/phonglam3103/MolSanitizer/blob/main/msani/Data/filter_out.txt>`_). These are categorized into three levels of severity:
+Beyond PAINS, MolSanitizer enables filtering of other undesirable substructures using SMARTS pattern matching. A built-in library of 73 common undesirable substructures is provided (`msani/Data/filter_out.txt <https://github.com/carlssonlab/MolSanitizer/blob/main/msani/Data/filter_out.txt>`_). These are categorized into three levels of severity:
 
   - *Regular*: Generally unwanted and safe to remove automatically.  
   - *Optional*: May require case-by-case consideration.  

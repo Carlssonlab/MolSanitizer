@@ -7,8 +7,10 @@ with these two lines, without a header (both tab and space are accepted as separ
 
 .. code-block:: text
 
-    CC(=O)O acetate
-    c1ccccc1 benzene
+    Nc1nc(C(=CCC(=O)O)C(=O)NC2C(=O)N3C(C(=O)O)=CCSC23)cs1 Ceftibuten
+    CC(C)Cc1ccc(cc1)[C@@H](C)C(=O)O Ibuprofen
+    C[C@]1(c2cccc(c2C(=O)C3=C([C@]4([C@@H](C[C@@H]31)[C@@H](C(=C(C4=O)C(=O)N)O)N(C)C)O)O)O)O Tetracycline
+    O=C1NC(=O)NC(=O)C1(c2ccccc2)CC Phenobarbital
 
 CXSMILES (extended SMILES) is recognized automatically. Unquoted CXSMILES needs
 tab-separated structures and IDs throughout the file. Alternatively, enclose the
@@ -32,8 +34,12 @@ original identifiers. Acetic acid is deprotonated and benzene remains neutral:
 
 .. code-block:: text
 
-    CC(=O)[O-] acetate
-    c1ccccc1 benzene
+    Nc1nc(C(=CCC(=O)[O-])C(=O)NC2C(=O)N3C(C(=O)[O-])=CCSC23)cs1 Ceftibuten
+    CC(C)Cc1ccc([C@@H](C)C(=O)[O-])cc1 Ibuprofen
+    C[NH+](C)[C@@H]1C([O-])=C(C(N)=O)C(=O)[C@@]2(O)C(O)=C3C(=O)c4c(O)cccc4[C@@](C)(O)[C@H]3C[C@@H]12 Tetracycline_1
+    C[NH+](C)[C@@H]1C([O-])=C(C(N)=O)C(=O)[C@@]2(O)C([O-])=C3C(=O)c4c(O)cccc4[C@@](C)(O)[C@H]3C[C@@H]12 Tetracycline_2
+    CCC1(c2ccccc2)C(=O)NC(=O)NC1=O Phenobarbital_1
+    CCC1(c2ccccc2)C(=O)[N-]C(=O)NC1=O Phenobarbital_2
 
 Personal defaults can affect a run; inspect them with ``msani config show``.
 To modify the default configurations or save options for a project, see
@@ -46,7 +52,7 @@ Generate SDF conformers
 
     $ msani -i example_clean.smi --gen3d --format sdf --numconfs 20
 
-Successful generation creates ``sdf/acetate.sdf`` and ``sdf/benzene.sdf``.
+Successful generation creates ``sdf/Ibuprofen.sdf``, ``sdf/Ceftibuten.sdf``, etc.
 Each SDF can contain multiple conformer records, up to the requested limit;
 these rigid examples may produce fewer than 20. The command also writes
 ``example_clean_clean.smi``. Unspecified stereochemistry is enumerated by
@@ -62,8 +68,8 @@ Install the optional dependencies, then prepare PDBQT files:
     $ pip install "molsanitizer[pdbqt]"
     $ msani -i example_clean.smi --gen3d --format pdbqt
 
-Successful generation creates ``pdbqt/acetate.pdbqt`` and
-``pdbqt/benzene.pdbqt``. PDBQT is prepared with Meeko from the initial embedded
+Successful generation creates pdbqt files within the ``pdbqt/`` directory.
+PDBQT is prepared with Meeko from the initial embedded
 structure, with rotatable bonds for docking; it does not export the sampled
 SDF ensemble. To request both formats in one run, use ``--format sdf pdbqt``.
 
@@ -76,7 +82,8 @@ No additional dependencies are required to prepare DB2 files for docking with DO
 
     $ msani -i example_clean.smi --gen3d --format db2
 
-Successful generation creates ``db2/acetate.db2`` and ``db2/benzene.db2``.
+Successful generation creates db2 files in the ``db2/`` directory, such as
+``db2/Ceftibuten.db2`` and ``db2/Ibuprofen.db2``.
 
 .. caution::
 
