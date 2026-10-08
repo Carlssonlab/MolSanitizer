@@ -123,6 +123,8 @@ O=C1CNC=N1 4-OH-imidazoles_to_4-keto-CH1
 CC1C=CC(=O)O1 2-OH-furan/thiophene/pyrrole_to_5H-keto-CH0
 CC1=CC(=O)OC1 2-OH-furan/thiophene/pyrrole_to_5H-keto-CH1
 CC1C=CC(=O)S1 2-OH-5-sp2-furan/thiophene/pyrrole_to_3H-keto
+Cc1ccc(S)s1 5H-thioketo-furan/thiophene/pyrrole_to_2-SH-CH1
+Sc1cccs1 5H-thioketo-furan/thiophene/pyrrole_to_2-SH-CH2
 CC1=C(O)c2ccccc2S(=O)(=O)N1 restore_oxicam-CH1
 O=S1(=O)NC=C(O)c2ccccc21 restore_oxicam-CH2
 O=c1cc(O)cco1 4-ketocoumarin_to_4-OH-coumarin
@@ -170,6 +172,8 @@ O=c1cc(O)nc[nH]1 6-OH-pyrimidine-4(1H)-one_to_4(3H)-one
 Nc1cc[nH]c(=O)n1 3H-cytosine_to_1H
 Cn1nccc(O)c1=O pyridazine-3,4-dione_to_4-OH-3-one
 O=c1ncc2ccccc2[nH]1 3H-quinazoline_to_1H
+Oc1ccnc2ccc3cccnc3c12 7H-1,7-phenathroline-10-one_to_OH
+Oc1ccnc2ccc3cccnc3c12 1H-1,7-phenathroline-10-one_to_OH
 c1nc[nH]n1 4H-1,2,4-triazole_to_1H
 Clc1c[nH]cn1 EWG-imidazole
 Clc1cc[nH]n1 EWG-pyrazole
@@ -203,9 +207,10 @@ Cc1cn2nccc2[nH]1 1H-imidazo[1,2-b]pyrazole_to_4H_1
 Cc1cn2[nH]ccc2n1 1H-imidazo[1,2-b]pyrazole_to_4H_2
 Cc1cc2ccnn2[nH]1 1H-pyrazolo[1,5-b]pyrazole_to_6H_1
 Cc1cc2cc[nH]n2n1 1H-pyrazolo[1,5-b]pyrazole_to_6H_2
-CNc1ccc2cccnc2c1 8H-pyrrolo[3,2-g]quinoline_to_1H
-CNc1cccc2ncccc12 6H-pyrrolo[2,3-f]quinoline_to_1H
-CNc1ccc2cnccc2c1 6H-pyrrolo[2,3-g]isoquinoline_to_1H
+c1cnc2cc3[nH]ccc3cc2c1 8H-pyrrolo[3,2-g]quinoline_to_1H
+c1cnc2ccc3cc[nH]c3c2c1 6H-pyrrolo[2,3-f]quinoline_to_1H
+c1cc2cc3[nH]ccc3cc2cn1 6H-pyrrolo[2,3-g]isoquinoline_to_1H
+c1cnc2cc3cc[nH]c3cc2c1 6H-pyrrolo[2,3-g]quinoline_to_1H
 CNC#N carbodiimide_to_cyanamide
 CC(C)C=NO vinyl-hydroxylamine/hydrazine_to_oxime/hydrazone-CH0
 CCC=NO vinyl-hydroxylamine/hydrazine_to_oxime/hydrazone-CH1
