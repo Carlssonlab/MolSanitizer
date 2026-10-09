@@ -198,6 +198,8 @@ jobs:
           python-version: "3.12"
 
       - uses: astral-sh/setup-uv@v10.1.0
+        with:
+          cache-suffix: ${{ matrix.job.key }}-${{ matrix.job.tag }}
 
       # Unpacked at the workspace-relative path the SDK was built at; a conda
       # prefix does not relocate.

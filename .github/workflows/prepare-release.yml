@@ -2,7 +2,7 @@
 #
 # main is protected, so nothing here pushes to it. The PR is authored by the
 # github-actions bot, which means a maintainer can review and approve it
-# normally. After it is merged, tag the merge commit (vX.Y.Z) and the Wheels
+# normally. After it is merged, tag the merge commit (X.Y.Z) and the Wheels
 # workflow builds and publishes. See packaging/RELEASE.md.
 #
 # Needs Settings -> Actions -> General -> "Allow GitHub Actions to create and
@@ -47,7 +47,7 @@ jobs:
         uses: orhun/git-cliff-action@v4
         with:
           config: cliff.toml
-          args: --verbose --tag v${{ inputs.version }}
+          args: --verbose --tag ${{ inputs.version }}
         env:
           OUTPUT: CHANGELOG.md
           GITHUB_REPO: ${{ github.repository }}
@@ -71,7 +71,7 @@ jobs:
             After merging, tag the merge commit:
 
             ```
-            git tag v${{ inputs.version }} && git push origin v${{ inputs.version }}
+            git tag ${{ inputs.version }} && git push origin ${{ inputs.version }}
             ```
           add-paths: |
             pyproject.toml
