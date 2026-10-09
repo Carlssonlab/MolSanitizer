@@ -9,7 +9,7 @@ description = "An open-source pipeline to prepare large-scale small-molecule dat
 readme = "README.md"
 authors = [
     {name = "Thua-Phong Lam", email = "phong.lam@icm.uu.se"},
-    {name = "Szymon Pach", email = "szymon.pach@icm.uu.se"},
+    {name = "Szymon Pach", email = "szymon.pach@pharmazie.uni-marburg.de"},
     {name = "Israel Cabeza de Vaca", email = "israel.cabezadevaca@icm.uu.se"}
 ]
 license = "Apache-2.0"

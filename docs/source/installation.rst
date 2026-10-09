@@ -165,6 +165,6 @@ In the same folder as previous steps, use:
 
 .. code-block:: console
 
-   $ python -m unittest MolSanitizer/test/test_msani.py
+   $ python -m unittest discover -s MolSanitizer/test
 
 The test takes around 1-2 minutes to complete.

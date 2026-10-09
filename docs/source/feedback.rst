@@ -11,5 +11,5 @@ Contact
 ----------
 
 1. Phong Lam (for general questions - maintainer), phong.lam@icm.uu.se
-2. Szymon Pach (for chemical-related questions), szymon.pach@icm.uu.se
+2. Szymon Pach (for chemical-related questions), szymon.pach@pharmazie.uni-marburg.de
 3. Israel Cabeza de Vaca Lopez (for technical questions), israel.cabezadevaca@icm.uu.se
