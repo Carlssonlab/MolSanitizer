@@ -11,7 +11,7 @@ Current team
 ------------
 
 * Phong Lam, phong.lam@icm.uu.se (maintainer)
-* Szymon Pach, szymon.pach@icm.uu.se
+* Szymon Pach, szymon.pach@pharmazie.uni-marburg.de
 * Israel Cabeza de Vaca, israel.cabezadevaca@icm.uu.se
 
 All developers past and present

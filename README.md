@@ -45,8 +45,10 @@ and details on dependencies, see the
 Create `example.smi` (one SMILES and ID per line, no header):
 
 ```text
-CC(=O)O acetate
-c1ccccc1 benzene
+Nc1nc(C(=CCC(=O)O)C(=O)NC2C(=O)N3C(C(=O)O)=CCSC23)cs1 Ceftibuten
+CC(C)Cc1ccc(cc1)[C@@H](C)C(=O)O Ibuprofen
+C[C@]1(c2cccc(c2C(=O)C3=C([C@]4([C@@H](C[C@@H]31)[C@@H](C(=C(C4=O)C(=O)N)O)N(C)C)O)O)O)O Tetracycline
+O=C1NC(=O)NC(=O)C1(c2ccccc2)CC Phenobarbital
 ```
 
 CXSMILES is recognized automatically. Use tab-separated structures and IDs,
@@ -69,8 +71,12 @@ msani -i example.smi --removesalts --tautomers --protonation --pH 7
 This writes `example_clean.smi`, where acetic acid is deprotonated:
 
 ```text
-CC(=O)[O-] acetate
-c1ccccc1 benzene
+Nc1nc(C(=CCC(=O)[O-])C(=O)NC2C(=O)N3C(C(=O)[O-])=CCSC23)cs1 Ceftibuten
+CC(C)Cc1ccc([C@@H](C)C(=O)[O-])cc1 Ibuprofen
+C[NH+](C)[C@@H]1C([O-])=C(C(N)=O)C(=O)[C@@]2(O)C(O)=C3C(=O)c4c(O)cccc4[C@@](C)(O)[C@H]3C[C@@H]12 Tetracycline_1
+C[NH+](C)[C@@H]1C([O-])=C(C(N)=O)C(=O)[C@@]2(O)C([O-])=C3C(=O)c4c(O)cccc4[C@@](C)(O)[C@H]3C[C@@H]12 Tetracycline_2
+CCC1(c2ccccc2)C(=O)NC(=O)NC1=O Phenobarbital_1
+CCC1(c2ccccc2)C(=O)[N-]C(=O)NC1=O Phenobarbital_2
 ```
 
 Generate 3D structures for docking from the prepared file:
@@ -146,7 +152,7 @@ If you use MolSanitizer in your research, please cite:
 
 > Lam, T.-P.; Pach, S.; Ullmann, P.; et al. MolSanitizer: An open-source
 > pipeline to prepare small-molecule databases for large-scale virtual
-> screening. *ChemRxiv* **2026**. DOI: [TBA](TODO)
+> screening. *ChemRxiv* **2026**. DOI: [10.26434/chemrxiv.15010189/v1](https://chemrxiv.org/doi/full/10.26434/chemrxiv.15010189/v1)
 
 ## License
 
@@ -155,7 +161,7 @@ Distributed under the Apache License 2.0. See [LICENSE](https://github.com/carls
 ## Contact
 
 - Thua-Phong Lam — phong.lam@icm.uu.se
-- Szymon Pach — szymon.pach@icm.uu.se
+- Szymon Pach — szymon.pach@pharmazie.uni-marburg.de
 - Israel Cabeza de Vaca Lopez — israel.cabezadevaca@icm.uu.se
 
 ## Acknowledgements

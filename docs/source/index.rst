@@ -28,6 +28,7 @@ Contents
    usage
    outputs
    config
+   citation
    feedback
 
 .. toctree::
