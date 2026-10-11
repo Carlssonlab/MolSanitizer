@@ -244,6 +244,9 @@ Records that cannot be prepared, such as polynuclear clusters or ligands without
 
 To use the remove salts function, simply use the ``--removesalts`` flag. The program uses a predefined salt list in `msani/Data/salt_stripping.txt <https://github.com/carlssonlab/msani/blob/main/msani/Data/salt_stripping.txt>`_ to remove the salts, which contain both organic and inorganic salts commonly used in medicinal chemistry. Since the 0.2.3 version, Salt Remover will also remove the smaller fragments in the same molecule entry and only retain the largest one.
 
+If multiple fragments remain after stripping known salts, the largest fragment
+is selected by heavy-atom count, excluding both explicit and implicit hydrogens.
+
 *Caution:* If the entry is an organic salt (e.g., sodium acetate CH\ :sub:`3` COO\ :sup:`-` Na\ :sup:`+`), the whole entry will be removed.
 
 .. code-block:: console
@@ -568,7 +571,8 @@ as descriptor calculation or machine learning:
     $ msani -i example.smi --standardize
 
 After invalid and unsupported structures are removed, the standardization
-branch applies RDKit ``Cleanup``, selects the ``FragmentParent``, and applies
+branch applies RDKit ``Cleanup``, selects the fragment with the most heavy atoms,
+and applies
 ``Uncharger`` before writing canonical SMILES. It also excludes entries
 containing the metal elements listed by the standardization filter.
 Neutralization is attempted where possible; permanent charges can remain.

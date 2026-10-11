@@ -13,11 +13,20 @@ logger = logging.getLogger('msani')
 uncharger = rdMolStandardize.Uncharger()
 saltfile = Path(__file__).parent.parent / 'Data' / 'salt_stripping.txt'
 salt_remover = SaltRemover.SaltRemover(defnFilename=saltfile)        
+_fragment_params = rdMolStandardize.CleanupParameters()
+_fragment_params.largestFragmentChooserCountHeavyAtomsOnly = True
+_fragment_chooser = rdMolStandardize.LargestFragmentChooser(_fragment_params)
 _pains_catalog = None
 
 RDLogger.DisableLog('rdApp.*') # To disable error messages with kekulizing tautomers from RDKit
 
 _NUMBER_PATTERN = r'-?(?:\d+(?:\.\d*)?|\.\d+)'
+
+
+def _heavy_atom_fragment_parent(mol):
+    """Normalize the molecule and retain the fragment with most heavy atoms."""
+    # RDKit 2025.03.1's FragmentParent does not forward this chooser parameter.
+    return _fragment_chooser.choose(rdMolStandardize.Cleanup(mol))
 
 
 def _format_scaled_logp(value: str) -> str:
@@ -250,8 +259,8 @@ class Filters():
         if debug and len(deleted) > 0: 
             logger.info(f"Stripped salt {Chem.MolToSmiles(mol)}:  Salts:{' '.join([Chem.MolToSmiles(m) for m in deleted])}")
         if len(Chem.rdmolops.GetMolFrags(res)) > 1:
-            # If still contains more than one fragment, retains the largest one
-            rdMolStandardize.FragmentParentInPlace(res)
+            # If fragments remain, retain the largest by heavy-atom count.
+            res = _heavy_atom_fragment_parent(res)
 
         return res
 
@@ -264,8 +273,7 @@ class Filters():
         Returns:
             rdkit mol object: The stripped molecule.
         """
-        res = Chem.Mol(mol)
-        rdMolStandardize.FragmentParentInPlace(res)
+        res = _heavy_atom_fragment_parent(mol)
         if debug: 
             logger.info(f"Stripped alkali metals: {Chem.MolToSmiles(mol)} -> {Chem.MolToSmiles(res)}")
         return res
@@ -597,10 +605,7 @@ class Filters():
 
         try:
 
-            clean_mol = rdMolStandardize.Cleanup(mol) 
-
-            # if many fragments, get the "parent"
-            parent_clean_mol = rdMolStandardize.FragmentParent(clean_mol)
+            parent_clean_mol = _heavy_atom_fragment_parent(mol)
 
             # try to neutralize molecule
             global uncharger
