@@ -13,6 +13,7 @@ from rdkit.Chem import AllChem, rdchem
 from rdkit.Chem.MolStandardize import rdMolStandardize
 
 from msani.moltransform.neutralizer import Neutralizer
+from msani.moltransform.utils import run_reaction_preserving_fragments
 from msani.io.parsers import CustomHelpFormatter
 
 # forkserver avoids inheriting parent locks (RDKit allocator, logging) on Linux.
@@ -378,7 +379,7 @@ class Tautomerizer:
             mol (rdkit.Chem.rdchem.Mol): The reactant molecule.
 
         Returns:
-            None. The unique product SMILES strings are added to self.collection.
+            Chem.Mol: The standardized molecule, including untouched fragments.
         """
         for name, _, rxn in self.standardizing_reactions:
             runs = 0
@@ -388,7 +389,7 @@ class Tautomerizer:
                 if self.debug: 
                     logger.info(f"\tApplying {name} to {Chem.MolToSmiles(mol)}")
                     print(f"\tApplying {name} to {Chem.MolToSmiles(mol)}")
-                new_mol = rxn.RunReactants((mol,))[0][0]
+                new_mol = run_reaction_preserving_fragments(rxn, mol)[0][0]
                 error = Chem.SanitizeMol(new_mol, catchErrors=True)
                 if error == 0:
                     mol = new_mol
@@ -427,7 +428,7 @@ class Tautomerizer:
                     
                 current_smiles = unique_smiles[i]
                 current_mol = unique_mols[current_smiles]
-                products = rxn.RunReactants((current_mol,))
+                products = run_reaction_preserving_fragments(rxn, current_mol)
                 if products:
                     if self.debug: print(f"\tApplying {name} to {current_smiles}")
                     for product in products:

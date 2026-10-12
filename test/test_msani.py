@@ -300,6 +300,47 @@ class Test_MolSanitizer(unittest.TestCase):
             cli.clean_data(args)
             self.compare_relative(f'{temp_dir}/dummy_output_clean.txt',
                                   f'{self.path}/out_tautomers.txt')
+
+    def test_fragment_preservation(self):
+        for stage, modes in (
+            ('tautomerizer', ['tautomers']),
+            ('ionizer', ['protonation']),
+            ('combined', ['tautomers', 'protonation']),
+            ('removesalts_combined', ['removesalts', 'tautomers', 'protonation']),
+        ):
+            with self.subTest(stage=stage), tempfile.TemporaryDirectory() as temp_dir:
+                args = self.generate_mock_arguments(
+                    [f'{self.path}/in_fragments.txt'],
+                    ['neutralize', 'test', *modes], temp_dir)
+                cli.clean_data(args)
+                self.compareFiles(f'{temp_dir}/dummy_output_clean.txt',
+                                  f'{self.path}/out_fragments_{stage}.txt')
+
+    def test_ionization_fragment_states_share_ph(self):
+        # A pH range must keep the fragments at the same pH in each product.
+        for pH_range in (0, 4):
+            with self.subTest(pH_range=pH_range), tempfile.TemporaryDirectory() as temp_dir:
+                args = self.generate_mock_arguments(
+                    [f'{self.path}/in_fragments_ph_range.txt'],
+                    ['protonation', 'neutralize', 'test'], temp_dir)
+                args.protlib = f'{self.path}/fragment_protonation_rules.txt'
+                args.pH = 7
+                args.pH_range = pH_range
+                cli.clean_data(args)
+                self.compareFiles(f'{temp_dir}/dummy_output_clean.txt',
+                                  f'{self.path}/out_fragments_ph_range{pH_range}.txt')
+
+    def test_tautomer_fragment_limit(self):
+        # Twenty repeated fragments have 21 possible combinations; the CLI
+        # must retain 20 complete molecules under the default enumeration cap.
+        with tempfile.TemporaryDirectory() as temp_dir:
+            args = self.generate_mock_arguments(
+                [f'{self.path}/in_fragments_tautomer_limit.txt'],
+                ['tautomers', 'no-taurdkit', 'no-neutralize', 'test'], temp_dir)
+            cli.clean_data(args)
+            self.compareFiles(f'{temp_dir}/dummy_output_clean.txt',
+                              f'{self.path}/out_fragments_tautomer_limit.txt')
+
     def test_tautomers_extended(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             args = self.generate_mock_arguments([f'{self.path}/in_extended_tautomers.txt'],
