@@ -11,8 +11,18 @@ def run_reaction_preserving_fragments(rxn, mol):
     Use atom provenance to identify those spectators, preserving duplicates,
     stereochemistry, isotopes, and atom properties. Callers sanitize products
     after recombination, just as they sanitize ordinary reaction products.
+
+    Multiple alternative outcomes are supported, but each outcome must contain
+    exactly one product molecule (which may itself have disconnected fragments).
+    Callers process only that product, so reject multi-product outcomes before
+    returning even when the input has only one fragment.
     """
     outcomes = rxn.RunReactants((mol,))
+    if any(len(outcome) != 1 for outcome in outcomes):
+        raise ValueError(
+            "run_reaction_preserving_fragments requires exactly "
+            "one product molecule per outcome."
+        )
     if not outcomes:
         return outcomes
     fragment_indices = Chem.GetMolFrags(mol)
