@@ -1,0 +1,9 @@
+CCCCN.C(=O)O amine_formic_acid
+NCCCC.O=C(C1)CCOC1=O amine_cyclic_dione
+CCCCN.C(=O)O.O=C(C1)CCOC1=O amine_acid_dione
+CCCCN.CCCCN.C(=O)O repeated_amines
+C(=O)O.CCCCN.CCCCN reordered_fragments
+CCCCN.C(=O)O.[13CH3][C@H](F)Cl stereo_isotope_spectator
+CN=C(O)C.[Cl-] amide_chloride
+CC(=O)CC#N.[Cl-] cyano_ketone_chloride
+CC(=O)CC#N.CC(=O)CC#N repeated_tautomer_fragments

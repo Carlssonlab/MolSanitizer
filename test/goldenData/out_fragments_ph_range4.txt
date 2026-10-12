@@ -1,0 +1,3 @@
+CCCC[NH3+].O=CO amine_formic_acid_1
+CCCC[NH3+].O=C[O-] amine_formic_acid_2
+CCCCN.O=C[O-] amine_formic_acid_3
