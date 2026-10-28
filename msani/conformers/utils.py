@@ -414,7 +414,7 @@ def classify_confs(conf,
 def remove_unfavorable_confs(conf_ring_descriptors_df: DataFrame, name: str ='0')-> DataFrame:
     for column in conf_ring_descriptors_df.columns[2:-2]:
         if (conf_ring_descriptors_df[column] == -1).all():
-            conf_ring_descriptors_df.drop(columns=[column], inplace=True)
+            conf_ring_descriptors_df = conf_ring_descriptors_df.drop(columns=[column])
 
     # Step 2: Drop rows where any value in remaining columns (2 onwards) is -1
     for column in conf_ring_descriptors_df.columns[2:-2]:
