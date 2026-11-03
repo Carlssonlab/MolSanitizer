@@ -128,7 +128,7 @@ def main():
                            MACOSX_DEPLOYMENT_TARGET=args.deployment_target,
                            ARCHFLAGS=f'-arch {args.arch}',
                            CC='/usr/bin/clang', CXX='/usr/bin/clang++')
-                run([python, '-m', 'pip', 'install', 'scikit-build-core', 'pybind11', 'cmake',
+                run([python, '-m', 'pip', 'install', 'scikit-build-core', 'setuptools-scm>=8,<9', 'pybind11', 'cmake',
                      'ninja', 'delocate', 'twine', f'rdkit=={args.rdkit_version}'], env=env, cwd=work, log=log)
                 run([python, '-m', 'pip', 'freeze'], env=env, cwd=work, log=log)
                 raw = work / 'raw'

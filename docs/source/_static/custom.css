@@ -110,6 +110,48 @@ a:visited {
     color: #000000 !important;
 }
 
+/* The current RTD theme uses selects rather than the legacy .version label. */
+.wy-side-nav-search > div.switch-menus {
+    color: #415364;
+}
+
+.wy-side-nav-search > div.switch-menus > div.version-switch select,
+.wy-side-nav-search > div.switch-menus > div.language-switch select {
+    margin-right: 0;
+    padding: 0.2em 0.4em;
+    max-width: 240px;
+    color: #415364;
+    background-color: #efefef;
+}
+
+.wy-side-nav-search > div.switch-menus select option {
+    color: #415364;
+    background-color: #efefef;
+}
+
+.wy-side-nav-search > div.switch-menus > div.version-switch select:hover,
+.wy-side-nav-search > div.switch-menus > div.version-switch select:focus,
+.wy-side-nav-search > div.switch-menus > div.version-switch select:active,
+.wy-side-nav-search > div.switch-menus > div.language-switch select:hover,
+.wy-side-nav-search > div.switch-menus > div.language-switch select:focus,
+.wy-side-nav-search > div.switch-menus > div.language-switch select:active {
+    color: #415364;
+    background-color: #e2e2e2;
+}
+
+.wy-side-nav-search > div.switch-menus select:focus-visible {
+    outline: 2px solid #03579c;
+    outline-offset: 2px;
+}
+
+.wy-side-nav-search .msani-doc-version {
+    margin-top: 0.6em;
+    color: #415364;
+    font-size: 90%;
+    font-weight: 700;
+    overflow-wrap: anywhere;
+}
+
 .review {
     background-color: yellow;
 }

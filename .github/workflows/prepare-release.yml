@@ -1,4 +1,4 @@
-# Open a pull request that bumps the version and regenerates the changelog.
+# Open a pull request that prepares the changelog for a release tag.
 #
 # main is protected, so nothing here pushes to it. The PR is authored by the
 # github-actions bot, which means a maintainer can review and approve it
@@ -15,7 +15,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: New version, as in pyproject.toml (no leading v)
+        description: New release tag, for example 0.7.5 (no leading v)
         required: true
 
 permissions:
@@ -31,17 +31,16 @@ jobs:
           ref: main
           fetch-depth: 0
 
-      - name: Update version in files
+      - name: Validate the release tag
         env:
           VERSION: ${{ inputs.version }}
         run: |
           set -euo pipefail
-          [[ "$VERSION" =~ ^[0-9]+(\.[0-9]+)*([a-z]+[0-9]+)?(\.(post|dev)[0-9]+)?$ ]] || { echo "::error::Bad version '$VERSION'"; exit 1; }
-          # pyproject.toml is the single source of truth; cli.py and
-          # batchmode.py read it through importlib.metadata.
-          sed -i "s/^version = \".*\"/version = \"$VERSION\"/" pyproject.toml
-          sed -i "s/^release = .*/release = \"$VERSION\"/" docs/source/conf.py
-          sed -i "s/^version = .*/version = \"$VERSION\"/" docs/source/conf.py
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+((a|b|rc)[0-9]+)?$ ]] || { echo "::error::Bad release tag '$VERSION'"; exit 1; }
+          if git show-ref --verify --quiet "refs/tags/$VERSION"; then
+            echo "::error::Release tag '$VERSION' already exists"
+            exit 1
+          fi
 
       - name: Generate changelog
         uses: orhun/git-cliff-action@v4
@@ -63,19 +62,21 @@ jobs:
           token: ${{ secrets.RELEASE_BOT_TOKEN || github.token }}
           branch: release/${{ inputs.version }}
           base: main
-          commit-message: "Update version to ${{ inputs.version }} and changelog"
+          commit-message: "chore(release): prepare for ${{ inputs.version }}"
           title: "Release ${{ inputs.version }}"
           body: |
-            Bumps the version to `${{ inputs.version }}` and regenerates the changelog.
+            Prepares the changelog for `${{ inputs.version }}`.
+            Package and documentation versions are derived from Git tags.
 
-            After merging, tag the merge commit:
+            After merging, tag this PR's merge commit:
 
             ```
-            git tag ${{ inputs.version }} && git push origin ${{ inputs.version }}
+            git tag ${{ inputs.version }} <release-merge-commit-sha>
+            git push origin ${{ inputs.version }}
             ```
+
+            Later commits automatically receive development versions; no version-bump PR is needed.
           add-paths: |
-            pyproject.toml
-            docs/source/conf.py
             docs/source/changes.rst
             CHANGELOG.md
           delete-branch: true

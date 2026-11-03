@@ -6,8 +6,19 @@ project = 'MolSanitizer'
 copyright = "2026, Carlsson's Lab, Uppsala University"
 author = 'Phong Lam, Szymon Pach, Israel Cabeza de Vaca, Ruth Brenk, Jens Carlsson'
 
-release = "0.7.4"
-version = "0.7.4"
+# Resolve the checkout's version without installing the native extensions or
+# importing an unrelated MolSanitizer installation from the docs environment.
+import subprocess
+import sys
+from pathlib import Path
+
+_project_root = Path(__file__).resolve().parents[2]
+release = subprocess.check_output(
+    [sys.executable, "-m", "setuptools_scm", "--root", str(_project_root),
+     "--config", str(_project_root / "pyproject.toml")],
+    text=True,
+).strip()
+version = release
 
 # -- General configuration
 
@@ -63,6 +74,7 @@ html_theme_options = {    # Toc options
 
 html_static_path = ['_static']
 html_css_files = ['custom.css',]
+html_js_files = ['doc-version.js']
 
 # The suffix(es) of source filenames.
 source_suffix = '.rst'

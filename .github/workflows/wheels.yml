@@ -30,8 +30,8 @@ on:
         type: boolean
         default: false
   push:
-    # Tags are bare versions (0.7.3) or v-prefixed (v0.7.3).
-    tags: ['v[0-9]*', '[0-9]*']
+    # Release tags are bare versions, for example 0.7.5 or 0.7.5rc1.
+    tags: ['[0-9]*']
   # The pull_request trigger is added in a follow-up PR, once the SDK release
   # exists. Enabling it before then makes every PR fail on the SDK restore
   # step. To enable, restore:
@@ -59,6 +59,12 @@ jobs:
       macos: ${{ steps.plan.outputs.macos }}
       windows: ${{ steps.plan.outputs.windows }}
     steps:
+      - name: Require a release tag for TestPyPI publishing
+        if: github.event_name == 'workflow_dispatch' && inputs.publish_testpypi && github.ref_type != 'tag'
+        run: |
+          echo "::error::Select a release tag for TestPyPI publishing. Development builds include a local version suffix."
+          exit 1
+
       - name: Choose the matrix
         id: plan
         env:
@@ -92,6 +98,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6.0.2
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
@@ -116,6 +124,8 @@ jobs:
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v6.0.2
+        with:
+          fetch-depth: 0
 
       # The upstream manylinux image is bare. The SDK tarball carries RDKit,
       # Boost and Eigen, but Boost.Iostreams links the distro compression
@@ -192,6 +202,8 @@ jobs:
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v6.0.2
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-python@v7
         with:
@@ -253,6 +265,8 @@ jobs:
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v6.0.2
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-python@v7
         with:
@@ -332,16 +346,14 @@ jobs:
           python -m twine check --strict dist/*
           (cd dist && sha256sum ./* | tee SHA256SUMS)
 
-      # A tag must not produce a bundle whose version it does not match.
-      - name: Verify the tag matches the project version
-        if: github.ref_type == 'tag'
+      # Check the built metadata; pyproject.toml no longer has a static version.
+      - name: Verify distribution versions
         run: |
           set -euo pipefail
-          version=$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
-          tag="${GITHUB_REF_NAME#v}"
-          if [ "$version" != "$tag" ]; then
-            echo "::error::Tag $GITHUB_REF_NAME does not match pyproject version $version"
-            exit 1
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            python packaging/check_release_versions.py dist --expected-version "$GITHUB_REF_NAME"
+          else
+            python packaging/check_release_versions.py dist
           fi
 
       - name: Summarise the bundle
@@ -377,7 +389,7 @@ jobs:
   # uploaded; the sdist needs an RDKit C++ SDK and cannot be built from PyPI.
   publish-pypi:
     needs: collect
-    if: github.ref_type == 'tag'
+    if: github.event_name == 'push' && github.ref_type == 'tag'
     runs-on: ubuntu-latest
     environment:
       name: pypi
