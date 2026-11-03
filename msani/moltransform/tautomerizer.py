@@ -37,18 +37,19 @@ TAUTOMER_PARAMS.tautomerReassignStereo = False
 TE = rdMolStandardize.TautomerEnumerator(TAUTOMER_PARAMS) 
 
 vinyl = Chem.MolFromSmarts(
-    '[CX3;!$(C-[!#6&!H0])]=[CX3;!$(C-[!#6&!H0])]'
+    '[CX3;!$(C-[!#6&!H0])]=[CX3;!$(C-[!#6&!H0]),$(C1=C-[CX3z1]-c:c-[CX3z1]-1)]'
     )
 
 integrity_substructs = {
     'amide_like': Chem.MolFromSmarts('[#6^2;$([#6](=,:[!#6])~[!#6]),$([#6](~[!#6])(~[!#6])=,:*)]'),
     'ketone_like': Chem.MolFromSmarts('[#6^2;$([#6](~[#1,#6])(=,:[#6])-[OH]),$([#6](~[#1,#6])(~[#6])=O)]'),
-    'carboxylic_acid': Chem.MolFromSmarts('C(=O)[OH]'),
-    'sulfoximine_like': Chem.MolFromSmarts('S=N'),
+    'carboxylic_acid-and-acyclic_ester': Chem.MolFromSmarts('C(=O)[O;$([OH]),$([OX2](C=O)-!@*)]'),
+    'sulfoximine_azide_nitro': Chem.MolFromSmarts('N=[S,$([NX2&+]=[NX1&-]),$([OX1+0]=[NX3H0&+]-[OX1&-])]'),
     'aliphatic_alcohol': Chem.MolFromSmarts('[OH,SH&X2]-[C;$([CH^3](-[C;!$(C=[!C])])-[#6;!$([C&z1]=[!C])]),$([CH^3]([OH])(-[O,N,S])-[#6]),$([CH2]),$([C!H0^3]-[CX3;!$(C-[!#6&!H0])]=[CX3;!$(C-[!#6&!H0])])]'),
     'phenol': Chem.MolFromSmarts('[OH]-c1ccccc1'),
     'ethylene_like': Chem.MolFromSmarts('[C;$([CX4H2;!$(C-[!#6])!$(C-C=[!#6])!$(C-C=C-C=[!#6])]-[CX4;!$(C-[!#6])]),$([CX4H2;!$(C-[!#6])]-[CX4;!$(C-[!#6])!$(C-C=[!#6])!$(C-C=C-C=[!#6])])]'),
-    'methyl' : Chem.MolFromSmarts('[CH3]')
+    'methyl' : Chem.MolFromSmarts('[CH3]'),
+    'isolated_vinyl' : Chem.MolFromSmarts('[CX4+0&z0]-[CX3+0&z0]=[CX3+0&z0]-[CX4+0&z0]')
 
 }
 
@@ -58,13 +59,13 @@ try:
     del substructure_terms[2] #C=,:O rule. We introduce our own rules for carbonyls.
     del substructure_terms[0] #benzoquinone rule. We introduce our own rules for benzoquinones.
     substructure_terms.append(
-        rdMolStandardize.SubstructTerm("aro-5", "a1aaaa1", 100)
+        rdMolStandardize.SubstructTerm("aro-5", "[a;!r3]1[a;!r3][a;!r3][a;!r3][a;!r3]1", 100)
         )
     substructure_terms.append(
-        rdMolStandardize.SubstructTerm("aro-6", "a1aaaaa1", 100)
-        )   
+        rdMolStandardize.SubstructTerm("aro-6", "[a;!r3]1-,:,=[a;!r3]-,:,=[a;!r3]-,:,=[a;!r3]-,:,=[a;!r3]-,:,=[a;!r3]-,:,=1", 100)
+        )
     substructure_terms.append(
-        rdMolStandardize.SubstructTerm("aro-7", "a1aaaaaa1", 100)
+        rdMolStandardize.SubstructTerm("aro-7", "[a;!r3]1[a;!r3][a;!r3][a;!r3][a;!r3][a;!r3][a;!r3]1", 100)
         )
     substructure_terms.append(
         rdMolStandardize.SubstructTerm("thiophene", "[#6]:[#16]", 2)
@@ -74,7 +75,7 @@ try:
         )
     # Fix aromatic benzoquinone
     substructure_terms.append(
-        rdMolStandardize.SubstructTerm("aromatic benzoquinone", "[c;$(c1(=A)c(:a)cccc1),$(c1(=A)ccc(:a)cc1)]1[c;!$(c12c(=A)c3c(cccc3)cc1ccc(:a)c2)!$(c12c(=A)c3c(cccc3)cc1cc(:a)cc2)!$(c12c(=A)c3c(cc(:a)cc3)cc1cccc2)!$(c12c(=A)c3c(ccc(:a)c3)cc1cccc2)!$(c12cc3c(cc(:a)cc3)cc1cccc2=A)!$(c12cc3c(ccc(:a)c3)cc1cccc2=A)!$(c1c(=A)c2c(cc3c(ccc(:a)c3)c2)cc1)!$(c1c(=A)c2c(cc3c(cc(:a)cc3)c2)cc1)]cccc1", -100)
+        rdMolStandardize.SubstructTerm("aromatic benzoquinone", "[c;$(c1(:[a&r7])c(:[a&r7])cccc1),$(c1(=A)c(:,=*)cccc1),$(c1(=A)ccc(:,=*)cc1),$(c1(=C)c(=C)aaaa1),$(c1(=C)aac(=C)aa1)]1[a;!$(c12c(=A)c3c(cccc3)cc1ccc(:a)c2)!$(c12c(=A)c3c(cccc3)cc1cc(:a)cc2)!$(c12c(=A)c3c(cc(:a)cc3)cc1cccc2)!$(c12c(=A)c3c(ccc(:a)c3)cc1cccc2)!$(c12cc3c(cc(:a)cc3)cc1cccc2=A)!$(c12cc3c(ccc(:a)c3)cc1cccc2=A)!$(c1c(=A)c2c(cc3c(ccc(:a)c3)c2)cc1)!$(c1c(=A)c2c(cc3c(cc(:a)cc3)c2)cc1)]aaaa1", -100)
         )
     substructure_terms.append(
         rdMolStandardize.SubstructTerm("p-benzoquinone", "[#6]1(-[#6]=,:[#6]-[#6](-[#6]=,:[#6]-1)=,:[N,S,O])=,:[N,S,O]", 94)
@@ -84,6 +85,12 @@ try:
         )
     substructure_terms.append(
         rdMolStandardize.SubstructTerm("2-or-3-OH furane and di-OH-pyrrols", "[a;$(c1([OH])[c!$(c~[OX1,OH,SX1,SX2H])][o,s][c!$(c~[OX1,OH,SX1,SX2H])][c!$(c~[OX1,OH,SX1,SX2H])]1),$([c!$(c~[OX1,OH,SX1,SX2H])]1c([OH])[o,s][c!$(c~[OX1,OH,SX1,SX2H])][c!$(c~[OX1,OH,SX1,SX2H])]1),$(c1([OH])[nX3]c([OH])[c!$(c~[OX1,OH,SX1,SX2H])][c!$(c~[OX1,OH,SX1,SX2H])]1),$(c1([OH])[nX3][c!$(c~[OX1,OH,SX1,SX2H])]c([OH])[c!$(c~[OX1,OH,SX1,SX2H])]1)]1aaaa1", -99)
+        )
+    substructure_terms.append(
+        rdMolStandardize.SubstructTerm("fluorene-like", "[a&R{2-}]1:[a&R{2-}]-@[A&R1]-@[a&R{2-}]:[a&R{2-}]-1", 100)
+        )
+    substructure_terms.append(
+        rdMolStandardize.SubstructTerm("pyrene-like", "[a&R{2-}]1:[a&R{2-}]-@[A&R1]-@[a&R{2-}]:[a&R{2-}]:[a&R{2-}]1", 100)
         )
 except AttributeError as e:
     from rdkit import rdBase
