@@ -225,7 +225,7 @@ CCC(=O)OCC(=O)C1(OC(=O)CC)C(C)CC2C3CCC4=CC(=O)C=CC4(C)C3(Cl)C(O)CC21C Beclometha
 CC(=O)C1CCC2C3CCC4=CC(=O)CCC4(C)C3CCC12C Progesterone
 CC([NH3+])C(O)c1ccccc1 Phenylpropanolamine
 CNC(=O)c1cc(Oc2ccc(NC(=O)Nc3ccc(Cl)c(C(F)(F)F)c3)cc2)ccn1 Sorafenib
-O=P([O-])([O-])C(O)(Cn1ccnc1)P(=O)([O-])[O-] Zoledronic_acid
+O=P([O-])([O-])C(O)(Cn1ccnc1)P(=O)([O-])O Zoledronic_acid
 COC1=CC(=O)CC(C)C12Oc1c(Cl)c(OC)cc(OC)c1C2=O Griseofulvin
 COC(=O)C1=C(C)NC(C)=C(C(=O)OCC(C)C)C1c1ccccc1[N+](=O)[O-] Nisoldipine
 C[NH+]1CCN(C(=O)OC2c3nccnc3C(=O)N2c2ccc(Cl)cn2)CC1 Eszopiclone
@@ -656,7 +656,7 @@ NS(=O)(=O)c1cc2c(cc1Cl)NC=NS2(=O)=O Chlorothiazide
 CCOC(=O)C(CCc1ccccc1)[NH2+]C(C)C(=O)N1Cc2ccccc2CC1C(=O)[O-] Quinapril
 CC[NH+](CC)CCOc1ccc(C(=C(Cl)c2ccccc2)c2ccccc2)cc1 Clomifene
 O=[N+]([O-])OC1COC2C(O[N+](=O)[O-])COC12 Isosorbide_dinitrate
-O=P([O-])([O-])C(O)(Cc1cccnc1)P(=O)([O-])[O-] Risedronic_acid
+O=P([O-])([O-])C(O)(Cc1cccnc1)P(=O)([O-])O Risedronic_acid
 Cc1cccn2c(=O)c(-c3nnn[n-]3)cnc12 Pemirolast
 CCCCNc1cc(C(=O)[O-])cc(S(N)(=O)=O)c1Oc1ccccc1 Bumetanide
 Cn1nc(C(=O)NC2CC3CCCC(C2)[NH+]3C)c2ccccc21 Granisetron
@@ -878,7 +878,7 @@ CCOC(=O)OC1(C(=O)COC(=O)CC)CCC2C3CCC4=CC(=O)C=CC4(C)C3C(O)CC21C Prednicarbate
 CC(C)N=C(N)NC(N)=[NH+]c1ccc(Cl)cc1 Proguanil_1
 CC(C)[NH+]=C(N)NC(N)=Nc1ccc(Cl)cc1 Proguanil_2
 CCc1ccc(CCOc2ccc(CC3SC(=O)[N-]C3=O)cc2)nc1 Pioglitazone
-O=P([O-])([O-])C(Sc1ccc(Cl)cc1)P(=O)([O-])[O-] Tiludronic_acid
+O=P([O-])([O-])C(Sc1ccc(Cl)cc1)P(=O)([O-])O Tiludronic_acid
 COc1ccccc1OCC[NH2+]CC(O)COc1cccc2[nH]c3ccccc3c12 Carvedilol
 CC1COc2c(N3CC[NH+](C)CC3)c(F)cc3c(=O)c(C(=O)[O-])cn1c23 Levofloxacin
 O=c1[c-](CCS(=O)c2ccccc2)c(=O)n(-c2ccccc2)n1-c1ccccc1 Sulfinpyrazone

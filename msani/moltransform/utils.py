@@ -4,6 +4,47 @@ import subprocess
 from rdkit import Chem
 
 
+def run_reaction_preserving_fragments(rxn, mol):
+    """Run a single-reactant rule and reattach untouched input components.
+
+    RDKit reaction products omit disconnected components that do not react.
+    Use atom provenance to identify those spectators, preserving duplicates,
+    stereochemistry, isotopes, and atom properties. Callers sanitize products
+    after recombination, just as they sanitize ordinary reaction products.
+
+    Multiple alternative outcomes are supported, but each outcome must contain
+    exactly one product molecule (which may itself have disconnected fragments).
+    Callers process only that product, so reject multi-product outcomes before
+    returning even when the input has only one fragment.
+    """
+    outcomes = rxn.RunReactants((mol,))
+    if any(len(outcome) != 1 for outcome in outcomes):
+        raise ValueError(
+            "run_reaction_preserving_fragments requires exactly "
+            "one product molecule per outcome."
+        )
+    if not outcomes:
+        return outcomes
+    fragment_indices = Chem.GetMolFrags(mol)
+    if len(fragment_indices) < 2:
+        return outcomes
+
+    fragments = Chem.GetMolFrags(mol, asMols=True, sanitizeFrags=False)
+    preserved = []
+    for outcome in outcomes:
+        represented = {
+            atom.GetIntProp('react_atom_idx')
+            for product in outcome for atom in product.GetAtoms()
+            if atom.HasProp('react_atom_idx')
+        }
+        product = outcome[0]
+        for indices, fragment in zip(fragment_indices, fragments):
+            if represented.isdisjoint(indices):
+                product = Chem.CombineMols(product, fragment)
+        preserved.append((product, *outcome[1:]))
+    return tuple(preserved)
+
+
 def enumerate_stereoisomers_corina(
     smiles: str,
     max_isomers: int,

@@ -12,6 +12,7 @@ from rdkit import Chem, RDLogger
 from rdkit.Chem import AllChem
 
 from msani.moltransform.neutralizer import Neutralizer
+from msani.moltransform.utils import run_reaction_preserving_fragments
 from msani.io.parsers import CustomHelpFormatter
 
 # forkserver avoids inheriting parent locks (RDKit allocator, logging) on Linux.
@@ -178,7 +179,7 @@ class Ionizer:
 
         visited.add(mol_smiles)
         reactive = False
-        outcomes = rxn.RunReactants((mol,))
+        outcomes = run_reaction_preserving_fragments(rxn, mol)
         if outcomes:
             reactive = True
             product = outcomes[0][0]
@@ -285,7 +286,7 @@ class Ionizer:
                 next_mols = {}
                 for smi, mol in current_mols.items():
                     if mol.HasSubstructMatch(rxn.GetReactantTemplate(0)):
-                        outcomes = rxn.RunReactants((mol,))
+                        outcomes = run_reaction_preserving_fragments(rxn, mol)
                         if self.debug:
                             print(
                                 f"\tApplying reaction {name} "

@@ -1,0 +1,11 @@
+CCCC[NH3+] amine_formic_acid
+O=C1C=C([O-])CCO1 amine_cyclic_dione
+O=C1C=C([O-])CCO1 amine_acid_dione
+CCCC[NH3+] repeated_amines
+CCCC[NH3+] reordered_fragments
+CCCC[NH3+] stereo_isotope_spectator
+CNC(C)=O amide_chloride
+CC(=O)CC#N cyano_ketone_chloride_1
+CC(O)=CC#N cyano_ketone_chloride_2
+CC(=O)CC#N repeated_tautomer_fragments_1
+CC(O)=CC#N repeated_tautomer_fragments_2

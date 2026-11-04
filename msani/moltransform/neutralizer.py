@@ -15,7 +15,7 @@ exception_groups = [
     ]
 
 # SMARTS pattern to find charged atoms that can be neutralized
-neutralizable_pattern = Chem.MolFromSmarts("[+1!h0!$([*]~[-1,-2,-3,-4]),-1!$([*]~[+1,+2,+3,+4])!$([BX4&-;!$(B-[OH])])]")
+neutralizable_pattern = Chem.MolFromSmarts("[+1!h0!$([*]~[-1,-2,-3,-4]),-1!$([*]~[+1,+2,+3,+4])!$([BX4&-;!$(B-[OH])])!$([F-,Cl-,Br-,I-]->*)]")
 
 class Neutralizer:
     """

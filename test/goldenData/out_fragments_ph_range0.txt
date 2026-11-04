@@ -1,0 +1,1 @@
+CCCC[NH3+].O=C[O-] amine_formic_acid
