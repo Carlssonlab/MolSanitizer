@@ -1,0 +1,132 @@
+# Build one wheel against the pinned SDK, then test that identical artifact
+# with every compatible stable Python RDKit release from the minimum onward.
+name: RDKit compatibility
+
+on:
+  pull_request:
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rdkit-compatibility-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  discover:
+    name: Discover RDKit releases (CPython 3.12)
+    runs-on: ubuntu-latest
+    container: python:3.12-slim
+    timeout-minutes: 5
+    outputs:
+      rdkit: ${{ steps.versions.outputs.rdkit }}
+    steps:
+      - name: Install git for the checkout action
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends git ca-certificates
+
+      - uses: actions/checkout@v6.0.2
+      - name: Install wheel metadata helper
+        run: python -m pip install 'packaging>=23'
+      - name: Check discovery and runtime pinning
+        run: python -m unittest discover -s packaging/linux -p 'test_*.py'
+      - name: Discover all compatible stable RDKit versions
+        id: versions
+        run: python packaging/linux/discover_rdkit_versions.py --minimum 2025.3.1
+
+  build:
+    name: Build Linux CPython 3.12 wheel (SDK 2025.9.1)
+    needs: discover
+    runs-on: ubuntu-latest
+    container: quay.io/pypa/manylinux_2_28_x86_64
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SDK_TAG: sdk-2025.09.1
+    steps:
+      - uses: actions/checkout@v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Install system build dependencies
+        run: bash packaging/linux/build_sdk.sh deps
+
+      - name: Restore the RDKit SDK
+        run: |
+          set -euo pipefail
+          bash packaging/fetch_sdk.sh "$SDK_TAG" msani-sdk-linux-x86_64.tar.gz
+          tar -xzf msani-sdk-linux-x86_64.tar.gz -C /
+          for prefix in /opt/msani-rdkit /opt/boost /opt/eigen; do
+            test -d "$prefix" || { echo "::error::SDK asset is missing $prefix"; exit 1; }
+          done
+          cat /opt/msani-rdkit/share/msani-sdk/msani-sdk.json
+          /opt/python/cp312-cp312/bin/python - <<'PY'
+          import json
+          from pathlib import Path
+
+          metadata = json.loads(Path('/opt/msani-rdkit/share/msani-sdk/msani-sdk.json').read_text())
+          assert metadata['rdkit_ref'] == 'Release_2025_09_1', metadata
+          assert metadata['linkage'] == 'static', metadata
+          assert metadata['arch'] == 'x86_64', metadata
+          PY
+
+      - name: Build and repair the wheel
+        env:
+          MSANI_TAG: cp312
+          MSANI_SOURCE: ${{ github.workspace }}
+          MSANI_OUT: ${{ github.workspace }}/wheelhouse
+          MSANI_BUILD_RDKIT: '2025.9.1'
+          MSANI_BUILD_JOBS: 4
+        run: bash packaging/linux/build_in_container.sh
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: rdkit-compatibility-linux-cp312
+          path: wheelhouse/*.whl
+          if-no-files-found: error
+          retention-days: 7
+
+  test:
+    name: Python RDKit ${{ matrix.rdkit }}
+    needs: [discover, build]
+    runs-on: ubuntu-latest
+    container: python:3.12-slim
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        rdkit: ${{ fromJSON(needs.discover.outputs.rdkit) }}
+    steps:
+      - name: Install git for the checkout action
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends git ca-certificates
+
+      - uses: actions/checkout@v6.0.2
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: rdkit-compatibility-linux-cp312
+          path: wheelhouse
+
+      - name: Test the installed wheel
+        env:
+          MSANI_TAG: cp312
+          MSANI_WHEELS: ${{ github.workspace }}/wheelhouse
+          MSANI_TESTS: ${{ github.workspace }}/test
+          MSANI_TEST_RDKIT: ${{ matrix.rdkit }}
+          PYTHONNOUSERSITE: '1'
+        run: bash packaging/linux/test_in_container.sh

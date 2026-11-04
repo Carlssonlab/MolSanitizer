@@ -5,9 +5,9 @@
 
 
 [![Python](https://img.shields.io/badge/python-3.10--3.14-blue)](https://github.com/carlssonlab/MolSanitizer/blob/main/pyproject.toml)
-[![Documentation](https://img.shields.io/badge/docs-msani.readthedocs.io-orange)](https://msani.readthedocs.io/)
+[![Documentation](https://img.shields.io/badge/docs-msani.readthedocs.io-orange)](https://msani.readthedocs.io/en/stable/)
 [![License](https://img.shields.io/badge/license-Apache%202.0-yellow)](https://github.com/carlssonlab/MolSanitizer/blob/main/LICENSE)
-
+[![Preprint](https://img.shields.io/badge/Preprint-Chemrxiv-red)](https://chemrxiv.org/doi/full/10.26434/chemrxiv.15010189/v1)
 
 MolSanitizer (`msani`) prepares SMILES libraries for structure-based drug
 discovery. It standardizes molecules (salt removal, tautomer and protonation
@@ -30,7 +30,7 @@ pip install molsanitizer
 
 Prebuilt wheels are available for MacOS, Linux and Windows. For building from source
 and details on dependencies, see the
-[installation guide](https://msani.readthedocs.io/en/latest/installation.html).
+[installation guide](https://msani.readthedocs.io/en/stable/installation.html).
 
 ### Optional dependencies
 
@@ -92,8 +92,8 @@ msani -i example_clean.smi --gen3d --format oeb.lib             # OpenEye FRED/H
 Each format is written to its own directory (`sdf/`, `db2/`, `pdbqt/`, `oeb/`, `mol2/`).
 Several formats can be requested at once, e.g. `--format sdf db2`. Run
 `msani -h` for all options, and see the
-[quickstart](https://msani.readthedocs.io/en/latest/quickstart.html) and
-[output documentation](https://msani.readthedocs.io/en/latest/outputs.html)
+[quickstart](https://msani.readthedocs.io/en/stable/quickstart.html) and
+[output documentation](https://msani.readthedocs.io/en/stable/outputs.html)
 for details.
 
 ## Configuration
@@ -126,13 +126,17 @@ msani config reset-path                      # return to the standard location
 
 Command-line arguments always take priority over the config file. For a
 one-off override, set `MSANI_CONFIG=/path/to/config.yaml`. See the
-[configuration guide](https://msani.readthedocs.io/en/latest/config.html) for
+[configuration guide](https://msani.readthedocs.io/en/stable/config.html) for
 precedence rules and batch jobs.
 
 ## Documentation
 
-Full documentation, including the methodology behind MolSanitizer, is available
-at [msani.readthedocs.io](https://msani.readthedocs.io).
+Full documentation for the released version, including the methodology behind
+MolSanitizer, is available in the
+[stable documentation](https://msani.readthedocs.io/en/stable/).
+For source installs from `main`, use the
+[development documentation](https://msani.readthedocs.io/en/latest/), which may
+describe features that have not been released yet.
 
 
 ## Contributing

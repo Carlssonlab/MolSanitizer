@@ -154,7 +154,7 @@ def main():
                     env['PATH'] = os.pathsep.join([interpreter_path(build), *map(str, dll_dirs), env['PATH']])
                     env['PATH'] = str(Path(compiler).parent) + os.pathsep + env['PATH']
                     run([python, '-c', check], env=env, cwd=work, log=log)
-                    run([python, '-m', 'pip', 'install', 'scikit-build-core', 'pybind11', 'ninja',
+                    run([python, '-m', 'pip', 'install', 'scikit-build-core', 'setuptools-scm>=8,<9', 'pybind11', 'ninja',
                          'cmake', 'delvewheel', 'twine', f'rdkit=={args.rdkit_version}'], env=env, cwd=work, log=log)
                     run([python, '-m', 'pip', 'freeze'], env=env, cwd=work, log=log)
                     raw = work / 'raw'

@@ -1,0 +1,8 @@
+{% extends "!layout.html" %}
+
+{% block sidebartitle %}
+  {{ super() }}
+  <div class="msani-doc-version" data-release="{{ release|e }}">
+    Version {{ release|e }}
+  </div>
+{% endblock %}

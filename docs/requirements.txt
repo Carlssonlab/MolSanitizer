@@ -4,3 +4,4 @@ sphinx-autobuild
 sphinx-copybutton
 sphinx-autodoc-typehints
 sphinx_togglebutton
+setuptools-scm>=8,<9

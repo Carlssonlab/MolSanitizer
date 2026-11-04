@@ -35,6 +35,17 @@ export PATH="/opt/python/$tag-$tag/bin:$PATH"
 export RDBASE="$rdkit_prefix"
 export CMAKE_BUILD_PARALLEL_LEVEL="$jobs"
 
+python -m pip install scikit-build-core "setuptools-scm>=8,<9" pybind11 twine "rdkit==$rdkit"
+# Resolve the version while Git metadata is still available. The source mount
+# may be read-only and owned by the host user, so trust only this checkout for
+# this command. setuptools-scm's CLI does not write to the source directory.
+export SETUPTOOLS_SCM_PRETEND_VERSION_FOR_MOLSANITIZER
+SETUPTOOLS_SCM_PRETEND_VERSION_FOR_MOLSANITIZER=$(
+    cd "$source_dir"
+    GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=safe.directory GIT_CONFIG_VALUE_0="$source_dir" \
+        python -m setuptools_scm
+)
+
 # Use a writable copy; never reuse host CMake artifacts or modify the checkout.
 work=$(mktemp -d /tmp/msani-XXXXXXXX)
 mkdir -p "$work/source" "$work/raw"
@@ -42,7 +53,6 @@ tar -C "$source_dir" --exclude='./.git' --exclude='./build' --exclude='./dist' \
     --exclude='__pycache__' -cf - . | tar -C "$work/source" -xf -
 cd "$work/source"
 
-python -m pip install scikit-build-core pybind11 twine "rdkit==$rdkit"
 python -m pip wheel . --no-build-isolation --no-deps \
     -Cbuild-dir="$work/native-build" \
     -Ccmake.define.MSANI_RDKIT_LINKAGE=static \

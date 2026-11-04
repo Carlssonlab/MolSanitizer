@@ -1,2 +1,5 @@
 # Golden test data (DOCK .db2 text), not SQL source
 *.db2 linguist-detectable=false linguist-generated
+
+# Preserve the Git-derived version in source archives without a .git directory.
+.git_archival.txt export-subst

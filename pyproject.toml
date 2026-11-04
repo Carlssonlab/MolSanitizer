@@ -1,10 +1,10 @@
 [build-system]
-requires = ["scikit-build-core>=0.9", "pybind11>=2.11"]
+requires = ["scikit-build-core>=0.9", "setuptools-scm>=8,<9", "pybind11>=2.11"]
 build-backend = "scikit_build_core.build"
 
 [project]
 name = "MolSanitizer"
-version = "0.7.4"
+dynamic = ["version"]
 description = "An open-source pipeline to prepare large-scale small-molecule databases for virtual screening"
 readme = "README.md"
 authors = [
@@ -54,6 +54,8 @@ gen3d = "msani.conformers.conformers:main"
 cmake.source-dir = "."
 cmake.version = ">=3.20"
 cmake.build-type = "Release"
+# Resolve package metadata from release tags, including in editable installs.
+metadata.version.provider = "scikit_build_core.metadata.setuptools_scm"
 # Install the built .so files into the msani package
 install.components = ["python"]
 wheel.packages = ["msani"]
@@ -80,6 +82,13 @@ wheel.license-files = [
     "third_party/libcxx/LICENSE",
     "third_party/zlib/LICENSE",
 ]
-sdist.exclude = ["build/**", "dist/**", "**/.DS_Store", "**/__pycache__/**", "msani/**/*.a"]
+sdist.exclude = ["build/**", "dist/**", "**/.DS_Store", "**/__pycache__/**", "msani/**/*.a", ".git_archival.txt"]
 # Useful for development rebuilds
 build-dir = "build/{wheel_tag}"
+
+[tool.setuptools_scm]
+version_scheme = "guess-next-dev"
+local_scheme = "node-and-date"
+# SDK assets have separate sdk-* tags, and release tags have no v prefix.
+tag_regex = '^(?P<version>[0-9]+\.[0-9]+\.[0-9]+(?:(?:a|b|rc)[0-9]+)?)$'
+git_describe_command = ["git", "describe", "--dirty", "--tags", "--long", "--match", "[0-9]*.[0-9]*.[0-9]*"]
