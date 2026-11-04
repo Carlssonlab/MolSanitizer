@@ -40,6 +40,7 @@ class Test_ValidationSets(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             args = self.generate_mock_arguments([f'{self.path}/in_DB.txt'],
                                                 ['test', 'tautomers', 'protonation'], temp_dir)
+            args.pH_range = 0  # Existing reference output uses the pre-0.8.0 range.
             cli.clean_data(args)
             self.compare_relative(f'{temp_dir}/dummy_output_clean.txt',
                               f'{self.path}/out_DB_tauto_prot7.txt',
@@ -49,6 +50,7 @@ class Test_ValidationSets(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             args = self.generate_mock_arguments([f'{self.path}/in_sample_REAL1M.txt'],
                                                 ['test', 'tautomers', 'protonation'], temp_dir)
+            args.pH_range = 0  # Existing reference output uses the pre-0.8.0 range.
             cli.clean_data(args)
             self.compare_relative(f'{temp_dir}/dummy_output_clean.txt',
                               f'{self.path}/out_sample_REAL1M.txt',

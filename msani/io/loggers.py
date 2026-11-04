@@ -1,7 +1,29 @@
 import logging
 from pathlib import Path
 import os
+from msani.io.parsers import protonation_requested
 logger = logging.getLogger('msani')
+
+def protonation_notice(args, *, batch_submission=False):
+    """Explain the 0.8.0 default change once before a run or submission."""
+    if not protonation_requested(args) or args.standardize:
+        return
+    source = getattr(args, '_pH_sources', {}).get('pH_range', 'programmatic settings')
+    message = (
+        'NOTICE: Since MolSanitizer 0.8.0, the bundled pH_range default is 1 '
+        '(previously 0). This can change protonation results.\n'
+        f'This run uses pH_range={args.pH_range} from {source}.\n'
+    )
+    if source != 'bundled defaults':
+        message += 'Your configured value is preserved.\n'
+    message += 'Use --pH_range 0 (-r 0) to retain the previous range setting.'
+    # Generated workers retain the notice in their logs; the submitter has
+    # already displayed it before launching the array.
+    if batch_submission or os.environ.get('MSANI_BATCH_WORKER') != '1':
+        import sys
+        print(message, file=sys.stderr)
+    logger.info(message)
+
 
 def setup_logger(log_file):
     # Create a logger object

@@ -260,7 +260,6 @@ def main():
         print("No arguments provided. Use -h or --help for usage instructions.")
         sys.exit(0)
     args = parsers.parseArguments(sys.argv[1:])
-    args = parsers.Sanitycheck(args)
     if args.version:
         print(version_text)
         return
@@ -279,6 +278,7 @@ def main():
         print("MolSanitizer templates have been generated. The program exits normally.")
         
     else:
+        args = parsers.Sanitycheck(args)
         if args.input_files is not None and args.smiles is None:
             input_path = pathlib.Path(args.input_files[0])
             if args.prefix is not None: log_file = f'{args.prefix}.log' 
@@ -289,6 +289,7 @@ def main():
         logger.info(f"#######  STARTING MOLSANITIZER {__version__}  #######")
         logger.info(f"{original_command}")    
         loggers.arguments(args)
+        loggers.protonation_notice(args)
         clean_data(args)
         logger.info(f"***********  MOLSANITIZER FINISHED  ***************")
 

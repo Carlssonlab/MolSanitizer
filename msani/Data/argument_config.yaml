@@ -33,7 +33,8 @@ pains: false
 tautomers: true
 protonation: true
 pH: 7
-pH_range: 0
+# Default changed from 0 to 1 in 0.8.0. Set 0 to retain the previous range.
+pH_range: 1
 # prot_lib: None #In case of modified protonation library
 # tau_lib: None  # In case of modified tautomer library
 

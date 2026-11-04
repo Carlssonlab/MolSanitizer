@@ -3,15 +3,41 @@
 Config file
 ============
 
+.. _ph-range-migration:
+
+pH range default in 0.8.0
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. warning::
+
+    **Breaking default change in 0.8.0:** ``pH_range`` now defaults to 1
+    instead of 0. At the default pH of 7, this includes sampling around
+    pH 6 - 8 and can change the protonation states and number of output
+    structures compared with earlier releases.
+
+    Existing personal configurations are preserved. A file containing
+    ``PH_RANGE: 0`` continues to use ``0``; a file missing ``PH_RANGE`` inherits
+    the new bundled default of ``1``. To retain the previous range setting, use ``--pH_range 0`` (``-r 0``),
+    set ``PH_RANGE: 0`` in your personal configuration, set ``pH_range: 0`` in
+    job YAML, or pass ``pH_range=0`` in Python.
+
+    When protonation is active, ``msani`` and ``msani_batch`` display a migration
+    notice with the effective range and its source before processing or
+    submission. The notice is also recorded in ``msani`` run logs. Generated
+    batch workers keep it in their logs without repeating it on the console.
+    ``msani config show`` displays personal and bundled defaults; a run's notice
+    also accounts for job YAML and command-line overrides.
+
 Personal defaults
 ~~~~~~~~~~~~~~~~~
 
 MolSanitizer loads personal defaults automatically for ``msani`` and
 ``msani_batch``. You do not need to locate or edit files inside the installed
 package. If no personal configuration exists, bundled defaults are used silently.
-This is normal behavior and does not produce a warning in CLI runs, library
-calls, or unit tests. Use ``msani --help`` for configuration guidance or
-``msani config show`` to inspect defaults and their sources. Ordinary runs do
+The absence of a personal file does not itself produce a warning. The
+protonation migration notice above applies independently. Use ``msani --help``
+for configuration guidance or ``msani config show`` to inspect defaults and
+their sources. Ordinary runs do
 not create configuration files. Missing or invalid explicitly selected
 configurations still produce errors.
 
@@ -50,6 +76,12 @@ use the uppercase names from the generated template. Unknown keys, invalid
 values, and unreadable files produce errors identifying the file or setting.
 The bundled CORINA default is ``corina`` on PATH, and the default SLURM
 account is unset.
+
+Inherited ``PH`` or ``PH_RANGE`` settings do not enable protonation by
+themselves. Request it with ``--protonation`` or ``--lazy``, or explicitly
+provide ``--pH``/``--pH_range`` on the command line or ``pH``/``pH_range`` in
+job YAML. Explicit pH options enable protonation even when their values equal
+the defaults.
 
 Custom locations
 ^^^^^^^^^^^^^^^^
@@ -163,7 +195,7 @@ The file will be created in the current working directory with the name ``config
     tautomers: true
     protonation: true
     pH: 7
-    pH_range: 0
+    pH_range: 1
     # prot_lib: None #In case of modified protonation library
     # tau_lib: None  # In case of modified tautomer library
 

@@ -4,6 +4,17 @@ Python scripting
 
 MolSanitizer is designed to be used as a Python package, allowing users to integrate its functionalities into their own scripts or applications. The package provides a set of functions and classes that can be imported and utilized for various molecular preparation tasks. There are several classes that can be used by the users, including:
 
+.. warning::
+
+    Since **0.8.0**, both ``Msani`` and ``Ionizer`` default to ``pH_range=1``
+    (previously ``0``). This can change protonation results. Pass
+    ``Msani(protonation=True, pH_range=0)`` or ``Ionizer(pH_range=0)`` to retain
+    the previous range setting. These Python classes use their constructor
+    arguments and do not load personal CLI configurations. The standalone
+    ``m_ionizer`` command also defaults to ``1``; use ``m_ionizer -r 0`` for the
+    previous range. See :ref:`ph-range-migration` for the CLI configuration
+    precedence.
+
 .. note::
 
     MolSanitizer starts its multiprocessing workers with ``forkserver`` on
@@ -88,7 +99,7 @@ The **Ionizer** class is responsible for handling the ionization of molecules. I
     from rdkit import Chem
     from msani.moltransform.ionizer import Ionizer
 
-    ionizer = Ionizer(pH = 7, pH_range = 0, numcores = 4)
+    ionizer = Ionizer(pH = 7, pH_range = 1, numcores = 4)
     #ionize a single molecule from SMILES string:
     results = ionizer.ionize(smiles = 'CCc1ccc(CCOc2ccc(CC3SC(=O)NC3=O)cc2)nc1')
 

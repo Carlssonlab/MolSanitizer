@@ -68,6 +68,16 @@ The program by default will conduct the preparation and filtering in the order b
 Default settings
 -----------------------------------
 
+.. warning::
+
+    Since **0.8.0**, the default ``pH_range`` is ``1`` (previously ``0``).
+    This can change protonation results. Use ``--pH_range 0`` (``-r 0``) to
+    retain the previous range setting. Existing personal configurations with
+    ``PH_RANGE: 0`` keep that value; missing keys inherit ``1``. Both ``msani``
+    and ``msani_batch`` show the effective range and its source when
+    protonation is active. See :ref:`ph-range-migration` for configuration
+    and Python examples.
+
 To customize defaults for future runs, use ``msani config init`` and edit the
 personal ``msani_configurations.yaml`` at the location printed by the command.
 Both single and batch mode load this file automatically. Use ``msani config use
@@ -90,7 +100,7 @@ Below is the default configuration file:
     MAX_STEREOISOMERS: 8
     TIMEOUT: 2
     PH: 7
-    PH_RANGE: 0 # 0 means choose specific pH=7 (default), 2 means will sample pH 5 and 9
+    PH_RANGE: 1 # Since 0.8.0; use 0 for the previous range setting
 
     #================BATCH MODE=================
     SLURM_ACCOUNT: 'PROJECT_NAME' # The account that will be charged by the SLURM cluster for running tasks
@@ -171,7 +181,7 @@ Help message
                             This option will enumerate to less probable tautomeric forms.
     --protonation, -prot  (De)protonate the structures
     --pH, -p              pH for the protonation (default: 7)
-    --pH_range, -r        pH range for the protonation (default: 0)
+    --pH_range, -r        pH range for the protonation (default: 1; previously 0 before 0.8.0)
     --standardize, -std   Standardize structures for machine learning using RDKit
 
     Generate 3D conformers options:

@@ -469,6 +469,10 @@ def parse_flags_single_job(args: dict, parser):
         if not hasattr(args, arg) or arg in omitted_args:  # Skip help and internal arguments
             continue
         current_value = getattr(args, arg)  # Current value in the Namespace
+        if arg == 'protonation':
+            # Explicit pH options can equal the parser default and still request
+            # protonation. Preserve that intent in the worker command.
+            current_value = parsers.protonation_requested(args)
         default_value = action.default      # Default value from the parser
         
         # Only skip the value is the same as the default or if the argument isn't specified
@@ -521,7 +525,8 @@ def write_single_job_script(slurm_header: str, slurm_script: str, defaults=None)
         defaults, _ = load_defaults()
     Path(snapshot).write_text(safe_dump(defaults), encoding='utf-8')
     # SLURM copies scripts to its spool directory; the snapshot stays at submission.
-    slurm_script = '\nexport MSANI_CONFIG="${SLURM_SUBMIT_DIR:-$PWD}/msani_defaults.yaml"\n' + slurm_script
+    slurm_script = ('\nexport MSANI_CONFIG="${SLURM_SUBMIT_DIR:-$PWD}/msani_defaults.yaml"\n'
+                    'export MSANI_BATCH_WORKER=1\n' + slurm_script)
     with open('submit_msani.sh', 'w') as f:
         f.write(slurm_header)
         f.write(slurm_script)
@@ -766,6 +771,8 @@ def main():
         print("No input files provided. Please provide input files using the -i or --input_files option.")
         print("Exiting MolSanitizer...")
         return
+    from msani.io.loggers import protonation_notice
+    protonation_notice(args, batch_submission=True)
     Split_Submit_jobs(args, parser)
 
 

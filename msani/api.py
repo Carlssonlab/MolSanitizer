@@ -31,6 +31,9 @@ class Msani:
     """
     A class to store the filter options and conduct chemical modifications for MolSanitizer. 
     Initialize the class with the desired filter options and apply the filters to the input DataFrame.
+
+    Since 0.8.0, pH_range defaults to 1 (previously 0). This can change
+    protonation results. Pass pH_range=0 to retain the previous range setting.
     
     Examples
     ---------
@@ -66,7 +69,7 @@ class Msani:
                 max_stereoisomers = 8,
                 protonation = False,
                 pH = 7,
-                pH_range = 0,
+                pH_range = 1,
                 numcores = 1,
                 randomSeed = 42,
                 stereo_timeout = 60,
