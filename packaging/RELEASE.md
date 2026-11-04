@@ -134,16 +134,57 @@ stable. **These assets are CI inputs; for local builds, run the platform's own
 
 ## 2. Build the wheels
 
+The **RDKit compatibility** workflow (`rdkit-compatibility.yml`) runs on code
+PRs, pushes to `main`, and manual dispatch. It restores the existing
+`sdk-2025.09.1` Linux SDK and builds one repaired Linux x86_64 CPython 3.12
+wheel against native RDKit `2025.9.1`. At the start of each run, a discovery
+job queries PyPI's JSON simple index and selects every stable RDKit release
+from `2025.3.1` onward with a non-yanked wheel compatible with Linux x86_64
+CPython 3.12. It checks wheel tags and `Requires-Python` inside the same
+`python:3.12-slim` image used for testing. Alpha, beta, release-candidate,
+development, local, and source-only releases are excluded; stable postreleases
+are included. New compatible releases are added automatically on the next run.
+
+The discovery job records the exact version list in its job summary and
+passes it to the test matrix. One job per version downloads the same
+MolSanitizer artifact and runs the full installed-wheel suite. Each runtime
+is constrained during both core and PDBQT extras
+installation, then checked against the imported RDKit module and package
+metadata before running the suite. Tests run from a temporary directory using
+installed extensions. Failures in one runtime do not cancel the other cases.
+RDKit is installed from binary wheels only. No SDK or MolSanitizer rebuild
+occurs between runtime versions. A PyPI lookup failure or empty selection
+fails the workflow instead of silently dropping version coverage. The total
+runner time grows with the number of compatible RDKit releases; parallelism
+depends on the repository's available GitHub Actions runners.
+
+The workflow requires the SDK release and its `msani-sdk-linux-x86_64.tar.gz`
+asset in the repository running the workflow. It does not publish packages.
+The existing **CI** workflow continues its baseline platform checks. To check
+the runner's version constraints and failure handling locally without native
+builds or downloads, run:
+
+```bash
+python -m pip install 'packaging>=23'
+python -m unittest discover -s packaging/linux -p 'test_*.py'
+```
+
+To print the live version list locally, run this in a Linux x86_64 CPython
+3.12 environment (ideally the same `python:3.12-slim` image):
+
+```bash
+python packaging/linux/discover_rdkit_versions.py --minimum 2025.3.1
+```
+
 The **Wheels** workflow builds, repairs and clean-install tests every wheel.
 
 | Trigger | What runs |
 | --- | --- |
-| Pull request | One job: Linux x86_64, CPython 3.12 (trigger enabled once an SDK release exists) |
-| `workflow_dispatch`, scope `linux-only` | Same cheap path |
+| `workflow_dispatch`, scope `linux-only` | Linux x86_64, CPython 3.12 |
 | `workflow_dispatch`, scope `full` | 25 jobs: 5 targets x CPython 3.10-3.14 |
 | Version tag, e.g. `0.7.5` | Full matrix, plus a tag/version consistency check |
 
-The cheap default is deliberate. A full matrix costs roughly $7-10 of the
+Keeping PR compatibility checks on Linux is deliberate. A full matrix costs roughly $7-10 of the
 monthly allowance, most of it macOS; a per-commit full matrix would exhaust
 3,000 included minutes in under two runs.
 

@@ -6,9 +6,8 @@
 # jobs wait for the whole matrix to pass. See packaging/RELEASE.md.
 #
 # The RDKit SDK is never compiled in this workflow: each job restores the
-# prebuilt SDK produced by sdk-build.yml. Pull requests deliberately build a
-# single Linux interpreter, because macOS runner minutes are ten times the
-# cost of Linux ones and a full matrix is a release-time activity.
+# prebuilt SDK produced by sdk-build.yml. PR runtime coverage is handled by
+# rdkit-compatibility.yml, which reuses one Linux wheel across RDKit versions.
 name: Wheels
 
 on:
@@ -32,12 +31,6 @@ on:
   push:
     # Release tags are bare versions, for example 0.7.5 or 0.7.5rc1.
     tags: ['[0-9]*']
-  # The pull_request trigger is added in a follow-up PR, once the SDK release
-  # exists. Enabling it before then makes every PR fail on the SDK restore
-  # step. To enable, restore:
-  #   pull_request:
-  #     branches: ['**']
-  #     paths-ignore: ['docs/**', '**.md']
 
 permissions:
   contents: read
@@ -68,8 +61,7 @@ jobs:
       - name: Choose the matrix
         id: plan
         env:
-          # A pull request gets the cheap path whatever the dispatch input says.
-          CHEAP: ${{ github.event_name == 'pull_request' || inputs.scope == 'linux-only' }}
+          CHEAP: ${{ inputs.scope == 'linux-only' }}
         run: |
           set -euo pipefail
           linux='[{"key":"linux-x86_64","arch":"x86_64","runner":"ubuntu-latest","image":"quay.io/pypa/manylinux_2_28_x86_64"},
