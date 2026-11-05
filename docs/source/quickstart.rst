@@ -87,19 +87,12 @@ Successful generation creates db2 files in the ``db2/`` directory, such as
 
 .. caution::
 
-    DOCK reads the DB2 molecule name as a fixed 16-character field, so
-    MolSanitizer, like the ZINC pipeline, keeps only the last 16 characters of
-    longer IDs: `ZINC000000198632_1` becomes `NC000000198632_1`.
-    `OUTDOCK`, the poses, and `top_poses.scores` show this short name. The
-    full ID is kept only in the DB2 filename, which DOCK does not report, so map
-    results back from there (`full_name[-16:] -> full_name`).
-
-    If two IDs end with the same 16 characters, DOCK cannot tell them apart and
-    `top_poses.py` keeps only the better-scoring one. IDs should therefore be
-    unique in their last 16 characters; ZINC and ChEMBL IDs normally are.
+    DB2 stores only the last 16 characters of a molecule ID. Ensure prepared
+    IDs remain unique after truncation and keep a mapping to their full names.
+    See :ref:`db2-name-limit` for examples and recovery of full identifiers.
 
 Generate an OpenEye docking library
-----------------------------------
+-----------------------------------
 
 Install the ``oe`` extra and configure ``OE_LICENSE`` as described in
 :doc:`installation`, then run:
@@ -116,7 +109,7 @@ conformer sampling. You can export an SDF ensemble alongside the library with
 ``--format sdf oeb.lib``.
 
 Submit SLURM batch jobs
-----------------------
+-----------------------
 
 On a SLURM cluster, activate the environment containing MolSanitizer and use
 ``msani_batch`` to submit processing as a job array:
@@ -131,8 +124,8 @@ Each task processes up to 200 input records (``-l``) with a two-hour time limit
 cluster does not require one. Add ``--partition`` if you need a specific
 partition. The command creates an ``example_clean/`` batch directory containing
 ``submit_msani.sh`` and submits it automatically with ``sbatch``. See
-:doc:`usage` for more batch options and :doc:`outputs` for recovery of failed
+:doc:`usage` for more batch options and :doc:`troubleshooting` for recovery of failed
 tasks. The default batch configurations could be changed according to :doc:`config`.
 
 See :doc:`usage` for filtering and other processing options, and :doc:`outputs`
-for logs, output naming, and recovery when a molecule fails.
+for logs and output naming. See :doc:`troubleshooting` when a molecule fails.

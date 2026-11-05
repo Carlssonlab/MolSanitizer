@@ -27,6 +27,7 @@ Contents
    quickstart
    usage
    outputs
+   troubleshooting
    config
    citation
    feedback
