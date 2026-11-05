@@ -1,13 +1,19 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/carlssonlab/MolSanitizer/main/assets/icon_text.png" width="600" alt="MolSanitizer logo">
+</p>
 
+<p align="center">
+  <a href="https://pypi.org/project/MolSanitizer/"><img src="https://img.shields.io/pypi/v/molsanitizer?style=for-the-badge" alt="PyPI version"></a>
+  <a href="https://github.com/carlssonlab/MolSanitizer/blob/main/pyproject.toml"><img src="https://img.shields.io/badge/python-3.10--3.14-blue?style=for-the-badge" alt="Python"></a>
+  <a href="https://msani.readthedocs.io/en/stable/"><img src="https://img.shields.io/badge/docs-msani.readthedocs.io-orange?style=for-the-badge" alt="Documentation"></a>
+  <a href="https://github.com/carlssonlab/MolSanitizer/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-yellow?style=for-the-badge" alt="License"></a>
+</p>
 
-# <img src="https://raw.githubusercontent.com/carlssonlab/MolSanitizer/main/assets/icon_text.png" width="600" alt="MolSanitizer logo">
-
-
-
-[![Python](https://img.shields.io/badge/python-3.10--3.14-blue)](https://github.com/carlssonlab/MolSanitizer/blob/main/pyproject.toml)
-[![Documentation](https://img.shields.io/badge/docs-msani.readthedocs.io-orange)](https://msani.readthedocs.io/en/stable/)
-[![License](https://img.shields.io/badge/license-Apache%202.0-yellow)](https://github.com/carlssonlab/MolSanitizer/blob/main/LICENSE)
-[![Preprint](https://img.shields.io/badge/Preprint-Chemrxiv-red)](https://chemrxiv.org/doi/full/10.26434/chemrxiv.15010189/v1)
+<p align="center">
+  <a href="https://chemrxiv.org/doi/full/10.26434/chemrxiv.15010189/v1"><img src="https://img.shields.io/badge/Preprint-Chemrxiv-red?style=for-the-badge" alt="Preprint"></a>
+  <a href="https://github.com/carlssonlab/MolSanitizer/stargazers"><img src="https://img.shields.io/github/stars/carlssonlab/MolSanitizer?style=for-the-badge&amp;logo=github" alt="GitHub stars"></a>
+  <a href="https://pypistats.org/packages/molsanitizer"><img src="https://img.shields.io/pypi/dm/molsanitizer?style=for-the-badge" alt="PyPI downloads per month"></a>
+</p>
 
 MolSanitizer (`msani`) prepares SMILES libraries for structure-based drug
 discovery. It standardizes molecules (salt removal, tautomer and protonation
