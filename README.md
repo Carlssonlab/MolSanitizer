@@ -102,6 +102,25 @@ Several formats can be requested at once, e.g. `--format sdf db2`. Run
 [output documentation](https://msani.readthedocs.io/en/stable/outputs.html)
 for details.
 
+## Use with AI agents
+
+The [MolSanitizer agent skill](skills/molsanitizer/SKILL.md) guides agents through
+CLI and Python workflows, including preparation settings, output formats,
+failure checks, and SLURM batch processing. Install MolSanitizer in the agent's
+execution environment, then copy the `skills/molsanitizer/` folder into your
+agent's supported skill directory, or ask it to read the file from this checkout:
+
+```text
+Read skills/molsanitizer/SKILL.md and use it to prepare example.smi.
+Remove salts, prepare tautomers, and protonate at pH 7 with pH_range 1.
+Generate up to 20 SDF conformers per prepared molecule using two cores
+in a new output directory. Report the settings, outputs, and failures.
+```
+
+The [agent quickstart](https://msani.readthedocs.io/en/latest/quickstart.html#use-molsanitizer-with-an-ai-agent)
+also provides a downloadable skill. Use the skill from the same checkout or
+documentation version as your MolSanitizer installation.
+
 ## Configuration
 
 MolSanitizer runs with bundled defaults out of the box. To set personal

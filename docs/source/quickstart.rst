@@ -127,5 +127,32 @@ partition. The command creates an ``example_clean/`` batch directory containing
 :doc:`usage` for more batch options and :doc:`troubleshooting` for recovery of failed
 tasks. The default batch configurations could be changed according to :doc:`config`.
 
+Use MolSanitizer with an AI agent
+-----------------------------------
+
+The repository includes an agent skill at ``skills/molsanitizer/SKILL.md``.
+It teaches an agent how to choose MolSanitizer commands, preserve preparation
+settings, inspect outputs and failures, and use the Python API or SLURM batch
+workflow. The skill supplies instructions; MolSanitizer must still be installed
+in the environment where the agent runs commands.
+
+Download :download:`the MolSanitizer skill <../../skills/molsanitizer/SKILL.md>`
+from this documentation version, or use the copy in a matching repository
+checkout. For an agent that supports ``SKILL.md`` skills, place it in a
+``molsanitizer/`` folder in that agent's documented skill directory. This skill
+is self-contained and needs no additional scripts or reference files.
+
+You can also ask an agent with access to the checkout to read it directly:
+
+.. code-block:: text
+
+    Read skills/molsanitizer/SKILL.md and use it to prepare input.smi.
+    Remove salts, prepare tautomers, and protonate at pH 7 with pH_range 1.
+    Generate up to 20 SDF conformers per prepared molecule using two cores
+    in a new output directory. Report the settings, outputs, and failures.
+
+Keep the skill alongside the package version you use, and update its examples
+when command options or defaults change.
+
 See :doc:`usage` for filtering and other processing options, and :doc:`outputs`
 for logs and output naming. See :doc:`troubleshooting` when a molecule fails.
