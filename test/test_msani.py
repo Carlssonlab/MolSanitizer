@@ -576,6 +576,7 @@ class Test_MolSanitizer(unittest.TestCase):
                 args.protonation_library = f"{args.prefix}.txt"
                 args.protonation = True
                 args.pH = 7
+                args.pH_range = 0
                 args.input_files = [f'{self.path}/in_protonation.txt']
                 cli.clean_data(args)
                 self.compare_relative(f'{temp_dir}/dummy_output_clean.txt',
