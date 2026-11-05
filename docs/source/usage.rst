@@ -4,7 +4,7 @@ Usage
 Preparing the input file
 -----------------------------------
 
-The program requires a white-space or tab-delimited file containing two columns (SMILES, moleculeID) without headers. 
+The program requires a white-space or tab-delimited file containing two columns (SMILES, moleculeID) without headers.
 
 Input files may be uncompressed, gzip-compressed, bzip2-compressed, or
 xz-compressed. MolSanitizer detects gzip, bzip2, and xz from the file contents
@@ -12,7 +12,7 @@ xz-compressed. MolSanitizer detects gzip, bzip2, and xz from the file contents
 chunks rather than loading the whole file into memory.
 
 .. code-block:: console
-   
+
    COCCC(=O)Nc1ncc(s1)Br  CP000000418470
    C1CC(C(=O)NC1)SCCC=CBr  CP000000432409
    CC(C)(C)CNC(=O)c1ccsc1Br  CP000001634597
@@ -38,12 +38,12 @@ affected chunk is processed; earlier chunks may already have produced output.
 
 For space-separated input, quote the entire structure, including its CX extension.
 The file reader removes the enclosing double quotes before passing the structure
-to RDKit. Ordinary SMILES without spaces do not need quotes. 
+to RDKit. Ordinary SMILES without spaces do not need quotes.
 
 Overview
 -----------------------------------
 
-The pipeline contains six preparation and/or filtering steps, which can be used simultaneously to prepare the database:
+The pipeline combines preparation and filtering steps to prepare a database.
 
 This is an example of a lazy pipeline that uses all the preparation and processing steps:
 
@@ -86,29 +86,14 @@ to inspect effective defaults. Explicit command-line options override personal
 defaults. See :doc:`config` for platform locations, precedence, and examples.
 
 
-The users are asked to provide CORINA path if the he/she wants to use it for the generation of 3D coordinates. The path should be provided in the `CORINA` field.
+For CORINA embedding, set ``CORINA`` to the executable name on PATH or an
+absolute path, or pass ``--corinaPath`` for a particular run.
 
-Below is the default configuration file:
+The bundled defaults are shown below. Personal defaults and job configuration
+can override these values; see :doc:`config` for precedence.
 
-.. code-block:: yaml
-    
-    #===============SINGLE MODE================
-    EMBED_METHOD: 'rdkit' # choose from 'rdkit', 'obabel', 'corina'
-    CORINA: '/soft/corina/corina-4.2/corina'
-    ENERGY_WINDOW: 25
-    NUMCONFS: 2000
-    MAX_STEREOISOMERS: 8
-    TIMEOUT: 2
-    PH: 7
-    PH_RANGE: 1 # Since 0.8.0; use 0 for the previous range setting
-
-    #================BATCH MODE=================
-    SLURM_ACCOUNT: 'PROJECT_NAME' # The account that will be charged by the SLURM cluster for running tasks
-    LINES_PER_JOB: 200
-    TIME_LIMIT: 72
-    MAX_ARRAY_SIZE: 2000
-    MAX_JOBS: 1000
-    MAX_LIMIT_PROJECT: 5000
+.. literalinclude:: ../../msani/msani_configurations.yaml
+   :language: yaml
 
 
 Reproducible setup by the configuration file
@@ -119,111 +104,142 @@ The program can be run with the configuration file by using the ``--config`` fla
 Help message
 -----------------------------------
 
-**Use the** ``--help (-h)`` **flag for more information.**
+Use ``msani --help`` (``-h``) for the basic options and
+``msani --help_advanced`` (``-xh``) for all public options, including
+``--clash_scale``, ``--timeout_conf``, and ``--forcefield``.
+``msani_batch --help_advanced`` also lists the SLURM options.
+The basic help below uses bundled defaults; your personal configuration can
+change the defaults shown by your installed command.
 
 .. code-block:: console
 
-    usage: msani [--input_files INPUT_FILES [INPUT_FILES ...]] [--input_list INPUT_LIST] [--smiles SMILES [SMILES ...]] [--extended] [--prefix PREFIX] [--synthon] [--removesalts] [--create_custom] [--custom CUSTOM]
-                [--unwanted [{all,regular,special,optional} ...]] [--pains] [--metal {strict,soft,off}] [--metal_error_file METAL_ERROR_FILE] [--neutralize | --no-neutralize | -neu] [--stereoisomers | --no-stereoisomers | -st]
-                [--max_isomers MAX_ISOMERS] [--stereo_timeout STEREO_TIMEOUT] [--tautomers] [--extended-tautomers] [--protonation] [--pH PH] [--pH_range PH_RANGE] [--standardize] [--gen3d]
-                [--format [{db2,db2.tgz,pdbqt,sdf,mol2,oeb,oeb.lib} ...]] [--method {rdkit,obabel,corina}] [--corinaPath CORINAPATH] [--numconfs NUMCONFS] [--timeout TIMEOUT] [--energywindow ENERGYWINDOW] [--nringconfs NRINGCONFS]
-                [--mode {fixed,random,ignoretorlib}] [--allowNonring] [--rmsd RMSD] [--config CONFIG] [--create_config] [--lazy] [--numcores NUMCORES] [--help] [--help_advanced] [--version]
+    usage: msani [--input_files INPUT_FILES [INPUT_FILES ...]]
+                 [--input_list INPUT_LIST] [--smiles SMILES [SMILES ...]]
+                 [--extended] [--prefix PREFIX] [--synthon] [--removesalts]
+                 [--create_custom] [--custom CUSTOM]
+                 [--unwanted [{all,regular,special,optional} ...]] [--pains]
+                 [--metal {strict,soft,off}] [--metal_error_file METAL_ERROR_FILE]
+                 [--neutralize | --no-neutralize | -neu]
+                 [--stereoisomers | --no-stereoisomers | -st]
+                 [--max_isomers MAX_ISOMERS] [--stereo_timeout STEREO_TIMEOUT]
+                 [--tautomers] [--extended-tautomers] [--protonation] [--pH PH]
+                 [--pH_range PH_RANGE] [--standardize] [--gen3d]
+                 [--format [{db2,db2.tgz,pdbqt,sdf,mol2,oeb,oeb.lib} ...]]
+                 [--method {rdkit,obabel,corina}] [--corinaPath CORINAPATH]
+                 [--numconfs NUMCONFS] [--timeout TIMEOUT]
+                 [--energywindow ENERGYWINDOW] [--nringconfs NRINGCONFS]
+                 [--mode {fixed,random,ignoretorlib}] [--allowNonring]
+                 [--rmsd RMSD] [--config CONFIG] [--create_config] [--lazy]
+                 [--numcores NUMCORES] [--help] [--help_advanced] [--version]
 
     MolSanitizer - A package to prepare SMILES databases
 
     Input and output options:
-    --input_files, -i     Input files containing chemical structures (plain, gzip, bzip2, or xz)
-    --input_list, -il     Path to a text file containing one or more input file paths (one per line).
-    --smiles, -s          Input SMILES strings
-    --extended, -e        Force tab-separated SMILES/CXSMILES input (otherwise detected automatically).
-    --prefix, -pre        Prefix for the output files. (default: input file name).
-    --synthon, -stn       Synthon mode (Additional metadata about the capping groups required)
+      --input_files, -i     Input files containing chemical structures (plain, gzip, bzip2, or xz)
+      --input_list, -il     Path to a text file containing one or more input file paths (one per line).
+      --smiles, -s          Input SMILES strings
+      --extended, -e        Force tab-separated SMILES/CXSMILES input (otherwise detected automatically).
+      --prefix, -pre        Prefix for the output files. (default: input file name).
+      --synthon, -stn       Synthon mode (Additional metadata about the capping groups required)
 
     Filtering options:
-    Supported formats for descriptor-based filters (ha, logp, hba, hbd, mw, tpsa, fsp3, chiral):
-        Range: Specify a range using two values (e.g., "17-25").
-        Greater / Less than or equal to: Use >= or <= (e.g., ">=17", "<=25").
-        Greater than / Less than: Use > or < (e.g., ">17", "<25").
-        Exact match: Match a specific value (e.g., 17).
-        For logP, the exact match format applies as 'less than or equal to'.
+      Supported formats for descriptor-based filters (ha, logp, hba, hbd, mw, tpsa, fsp3, chiral):
+          Range: Specify a range using two values (e.g., "17-25").
+          Greater / Less than or equal to: Use >= or <= (e.g., ">=17", "<=25").
+          Greater than / Less than: Use > or < (e.g., ">17", "<25").
+          Exact match: Match a specific value (e.g., 17).
+          For logP, the exact match format applies as 'less than or equal to'.
 
-        Use --ha, --logp, --hba, --hbd, --mw, --tpsa, --fsp3, --chiral to apply these filters.
+          Use --ha, --logp, --hba, --hbd, --mw, --tpsa, --fsp3, --chiral to apply these filters.
 
-    --removesalts         Remove salts from the structures.
+      --removesalts         Remove salts from the structures.
                             Small fragments within the same molecule are also removed.
-    --create_custom       Generate a template for customized substructure filtering.
-    --custom              Filter out unwanted substructures using a customized list.
+      --create_custom       Generate a template for customized substructure filtering.
+      --custom              Filter out unwanted substructures using a customized list.
                             To generate an example list, use --create_custom.
-    --unwanted            Filter out unwanted substructures using the default list
+      --unwanted            Filter out unwanted substructures using the default list
                             (Options: all, regular, special, optional).
-    --pains               Remove PAINS violations from the structures.
+      --pains               Remove PAINS violations from the structures.
 
     SMILES processing options:
-    --metal, -mtl         Connect dissociated metal complexes (metal and ligands given as separate
+      --metal, -mtl         Connect dissociated metal complexes (metal and ligands given as separate
                             fragments) with dative bonds, before any other step (default: strict).
                             - strict: one structure per record, filling the coordination sphere by donor priority.
                             - soft: every plausible binding mode, as separate records (id_1, id_2, ...).
                             - off: leave metal records unchanged.
-    --metal_error_file    File for metal records that cannot be prepared (SMILES ID reason).
+      --metal_error_file    File for metal records that cannot be prepared (SMILES ID reason).
                             Default: <prefix or input name>_metal_error.smi; batch jobs merge theirs
                             into in/removed/metal_error.smi.
-    --neutralize, -neu    Neutralize molecules.
+      --neutralize, -neu    Neutralize molecules.
                             Will be applied after removesalts and before tautomerization/protonation (use --no-neutralize to disable).
-    --stereoisomers, -st  Stereoisomers enumeration.
+      --stereoisomers, -st  Stereoisomers enumeration.
                             Will be applied by default when gen3d is on (use --no-stereoisomers to disable)
-    --max_isomers, -ms    Maximum number of stereoisomers to consider (default: 8)
-    --stereo_timeout, -sto
+      --max_isomers, -ms    Maximum number of stereoisomers to consider (default: 8)
+      --stereo_timeout, -sto
                             Per-molecule timeout in seconds for stereoisomer enumeration (default: 60).
                             If the timeout is reached, any stereoisomers found up to that point are kept; if none are found, the input SMILES is kept unchanged.
-    --tautomers, -tau     Tautomers enumeration.
-    --extended-tautomers, -et
-                            Extended tautomers enumeration using additional tautomerization rules (will also activate '--tautomers')
-                            This option will enumerate to less probable tautomeric forms.
-    --protonation, -prot  (De)protonate the structures
-    --pH, -p              pH for the protonation (default: 7)
-    --pH_range, -r        pH range for the protonation (default: 1; previously 0 before 0.8.0)
-    --standardize, -std   Standardize structures for machine learning using RDKit
+      --tautomers, -tau     Tautomers enumeration.
+      --extended-tautomers, -et
+                            Extended enumeration of tautomers using additional tautomerization rules
+                            (will also activate '--tautomers'). Enumerates less probable tautomeric forms
+                            for specific chemotypes: aromatic nitrogen compounds, amidine-like structures,
+                            and vinylogous acids (up to 20 forms per compound total).
+      --protonation, -prot  (De)protonate the structures
+      --pH, -p              pH for the protonation (default: 7)
+      --pH_range, -r        pH range for the protonation (default: 1; bundled default changed from 0 to 1 in 0.8.0; use -r 0 for the previous range)
+      --standardize, -std   Standardize structures for machine learning using RDKit
 
     Generate 3D conformers options:
-    --gen3d, -3d          Generate 3D conformers
-    --format, -f          Output file format. Multiple formats simultaneously supported.
+      --gen3d, -3d          Generate 3D conformers
+      --format, -f          Output file format. Multiple formats simultaneously supported.
                             (Default: db2.tgz - Options: sdf, db2, db2.tgz, mol2, pdbqt, oeb, oeb.lib.)
-                            oeb: one .oeb.gz per molecule; oeb.lib: one library per input file.
+                            oeb: one .oeb.gz per molecule; oeb.lib: one .oeb.gz library per input file.
                             Both need the optional OpenEye toolkits and OE_LICENSE.
-    --method, -m          Embedding method (default: rdkit - options: rdkit, obabel, corina)
-    --corinaPath          Path to the CORINA executable 
-    --numconfs, -nconfs   Maximum number of conformers to generate (default: 2000)
-    --timeout, -to        Timeout for the initial embedding for each entry before using OpenBabel
+      --method, -m          Embedding method (default: rdkit - options: rdkit, obabel, corina)
+      --corinaPath          Path to the CORINA executable (default: corina)
+      --numconfs, -nconfs   Maximum number of conformers to generate (default: 2000)
+      --timeout, -to        Timeout for the initial embedding for each entry before using OpenBabel
                             Default: 2 minutes
-    --energywindow, -w    Energy window for sampling the conformations (default: 25 kcal/mol)
-    --nringconfs, -nr     Maximum number of ring conformers to generate (default: 1)
-    --mode, -mode         Mode for generating conformers
+      --energywindow, -w    Energy window for sampling the conformations (default: 25 kcal/mol)
+      --nringconfs, -nr     Maximum number of ring conformers to generate (default: 1)
+      --mode, -mode         Mode for generating conformers
                             Default: fixed - Options: fixed, random, ignoretorlib
-    --allowNonring        Allow the full sampling of non-ring compounds (default undersample to 30 confs).
-    --rmsd, -rmsd         Minimum RMSD between two conformers (default: 0.5 Å).
+      --allowNonring        Allow full sampling of non-ring compounds (enabled by default in msani).
+      --rmsd, -rmsd         Minimum RMSD between two conformers (default: 0.5 Å).
 
     Miscellaneous:
-    --config, -c          Path to the YAML configuration file
-    --create_config       Create a template for the configuration file
-    --lazy                Implement all the processing and preparation steps
-    --numcores, -j        Number of cores to use for parallel processing (default: 4)
-    --help, -h            Show this help message and exit
-    --help_advanced, -xh  Show advanced help message with additional options
-    --version, -v         Show the current version of MolSanitizer
+      --config, -c          Path to the YAML configuration file
+      --create_config       Create a template for the configuration file
+      --lazy                Implement all the processing and preparation steps
+      --numcores, -j        Number of cores to use for parallel processing (default: 4)
+      --help, -h            Show this help message and exit
+      --help_advanced, -xh  Show advanced help message with additional options
+      --version, -v         Show the current version of MolSanitizer
 
-    Example input file (space or tab-separated file):
+      Example input file (space or tab-separated file):
             COCCC(=O)Nc1ncc(s1)Br  CP000000418470
             C1CC(C(=O)NC1)SCCC=CBr  CP000000432409
             CC(C)(C)CNC(=O)c1ccsc1Br  CP000001634597
 
-    Unquoted CXSMILES uses tab-separated input (-e optionally forces tab separation):
-            CC[C@H]1[C@H](C(=O)N[C@H](C)CCCC(=O)NOCC(F)(F)F)CCN1C |&1:2,3|  Cmp0001
-            CCC(CC(=O)N(CC)CCC(=O)N1CCO[C@H]2COC[C@H]21)C(F)F |&1:17,21|    Cmp0002
-            CC(C)CC(CNC(=O)C1CSC1)C(=O)N[C@H]1C[C@@H](O)[C@H](F)C1 |&1:16,18,20|    Cmp0003
+      Unquoted CXSMILES uses tab-separated input (-e optionally forces tab separation):
+            CC[C@H]1[C@H](C(=O)N[C@H](C)CCCC(=O)NOCC(F)(F)F)CCN1C |&1:2,3|	Cmp0001
+            CCC(CC(=O)N(CC)CCC(=O)N1CCO[C@H]2COC[C@H]21)C(F)F |&1:17,21|	Cmp0002
+            CC(C)CC(CNC(=O)C1CSC1)C(=O)N[C@H]1C[C@@H](O)[C@H](F)C1 |&1:16,18,20|	Cmp0003
 
-    Example usage:
+      For space-separated input, double-quote the complete CXSMILES field and omit -e:
+            "C[C@H](O)F |&1:1|" compound_001
+            CCO ethanol
+
+      Personal defaults:
+        Bundled defaults are used when no personal configuration exists.
+        Run msani config init to customize pH, energywindow, numConfs,
+        CORINA path, project settings, and other defaults.
+        Run msani config show to inspect defaults and their sources.
+        Run msani config -h to see all configuration commands.
+
+      Example usage:
         msani -i example.smi --removesalts --pains --unwanted all --stereoisomers --protonation
-        msani -i example.smi --logp "<=500" --hba "<=10" --hbd "<=5" --mw "<=500" -3d -f pdbqt
+        msani -i example.smi --logp "<=5" --hba "<=10" --hbd "<=5" --mw "<=500" -3d -f pdbqt
         msani -i example.smi --pains --unwanted regular optional --stereoisomers --protonation
         msani -i example.smi --pains --unwanted all -prot -p 7 -tau -st -3d -f db2.tgz
 
@@ -358,14 +374,22 @@ The first two columns (SMARTS and LABEL) are required for the program to parse, 
 8. Protonation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-msani supports the assignment of protonation states at various pH values using the ``--protonation`` flag. By default, the pH is set to 7 (configurable via ``-p`` or ``--pH``), and the pH range is set to 0 (specified using ``-r`` or ``--range``). This configuration protonates molecules at a specific pH of 7. However, it is also possible to enumerate potential protonation states across a pH range. For instance, setting ``--range 2`` explores pH values within 7 ± 2. The program evaluates each pH value in the specified range and assigns the possible protonation states of the molecule at those pH levels. Only unique products are output to a file. Functional groups with multiple protonation possibilities (e.g., piperazine, amidine) are expanded, with an underscore (`_`) appended to their names to indicate variations.
+Use ``--protonation`` (``-prot``) to assign protonation states. The bundled
+pH is 7 (``--pH`` or ``-p``), with a range of 1 (``--pH_range`` or ``-r``),
+covering pH 6 - 8. Set ``--pH_range 0`` to prepare at a single pH, or
+``--pH_range 2`` to explore pH 7 ± 2. Explicitly setting ``--pH`` or
+``--pH_range`` also enables protonation. Inherited personal defaults alone do
+not enable it. See :ref:`ph-range-migration` for the change in version 0.8.0.
+Only unique products are written. Functional groups with multiple protonation
+possibilities (for example, piperazine and amidine) can produce several
+structures, with underscore indices appended to their identifiers.
 
-The program employs SMARTS-based reactions to iteratively assign protonation states to atoms, considering the pKa of functional groups and the queried pH. Detailed SMARTS reaction definitions are available in the following resource: `msani/Data/ionizations.txt <https://github.com/carlssonlab/msani/blob/main/msani/Data/ionizations_v2.txt>`_.
+The program employs SMARTS-based reactions to iteratively assign protonation states to atoms, considering the pKa of functional groups and the queried pH. Detailed SMARTS reaction definitions are available in the following resource: `msani/Data/ionizations_v3.txt <https://github.com/carlssonlab/MolSanitizer/blob/main/msani/Data/ionizations_v3.txt>`_.
 
 .. code-block:: console
 
-    $ msani -i example.smi --protonation # Default pH 7 +- 0
-    $ msani -i example.smi --protonation --pH 7 --range 2 # Enumerate protonation states at pH 7 +- 2
+    $ msani -i example.smi --protonation # Default pH 7 +- 1
+    $ msani -i example.smi --protonation --pH 7 --pH_range 2 # Enumerate protonation states at pH 7 +- 2
     $ msani -i example.smi --protonation -p 7 -r 2 # Short version
 
 
@@ -398,11 +422,11 @@ Stereoisomers enumeration will be considered for unspecified chiral centers usin
    N[C@@]12C[C@@H]3C[C@@H](C[C@@H](C3)[C@H]1O)C2     mol8.1
    N[C@@]12C[C@@H]3C[C@@H](C[C@@H](C3)[C@@H]1O)C2    mol8.2
 
-It is possible to define the maximum number of stereoisomers generated for each molecule by adding the ``--max_stereoisomers`` flag.
+It is possible to define the maximum number of stereoisomers generated for each molecule by adding the ``--max_isomers`` flag.
 
 .. code-block:: console
 
-    $ msani -i example.smi --stereoisomers --max_stereoisomers 32
+    $ msani -i example.smi --stereoisomers --max_isomers 32
 
 10. Conformer generator
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -411,35 +435,23 @@ Basic usage
 ^^^^^^^^^^^^^^
 
 
-The following supported flags:
-
-.. code-block:: console
-
-    Generate 3D conformers options:
-    --gen3d, -3d          Generate 3D conformers
-    --format, -f          Output file format. Multiple formats simultaneously supported.
-                            (Default: db2.tgz - Options: sdf, db2, db2.tgz, mol2, pdbqt, oeb, oeb.lib.)
-                            oeb: one .oeb.gz per molecule; oeb.lib: one library per input file.
-                            Both need the optional OpenEye toolkits and OE_LICENSE.
-    --method, -m          Embedding method (default: rdkit - options: rdkit, obabel, corina)
-    --numconfs, -nconfs   Maximum number of conformers to generate (default: 2000)
-    --timeout, -to        Timeout for the initial embedding for each entry before using OpenBabel
-                            Default: 2 minutes
-    --energywindow, -w    Energy window for sampling the conformations (default: 25 kcal/mol)
-    --nringconfs, -nr     Maximum number of ring conformers to generate (default: 1)
-    --mode, -mode         Mode for generating conformers
-                            Default: fixed - Options: fixed, random, ignoretorlib
-    --allowNonring        Allow the full sampling of non-ring comdpounds (default undersample to 30 confs).
+Use ``--gen3d`` (``-3d``) and select formats with ``--format`` (``-f``).
+The main sampling controls are ``--numconfs`` (``-nconfs``, default 2000),
+``--energywindow`` (``-w``, default 25 kcal/mol), ``--nringconfs`` (``-nr``,
+default 1), ``--mode`` (default ``fixed``), and ``--rmsd`` (default 0.5 Å).
+Full sampling of non-ring compounds is enabled by default in ``msani`` and
+``msani_batch`` (``--allowNonring``); job YAML can set ``allowNonring: false``
+to limit these compounds to 30 conformers.
 
 The conformer generator platform can be triggered using the ``--gen3d`` or ``-3d`` flag. Three initial embeeder are supported (``-m`` or ``--method`` flag):
 
-* RDKit srETKDG-v3 (default ``-m rdkit``): `Ref <https://pubs.acs.org/doi/10.1021/acs.jcim.0c00025>`__ 
+* RDKit srETKDG-v3 (default ``-m rdkit``): `Ref <https://pubs.acs.org/doi/10.1021/acs.jcim.0c00025>`__
 * CORINA (``-m corina``): `Ref <https://doi.org/10.1016/0898-5529(90)90156-3>`__
-* Open Babel (``-m obabel``): `Ref <https://jcheminf.biomedcentral.com/articles/10.1186/s13321-019-0372-5>`__ 
+* Open Babel (``-m obabel``): `Ref <https://jcheminf.biomedcentral.com/articles/10.1186/s13321-019-0372-5>`__
 
 Multiple aliphatic ring conformations are supported for RDKit and CORINA with the ``-nr`` flag.
 
-As RDKit ETKDGv3 is based on distance geometry method, it may takes a long time to generate the initial conformer for some large molecules. In this case, the program will opt for the OpenBabel method, after the timeout (default: 2 minutes) is reached. The timeout can be modified using the ``--timeout`` flag. 
+As RDKit ETKDGv3 is based on distance geometry method, it may takes a long time to generate the initial conformer for some large molecules. In this case, the program will opt for the OpenBabel method, after the timeout (default: 2 minutes) is reached. The timeout can be modified using the ``--timeout`` flag.
 
 A modified version of `TorsionLibrary v3 <https://pubs.acs.org/doi/10.1021/acs.jcim.2c00043>`_ is used to drive the generation of conformations. The modifications made and the full library can be obtained `here <https://github.com/carlssonlab/msani/blob/main/msani/Data/modified_tor_lib_2020.xml>`_. The number of conformers are controlled by the ``--numconfs`` or ``-nconfs`` flag. The default value is 2000, but it can be modified to any number. The program will sample the conformers based on the energy window (default: 25 kcal/mol) using the ``--energywindow`` or ``-w`` flag.
 
@@ -455,7 +467,8 @@ Supported output formats are ``db2``, ``db2.tgz``, ``pdbqt``, ``sdf``, ``mol2``,
 ``db2.tgz``. Select one or more formats with ``--format`` or ``-f``.
 PDBQT requires the optional Meeko dependencies; both OEB formats require
 the optional OpenEye toolkits and a valid licence (see :doc:`installation`).
-See :doc:`outputs` for OEB record grouping, file naming, and restart behavior.
+See :doc:`outputs` for OEB record grouping and file naming, and
+:doc:`troubleshooting` for restart behavior.
 
 For DB2 generation, AMSOLcpp assigns desolvation penalties and partial charges
 directly from the in-memory RDKit molecule. These values are passed directly to
@@ -465,6 +478,74 @@ the DB2 layout writer without intermediate AMSOL or ``.solv`` files.
 
     $ msani -i example.smi --protonation --stereoisomers -3d -f db2  # Generate DB2 files
     $ msani -i example.smi --tautomers --protonation --stereoisomers -3d -f sdf pdbqt #Generate SDF and PDBQT files
+
+.. _conformer-clash-cutoff:
+
+Sampling limits and clash cutoff
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+``--numconfs`` sets a maximum, not a guaranteed ensemble size. Energy and clash
+filters, RMSD pruning, molecular flexibility, and sampling time can all reduce
+the number of conformers retained.
+
+.. list-table:: Additional conformer controls
+   :header-rows: 1
+   :widths: 30 15 55
+
+   * - Option
+     - Default
+     - Effect
+   * - ``--clash_scale``, ``-clash``
+     - 0.6
+     - Reject sampled conformers with a checked non-bonded distance below this
+       fraction of the sum of the atoms' van der Waals radii. Larger values
+       make the filter stricter.
+   * - ``--timeout``, ``-to``
+     - 2 minutes
+     - Limit initial embedding before attempting Open Babel fallback.
+   * - ``--timeout_conf``, ``-toc``
+     - 1 minute
+     - Limit torsional conformer sampling separately from initial embedding.
+   * - ``--forcefield``, ``-ff``
+     - ``MMFF94s``
+     - Force field for energy calculations; supported values are ``MMFF94``,
+       ``MMFF94s``, and ``UFF``.
+   * - ``--randomSeed``, ``-rs``
+     - 42
+     - Set the random seed for reproducibility.
+   * - ``--tolerance``, ``-tol``
+     - 30 degrees
+     - Angular threshold used to distinguish torsional conformers.
+   * - ``--eps``
+     - 4
+     - Dielectric constant for electrostatic calculations.
+
+For example, increase the clash scale and allow more sampling time:
+
+.. code-block:: console
+
+    $ msani -i example.smi --gen3d --format sdf --clash_scale 0.75 --timeout_conf 2
+
+These advanced options appear in ``msani --help_advanced``. The clash scale is
+a dimensionless multiplier, not a distance in Å or an energy cutoff. Increasing
+it can reduce the number of conformers and the fraction of compounds with a
+conformer close to a reference structure. See :ref:`conformer-clashes` for
+comparison with Maestro and MOE and advice on choosing a value.
+
+To reuse these settings, store the argument names in a job YAML file:
+
+.. code-block:: yaml
+
+    gen3d: true
+    format: [sdf]
+    clash_scale: 0.75
+    timeout_conf: 2
+    forcefield: MMFF94s
+    randomSeed: 42
+
+Run it with ``msani -i example.smi --config conformers.yaml``. Use these
+argument names in job YAML passed to ``--config``. The personal-defaults file
+uses a separate set of uppercase setting names. See :doc:`config`.
 
 Customization of the torsion definition
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -481,7 +562,7 @@ The template file will look like this:
 
     # Template for customized torsion driving
     # Format: Comma separated. Weight is optional, not set = equal weights
-    # In case using commas in SMARTS, put it in quotation marks ("text") 
+    # In case using commas in SMARTS, put it in quotation marks ("text")
     # SMARTS, possible angle values (sep by space), weight (optional)
     # Example:
     # [O:1]=[C:2]-[N:3][H:4], 180
@@ -497,33 +578,43 @@ To apply the torsion definition file, use the ``--torsion`` flag with the path t
 Advanced options
 -----------------------------------
 
-The advanced options can be accessed using the ``--help_advanced`` or ``-xh`` flag. The advanced options are not recommended for general users, but they can be useful for advanced users who want to customize the program's behavior. The following advanced options are available:
+Use ``--help_advanced`` (``-xh``) to display all public options. In addition
+to the descriptor filters described above, the advanced options are:
 
 .. code-block:: console
 
-    --noneutralize          Do not neutralize the molecule before tautomerization and protonation
-    --notaurdkit            Do not use RDKit to canonicalize the tautomeric form of the input SMILES
-    --rigid, -r             Only align the DB2 on this rigid scaffold in SMARTS format. All rings if not provided.
-    --rigid_exclude         One or more SMILES/SMARTS that must not be part of the rigid part (molecules left without one are skipped).
-    --tolerance, -tol       Minimum angle for differentiating two conformers (default: 30)
-    --nringconfs, -nr       Maximum number of ring conformers to generate (default: 1)
-    --allowNonring          Allow the full sampling of non-ring compounds (default undersample to 30 confs).
-    --eps                   The dielectric constant for electrostatic calculations (default: 4).
-    --debug                 Enable debug mode
-    --timing                Enable timing information
-    --create_protlib      Create a template for customized protonation scheme
-    --create_taulib       Create a template for customized tautomerization scheme
-    --create_torsion      Create a template for customized torsion definition
-    --protlib             Path to the protonation library file (default: msani/Data/ionizations_v3.txt).
-    --taulib              Path to the tautomer library file (default:  msani/Data/tautomers_v3.txt).
-    --torsion, -tor       Path to the customized torsion definitions.
+    --metal_max_variants      Maximum structures per metal record in soft mode;
+                             strict mode keeps one of at most this many ties (default: 16).
+    --metal_max_combinations  Maximum donor combinations per metal record (default: 128).
+    --notaurdkit              Skip RDKit tautomer canonicalization.
+    --randomSeed, -rs         Seed for reproducibility (default: 42).
+    --rigid                   SMARTS scaffold for DB2 alignment; otherwise use rings.
+    --rigid_exclude           One or more SMILES/SMARTS to exclude from rigid parts;
+                             molecules without a remaining rigid part are skipped.
+    --tolerance, -tol         Angular threshold between torsional conformers (default: 30 degrees).
+    --nocleanup               Retain temporary files, including batch staging files.
+    --eps                     Dielectric constant for electrostatics (default: 4).
+    --timeout_conf, -toc      Torsional sampling timeout (default: 1 minute).
+    --clash_scale, -clash     Scale of summed van der Waals radii (default: 0.6).
+    --forcefield, -ff         MMFF94s (default), MMFF94, or UFF.
+    --debug, -d               Enable debug mode.
+    --create_protlib          Create a custom protonation-library template.
+    --create_taulib           Create a custom tautomer-library template.
+    --create_torsion          Create a custom torsion-definition template.
+    --protlib                 Custom protonation-library file (bundled: ionizations_v3.txt).
+    --taulib                  Custom tautomer-library file (bundled: tautomers_v3.txt).
+    --torsion, -tor           Custom torsion definitions.
+
+Use ``--no-neutralize`` to disable neutralization and ``--no-stereoisomers``
+to disable stereoisomer enumeration. ``-r`` is the short option for
+``--pH_range``; DB2 alignment uses ``--rigid`` without a short alias.
 
 
 Running in batch mode
 -----------------------------------
 
 
-msani now supports the batch mode ``msani_batch``, which allows handling bigger SMILES databases on a SLURM-based cluster. Nearly all flags supported by standalone ``msani`` are available in batch mode. The ``-l`` or ``--lines_per_job`` option (default: 200) defines how many input records each array job processes. By default, a maximum of 500 jobs run simultaneously, but this can be changed with ``--max_jobs``.
+msani now supports the batch mode ``msani_batch``, which allows handling bigger SMILES databases on a SLURM-based cluster. Nearly all flags supported by standalone ``msani`` are available in batch mode. The ``-l`` or ``--lines_per_job`` option (default: 200) defines how many input records each array job processes. The bundled concurrency limit is 2000 array tasks (``--max_jobs`` or ``-mj``); personal defaults can override it. Choose a limit appropriate for your cluster.
 
 Batch mode accepts plain, gzip-compressed, bzip2-compressed, and xz-compressed
 inputs. Each input gets a corresponding batch directory containing
@@ -545,14 +636,25 @@ sorted by their numeric job identifier and atomically concatenated into
 ``in/removed/removed.smi``. Individual shards are deleted only after their merge
 succeeds.
 
-The additional flags supported by ``msani_batch`` so far:
+The additional flags supported by ``msani_batch`` are shown below with bundled
+defaults. Account and partition are unset unless configured.
 
 .. code-block:: console
 
-    --projectName, -A           The account that will be charged by the SLURM cluster for running tasks (default: PROJECT_NAME)
-    --lines_per_job, -l         Number of lines to process per job (default: 200)
-    --timelimit, -tl            Time limit in hours for each SLURM job (default: 96)
-    --max_jobs, -mj             Maximum number of jobs to run simultaneously (default: 500)
+    --projectName, -A       SLURM account (default: unset); use "none" or "null" to omit it.
+    --partition            SLURM partition (default: cluster default).
+    --lines_per_job, -l     Input records per task (default: 200).
+    --timelimit, -tl        Time limit per job in hours (default: 72).
+    --max_jobs, -mj         Maximum concurrent array tasks (default: 2000).
+    --whole_node           Use whole-node jobs (default: disabled).
+    --whole_node_cores     CPU cores per node for whole-node jobs (default: 32).
+
+``MAX_ARRAY_SIZE`` (default 1000) and ``MAX_LIMIT_PROJECT`` (default 5000) are
+personal configuration settings, not command-line flags. The former limits
+array size; the latter limits project capacity at submission. See :doc:`config`.
+For retained staging files, use ``--nocleanup``. See :doc:`troubleshooting`
+for failed-task resubmission and recovery.
+
 
 Batch examples
 ~~~~~~~~~~~~~~
@@ -560,7 +662,7 @@ Batch examples
 .. code-block:: console
 
     $ msani_batch -i example.smi -l 50 -3d -f db2
-    $ msani_batch -i example.smi -l 50 --stereosiomers --protonation -3d -f db2 --nocleanup
+    $ msani_batch -i example.smi -l 50 --stereoisomers --protonation -3d -f db2 --nocleanup
     $ msani_batch -i example.smi -l 50 -A snic2021-3-32 -tl 2 -3d -f db2
 
 It is also possible to submit the batch jobs for multiple input files. The program will automatically detect the input files and submit the jobs accordingly.
@@ -597,4 +699,4 @@ output is still generated afterwards from the standardized structures.
 For standardization alone, use the command above without other processing flags.
 
 The output follows the usual ``_clean`` naming convention. See :doc:`outputs`
-for output files, failures, and reruns.
+for output files and :doc:`troubleshooting` for failures and reruns.
