@@ -1,6 +1,10 @@
 MolSanitizer API Reference
 ==========================
 
+This reference is generated from MolSanitizer's Python classes and functions.
+See :doc:`python` for scripting examples and :doc:`installation` for runtime
+dependencies. Native backends are not executed when building this reference.
+
 Msani Module
 -----------------
 
@@ -20,6 +24,9 @@ Moltransform Module
    :members:
 
 .. autoclass:: msani.moltransform.neutralizer::Neutralizer
+   :members:
+
+.. autoclass:: msani.moltransform.stereoisomers::Stereoisomerizer
    :members:
 
 Filtering Module

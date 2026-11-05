@@ -57,7 +57,7 @@ class Stereoisomerizer:
     debug: bool, default = False.
         Enable verbose debug output.
 
-     Examples
+    Examples
     ----------
     
     >>> from msani.moltransform.stereoisomers import Stereoisomerizer

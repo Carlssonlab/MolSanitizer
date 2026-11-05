@@ -446,7 +446,7 @@ class Filters():
 
         NOTE: It is recently updated to use the Python function CalcNumHBA() within this file to remain the consistency between the RDKit versions.
         The previous version of RDKit CalcNumHBA() was updated in 2025.09.3 so that we may have different results between the different versions of RDKit.
-        SMARTS pattern: [$([O,S;H1;v2]-[!$(*=[O,N,P,S])]),$([O,S;H0;v2]),$([O,S;-]),$([N;v3;!$(N-*=!@[O,N,P,S])]),$([nH0X2,o,s;+0])]
+        SMARTS pattern: ``[$([O,S;H1;v2]-[!$(*=[O,N,P,S])]),$([O,S;H0;v2]),$([O,S;-]),$([N;v3;!$(N-*=!@[O,N,P,S])]),$([nH0X2,o,s;+0])]``
         
         Args:
             df (DataFrame): Input DataFrame with 'mol' column containing RDKit molecule objects.

@@ -31,8 +31,10 @@ class TorsionLibrary:
         self.parse_torlib()
     
     def __repr__(self):
-        print("Torsion Library from:", self.xml_file)
-        print("Number of rules:", len(self.Torlib_specific + self.Torlib_general))
+        return (
+            f"TorsionLibrary(xml_file={str(self.xml_file)!r}, "
+            f"rules={len(self.Torlib_specific) + len(self.Torlib_general)})"
+        )
 
     def add_custom_rule(self, smarts, angles, weights, debug = False):
         """
@@ -387,4 +389,3 @@ class SmallRingLibrary:
     
     def get_non_planar(self):
         return self.non_planar
-    
