@@ -14,9 +14,9 @@ def protonation_notice(args, *, batch_submission=False):
         '(previously 0). This can change protonation results.\n'
         f'This run uses pH_range={args.pH_range} from {source}.\n'
     )
-    if source != 'bundled defaults':
-        message += 'Your configured value is preserved.\n'
-    message += 'Use --pH_range 0 (-r 0) to retain the previous range setting.'
+
+    if args.pH_range == 1:
+        message += 'Use --pH_range 0 (-r 0) to retain the previous range setting.\n'
     # Generated workers retain the notice in their logs; the submitter has
     # already displayed it before launching the array.
     if batch_submission or os.environ.get('MSANI_BATCH_WORKER') != '1':

@@ -469,10 +469,6 @@ def parse_flags_single_job(args: dict, parser):
         if not hasattr(args, arg) or arg in omitted_args:  # Skip help and internal arguments
             continue
         current_value = getattr(args, arg)  # Current value in the Namespace
-        if arg == 'protonation':
-            # Explicit pH options can equal the parser default and still request
-            # protonation. Preserve that intent in the worker command.
-            current_value = parsers.protonation_requested(args)
         default_value = action.default      # Default value from the parser
         
         # Only skip the value is the same as the default or if the argument isn't specified
@@ -772,6 +768,7 @@ def main():
         print("Exiting MolSanitizer...")
         return
     from msani.io.loggers import protonation_notice
+    parsers.validate_protonation_options(args)
     protonation_notice(args, batch_submission=True)
     Split_Submit_jobs(args, parser)
 
