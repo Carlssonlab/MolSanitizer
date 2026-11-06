@@ -165,7 +165,7 @@ class TestConfig(unittest.TestCase):
                       ['--pH_range=3'], ['-r2']]:
             with self.subTest(flags=flags):
                 args = parsers.parseArguments(flags)
-                with self.assertRaisesRegex(SystemExit, 'Use --protonation explicitly') as error:
+                with self.assertRaisesRegex(SystemExit, r'require protonation\..*--protonation') as error:
                     parsers.Sanitycheck(args)
                 self.assertNotEqual(error.exception.code, 0)
                 self.assertFalse(args.protonation)
@@ -178,7 +178,7 @@ class TestConfig(unittest.TestCase):
         for settings in ['pH_range: 1\n', 'pH: 7\n']:
             with self.subTest(settings=settings):
                 job.write_text(settings)
-                with self.assertRaisesRegex(SystemExit, 'Use --protonation explicitly'):
+                with self.assertRaisesRegex(SystemExit, r'require protonation\..*--protonation'):
                     parsers.Sanitycheck(parsers.parseArguments(['--config', str(job)]))
                 job.write_text(settings + 'protonation: true\n')
                 args = parsers.Sanitycheck(parsers.parseArguments(['--config', str(job)]))
@@ -204,9 +204,11 @@ class TestConfig(unittest.TestCase):
         path = self.path / 'personal.yaml'
         path.write_text('PH_RANGE: 0\n')
         os.environ['MSANI_CONFIG'] = str(path)
-        protonation_notice(parsers.parseArguments(['--protonation']))
+        args = parsers.parseArguments(['--protonation'])
+        protonation_notice(args)
         self.assertIn(f'pH_range=0 from {path.resolve()}', self.stderr.getvalue())
-        self.assertIn('Your configured value is preserved', self.stderr.getvalue())
+        self.assertEqual(args.pH_range, 0)
+        self.assertNotIn('Use --pH_range 0', self.stderr.getvalue())
         self.assertEqual(path.read_text(), 'PH_RANGE: 0\n')
 
     def test_cli_notice_is_printed_and_logged_before_processing(self):
@@ -313,7 +315,7 @@ class TestConfig(unittest.TestCase):
                     argv = ['msani', '-i', str(input_file), *flags]
                     with patch('sys.argv', argv), patch.object(module, processing) as run, \
                             patch('msani.io.loggers.setup_logger') as setup_logger:
-                        with self.assertRaisesRegex(SystemExit, 'Use --protonation explicitly') as error:
+                        with self.assertRaisesRegex(SystemExit, r'require protonation\..*--protonation') as error:
                             module.main()
                     self.assertNotEqual(error.exception.code, 0)
                     run.assert_not_called()
