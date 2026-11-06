@@ -18,7 +18,7 @@ Predictions were classified into four outcomes:
    :width: 400px
    :align: center
 
-MolSanitizer achieved the highest proportion of correct predictions among the evaluated methods, with approximately 70% of the TautoBase entries classified as correct. ChemAxon cxcalc reached 48%, followed by Epik Classic (23%), Unicon (12%), Scrubber (10%), and Gypsum-DL (7%). MolSanitizer also showed a lower proportion of incorrect predictions (approximately 20%) than the other tested methods. In contrast, Gypsum-DL and Scrubber predominantly over-enumerated tautomeric states, with about 60% and 62% of their predictions, respectively, classified as exceed. These results indicate that MolSanitizer's two-layer tautomerization protocol provides a favorable balance between recovering experimentally preferred states and avoiding unnecessary tautomer enumeration.
+MolSanitizer achieved the highest proportion of correct predictions among the evaluated methods, with approximately 70% of the TautoBase entries classified as correct. ChemAxon cxcalc reached 48%, followed by MolScrub (38%), Epik Classic (23%), Unicon (12%), and Gypsum-DL (7%). MolSanitizer also showed a lower proportion of incorrect predictions (approximately 20%) than the other tested methods. In contrast, Gypsum-DL and MolScrub predominantly over-enumerated tautomeric states, with about 60% and 62% of their predictions, respectively, classified as exceed. These results indicate that MolSanitizer's two-layer tautomerization protocol provides a favorable balance between recovering experimentally preferred states and avoiding unnecessary tautomer enumeration.
 
 Ionizer Validation
 ========================

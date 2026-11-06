@@ -576,6 +576,7 @@ class Test_MolSanitizer(unittest.TestCase):
                 args.protonation_library = f"{args.prefix}.txt"
                 args.protonation = True
                 args.pH = 7
+                args.pH_range = 0
                 args.input_files = [f'{self.path}/in_protonation.txt']
                 cli.clean_data(args)
                 self.compare_relative(f'{temp_dir}/dummy_output_clean.txt',
@@ -628,6 +629,9 @@ class Test_MolSanitizer(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             args = self.generate_mock_arguments([f'{self.path}/in_protonation.txt'],
                                                 ['protonation', 'test'], temp_dir)
+            # These reference files cover the previous single-pH range.
+            # Keep checking that -r 0 reproduces that behavior after 0.8.0.
+            args.pH_range = 0
             args.pH = 7
             cli.clean_data(args)
             with self.subTest(msg="Checking pH 7:"):
@@ -663,6 +667,7 @@ class Test_MolSanitizer(unittest.TestCase):
             from msani.io import parsers
             args = self.generate_mock_arguments([f'{self.path}/in_enamine.txt'],
                                                 ['extended','lazy', 'test'], temp_dir)
+            args.pH_range = 0  # Existing reference output uses the pre-0.8.0 range.
             args = parsers.Sanitycheck(args)
             cli.clean_data(args)
             self.compare_relative(f'{temp_dir}/dummy_output_clean.txt',

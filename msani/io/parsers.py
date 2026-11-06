@@ -62,9 +62,27 @@ def none_or_str(value):
         return None
     return value
 
+class PHOption(argparse.Action):
+    """Distinguish explicit pH options from inherited personal defaults."""
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        setattr(namespace, self.dest, values)
+        namespace._pH_options_explicit = True
+        namespace._pH_sources = {
+            **namespace._pH_sources,
+            self.dest: f'command line ({option_string})',
+        }
+
+
+def protonation_requested(args):
+    return args.protonation or args.lazy or getattr(args, '_pH_options_explicit', False)
+
+
 def parseArguments(args = None, batch_mode = False):
+    if args is None:
+        args = sys.argv[1:]
     try:
-        configurations, _ = load_defaults()
+        configurations, sources = load_defaults()
     except ConfigError as exc:
         raise SystemExit(f'Configuration error: {exc}') from exc
     slurm_account = configurations.get('SLURM_ACCOUNT', None)
@@ -81,7 +99,7 @@ def parseArguments(args = None, batch_mode = False):
     numconfs = configurations.get('NUMCONFS', 2000)
     max_isomers = configurations.get('MAX_STEREOISOMERS', 8)
     pH = configurations.get('PH', 7)
-    pH_range = configurations.get('PH_RANGE', 0)
+    pH_range = configurations.get('PH_RANGE', 1)
 
     info_batch = f"""MolSanitizer - A package to prepare SMILES databases
             This is a batch version of the MolSanitizer package.
@@ -123,6 +141,14 @@ def parseArguments(args = None, batch_mode = False):
                                      add_help=False,
                                      epilog=epilog)  # Suppress default -h/--help)
 
+    ph_sources = {'pH': sources['PH'], 'pH_range': sources['PH_RANGE']}
+    for name in ph_sources:
+        if name in defaults:
+            ph_sources[name] = f'job configuration {Path(config_args.config).resolve()}'
+    parser.set_defaults(
+        _pH_sources=ph_sources,
+        _pH_options_explicit=any(name in defaults for name in ph_sources),
+    )
     
     # Group 1: Input and output options
     io_group = parser.add_argument_group("Input and output options")
@@ -322,15 +348,18 @@ def parseArguments(args = None, batch_mode = False):
     )
     smiles_group.add_argument(
         '--pH', '-p',
+        action=PHOption,
         type=int,
         default=defaults.get('pH', pH),
         help=f'pH for the protonation (default: {pH})'
     )
     smiles_group.add_argument(
         '--pH_range', '-r',
+        action=PHOption,
         type=int,
         default=defaults.get('pH_range', pH_range),
-        help=f'pH range for the protonation (default: {pH_range})'
+        help=f'pH range for the protonation (default: {defaults.get("pH_range", pH_range)}; '
+             'bundled default changed from 0 to 1 in 0.8.0; use -r 0 for the previous range)'
     )
     smiles_group.add_argument(
         '--notaurdkit',
@@ -650,7 +679,7 @@ def Sanitycheck(args: dict):
         print("It seems like you forget the --tautomers flag. We turned it on for you.")
         args.tautomers = True
 
-    if (args.pH != 7 or args.pH_range != 0) and not args.protonation:
+    if protonation_requested(args) and not args.protonation:
         print("It seems like you forget the --protonation flag. We turned it on for you.")
         args.protonation = True
 

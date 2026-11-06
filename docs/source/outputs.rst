@@ -1,5 +1,5 @@
-Outputs and troubleshooting
-===========================
+Outputs
+========
 
 Files and identifiers
 ---------------------
@@ -71,84 +71,5 @@ check ``msani_error.err`` and the execution log. The rejected file is not a
 complete ledger of every removed input: invalid SMILES and some other early
 removal paths are reported separately in the log.
 
-Common problems
----------------
-
-* **Invalid SMILES:** check the input syntax, the two-column layout, and the
-  absence of a header. Use tab-separated input for unquoted CXSMILES, or quote
-  the entire CXSMILES field in double quotes for space-separated input.
-  ``--extended`` forces tab-separated parsing; omit it for space-separated input.
-* **No molecules remain:** inspect the rejection reasons and enabled filters.
-  ``--lazy`` enables all unwanted-filter categories; choose narrower options
-  when appropriate for your project.
-* **Missing PDBQT output:** install ``molsanitizer[pdbqt]`` in the environment
-  running the command and inspect the molecule's error message.
-* **Missing OEB output:** install ``molsanitizer[oe]`` in the environment
-  running the command and set ``OE_LICENSE`` to a valid licence file. Missing
-  toolkits and an unlicensed OEChem installation produce distinct errors.
-  Inspect the execution log and ``msani_error.err`` for details.
-* **Embedding timeout:** ``--timeout`` is measured in minutes (default 2).
-  When RDKit embedding times out, MolSanitizer tries Open Babel. If Open Babel
-  is unavailable or the fallback fails, the reason is recorded and processing
-  continues with other molecules. ``--timeout_conf`` separately limits
-  torsional sampling; consult ``--help_advanced`` for its current setting.
-* **Fewer conformers than requested:** ``--numconfs`` is a maximum. Symmetry,
-  molecular rigidity, RMSD pruning, energy/clash filters, and time limits can
-  all reduce the ensemble size.
-
-Reruns and recovery
--------------------
-
-A file-processing rerun replaces the matching clean and rejected text outputs.
-Per-molecule files may be overwritten, while files for molecules absent from
-the new run can remain. Use a fresh working directory when changing chemistry
-settings or inputs; changing only ``--prefix`` does not isolate the 3D outputs.
-
-For an existing ``db2.tgz`` archive, MolSanitizer attempts to restore completed
-DB2 members and skip their molecule IDs. This supports restarting interrupted
-work with the same inputs and settings. An unreadable archive is logged and
-processing starts fresh. Use a separate directory for a new preparation rather
-than reusing an old archive with changed settings.
-
-For file input with ``oeb.lib``, an existing library is moved aside and its
-records are copied back before new molecules are added. This retains records
-across input chunks and supports reruns with the same input and settings.
-Restored molecule titles are used to avoid adding those molecules again; use
-unique IDs. With only ``oeb.lib`` selected, restored molecules skip conformer
-generation. With other formats selected, they may still be processed for those
-outputs. This is not a guarantee of recovery from a corrupt or partially
-written library; keep a backup of valuable output before retrying.
-
-When ``db2.tgz`` and ``oeb.lib`` are requested together, IDs already restored
-from the DB2 archive skip all processing, including OEB output. A rerun therefore
-does not repair an OEB library missing those IDs. Regenerate in a fresh directory
-if the two outputs are inconsistent.
-
-SLURM batch recovery
---------------------
-
-Each batch directory contains ``submit_msani.sh``, the defaults snapshot
-``msani_defaults.yaml``, and staged input files ``input.data`` and
-``input.offsets``. Keep these together while jobs are unfinished. For plain
-input, ``input.data`` links to the original file, so keep that file available
-and unchanged as well.
-
-Inspect the SLURM task logs and scheduler state to identify failed array task
-IDs. After correcting the cause, resubmit only those tasks from the batch
-directory, for example:
-
-.. code-block:: console
-
-    $ sbatch --array=3,7 submit_msani.sh
-
-Here ``3,7`` are examples; replace them with your failed task IDs. Check that
-the staging files still exist before resubmitting. Do not assume a scheduler
-success means every molecule produced every requested format: molecule-level
-failures are recorded separately.
-
-With cleanup enabled, successful shards are merged into
-``in/processed/processed.smi`` and ``in/removed/removed.smi``. Staging data is
-retained while tasks remain unsuccessful, and shards are deleted only after
-their merge succeeds. ``--nocleanup`` retains the intermediate files for
-inspection. If staging data has already been removed, prepare a new batch
-from the original input instead of resubmitting the old script.
+See :doc:`troubleshooting` for DB2 identifier limits, conformer clashes,
+missing outputs, and recovery of interrupted runs or failed batch tasks.

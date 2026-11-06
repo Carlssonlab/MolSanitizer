@@ -13,6 +13,9 @@ import sys
 from pathlib import Path
 
 _project_root = Path(__file__).resolve().parents[2]
+# Import the checked-out Python sources for autodoc, without building the SDK
+# and native extensions or accidentally documenting an installed release.
+sys.path.insert(0, str(_project_root))
 release = subprocess.check_output(
     [sys.executable, "-m", "setuptools_scm", "--root", str(_project_root),
      "--config", str(_project_root / "pyproject.toml")],
@@ -32,6 +35,15 @@ extensions = [
     'sphinx_copybutton',
     'sphinx.ext.mathjax',
     'sphinx_togglebutton'
+]
+
+# The reference describes the Python wrappers; generating it does not execute
+# the native backends. Keep RDKit and the other Python dependencies real so
+# their imports, type annotations, and class signatures can be inspected.
+autodoc_mock_imports = [
+    'msani_stereoisomers',
+    'msani_confgen_cpp',
+    'msani.amsol.rdkit_amsol_to_solv',
 ]
 
 # Napoleon settings

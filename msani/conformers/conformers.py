@@ -169,7 +169,7 @@ class ConformerGenerator:
     ignoreTorlib : bool, optional
         Whether to ignore the torsion library, by default False.
     clash_scale : float, optional
-        Scale applied to the sum of atomic van der Waals radii for clash detection. Defaults to 0.7.        
+        Scale applied to the sum of atomic van der Waals radii for clash detection. Defaults to 0.6.
     mode : str, optional
         The mode for conformer sampling, by default 'fixed'.
     tolerance : float, optional

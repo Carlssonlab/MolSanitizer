@@ -9,7 +9,6 @@ The source-build Conda environment requests RDKit ``>=2025.9.1``. These are
 installation requirements; they do not mean every permitted combination has
 been tested.
 
-The September 17, 2026 manuscript reports the following tested environments:
 
 .. list-table:: Reported platform testing
    :header-rows: 1
@@ -21,11 +20,11 @@ The September 17, 2026 manuscript reports the following tested environments:
      - SLURM batch
    * - Ubuntu 20.04, 22.04, 24.04
      - 3.10–3.14
-     - 2025.9.1–2026.3.6
+     - 2025.9.1–2026.9.1
      - Yes
    * - Rocky Linux 9.5 / CentOS 7
      - 3.10–3.14
-     - 2025.9.1–2026.3.6
+     - 2025.9.1–2026.9.1
      - Yes
    * - Windows 11 (x64)
      - 3.10–3.12

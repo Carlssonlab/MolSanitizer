@@ -47,7 +47,7 @@ class Ionizer:
         pH: int, default 7.
             The pH value to use as a reference for protonation.
 
-        pH_range: int, default 0.
+        pH_range: int, default 1 (since 0.8.0; previously 0).
             The range of pH values to consider for protonation. If 0, only the pH value is considered, else a range of pH values are considered.
 
         numcores: int, default 1.
@@ -76,7 +76,7 @@ class Ionizer:
     def __init__(self,
                  smartsFile = PROTONATION_RULES_PATH,
                  pH: int = 7,
-                 pH_range: int = 0,
+                 pH_range: int = 1,
                  numcores: int = 1,
                  neutralize: bool = True,
                  debug = False):
@@ -528,7 +528,9 @@ def main():
     parser.add_argument('-t', '--template', action='store_true', help='Create a template for protonation rules')
     parser.add_argument('-s', '--smiles', default=None, type=str, help='SMILES string of the molecule')
     parser.add_argument('-p', '--pH', default=7, type=int, help='pH value to use for ionization')
-    parser.add_argument('-r', '--pH_range', default=0, type=int, help='Range of pH values to consider for ionization')
+    parser.add_argument('-r', '--pH_range', default=1, type=int,
+                        help='Range of pH values to consider for ionization (default: 1; '
+                             'changed from 0 in 0.8.0; use -r 0 for the previous range)')
     parser.add_argument('-d', '--debug', action='store_true', help='Enable debug mode')
     parser.add_argument('-j', '--numcores', default=4, type=int, help='Number of cores to use for multiprocessing')
     parser.add_argument('-o', '--output', default='protonated_molecules.smi', type=str, help='Output file to save protonated molecules')

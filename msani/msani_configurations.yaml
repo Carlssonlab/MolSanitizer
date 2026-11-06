@@ -18,7 +18,8 @@ NUMCONFS: 2000
 MAX_STEREOISOMERS: 8
 TIMEOUT: 2
 PH: 7
-PH_RANGE: 0 # 0 means choose specific pH=7 (default), 2 means will sample pH 5 and 9
+# Default changed from 0 to 1 in 0.8.0. Set 0 to retain the previous range.
+PH_RANGE: 1 # 0 means choose specific pH=7, 1 means will sample pH 6 and 8, 2 means will sample pH 5 and 9
 
 #================BATCH MODE=================
 # Configuration file for MolSanitizer batch mode
