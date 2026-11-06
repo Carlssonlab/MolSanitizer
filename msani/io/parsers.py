@@ -75,7 +75,13 @@ class PHOption(argparse.Action):
 
 
 def protonation_requested(args):
-    return args.protonation or args.lazy or getattr(args, '_pH_options_explicit', False)
+    return args.protonation or args.lazy
+
+
+def validate_protonation_options(args):
+    if getattr(args, '_pH_options_explicit', False) and not protonation_requested(args):
+        raise SystemExit('Argument error: pH options (--pH or -r) require protonation. '
+                         'Use --protonation or -prot explicitly to enable it.')
 
 
 def parseArguments(args = None, batch_mode = False):
@@ -679,9 +685,7 @@ def Sanitycheck(args: dict):
         print("It seems like you forget the --tautomers flag. We turned it on for you.")
         args.tautomers = True
 
-    if protonation_requested(args) and not args.protonation:
-        print("It seems like you forget the --protonation flag. We turned it on for you.")
-        args.protonation = True
+    validate_protonation_options(args)
 
     if args.neutralize is None:
         if args.removesalts or args.tautomers or args.protonation:
