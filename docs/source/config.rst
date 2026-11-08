@@ -78,10 +78,13 @@ The bundled CORINA default is ``corina`` on PATH, and the default SLURM
 account is unset.
 
 Inherited ``PH`` or ``PH_RANGE`` settings do not enable protonation by
-themselves. Request it with ``--protonation`` or ``--lazy``, or explicitly
-provide ``--pH``/``--pH_range`` on the command line or ``pH``/``pH_range`` in
-job YAML. Explicit pH options enable protonation even when their values equal
-the defaults.
+themselves. Enable it explicitly with ``--protonation``, set
+``protonation: true`` in job YAML, or use the ``--lazy`` pipeline shortcut.
+Providing ``--pH``/``--pH_range`` on the command line or ``pH``/``pH_range``
+in job YAML does not enable protonation. If these options are provided while
+protonation is disabled, both commands exit with an argument error asking you
+to add ``--protonation``. No molecules are processed and no batch jobs are
+submitted.
 
 Custom locations
 ^^^^^^^^^^^^^^^^

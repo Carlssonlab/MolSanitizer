@@ -160,13 +160,15 @@ class TestConfig(unittest.TestCase):
         self.assertEqual(args.pH_range, 1)
         self.assertEqual(args._pH_sources['pH_range'], 'bundled defaults')
 
-    def test_explicit_ph_options_activate_protonation_even_at_default(self):
+    def test_explicit_ph_options_fail_without_activating_protonation(self):
         for flags in [['-p', '7'], ['--pH=7'], ['-r', '0'], ['-r', '1'],
                       ['--pH_range=3'], ['-r2']]:
             with self.subTest(flags=flags):
-                args = parsers.Sanitycheck(parsers.parseArguments(flags))
-                self.assertTrue(args.protonation)
-                self.assertTrue(args.neutralize)
+                args = parsers.parseArguments(flags)
+                with self.assertRaisesRegex(SystemExit, r'require protonation\..*--protonation') as error:
+                    parsers.Sanitycheck(args)
+                self.assertNotEqual(error.exception.code, 0)
+                self.assertFalse(args.protonation)
 
     def test_job_yaml_and_cli_ph_sources(self):
         personal = self.path / 'personal.yaml'
@@ -176,6 +178,9 @@ class TestConfig(unittest.TestCase):
         for settings in ['pH_range: 1\n', 'pH: 7\n']:
             with self.subTest(settings=settings):
                 job.write_text(settings)
+                with self.assertRaisesRegex(SystemExit, r'require protonation\..*--protonation'):
+                    parsers.Sanitycheck(parsers.parseArguments(['--config', str(job)]))
+                job.write_text(settings + 'protonation: true\n')
                 args = parsers.Sanitycheck(parsers.parseArguments(['--config', str(job)]))
                 self.assertTrue(args.protonation)
         job.write_text('pH_range: 2\n')
@@ -199,9 +204,11 @@ class TestConfig(unittest.TestCase):
         path = self.path / 'personal.yaml'
         path.write_text('PH_RANGE: 0\n')
         os.environ['MSANI_CONFIG'] = str(path)
-        protonation_notice(parsers.parseArguments(['--protonation']))
+        args = parsers.parseArguments(['--protonation'])
+        protonation_notice(args)
         self.assertIn(f'pH_range=0 from {path.resolve()}', self.stderr.getvalue())
-        self.assertIn('Your configured value is preserved', self.stderr.getvalue())
+        self.assertEqual(args.pH_range, 0)
+        self.assertNotIn('Use --pH_range 0', self.stderr.getvalue())
         self.assertEqual(path.read_text(), 'PH_RANGE: 0\n')
 
     def test_cli_notice_is_printed_and_logged_before_processing(self):
@@ -259,7 +266,7 @@ class TestConfig(unittest.TestCase):
     def test_runs_without_protonation_and_standardization_are_quiet(self):
         from msani.io.loggers import protonation_notice
 
-        for flags in [[], ['--standardize', '--protonation']]:
+        for flags in [[], ['-r', '1'], ['-p', '5'], ['--standardize', '--protonation']]:
             with self.subTest(flags=flags):
                 protonation_notice(parsers.parseArguments(flags))
         self.assertEqual(self.stderr.getvalue(), '')
@@ -282,13 +289,38 @@ class TestConfig(unittest.TestCase):
         import shlex
         from msani.batchmode import parse_flags_single_job
 
-        for flags in [[], ['-r', '1'], ['-p', '7'], ['-r', '0'], ['--lazy']]:
+        for flags in [[], ['--lazy'],
+                      ['--protonation', '-r', '1'], ['--protonation', '-r', '0']]:
             with self.subTest(flags=flags):
                 args, parser = parsers.parseArguments(flags, batch_mode=True)
                 worker_flags = parse_flags_single_job(args, parser)
                 worker = parsers.Sanitycheck(parsers.parseArguments(shlex.split(worker_flags)))
                 self.assertEqual(worker.pH_range, args.pH_range)
-                self.assertEqual(worker.protonation, bool(flags))
+                self.assertEqual(worker.protonation,
+                                 '--protonation' in flags or '--lazy' in flags)
+                if not parsers.protonation_requested(args):
+                    self.assertNotIn('--protonation', worker_flags)
+
+    def test_unused_ph_options_stop_processing_and_submission(self):
+        from msani import cli, batchmode
+
+        input_file = self.path / 'input.smi'
+        input_file.write_text('CCO ethanol\n')
+
+        job = self.path / 'job.yaml'
+        job.write_text('pH: 7\npH_range: 1\n')
+        for module, processing in [(cli, 'clean_data'), (batchmode, 'Split_Submit_jobs')]:
+            for flags in [['-r', '1'], ['--config', str(job)]]:
+                with self.subTest(command=module.__name__, flags=flags):
+                    argv = ['msani', '-i', str(input_file), *flags]
+                    with patch('sys.argv', argv), patch.object(module, processing) as run, \
+                            patch('msani.io.loggers.setup_logger') as setup_logger:
+                        with self.assertRaisesRegex(SystemExit, r'require protonation\..*--protonation') as error:
+                            module.main()
+                    self.assertNotEqual(error.exception.code, 0)
+                    run.assert_not_called()
+                    setup_logger.assert_not_called()
+        self.assertNotIn('Since MolSanitizer 0.8.0', self.stderr.getvalue())
 
     def test_python_and_ionizer_command_defaults(self):
         from msani.api import Msani
