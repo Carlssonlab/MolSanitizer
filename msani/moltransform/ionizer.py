@@ -138,8 +138,8 @@ class Ionizer:
         rules.loc[:, 'Mol'] = rules['REACTION'].apply(lambda x: AllChem.ReactionFromSmarts(x))
         acid_rules = rules[rules['TYPE'] == 'ACID'].copy()
         base_rules = rules[rules['TYPE'] == 'BASE'].copy()
-        acid_rules.sort_values(by=['pKa', 'Enumerate'], ascending=[True, True], inplace=True)
-        base_rules.sort_values(by=['pKa', 'Enumerate'], ascending=[False, True], inplace=True)
+        acid_rules = acid_rules.sort_values(by=['pKa', 'Enumerate'], ascending=[True, True])
+        base_rules = base_rules.sort_values(by=['pKa', 'Enumerate'], ascending=[False, True])
         rules = concat([acid_rules, base_rules], ignore_index=True)
         return rules
     
