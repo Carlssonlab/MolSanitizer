@@ -11,6 +11,16 @@ All notable changes to this project will be documented in this file.
 
 - *(protonation)* [**breaking**] Change default pH_range from 0 to 1 -
   (`56d816c <https://github.com/Carlssonlab/MolSanitizer/commit/56d816cc857f422ab33ba752fa2d1cd7c2923597>`__)
+- *(protonation)* Added a bunch of protonation rules, with a focus on
+  aromatic bases and inorganic compounds
+  (`98ae7ba <https://github.com/Carlssonlab/MolSanitizer/commit/98ae7ba74978f20760a767ef8bcf7464dc125ecd>`__)
+- *(tautomerizer)* Added new tautomerization rules, for example
+  general-aci-nitro_to_nitro; 2-OH-indole_to_oxindole-CH2;
+  thiocarboxylic_acid_thione-to-thiol;
+  4-aminomethylene-indole-quinone_to_indole;
+  hydroxylamine_zwitterion-to-neutral and updated some rules from the
+  testing on ChemBL databases
+  (`98ae7ba <https://github.com/Carlssonlab/MolSanitizer/commit/98ae7ba74978f20760a767ef8bcf7464dc125ecd>`__)
 
 🐛 Bug Fixes
 ~~~~~~~~~~~~
@@ -24,6 +34,11 @@ All notable changes to this project will be documented in this file.
 - SaltRemover should retain the fragment with the highest number of
   heavy atoms, not any atoms. -
   (`eaa3d5e <https://github.com/Carlssonlab/MolSanitizer/commit/eaa3d5ef0cf0a132604c9bde481fac0e2f072999>`__)
+- Do not neutralize standalone halogens
+  (`98ae7ba <https://github.com/Carlssonlab/MolSanitizer/commit/98ae7ba74978f20760a767ef8bcf7464dc125ecd>`__)
+- *(tautomerizer)* Fixed inconsistent tautomerizer results across RDKit
+  version. Resolve #80
+  (`98ae7ba <https://github.com/Carlssonlab/MolSanitizer/commit/98ae7ba74978f20760a767ef8bcf7464dc125ecd>`__)
 
 🚜 Refactor
 ~~~~~~~~~~~
@@ -53,8 +68,24 @@ All notable changes to this project will be documented in this file.
 - Test wheels across RDKit release series -
   (`41d7377 <https://github.com/Carlssonlab/MolSanitizer/commit/41d7377d2944c60d35fc253cd5aab068a0705a58>`__)
 
-[0.7.3rc1] - 2026-10-05
------------------------
+[0.7.4] - 2026-10-09
+--------------------
+
+🚀 Features
+~~~~~~~~~~~
+
+- Improving tautomerization in S-containing heterocycles and
+  phenanthrolines -
+  (`d83326f <https://github.com/Carlssonlab/MolSanitizer/commit/d83326fb4f08d32ea734308c9243efd703634c62>`__)
+
+📚 Documentation
+~~~~~~~~~~~~~~~~
+
+- Switch to CarlssonLab, prepare for publication -
+  (`a85df0b <https://github.com/Carlssonlab/MolSanitizer/commit/a85df0b9013160e0a647160a2a59a2d8004a28a4>`__)
+
+[0.7.3] - 2026-10-07
+--------------------
 
 .. _features-1:
 
