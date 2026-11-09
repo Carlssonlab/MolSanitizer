@@ -2,23 +2,57 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.7.3rc1] - 2026-10-05
+## [0.8.0] - 2026-11-09
+
+### 🚀 Features
+
+- *(protonation)* [**breaking**] Change default pH_range from 0 to 1 - ([56d816c](https://github.com/Carlssonlab/MolSanitizer/commit/56d816cc857f422ab33ba752fa2d1cd7c2923597))
+- *(protonation)* Added a bunch of protonation rules, with a focus on aromatic bases and inorganic compounds ([98ae7ba](https://github.com/Carlssonlab/MolSanitizer/commit/98ae7ba74978f20760a767ef8bcf7464dc125ecd))
+- *(tautomerizer)* Added new tautomerization rules, for example general-aci-nitro_to_nitro; 2-OH-indole_to_oxindole-CH2; thiocarboxylic_acid_thione-to-thiol; 4-aminomethylene-indole-quinone_to_indole; hydroxylamine_zwitterion-to-neutral and updated some rules from the testing on ChemBL databases ([98ae7ba](https://github.com/Carlssonlab/MolSanitizer/commit/98ae7ba74978f20760a767ef8bcf7464dc125ecd))
+
+### 🐛 Bug Fixes
+
+- Fix the bug that fragments being stripped out if the reactions matched. Resolve #75 - ([f8d0523](https://github.com/Carlssonlab/MolSanitizer/commit/f8d05238823633796f6cca09c4f2a9bccd6c6cad))
+- SaltRemover should retain the fragment with the highest number of heavy atoms, - ([fe5fba9](https://github.com/Carlssonlab/MolSanitizer/commit/fe5fba94b04bdad39989bbcc5baebccac4f8a1e8))
+- SaltRemover should retain the fragment with the highest number of heavy atoms, not any atoms. - ([eaa3d5e](https://github.com/Carlssonlab/MolSanitizer/commit/eaa3d5ef0cf0a132604c9bde481fac0e2f072999))
+- Do not neutralize standalone halogens ([98ae7ba](https://github.com/Carlssonlab/MolSanitizer/commit/98ae7ba74978f20760a767ef8bcf7464dc125ecd))
+- *(tautomerizer)* Fixed inconsistent tautomerizer results across RDKit version. Resolve #80 ([98ae7ba](https://github.com/Carlssonlab/MolSanitizer/commit/98ae7ba74978f20760a767ef8bcf7464dc125ecd))
+  
+### 🚜 Refactor
+
+- Fix pandas deprecation warning. Resolve #81 - ([541859a](https://github.com/Carlssonlab/MolSanitizer/commit/541859a6a452b68e7e76d37b42e27fc624e35de0))
+
+### 📚 Documentation
+
+- Added skills for AI agents. - ([7764aba](https://github.com/Carlssonlab/MolSanitizer/commit/7764aba744bdd86155957534176fbdb27c8e8189))
+- Update README.md to enhance badge visibility and organization - ([97e2cb0](https://github.com/Carlssonlab/MolSanitizer/commit/97e2cb08827483eac5c5f37202b2e37df17e2bc3))
+- Make readthedocs import the APIs as expected - ([d77850f](https://github.com/Carlssonlab/MolSanitizer/commit/d77850f0041d0e78f9402a002d55e315b507eea5))
+- Up-to-date with the newest options from the program. - ([467aba2](https://github.com/Carlssonlab/MolSanitizer/commit/467aba288b94bdd03953dbca48179185767bfc2e))
+- New troubleshooting page to reflect FAQs - ([8d5db91](https://github.com/Carlssonlab/MolSanitizer/commit/8d5db9157113f9e61b8fdacbe3a9a8f0200356cb))
+- Update validation results to match the current manuscript version - ([519cbe2](https://github.com/Carlssonlab/MolSanitizer/commit/519cbe22a7cbaefbe14e91f5360bb9284ffe4083))
+
+### ⚙️ Miscellaneous Tasks
+
+- Test wheels across RDKit release series - ([41d7377](https://github.com/Carlssonlab/MolSanitizer/commit/41d7377d2944c60d35fc253cd5aab068a0705a58))
+
+## [0.7.4] - 2026-10-09
+
+### 🚀 Features
+
+- Improving tautomerization in S-containing heterocycles and phenanthrolines - ([d83326f](https://github.com/Carlssonlab/MolSanitizer/commit/d83326fb4f08d32ea734308c9243efd703634c62))
+
+### 📚 Documentation
+
+- Switch to CarlssonLab, prepare for publication - ([a85df0b](https://github.com/Carlssonlab/MolSanitizer/commit/a85df0b9013160e0a647160a2a59a2d8004a28a4))
+
+
+## [0.7.3] - 2026-10-07
 
 ### 🚀 Features
 
 - Rigid_exclude to exclude the ring not of interest from being used as rigid scaffold. Requested by #50 - ([3d8c14b](https://github.com/Carlssonlab/MolSanitizer/commit/3d8c14bc40f733964027a956fecc27816099e327))
 - Automatically detects the extended SMILES format - ([ba665af](https://github.com/Carlssonlab/MolSanitizer/commit/ba665af42d9c98a81cfc8e5ff822e8307de2e323))
 - New organometallic handler, trying to connect the dative bonds to metal atoms by default before further processing. Check with `-mtl`. - ([41b8dab](https://github.com/Carlssonlab/MolSanitizer/commit/41b8dab346664c57cfb6557343b78f00c47cb3ef))
-
-### 🐛 Bug Fixes
-
-- *(conformers)* Avoid forking threaded parents during RDKit embedding - ([08293ce](https://github.com/Carlssonlab/MolSanitizer/commit/08293ce17a9bb6dab97dfc4ecb78daa7d7b481c3))
-- Fix a bug inherrited from a recent optimization of tautomerizer, the same pseudochiral compound being written out twice with different SMILES format - ([3413bd2](https://github.com/Carlssonlab/MolSanitizer/commit/3413bd28b9e2926e079474a7f1aa52cd426274e7))
-
-## [sdk-2025.09.1] - 2026-09-20
-
-### 🚀 Features
-
 - New config interface, allowing the user to modify the config without needing to modify the bundled parameters. Prepare for PyPi release. Check with msani config -h. - ([6deca71](https://github.com/Carlssonlab/MolSanitizer/commit/6deca71332d0cfdfac634b38f6a5b7a52317e40b))
 - Support both the UCSF logP and normal logp values for filtering - ([beec999](https://github.com/Carlssonlab/MolSanitizer/commit/beec9993548cd523969bbd1200046e92abefc786))
 - Support bz2 format and more efficient mechanism of submitting SLURM jobs - ([2b6db9d](https://github.com/Carlssonlab/MolSanitizer/commit/2b6db9dc181a7bcdb8428b13030b8ebdf75f0607))
@@ -31,8 +65,10 @@ All notable changes to this project will be documented in this file.
 
 ### 🐛 Bug Fixes
 
+- *(conformers)* Avoid forking threaded parents during RDKit embedding - ([08293ce](https://github.com/Carlssonlab/MolSanitizer/commit/08293ce17a9bb6dab97dfc4ecb78daa7d7b481c3))
 - *(conformers)* Drain embedding results and preserve settings - ([9a35b2b](https://github.com/Carlssonlab/MolSanitizer/commit/9a35b2b7b390c7cc544f7c7f206969abb3b25ce7))
 - *(native)* Validate sampling inputs and own temporary coordinates - ([beac42e](https://github.com/Carlssonlab/MolSanitizer/commit/beac42ef709a8dd05c4256c01533b82e9c0f6dde))
+- Fix a bug inherrited from a recent optimization of tautomerizer, the same pseudochiral compound being written out twice with different SMILES format - ([3413bd2](https://github.com/Carlssonlab/MolSanitizer/commit/3413bd28b9e2926e079474a7f1aa52cd426274e7))
 - Fix S.ar atomtype in mol2. 3D generated checks before outputing the 3D formats. Add fallback for inorganic compounds. Resolve #58 repported by @H-EKE - ([14014b6](https://github.com/Carlssonlab/MolSanitizer/commit/14014b60874ac81dd7338a81b23749685e96ac08))
 - Keep earlier chunks in the OEB library and make it resumable - ([a11cf28](https://github.com/Carlssonlab/MolSanitizer/commit/a11cf2869b5bae8b3478f78e9277e6a82e3734fd))
 
