@@ -42,20 +42,63 @@ jobs:
             exit 1
           fi
 
-      - name: Generate changelog
+      - name: Generate release notes
         uses: orhun/git-cliff-action@v4
         with:
           config: cliff.toml
-          args: --verbose --tag ${{ inputs.version }}
+          args: --verbose --offline --unreleased --use-branch-tags --strip all --tag "$VERSION"
         env:
-          OUTPUT: CHANGELOG.md
+          VERSION: ${{ inputs.version }}
+          OUTPUT: ${{ runner.temp }}/release-notes.md
           GITHUB_REPO: ${{ github.repository }}
 
-      - name: Convert changelog for the docs
+      - name: Prepend release notes to both changelogs
+        env:
+          VERSION: ${{ inputs.version }}
         run: |
+          set -euo pipefail
           sudo apt-get update
           sudo apt-get install -y pandoc
-          pandoc CHANGELOG.md -o docs/source/changes.rst
+
+          # Give Pandoc a top-level title so it uses the existing RST heading levels.
+          { printf '# Changelog\n\n'; cat "$RUNNER_TEMP/release-notes.md"; } |
+            pandoc --from=markdown --to=rst -o "$RUNNER_TEMP/release-notes.rst"
+
+          python3 - <<'PY'
+          import os
+          import re
+          from pathlib import Path
+
+          version = os.environ["VERSION"].encode("ascii")
+          temp = Path(os.environ["RUNNER_TEMP"])
+          release = rb"\[([^\]\r\n]+)\] - \d{4}-\d{2}-\d{2}"
+          updates = {}
+
+          for filename, notes, pattern in (
+              ("CHANGELOG.md", "release-notes.md", rb"## " + release),
+              ("docs/source/changes.rst", "release-notes.rst", release + rb"\r?\n-+"),
+          ):
+              path = Path(filename)
+              history = path.read_bytes()
+              fragment = (temp / notes).read_bytes()
+              heading = re.compile(rb"^" + pattern + rb"\r?$", re.MULTILINE)
+              first_release = heading.search(history)
+              new_release = heading.search(fragment)
+              if not first_release:
+                  raise SystemExit(f"No release heading found in {path}")
+              if version in heading.findall(history):
+                  raise SystemExit(f"{path} already contains release {version.decode()}")
+              if not new_release or heading.findall(fragment) != [version]:
+                  raise SystemExit(f"Expected only release {version.decode()} in {notes}")
+
+              # Preserve the introduction and all existing release notes byte for byte.
+              offset = first_release.start()
+              new_notes = fragment[new_release.start():].rstrip()
+              updates[path] = history[:offset] + new_notes + b"\n\n" + history[offset:]
+
+          for path, content in updates.items():
+              path.write_bytes(content)
+          PY
 
       - uses: peter-evans/create-pull-request@v7
         with:
