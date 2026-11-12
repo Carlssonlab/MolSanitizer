@@ -177,8 +177,18 @@ ProductList stochasticSamplingDiscrete(RDKit::ROMol& mol,
     
     // Store angle map keys in vector for indexing
     std::vector<int> angle_keys;
+    // Per-bond data in angle_map order, so the hot loops can index it directly.
+    std::vector<const AngleMapEntry*> angle_entries;
+    std::vector<PreparedTorsion> torsions;
+    std::vector<std::vector<double>> angle_scores_by_bond;
     for (const auto& [key, entry] : angle_map) {
         angle_keys.push_back(key);
+        angle_entries.push_back(&entry);
+        torsions.emplace_back(mol, entry.dihedral_atoms);
+        const auto score_it = score_map.find(key);
+        angle_scores_by_bond.push_back(score_it != score_map.end()
+            ? score_it->second
+            : std::vector<double>(entry.possible_angles.size(), 1.0));
     }
     
     // Calculate hydroxyl combinations and scaling
@@ -299,14 +309,7 @@ ProductList stochasticSamplingDiscrete(RDKit::ROMol& mol,
             bool success = true;
             
             for (size_t i = 0; i < angle_keys.size() && success; ++i) {
-                const auto& entry = angle_map.at(angle_keys[i]);
-                
-                MolTransforms::setDihedralDeg(work_conf, 
-                                            entry.dihedral_atoms[0],
-                                            entry.dihedral_atoms[1], 
-                                            entry.dihedral_atoms[2],
-                                            entry.dihedral_atoms[3],
-                                            angle_combination[i]);
+                torsions[i].setDeg(work_conf, angle_combination[i]);
             }
 
             const bool has_clash = SamplingUtils::checkTooCloseNonbondedAtoms(work_conf, nonbonded_pairs);
@@ -383,13 +386,7 @@ ProductList stochasticSamplingDiscrete(RDKit::ROMol& mol,
         for (const auto& [key, entry] : angle_map) {
             if (!entry.possible_angles.empty()) {
                 visiting[idx] = entry.possible_angles[0];
-                
-                MolTransforms::setDihedralDeg(work_conf,
-                                            entry.dihedral_atoms[0],
-                                            entry.dihedral_atoms[1], 
-                                            entry.dihedral_atoms[2],
-                                            entry.dihedral_atoms[3],
-                                            visiting[idx]);
+                torsions[idx].setDeg(work_conf, visiting[idx]);
             }
             idx++;
         }
@@ -434,29 +431,14 @@ ProductList stochasticSamplingDiscrete(RDKit::ROMol& mol,
             for (int bond_idx : to_rotate) {
                 if (bond_idx >= static_cast<int>(angle_map.size())) continue;
                 
-                auto map_it = angle_map.begin();
-                std::advance(map_it, bond_idx);
-                const auto& entry = map_it->second;
+                const auto& entry = *angle_entries[bond_idx];
                 
-                // Get score weights for this bond
-                auto score_it = score_map.find(map_it->first);
-                std::vector<double> angle_scores;
-                if (score_it != score_map.end()) {
-                    angle_scores = score_it->second;
-                } else {
-                    angle_scores.assign(entry.possible_angles.size(), 1.0);
-                }
-                
-                int angle_idx = rand_gen.weightedChoice(angle_scores);
+                // Score weights for this bond (uniform when none were given)
+                int angle_idx = rand_gen.weightedChoice(angle_scores_by_bond[bond_idx]);
                 double angle = entry.possible_angles[angle_idx];
                 visiting[bond_idx] = angle;
                 
-                MolTransforms::setDihedralDeg(work_conf,
-                                            entry.dihedral_atoms[0],
-                                            entry.dihedral_atoms[1], 
-                                            entry.dihedral_atoms[2],
-                                            entry.dihedral_atoms[3],
-                                            angle);
+                torsions[bond_idx].setDeg(work_conf, angle);
             }
 
             // Check if this state has been visited
@@ -598,13 +580,7 @@ ProductList stochasticSamplingDiscrete(RDKit::ROMol& mol,
                     const auto& hydroxyl_angles = shuffled_combinations[var];
                     for (int h = 0; h < num_hetero_H_bonds; ++h) {
                         int bond_idx = angle_keys.size() - 1 - h;
-                        const auto& entry = angle_map.at(angle_keys[bond_idx]);
-                        MolTransforms::setDihedralDeg(work_conf,
-                                                    entry.dihedral_atoms[0],
-                                                    entry.dihedral_atoms[1], 
-                                                    entry.dihedral_atoms[2],
-                                                    entry.dihedral_atoms[3],
-                                                    hydroxyl_angles[h]);
+                        torsions[bond_idx].setDeg(work_conf, hydroxyl_angles[h]);
                     }
 
                     // Check for clashes
@@ -751,6 +727,13 @@ ProductList stochasticSamplingContinuous(RDKit::ROMol& mol,
     int timeout_check_counter = 0;
     
 
+    // Resolve the moving atoms of every torsion once (torsion_library order).
+    std::vector<PreparedTorsion> torsions;
+    torsions.reserve(torsion_library.size());
+    for (const auto& [bond_id, bond_info] : torsion_library) {
+        torsions.emplace_back(mol, bond_info.dihedral_atoms);
+    }
+
     // Initialize visiting state with first angles from each bond
     int idx = 0;
     for (const auto& [bond_id, bond_info] : torsion_library) {
@@ -761,12 +744,7 @@ ProductList stochasticSamplingContinuous(RDKit::ROMol& mol,
                 random_method
             );
             visiting[idx] = angle;
-            MolTransforms::setDihedralDeg(work_conf,
-                                         bond_info.dihedral_atoms[0],
-                                         bond_info.dihedral_atoms[1],
-                                         bond_info.dihedral_atoms[2],
-                                         bond_info.dihedral_atoms[3],
-                                         angle);
+            torsions[idx].setDeg(work_conf, angle);
         }
         idx++;
     }
@@ -834,12 +812,7 @@ ProductList stochasticSamplingContinuous(RDKit::ROMol& mol,
                 random_method
             );
             visiting[bond_idx] = angle;
-            MolTransforms::setDihedralDeg(work_conf,
-                                         bond_info.dihedral_atoms[0],
-                                         bond_info.dihedral_atoms[1],
-                                         bond_info.dihedral_atoms[2],
-                                         bond_info.dihedral_atoms[3],
-                                         angle);
+            torsions[bond_idx].setDeg(work_conf, angle);
         }
 
 
@@ -973,14 +946,7 @@ ProductList stochasticSamplingContinuous(RDKit::ROMol& mol,
                     const auto& hydroxyl_angles = shuffled_combinations[var];
                     for (int h = 0; h < num_hetero_H_bonds; ++h) {
                         int bond_idx_in_torsion_library = bond_indices.size() - 1 - h;
-                        int actual_bond_id = bond_indices[bond_idx_in_torsion_library];
-                        const auto& bond_info = torsion_library.at(actual_bond_id);
-                        MolTransforms::setDihedralDeg(work_conf_hydroxyl,
-                                                    bond_info.dihedral_atoms[0],
-                                                    bond_info.dihedral_atoms[1],
-                                                    bond_info.dihedral_atoms[2],
-                                                    bond_info.dihedral_atoms[3],
-                                                    hydroxyl_angles[h]);
+                        torsions[bond_idx_in_torsion_library].setDeg(work_conf_hydroxyl, hydroxyl_angles[h]);
                     }
                     
                     // Check for clashes

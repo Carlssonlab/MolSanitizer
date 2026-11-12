@@ -9,6 +9,7 @@
 #include <GraphMol/PeriodicTable.h>
 #include <ForceField/ForceField.h>
 #include <Geometry/point.h>
+#include <RDGeneral/Exceptions.h>
 #include <cmath>
 #include <algorithm>
 #include <iostream>
@@ -42,6 +43,95 @@ ConformerResult::ConformerResult(const RDKit::Conformer& conf, double e)
     : conformer(createStandaloneConformer(conf)), energy(e) {}
 
 // ========================
+// PREPARED TORSION IMPLEMENTATION
+// ========================
+
+PreparedTorsion::PreparedTorsion(const RDKit::ROMol& mol, const std::vector<int>& dihedral_atoms) {
+    if (dihedral_atoms.size() != 4) {
+        throw std::invalid_argument("A torsion requires exactly four atom indices");
+    }
+    const int num_atoms = static_cast<int>(mol.getNumAtoms());
+    for (int atom : dihedral_atoms) {
+        if (atom < 0 || atom >= num_atoms) {
+            throw std::invalid_argument("Torsion atom index is outside the molecule");
+        }
+    }
+    atom_i = dihedral_atoms[0];
+    atom_j = dihedral_atoms[1];
+    atom_k = dihedral_atoms[2];
+    atom_l = dihedral_atoms[3];
+
+    // Collect every atom reachable from k without crossing the j-k bond.
+    std::vector<char> seen(mol.getNumAtoms(), 0);
+    seen[atom_j] = 1;
+    seen[atom_k] = 1;
+    std::vector<int> stack{atom_k};
+    while (!stack.empty()) {
+        const int current = stack.back();
+        stack.pop_back();
+        for (const auto& neighbor : mol.atomNeighbors(mol.getAtomWithIdx(current))) {
+            const int neighbor_idx = static_cast<int>(neighbor->getIdx());
+            if (neighbor_idx == atom_j && current != atom_k) {
+                // j was reached again from the k side, so the bond closes a ring.
+                throw std::invalid_argument("Torsion central bond must not belong to a ring");
+            }
+            if (!seen[neighbor_idx]) {
+                seen[neighbor_idx] = 1;
+                moving_atoms.push_back(neighbor_idx);
+                stack.push_back(neighbor_idx);
+            }
+        }
+    }
+}
+
+void PreparedTorsion::setDeg(RDKit::Conformer& conf, double degrees) const {
+    auto& positions = conf.getPositions();
+    const RDGeom::Point3D origin = positions[atom_j];
+    const RDGeom::Point3D rIJ = origin - positions[atom_i];
+    const RDGeom::Point3D rJK = positions[atom_k] - origin;
+    const RDGeom::Point3D rKL = positions[atom_l] - positions[atom_k];
+
+    // Same coordinate validation (and exception type) as RDKit's setDihedralRad:
+    // coincident atoms leave the dihedral undefined and would yield NaN positions.
+    constexpr double min_length_sq = 1.e-16;
+    if (rIJ.lengthSq() <= min_length_sq) {
+        throw ValueErrorException("atoms i and j have identical 3D coordinates");
+    }
+    if (rJK.lengthSq() <= min_length_sq) {
+        throw ValueErrorException("atoms j and k have identical 3D coordinates");
+    }
+    if (rKL.lengthSq() <= min_length_sq) {
+        throw ValueErrorException("atoms k and l have identical 3D coordinates");
+    }
+
+    // Current dihedral, with the same formulation as RDKit's MolTransforms.
+    const RDGeom::Point3D nIJK = rIJ.crossProduct(rJK);
+    const RDGeom::Point3D nJKL = rJK.crossProduct(rKL);
+    const RDGeom::Point3D m = nIJK.crossProduct(rJK);
+    const double nJKL_sq = nJKL.lengthSq();
+    const double current = -std::atan2(
+        m.dotProduct(nJKL) / std::sqrt(nJKL_sq * m.lengthSq()),
+        nIJK.dotProduct(nJKL) / std::sqrt(nIJK.lengthSq() * nJKL_sq));
+
+    // Rodrigues rotation of the moving atoms about the j->k axis.
+    constexpr double deg_to_rad = 3.14159265358979323846 / 180.0;
+    const double rotation = degrees * deg_to_rad - current;
+    RDGeom::Point3D axis = rJK;
+    axis.normalize();
+    const double cos_a = std::cos(rotation);
+    const double sin_a = std::sin(rotation);
+    for (const int atom : moving_atoms) {
+        RDGeom::Point3D& position = positions[atom];
+        const RDGeom::Point3D v = position - origin;
+        const RDGeom::Point3D cross = axis.crossProduct(v);
+        const double along = axis.dotProduct(v) * (1.0 - cos_a);
+        position.x = origin.x + v.x * cos_a + cross.x * sin_a + axis.x * along;
+        position.y = origin.y + v.y * cos_a + cross.y * sin_a + axis.y * along;
+        position.z = origin.z + v.z * cos_a + cross.z * sin_a + axis.z * along;
+    }
+}
+
+// ========================
 // CONFORMER CACHE IMPLEMENTATION
 // ========================
 
@@ -52,6 +142,7 @@ void ConformerCache::initialize(const RDKit::ROMol& reference_mol) {
     cache_mol_no_h->clearConformers();
     energies.clear();
     cache_ref_radii.clear();
+    cache_ref_orbit_radii.clear();
     cache_ref_centroids.clear();
     
     // Initialize accelerated RMSD calculator
@@ -64,7 +155,7 @@ void ConformerCache::initialize(const RDKit::ROMol& reference_mol) {
 ConformerCache::PreparedHeavyConformer ConformerCache::prepareHeavyConformer(
         const RDKit::Conformer& conf,
         const std::vector<int>& heavy_atom_mapping) const {
-    if (!cache_mol_no_h) {
+    if (!cache_mol_no_h || !rmsd_calculator) {
         throw std::runtime_error("ConformerCache not initialized");
     }
 
@@ -90,6 +181,7 @@ ConformerCache::PreparedHeavyConformer ConformerCache::prepareHeavyConformer(
         const double dz = p.z - prepared.centroid.z;
         prepared.radii[i] = std::sqrt(dx * dx + dy * dy + dz * dz);
     }
+    rmsd_calculator->orbitSortedRadii(prepared.radii, prepared.orbit_radii);
     return prepared;
 }
 
@@ -100,8 +192,8 @@ bool ConformerCache::isSimilarFast(const PreparedHeavyConformer& probe,
     }
     try {
         return rmsd_calculator && rmsd_calculator->isSimilarToAny(
-            *cache_mol_no_h, *probe.conformer, probe.radii, rmsd_threshold,
-            &cache_ref_radii, &cache_ref_centroids);
+            *cache_mol_no_h, *probe.conformer, probe.radii, probe.orbit_radii,
+            rmsd_threshold, &cache_ref_radii, &cache_ref_orbit_radii);
     } catch (const std::exception& e) {
         std::cerr << "❌ Error in ConformerCache::isSimilarFast: " << e.what() << std::endl;
     }
@@ -116,6 +208,7 @@ void ConformerCache::addPreparedConformer(PreparedHeavyConformer&& prepared,
     cache_mol_no_h->addConformer(prepared.conformer.release(), true);
     energies.push_back(energy);
     cache_ref_radii.push_back(std::move(prepared.radii));
+    cache_ref_orbit_radii.push_back(std::move(prepared.orbit_radii));
     cache_ref_centroids.push_back(prepared.centroid);
 }
 
@@ -129,6 +222,7 @@ void ConformerCache::clear() {
     }
     energies.clear();
     cache_ref_radii.clear();
+    cache_ref_orbit_radii.clear();
     cache_ref_centroids.clear();
 }
 

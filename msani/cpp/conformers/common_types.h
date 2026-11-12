@@ -93,6 +93,26 @@ struct ContinuousTorsionBond {
 using ContinuousTorsionMap = std::map<int, ContinuousTorsionBond>;
 
 // ========================
+// PREPARED TORSION
+// ========================
+
+// A rotatable torsion whose moving atoms are resolved once per molecule.
+// setDeg() gives the same coordinates as MolTransforms::setDihedralDeg (the
+// atoms on the third/fourth atom's side rotate about the central bond), but
+// without walking the molecular graph on every call.
+class PreparedTorsion {
+private:
+    int atom_i, atom_j, atom_k, atom_l;
+    std::vector<int> moving_atoms;
+
+public:
+    // dihedral_atoms: four bonded atom indices; the central bond must not be in a ring.
+    PreparedTorsion(const RDKit::ROMol& mol, const std::vector<int>& dihedral_atoms);
+
+    void setDeg(RDKit::Conformer& conf, double degrees) const;
+};
+
+// ========================
 // CONFORMER CACHE
 // ========================
 
@@ -106,12 +126,15 @@ private:
     // cache_ref_radii[cache_index][atom_index] == radius. The outer index follows
     // the cache molecule's conformer-list/insertion order, not conformer IDs.
     std::vector<std::vector<double>> cache_ref_radii;
+    // The same radii sorted inside each symmetry orbit (mapping-independent RMSD bound)
+    std::vector<std::vector<double>> cache_ref_orbit_radii;
     std::vector<RDGeom::Point3D> cache_ref_centroids;  // centroid per conformer
     
 public:
     struct PreparedHeavyConformer {
         std::unique_ptr<RDKit::Conformer> conformer;
         std::vector<double> radii;
+        std::vector<double> orbit_radii;  // radii sorted inside each symmetry orbit
         RDGeom::Point3D centroid{0.0, 0.0, 0.0};
     };
 
