@@ -196,14 +196,11 @@ ProductList stochasticSamplingDiscrete(RDKit::ROMol& mol,
             }
         }
         
-        // Calculate scaling factor from hydroxyl combinations
-        if (num_hydroxyl_combinations > 30) {
-            f = 30;
-        } else {
-            f = static_cast<int>(std::min<std::uint64_t>(num_hydroxyl_combinations, 3));
-        }
-        core_allocation = (f < 30) ? core_allocation / f : core_allocation / 30;
-        
+        // Split the budget between core conformers and hydroxyl variants
+        const HydroxylBudget budget = allocateHydroxylBudget(numConfs, num_hydroxyl_combinations);
+        f = budget.variants_per_core;
+        core_allocation = budget.core_allocation;
+
         if (verbose) {
             fprintf(stderr, "Hydroxyl combinations: %llu, f: %d, core allocation: %d\n",
                     static_cast<unsigned long long>(num_hydroxyl_combinations), f, core_allocation);
@@ -801,13 +798,10 @@ ProductList stochasticSamplingContinuous(RDKit::ROMol& mol,
             }
         }
         
-        // Calculate scaling factor from hydroxyl combinations
-        if (num_hydroxyl_combinations > 30) {
-            f = 30;
-        } else {
-            f = static_cast<int>(std::min<std::uint64_t>(num_hydroxyl_combinations, 3));
-        }
-        core_allocation = (f < 30) ? core_allocation / f : core_allocation / 30;
+        // Split the budget between core conformers and hydroxyl variants
+        const HydroxylBudget budget = allocateHydroxylBudget(numConfs, num_hydroxyl_combinations);
+        f = budget.variants_per_core;
+        core_allocation = budget.core_allocation;
         if (verbose) {
             fprintf(stderr, "[Fallback] Hydroxyl combinations: %llu, f: %d, core allocation: %d\n",
                     static_cast<unsigned long long>(num_hydroxyl_combinations), f, core_allocation);
@@ -910,13 +904,28 @@ ProductList stochasticSamplingContinuous(RDKit::ROMol& mol,
         }
     }
 
-    // Downsample by f, sample f conformers per core as in Discrete method (to be implemented after this main loop)
-    // ...existing code for sorting, filtering, and hydroxyl sampling as in Discrete method should be added here...
+    // Sort by energy (lowest first)
     std::sort(products.begin(), products.end(),
               [](const ConformerResult& a, const ConformerResult& b) {
                   return a.energy < b.energy;
               });
-    
+
+    // Apply energy window filtering against the final minimum, as in the
+    // discrete method: conformers accepted while the running minimum was still
+    // high can lie outside the window.
+    if (!products.empty() && window > 0) {
+        const double max_energy = products.front().energy + window;
+        const auto first_outside = std::find_if(products.begin(), products.end(),
+            [max_energy](const ConformerResult& product) {
+                return product.energy > max_energy;
+            });
+        products.erase(first_outside, products.end());
+        if (verbose) {
+            fprintf(stderr, "[Fallback] Energy window filter (%.2f kcal/mol): %zu conformers within window\n",
+                    window, products.size());
+        }
+    }
+
     // Handle hydroxyl rotations if present
     if (num_hetero_H_bonds > 0 && !products.empty()) {
         if (verbose) {

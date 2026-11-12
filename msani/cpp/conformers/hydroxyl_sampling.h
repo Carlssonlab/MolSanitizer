@@ -11,6 +11,29 @@
 
 namespace StochasticSampling {
 
+// How a conformer budget is split between core (non-hydroxyl) conformers and
+// the hydroxyl orientations tried on each of them.
+struct HydroxylBudget {
+  int variants_per_core;  // "f": hydroxyl variants kept per core conformer
+  int core_allocation;    // number of core conformers to sample
+};
+
+// Up to 30 variants per core when there are many hydroxyl combinations, 3
+// otherwise. For small budgets the variants are reduced so that at least
+// minCoreConformers cores (or numConfs, if smaller) are still sampled; the
+// allocation is therefore never zero. Budgets of 300 or more are unaffected.
+inline HydroxylBudget allocateHydroxylBudget(int numConfs,
+                                             std::uint64_t hydroxyl_combinations) {
+  constexpr int maxVariants = 30;
+  constexpr int fewVariants = 3;
+  constexpr int minCoreConformers = 10;
+  int variants = hydroxyl_combinations > static_cast<std::uint64_t>(maxVariants)
+      ? maxVariants
+      : static_cast<int>(std::min<std::uint64_t>(hydroxyl_combinations, fewVariants));
+  variants = std::max(1, std::min(variants, numConfs / minCoreConformers));
+  return {variants, std::max(1, numConfs / variants)};
+}
+
 // Stores per-bond choices, never their Cartesian product. Small spaces retain
 // the historical std::shuffle permutation and RNG consumption exactly.
 class HydroxylCombinationSampler {
