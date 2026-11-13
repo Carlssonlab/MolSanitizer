@@ -276,13 +276,25 @@ class Ionizer:
             product, rxn, fallback_smi, fallback_mol
         ))
 
-    def apply_reactions_mols(self, input_mol, reactions):
-        """Apply ordered rules using canonical keys mapped to product molecules."""
+    def apply_reactions_mols(self, input_mol, reactions, rule_matches=None):
+        """Apply ordered rules using canonical keys mapped to product molecules.
+
+        ``rule_matches`` is the optional cache from :meth:`_cache_rule_matches`
+        for ``input_mol``. Until the first rule fires the molecule is still the
+        input, so rules the cache marks as non-matching are skipped without
+        another substructure search.
+        """
         initial_mol = Chem.Mol(input_mol)
         initial_smiles = Chem.MolToSmiles(initial_mol)
         current_mols = {initial_smiles: initial_mol}
+        unchanged = rule_matches is not None
         try:
             for rxn, name, additional_info in reactions:
+                if unchanged:
+                    if not rule_matches.get(id(rxn), True):
+                        continue
+                    # This rule may modify the molecule: the cache no longer applies.
+                    unchanged = False
                 next_mols = {}
                 for smi, mol in current_mols.items():
                     if mol.HasSubstructMatch(rxn.GetReactantTemplate(0)):
@@ -398,7 +410,7 @@ class Ionizer:
             applied_rule_combinations.add(rule_combinations)
             if self.debug: print('Processing pH:', round(pH, 1))
             variation_mols.update(self.apply_reactions_mols(
-                mol, self.rules_across_pH[pH]
+                mol, self.rules_across_pH[pH], rule_matches
             ))
         return variation_mols
 
