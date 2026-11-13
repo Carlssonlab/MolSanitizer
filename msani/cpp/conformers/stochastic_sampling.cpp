@@ -90,6 +90,22 @@ public:
     }
 };
 
+// Drop every conformer more than `window` above the lowest energy. `products`
+// must already be sorted by energy; a non-positive window disables the filter.
+// Returns whether the filter was applied.
+static bool applyEnergyWindow(ProductList& products, double window) {
+    if (products.empty() || window <= 0) {
+        return false;
+    }
+    const double min_energy = products.front().energy;
+    const auto first_outside = std::find_if(products.begin(), products.end(),
+        [min_energy, window](const ConformerResult& product) {
+            return product.energy - min_energy > window;
+        });
+    products.erase(first_outside, products.end());
+    return true;
+}
+
 // ========================
 // DISCRETE STOCHASTIC SAMPLING IMPLEMENTATION
 // ========================
@@ -208,14 +224,19 @@ ProductList stochasticSamplingDiscrete(RDKit::ROMol& mol,
         
         // Split the budget between core conformers and hydroxyl variants
         const HydroxylBudget budget = allocateHydroxylBudget(numConfs, num_hydroxyl_combinations);
-        f = budget.variants_per_core;
+        f = budget.max_variants_per_core;
         core_allocation = budget.core_allocation;
 
+        possible_numConfs /= static_cast<long long>(num_hydroxyl_combinations);
+        // No more distinct cores exist than core-torsion combinations, so do
+        // not keep sampling for cores that cannot be found.
+        core_allocation = static_cast<int>(std::min<long long>(
+            core_allocation, std::max(1LL, possible_numConfs)));
+
         if (verbose) {
-            fprintf(stderr, "Hydroxyl combinations: %llu, f: %d, core allocation: %d\n",
+            fprintf(stderr, "Hydroxyl combinations: %llu, max variants per core: %d, core allocation: %d\n",
                     static_cast<unsigned long long>(num_hydroxyl_combinations), f, core_allocation);
         }
-        possible_numConfs /= static_cast<long long>(num_hydroxyl_combinations);
         if (verbose) {
             fprintf(stderr, "Adjusted possible_numConfs: %lld\n", possible_numConfs);
         }
@@ -522,19 +543,9 @@ ProductList stochasticSamplingDiscrete(RDKit::ROMol& mol,
                   return a.energy < b.energy;
               });
         
-    // Apply energy window filtering
-    if (!products.empty() && window > 0) {
-        double min_energy_final = products[0].energy;
-        std::vector<ConformerResult> filtered_products;
-        for (const auto& product : products) {
-            if (product.energy - min_energy_final <= window) {
-                filtered_products.push_back(product);
-            }
-        }
-        products = std::move(filtered_products);
-        if (verbose) {
-            fprintf(stderr, "Energy window filter (%.2f kcal/mol): %zu conformers within window\n", window, products.size());
-        }
+    // Apply energy window filtering against the final minimum
+    if (applyEnergyWindow(products, window) && verbose) {
+        fprintf(stderr, "Energy window filter (%.2f kcal/mol): %zu conformers within window\n", window, products.size());
     }
     
     // Handle hydroxyl rotations if present
@@ -549,6 +560,12 @@ ProductList stochasticSamplingDiscrete(RDKit::ROMol& mol,
             if (verbose) {
                 fprintf(stderr, "Resized to core allocation: %d core conformers\n", core_allocation);
             }
+        }
+
+        // Spread the budget over the cores actually found.
+        f = hydroxylVariantsPerCore(numConfs, products.size(), f);
+        if (verbose) {
+            fprintf(stderr, "%zu core conformers, %d hydroxyl variants per core\n", products.size(), f);
         }
         
         std::vector<std::vector<double>> hydroxyl_choices;
@@ -778,10 +795,10 @@ ProductList stochasticSamplingContinuous(RDKit::ROMol& mol,
         
         // Split the budget between core conformers and hydroxyl variants
         const HydroxylBudget budget = allocateHydroxylBudget(numConfs, num_hydroxyl_combinations);
-        f = budget.variants_per_core;
+        f = budget.max_variants_per_core;
         core_allocation = budget.core_allocation;
         if (verbose) {
-            fprintf(stderr, "[Fallback] Hydroxyl combinations: %llu, f: %d, core allocation: %d\n",
+            fprintf(stderr, "[Fallback] Hydroxyl combinations: %llu, max variants per core: %d, core allocation: %d\n",
                     static_cast<unsigned long long>(num_hydroxyl_combinations), f, core_allocation);
         }
     }
@@ -886,17 +903,9 @@ ProductList stochasticSamplingContinuous(RDKit::ROMol& mol,
     // Apply energy window filtering against the final minimum, as in the
     // discrete method: conformers accepted while the running minimum was still
     // high can lie outside the window.
-    if (!products.empty() && window > 0) {
-        const double max_energy = products.front().energy + window;
-        const auto first_outside = std::find_if(products.begin(), products.end(),
-            [max_energy](const ConformerResult& product) {
-                return product.energy > max_energy;
-            });
-        products.erase(first_outside, products.end());
-        if (verbose) {
-            fprintf(stderr, "[Fallback] Energy window filter (%.2f kcal/mol): %zu conformers within window\n",
-                    window, products.size());
-        }
+    if (applyEnergyWindow(products, window) && verbose) {
+        fprintf(stderr, "[Fallback] Energy window filter (%.2f kcal/mol): %zu conformers within window\n",
+                window, products.size());
     }
 
     // Handle hydroxyl rotations if present
@@ -911,6 +920,12 @@ ProductList stochasticSamplingContinuous(RDKit::ROMol& mol,
             if (verbose) {
                 fprintf(stderr, "[Fallback] Resized to core allocation: %d core conformers\n", core_allocation);
             }
+        }
+
+        // Spread the budget over the cores actually found.
+        f = hydroxylVariantsPerCore(numConfs, products.size(), f);
+        if (verbose) {
+            fprintf(stderr, "[Fallback] %zu core conformers, %d hydroxyl variants per core\n", products.size(), f);
         }
         
         std::vector<std::vector<double>> hydroxyl_choices;

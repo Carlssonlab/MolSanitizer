@@ -900,7 +900,9 @@ class ConformerGenerator:
                                                 random_method= 'uniform'
                                                 )
 
-            if result.GetNumConformers() == 1: # No conformers are generated, use initial conformation instead
+            # A single conformer is a valid result (e.g. the only one inside the
+            # energy window); only the C++ failure flag means nothing was sampled.
+            if result is None or (result.HasProp('Failed_sampling') and result.GetProp('Failed_sampling') == '1'):
                 print(f'Failed for stochastic sampling, use the original conformation')
                 continue
             

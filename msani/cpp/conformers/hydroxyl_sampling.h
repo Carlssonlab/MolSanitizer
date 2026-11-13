@@ -14,24 +14,38 @@ namespace StochasticSampling {
 // How a conformer budget is split between core (non-hydroxyl) conformers and
 // the hydroxyl orientations tried on each of them.
 struct HydroxylBudget {
-  int variants_per_core;  // "f": hydroxyl variants kept per core conformer
-  int core_allocation;    // number of core conformers to sample
+  int max_variants_per_core;  // upper limit on hydroxyl variants kept per core conformer
+  int core_allocation;        // number of core conformers to sample
 };
 
-// Up to 30 variants per core when there are many hydroxyl combinations, 3
-// otherwise. For small budgets the variants are reduced so that at least
-// minCoreConformers cores (or numConfs, if smaller) are still sampled; the
-// allocation is therefore never zero. Budgets of 300 or more are unaffected.
+// The variant limit is 30 when there are many hydroxyl combinations and at
+// most 3 otherwise. The core target is numConfs divided by that limit, but at
+// least minCoreConformers (or numConfs, if smaller), so a small budget never
+// collapses to zero or one core. Budgets of 300 or more are unaffected.
 inline HydroxylBudget allocateHydroxylBudget(int numConfs,
                                              std::uint64_t hydroxyl_combinations) {
   constexpr int maxVariants = 30;
   constexpr int fewVariants = 3;
   constexpr int minCoreConformers = 10;
-  int variants = hydroxyl_combinations > static_cast<std::uint64_t>(maxVariants)
-      ? maxVariants
-      : static_cast<int>(std::min<std::uint64_t>(hydroxyl_combinations, fewVariants));
-  variants = std::max(1, std::min(variants, numConfs / minCoreConformers));
-  return {variants, std::max(1, numConfs / variants)};
+  const int max_variants = std::max(1,
+      hydroxyl_combinations > static_cast<std::uint64_t>(maxVariants)
+          ? maxVariants
+          : static_cast<int>(std::min<std::uint64_t>(hydroxyl_combinations, fewVariants)));
+  const int core_allocation = std::max({1, numConfs / max_variants,
+                                        std::min(numConfs, minCoreConformers)});
+  return {max_variants, core_allocation};
+}
+
+// Hydroxyl variants to keep per core, chosen once the cores are known: the
+// budget is spread over the cores actually found (rounded up), so a molecule
+// with few distinct cores still fills it, up to the budget's variant limit.
+inline int hydroxylVariantsPerCore(int numConfs, std::size_t cores_found,
+                                   int max_variants_per_core) {
+  if (cores_found == 0) return 1;
+  const std::size_t wanted =
+      (static_cast<std::size_t>(std::max(numConfs, 1)) + cores_found - 1) / cores_found;
+  return static_cast<int>(std::clamp<std::size_t>(
+      wanted, 1, static_cast<std::size_t>(std::max(max_variants_per_core, 1))));
 }
 
 // Stores per-bond choices, never their Cartesian product. Small spaces retain
