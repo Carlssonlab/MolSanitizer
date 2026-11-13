@@ -11,8 +11,6 @@
 
 import logging
 import os
-import multiprocessing
-import platform
 import subprocess
 import shutil
 import random
@@ -34,6 +32,7 @@ from msani.io.parsers import CustomHelpFormatter
 from msani.conformers import utils, mol2writer, oebwriter, torsions
 from msani.filtering import filters
 from msani.io.utils import log_error
+from msani.multiprocessing_context import get_context
 
 def _find_obabel_executable():
     """Find the Open Babel CLI without requiring its optional Python bindings."""
@@ -97,8 +96,6 @@ except:
 
 logger = logging.getLogger('msani')
 
-# Avoid forking the threaded parent, matching the molecule transformation workers.
-_MP_START_METHOD = 'forkserver' if platform.system() == 'Linux' else 'spawn'
 
 SRLib = torsions.SmallRingLibrary()
 Torlib = torsions.TorsionLibrary()
@@ -1381,7 +1378,7 @@ def _receive_embedding_result(connection, messages):
 
 def _run_embedding_worker(smiles, name, config):
     """Receive before joining; stop and reap the worker on every exit path."""
-    ctx = multiprocessing.get_context(_MP_START_METHOD)
+    ctx = get_context()
     receiver, sender = ctx.Pipe(duplex=False)
     messages = Queue()
     process = ctx.Process(

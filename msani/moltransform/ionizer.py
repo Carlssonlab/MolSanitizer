@@ -1,9 +1,7 @@
 from contextlib import nullcontext
 import argparse
 import logging
-import platform
 import shutil
-import multiprocessing as mp
 from io import StringIO
 
 from pandas import DataFrame, read_csv, concat
@@ -14,10 +12,7 @@ from rdkit.Chem import AllChem
 from msani.moltransform.neutralizer import Neutralizer
 from msani.moltransform.utils import run_reaction_preserving_fragments
 from msani.io.parsers import CustomHelpFormatter
-
-# forkserver avoids inheriting parent locks (RDKit allocator, logging) on Linux.
-# Windows only supports 'spawn'; macOS prefers 'spawn' too (fork is deprecated).
-_MP_START_METHOD = 'forkserver' if platform.system() == 'Linux' else 'spawn'
+from msani.multiprocessing_context import get_context
 
 RDLogger.DisableLog('rdApp.*') # To disable error messages with kekulizing tautomers from RDKit
 logger = logging.getLogger('msani')
@@ -435,7 +430,7 @@ class Ionizer:
             df[mol_column] = df[smiles_column].apply(Chem.MolFromSmiles)
 
         numcores = min(self.numcores, len(df))
-        ctx = mp.get_context(_MP_START_METHOD)
+        ctx = get_context()
         # Package the row data efficiently using python dicts to avoid memory bloat of large Pandas Series
         keys = df.columns.tolist()
         rows = ((dict(zip(keys, r)), smiles_column, name_column, mol_column) for r in df.itertuples(index=False, name=None))
