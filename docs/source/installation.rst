@@ -9,6 +9,13 @@ The source-build Conda environment requests RDKit ``>=2025.9.1``. These are
 installation requirements; they do not mean every permitted combination has
 been tested.
 
+The initial embedding runs inside MolSanitizer's compiled extension, on the
+RDKit C++ libraries the extension was built with, not on the installed Python
+RDKit. ETKDGv4 embedding therefore needs an extension built against RDKit
+``>=2026.09``. A source build against an older RDKit still works and uses
+srETKDGv3 instead; the log line ``Initial embedder: ...`` shows which one a
+run uses.
+
 
 .. list-table:: Reported platform testing
    :header-rows: 1
