@@ -18,7 +18,7 @@ if [[ -z "$conda_exe" || ! -x "$conda_exe" ]]; then
 fi
 bootstrap_python=${MSANI_BOOTSTRAP_PYTHON:-$("$conda_exe" info --base)/bin/python}
 cache="$repo/build/macos-$arch"
-rdkit=${MSANI_BUILD_RDKIT:-2025.9.1}
+rdkit=${MSANI_BUILD_RDKIT:-2026.9.2}
 export PIP_CACHE_DIR="$cache/pip-cache"
 # Provision (or reuse) the SDK, then read the prefix it reports.
 sdk=$(bash "$repo/packaging/macos/build_sdk.sh" | tail -n 1)

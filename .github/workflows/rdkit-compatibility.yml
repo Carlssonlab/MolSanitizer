@@ -45,7 +45,7 @@ jobs:
         run: python packaging/linux/discover_rdkit_versions.py --minimum 2025.3.1
 
   build:
-    name: Build Linux CPython 3.12 wheel (SDK 2025.9.1)
+    name: Build Linux CPython 3.12 wheel (SDK 2026.9.2)
     needs: discover
     runs-on: ubuntu-latest
     container: quay.io/pypa/manylinux_2_28_x86_64
@@ -55,7 +55,7 @@ jobs:
         shell: bash
     env:
       GH_TOKEN: ${{ github.token }}
-      SDK_TAG: sdk-2025.09.1
+      SDK_TAG: sdk-2026.09.2
     steps:
       - uses: actions/checkout@v6.0.2
         with:
@@ -78,7 +78,7 @@ jobs:
           from pathlib import Path
 
           metadata = json.loads(Path('/opt/msani-rdkit/share/msani-sdk/msani-sdk.json').read_text())
-          assert metadata['rdkit_ref'] == 'Release_2025_09_1', metadata
+          assert metadata['rdkit_ref'] == 'Release_2026_09_2', metadata
           assert metadata['linkage'] == 'static', metadata
           assert metadata['arch'] == 'x86_64', metadata
           PY
@@ -88,7 +88,7 @@ jobs:
           MSANI_TAG: cp312
           MSANI_SOURCE: ${{ github.workspace }}
           MSANI_OUT: ${{ github.workspace }}/wheelhouse
-          MSANI_BUILD_RDKIT: '2025.9.1'
+          MSANI_BUILD_RDKIT: '2026.9.2'
           MSANI_BUILD_JOBS: 4
         run: bash packaging/linux/build_in_container.sh
 
