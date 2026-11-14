@@ -23,13 +23,13 @@ on:
           - windows-x64
       rdkit_ref:
         description: RDKit git tag to compile (Linux and Windows)
-        default: Release_2025_09_1
+        default: Release_2026_09_2
       rdkit_version:
         description: Matching RDKit release version (conda and PyPI spelling)
-        default: 2025.9.1
+        default: 2026.9.2
       sdk_tag:
         description: Release tag holding the SDK assets
-        default: sdk-2025.09.1
+        default: sdk-2026.09.2
 
 permissions:
   contents: write
@@ -174,7 +174,7 @@ jobs:
         shell: cmd
         run: |
           set CONDA_EXE=%CONDA%\Scripts\conda.exe
-          packaging\windows\build_sdk.cmd --root "%MSANI_SDK_ROOT%" --jobs 4
+          packaging\windows\build_sdk.cmd --root "%MSANI_SDK_ROOT%" --jobs 4 --rdkit-ref "${{ inputs.rdkit_ref }}" --rdkit-version "${{ inputs.rdkit_version }}"
 
       - name: Pack the SDK
         shell: bash

@@ -11,6 +11,14 @@ from rdkit.Chem.AllChem import EmbedParameters
 
 __author__: str
 
+EMBEDDING_PRESETS: Tuple[str, ...]
+"""Preset names accepted by embed_multiple_confs. "etkdgv4" and "etkdgv4-ic" are
+present only when the module was built against RDKit >= 2026.09."""
+
+RDKIT_CPP_VERSION: str
+"""Version of the RDKit C++ libraries this module runs on, which can differ from
+the installed Python RDKit."""
+
 def stochastic_sampling_discrete(
     mol: Mol,
     angle_map: Dict[int, Tuple[str, List[int], List[float]]],
@@ -159,7 +167,7 @@ def stochastic_sampling_continuous(
 def embed_multiple_confs(
     mol: Mol,
     numConfs: int,
-    params: Optional[Union[str, EmbedParameters]] = None,
+    params: Optional[Union[str, Dict[str, Any], EmbedParameters]] = None,
     constraints: Optional[Union[Dict[str, Any], object]] = None,
 ) -> Mol:
     """
@@ -175,10 +183,12 @@ def embed_multiple_confs(
         Input molecule object
     numConfs : int
         Number of conformers to generate
-    params : str or object, optional
+    params : str, dict or object, optional
         Embedding parameters. Can be:
         
-        - String preset: "kdg", "etdg", "etkdg", "etkdgv2", "etkdgv3", "sretkdgv3"
+        - String preset: any name in EMBEDDING_PRESETS
+        - Dict {"preset": name, option: value, ...}: a preset with EmbedParameters
+          options such as randomSeed, numThreads or pruneRmsThresh set on top
         - RDKit EmbedParameters object with custom settings
         - None for default ETKDGv3 parameters
         

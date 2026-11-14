@@ -11,8 +11,6 @@
 
 import logging
 import os
-import multiprocessing
-import platform
 import subprocess
 import shutil
 import random
@@ -34,6 +32,7 @@ from msani.io.parsers import CustomHelpFormatter
 from msani.conformers import utils, mol2writer, oebwriter, torsions
 from msani.filtering import filters
 from msani.io.utils import log_error
+from msani.multiprocessing_context import get_context
 
 def _find_obabel_executable():
     """Find the Open Babel CLI without requiring its optional Python bindings."""
@@ -97,8 +96,6 @@ except:
 
 logger = logging.getLogger('msani')
 
-# Avoid forking the threaded parent, matching the molecule transformation workers.
-_MP_START_METHOD = 'forkserver' if platform.system() == 'Linux' else 'spawn'
 
 SRLib = torsions.SmallRingLibrary()
 Torlib = torsions.TorsionLibrary()
@@ -439,15 +436,22 @@ class ConformerGenerator:
             """
             Generate initial conformers for the molecule using RDKit.
             Parameters:
-                method (str): The method to use for embedding ('srETKDGv3' or 'ETKDGv3').
+                method (str): The method to use for embedding ('srETKDGv3', 'ETKDGv3',
+                    or a preset of the C++ module such as 'etkdgv4-ic').
                 """
-            if method == 'srETKDGv3': params = rdDistGeom.srETKDGv3()
-            else: params = rdDistGeom.ETKDGv3()
-            params.numThreads = self.numcores
+            options = {'numThreads': self.numcores,
+                       'randomSeed': self.randomSeed} # For reproducibility
             if not(self.flippable_Cs) and not(self.flippable_Ns): 
                 # If there are flippable C or N atoms, we need to generate more to filter out the favorable
-                params.pruneRmsThresh = 0.35 
-            params.randomSeed = self.randomSeed # For reproducibility
+                options['pruneRmsThresh'] = 0.35
+            if method in ('srETKDGv3', 'ETKDGv3'):
+                params = rdDistGeom.srETKDGv3() if method == 'srETKDGv3' else rdDistGeom.ETKDGv3()
+                for option, value in options.items():
+                    setattr(params, option, value)
+            else:
+                # Presets newer than ETKDGv3 are owned by the C++ module, which
+                # carries its own RDKit; the installed Python RDKit may not have them.
+                params = {'preset': method, **options}
             conf_ring_descriptors_df = DataFrame()
             if CPP_AVAILABLE:
                 result_mols = cpp_sampler.embed_multiple_confs(mol = self.mol_H, 
@@ -482,10 +486,24 @@ class ConformerGenerator:
         
         
         # Step 1: Generate initial conformers
-        try:
-            conf_ring_descriptors_df = embed_fix_ring_confs(method = 'srETKDGv3')
-        except Exception as e: 
-            print(e)
+        # ETKDGv4 (from internal coordinates by default) goes first when the C++
+        # module supports it; the srETKDGv3 chain below is the fallback.
+        conf_ring_descriptors_df = DataFrame()
+        modern_method = _modern_embedder()
+        if modern_method is not None:
+            try:
+                conf_ring_descriptors_df = embed_fix_ring_confs(method = modern_method)
+            except Exception as e:
+                print(e)
+            if len(conf_ring_descriptors_df) == 0:
+                print(f"{modern_method} failed for {self.name}, using srETKDGv3")
+                logger.warning(f"{modern_method} failed for {self.name}, using srETKDGv3")
+
+        if len(conf_ring_descriptors_df) == 0:
+            try:
+                conf_ring_descriptors_df = embed_fix_ring_confs(method = 'srETKDGv3')
+            except Exception as e:
+                print(e)
 
         if len(conf_ring_descriptors_df) == 0:
             # In case where srETKDGv3 failed in embedding the molecule, 
@@ -903,7 +921,9 @@ class ConformerGenerator:
                                                 random_method= 'uniform'
                                                 )
 
-            if result.GetNumConformers() == 1: # No conformers are generated, use initial conformation instead
+            # A single conformer is a valid result (e.g. the only one inside the
+            # energy window); only the C++ failure flag means nothing was sampled.
+            if result is None or (result.HasProp('Failed_sampling') and result.GetProp('Failed_sampling') == '1'):
                 print(f'Failed for stochastic sampling, use the original conformation')
                 continue
             
@@ -1346,6 +1366,38 @@ def write_to_tarball(ball, data, name):
     ball.addfile(tar, io.BytesIO(data))
 
 
+# Initial embedder used before the srETKDGv3 -> ETKDGv3 -> Open Babel chain.
+# The MSANI_EMBEDDER environment variable overrides it: 'etkdgv4-ic' (ETKDGv4
+# starting from internal coordinates), 'etkdgv4' (ETKDGv4 with distance-geometry
+# starting coordinates) or 'sretkdgv3' (the previous default).
+_DEFAULT_EMBEDDER = 'etkdgv4-ic'
+_LEGACY_EMBEDDER = 'sretkdgv3'
+
+
+def _modern_embedder():
+    """Return the C++ embedding preset to try before srETKDGv3, or None.
+
+    ETKDGv4 needs a msani_confgen_cpp built against RDKit >= 2026.09, whatever
+    the installed Python RDKit is. Without it the default quietly becomes
+    srETKDGv3, while an explicit MSANI_EMBEDDER request is an error.
+    """
+    available = getattr(cpp_sampler, 'EMBEDDING_PRESETS', ()) if CPP_AVAILABLE else ()
+    requested = os.environ.get('MSANI_EMBEDDER', '').strip().lower()
+    if requested == _LEGACY_EMBEDDER:
+        return None
+    if not requested:
+        return _DEFAULT_EMBEDDER if _DEFAULT_EMBEDDER in available else None
+    if requested not in ('etkdgv4', 'etkdgv4-ic'):
+        raise ValueError(
+            f"MSANI_EMBEDDER={requested!r} is not one of 'etkdgv4-ic', 'etkdgv4', "
+            f"'{_LEGACY_EMBEDDER}'")
+    if requested not in available:
+        raise RuntimeError(
+            f'MSANI_EMBEDDER={requested} needs the MolSanitizer C++ extension to be '
+            'built against RDKit >= 2026.09')
+    return requested
+
+
 def _log_conformer_failure(smiles, name, stage, error):
     logger.error('%s failed for %s: %s', stage, name, error)
     log_error(smiles, name, f'{stage}: {error}')
@@ -1381,7 +1433,7 @@ def _receive_embedding_result(connection, messages):
 
 def _run_embedding_worker(smiles, name, config):
     """Receive before joining; stop and reap the worker on every exit path."""
-    ctx = multiprocessing.get_context(_MP_START_METHOD)
+    ctx = get_context()
     receiver, sender = ctx.Pipe(duplex=False)
     messages = Queue()
     process = ctx.Process(
@@ -1581,6 +1633,11 @@ def gen_conf_chunk(df: DataFrame, args, input_file='0'):
         logger.warning('Empty DataFrame provided, skipping conformation generation.')
         return
     config = ConformerRunConfig.from_args(args)
+    if config.method == 'rdkit':
+        # Also rejects an unusable MSANI_EMBEDDER before any molecule is run.
+        logger.info('Initial embedder: %s (RDKit C++ %s)',
+                    _modern_embedder() or _LEGACY_EMBEDDER,
+                    getattr(cpp_sampler, 'RDKIT_CPP_VERSION', 'unknown') if CPP_AVAILABLE else 'unavailable')
     if 'mol' not in df.columns:
         df = df.copy()
         df.loc[:, 'mol'] = df['smiles'].apply(Chem.MolFromSmiles)

@@ -10,9 +10,12 @@ dependencies:
   - numpy
   - pandas
   - pip
-  # Keep CI's Python package and C++ headers aligned with the release SDK.
-  - rdkit=2025.9.1
-  - librdkit-dev=2025.9.1
+  # The Python package and the C++ headers must be the same RDKit release.
+  # RDKit >= 2026.09 enables ETKDGv4 embedding; older releases still build and
+  # fall back to srETKDGv3. To build against an older release, pin both lines
+  # to it, e.g. rdkit=2025.9.1 and librdkit-dev=2025.9.1.
+  - rdkit>=2025.9.1
+  - librdkit-dev>=2025.9.1
   - libboost-devel
   - scikit-build-core
   - openbabel

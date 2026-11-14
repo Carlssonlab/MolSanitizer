@@ -25,7 +25,7 @@ ENV BOOST_VERSION=${BOOST_VERSION} BOOST_PREFIX=${BOOST_PREFIX}
 RUN bash /opt/msani/build_sdk.sh boost
 
 # Keep SDK arguments below Boost so future SDK changes preserve its cache.
-ARG RDKIT_REF=Release_2025_09_1
+ARG RDKIT_REF=Release_2026_09_2
 ARG RDKIT_PREFIX=/opt/msani-rdkit
 ENV RDKIT_REF=${RDKIT_REF} RDKIT_PREFIX=${RDKIT_PREFIX}
 RUN bash /opt/msani/build_sdk.sh rdkit

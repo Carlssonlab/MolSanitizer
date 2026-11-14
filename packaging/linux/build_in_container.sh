@@ -17,7 +17,7 @@ set -euo pipefail
 tag=${MSANI_TAG:?Set MSANI_TAG to a CPython tag such as cp312}
 source_dir=${MSANI_SOURCE:-/source}
 out=${MSANI_OUT:-/out/wheels}
-rdkit=${MSANI_BUILD_RDKIT:-2025.9.1}
+rdkit=${MSANI_BUILD_RDKIT:-2026.9.2}
 jobs=${MSANI_BUILD_JOBS:-2}
 rdkit_prefix=${RDKIT_PREFIX:-/opt/msani-rdkit}
 boost_prefix=${BOOST_PREFIX:-/opt/boost}

@@ -6,17 +6,17 @@
 # local wheels and CI wheels come from the same code.
 #
 # Environment:
-#   MSANI_BUILD_IMAGE     builder image           (default msani-builder:rdkit-2025.09.1)
+#   MSANI_BUILD_IMAGE     builder image           (default msani-builder:rdkit-2026.09.2)
 #   MSANI_BUILD_JOBS      compile parallelism     (default 2)
-#   MSANI_BUILD_RDKIT     PyPI RDKit version      (default 2025.9.1)
+#   MSANI_BUILD_RDKIT     PyPI RDKit version      (default 2026.9.2)
 #   MSANI_PYTHON_VERSIONS space separated list    (default 3.10 .. 3.14)
 #   MSANI_DOCKER_PLATFORM Docker platform         (default linux/amd64)
 set -euo pipefail
 
 repo=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
-image=${MSANI_BUILD_IMAGE:-msani-builder:rdkit-2025.09.1}
+image=${MSANI_BUILD_IMAGE:-msani-builder:rdkit-2026.09.2}
 jobs=${MSANI_BUILD_JOBS:-2}
-rdkit=${MSANI_BUILD_RDKIT:-2025.9.1}
+rdkit=${MSANI_BUILD_RDKIT:-2026.9.2}
 read -r -a versions <<< "${MSANI_PYTHON_VERSIONS:-3.10 3.11 3.12 3.13 3.14}"
 platform=${MSANI_DOCKER_PLATFORM:-linux/amd64}
 docker info >/dev/null

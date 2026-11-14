@@ -194,6 +194,9 @@ def main():
                         'modules=(msani,msani_confgen_cpp,msani_stereoisomers,amsolcpp,_amsolcpp); '
                         'assert all("site-packages" in Path(m.__file__).parts for m in modules); '
                         'from rdkit import rdBase; print("Runtime RDKit:",rdBase.rdkitVersion); '
+                        # Release wheels must embed with ETKDGv4 whatever the runtime RDKit is.
+                        'print("Native RDKit:",msani_confgen_cpp.RDKIT_CPP_VERSION); '
+                        'assert "etkdgv4-ic" in msani_confgen_cpp.EMBEDDING_PRESETS; '
                         'print("Native imports passed")'
                     )
                     run([test_python, '-c', smoke], env=test_env, cwd=work, log=log)

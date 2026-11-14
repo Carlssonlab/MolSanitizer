@@ -1,6 +1,4 @@
 import logging
-import multiprocessing as mp
-import platform
 
 from rdkit import Chem, RDLogger
 from pandas import DataFrame, Series, concat  # only what you use
@@ -12,6 +10,7 @@ from msani.moltransform.tautomerizer import Tautomerizer
 from msani.moltransform.ionizer import Ionizer
 from msani.moltransform.neutralizer import Neutralizer
 from msani.moltransform.stereoisomers import Stereoisomerizer
+from msani.multiprocessing_context import get_context
 
 logger = logging.getLogger('msani')
 RDLogger.DisableLog('rdApp.*') # To disable error messages with kekulizing tautomers from RDKit
@@ -219,8 +218,7 @@ class Msani:
             # A small first chunk must not cap the workers of later chunks.
             self.close()
         if self._pool is None:
-            method = 'forkserver' if platform.system() == 'Linux' else 'spawn'
-            self._pool = mp.get_context(method).Pool(
+            self._pool = get_context().Pool(
                 processes=processes,
                 initializer=_initialize_transform_workers,
                 initargs=(self._transformers,))

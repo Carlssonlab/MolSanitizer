@@ -1,6 +1,6 @@
 # Reusable Windows RDKit SDK
 
-Build RDKit **2025.9.1** from source with MSVC, using native Boost **1.85.0**
+Build RDKit **2026.9.2** from source with MSVC, using native Boost **1.85.0**
 libraries and headers from conda-forge. This follows the dependency strategy in
 [RDKit's Windows CI](https://github.com/rdkit/rdkit/blob/master/.azure-pipelines/vs_build.yml).
 There is no Boost source build or b2 setup step.
@@ -20,14 +20,14 @@ The wrapper initializes x64 MSVC. If that fails, use an x64 Native Tools Command
 Prompt and activate conda there. Docker is not required. Internet access and
 several GB of writable local disk are needed.
 
-New default root: `%USERPROFILE%\msani-sdk\windows-2025.9.1-conda`.
+New default root: `%USERPROFILE%\msani-sdk\windows-2026.9.2-conda`.
 
 The old SDK root and globally named msani_build environment are left untouched.
 The new environment lives at `<new-root>\msani_build`. You need not activate it
 manually. Do not modify it after building.
 
 ```bat
-packaging\windows\build_sdk.cmd --root C:\msani-sdk\windows-2025.9.1-conda --jobs 4
+packaging\windows\build_sdk.cmd --root C:\msani-sdk\windows-2026.9.2-conda --jobs 4
 ```
 
 ## What the script does
@@ -37,7 +37,7 @@ packaging\windows\build_sdk.cmd --root C:\msani-sdk\windows-2025.9.1-conda --job
    It does not install Python RDKit or Boost.Python into the SDK environment.
 2. Exports exact resolved conda package URLs/checksums to conda-win-64.lock.txt,
    and records compiler and Windows SDK versions in toolchain.json.
-3. Clones Release_2025_09_1 and records its commit. Builds shared RDKit with
+3. Clones Release_2026_09_2 and records its commit. Builds shared RDKit with
    MSVC, Ninja, Release and /MD, Python/SWIG wrappers disabled, and thread-safe
    support enabled. The SDK has a separate install prefix.
 4. Runs a C++ consumer probe and checks RDKit/Boost DLL imports for Python
@@ -55,7 +55,7 @@ completion: Boost notices are collected from the extracted package cache.
 After the SDK reports success:
 
 ```bat
-packaging\windows\build_wheels.cmd --sdk "%USERPROFILE%\msani-sdk\windows-2025.9.1-conda\rdkit" --rdkit-version 2025.9.1 --versions 3.12
+packaging\windows\build_wheels.cmd --sdk "%USERPROFILE%\msani-sdk\windows-2026.9.2-conda\rdkit" --rdkit-version 2026.9.2 --versions 3.12
 ```
 
 Omit `--versions 3.12` to build Python 3.10–3.14. The same SDK serves every
@@ -79,7 +79,7 @@ lock file outside the new SDK root, then run:
 
 ```bat
 conda activate base
-packaging\windows\build_sdk.cmd --root C:\msani-sdk\windows-2025.9.1-conda --conda-lock C:\build-records\conda-win-64.lock.txt --rdkit-commit RECORDED_FULL_COMMIT_SHA
+packaging\windows\build_sdk.cmd --root C:\msani-sdk\windows-2026.9.2-conda --conda-lock C:\build-records\conda-win-64.lock.txt --rdkit-commit RECORDED_FULL_COMMIT_SHA
 ```
 
 Replace RECORDED_FULL_COMMIT_SHA with rdkit_commit from the saved manifest.

@@ -90,6 +90,22 @@ public:
     }
 };
 
+// Drop every conformer more than `window` above the lowest energy. `products`
+// must already be sorted by energy; a non-positive window disables the filter.
+// Returns whether the filter was applied.
+static bool applyEnergyWindow(ProductList& products, double window) {
+    if (products.empty() || window <= 0) {
+        return false;
+    }
+    const double min_energy = products.front().energy;
+    const auto first_outside = std::find_if(products.begin(), products.end(),
+        [min_energy, window](const ConformerResult& product) {
+            return product.energy - min_energy > window;
+        });
+    products.erase(first_outside, products.end());
+    return true;
+}
+
 // ========================
 // DISCRETE STOCHASTIC SAMPLING IMPLEMENTATION
 // ========================
@@ -177,8 +193,18 @@ ProductList stochasticSamplingDiscrete(RDKit::ROMol& mol,
     
     // Store angle map keys in vector for indexing
     std::vector<int> angle_keys;
+    // Per-bond data in angle_map order, so the hot loops can index it directly.
+    std::vector<const AngleMapEntry*> angle_entries;
+    std::vector<PreparedTorsion> torsions;
+    std::vector<std::vector<double>> angle_scores_by_bond;
     for (const auto& [key, entry] : angle_map) {
         angle_keys.push_back(key);
+        angle_entries.push_back(&entry);
+        torsions.emplace_back(mol, entry.dihedral_atoms);
+        const auto score_it = score_map.find(key);
+        angle_scores_by_bond.push_back(score_it != score_map.end()
+            ? score_it->second
+            : std::vector<double>(entry.possible_angles.size(), 1.0));
     }
     
     // Calculate hydroxyl combinations and scaling
@@ -196,19 +222,21 @@ ProductList stochasticSamplingDiscrete(RDKit::ROMol& mol,
             }
         }
         
-        // Calculate scaling factor from hydroxyl combinations
-        if (num_hydroxyl_combinations > 30) {
-            f = 30;
-        } else {
-            f = static_cast<int>(std::min<std::uint64_t>(num_hydroxyl_combinations, 3));
-        }
-        core_allocation = (f < 30) ? core_allocation / f : core_allocation / 30;
-        
+        // Split the budget between core conformers and hydroxyl variants
+        const HydroxylBudget budget = allocateHydroxylBudget(numConfs, num_hydroxyl_combinations);
+        f = budget.max_variants_per_core;
+        core_allocation = budget.core_allocation;
+
+        possible_numConfs /= static_cast<long long>(num_hydroxyl_combinations);
+        // No more distinct cores exist than core-torsion combinations, so do
+        // not keep sampling for cores that cannot be found.
+        core_allocation = static_cast<int>(std::min<long long>(
+            core_allocation, std::max(1LL, possible_numConfs)));
+
         if (verbose) {
-            fprintf(stderr, "Hydroxyl combinations: %llu, f: %d, core allocation: %d\n",
+            fprintf(stderr, "Hydroxyl combinations: %llu, max variants per core: %d, core allocation: %d\n",
                     static_cast<unsigned long long>(num_hydroxyl_combinations), f, core_allocation);
         }
-        possible_numConfs /= static_cast<long long>(num_hydroxyl_combinations);
         if (verbose) {
             fprintf(stderr, "Adjusted possible_numConfs: %lld\n", possible_numConfs);
         }
@@ -302,14 +330,7 @@ ProductList stochasticSamplingDiscrete(RDKit::ROMol& mol,
             bool success = true;
             
             for (size_t i = 0; i < angle_keys.size() && success; ++i) {
-                const auto& entry = angle_map.at(angle_keys[i]);
-                
-                MolTransforms::setDihedralDeg(work_conf, 
-                                            entry.dihedral_atoms[0],
-                                            entry.dihedral_atoms[1], 
-                                            entry.dihedral_atoms[2],
-                                            entry.dihedral_atoms[3],
-                                            angle_combination[i]);
+                torsions[i].setDeg(work_conf, angle_combination[i]);
             }
 
             const bool has_clash = SamplingUtils::checkTooCloseNonbondedAtoms(work_conf, nonbonded_pairs);
@@ -386,13 +407,7 @@ ProductList stochasticSamplingDiscrete(RDKit::ROMol& mol,
         for (const auto& [key, entry] : angle_map) {
             if (!entry.possible_angles.empty()) {
                 visiting[idx] = entry.possible_angles[0];
-                
-                MolTransforms::setDihedralDeg(work_conf,
-                                            entry.dihedral_atoms[0],
-                                            entry.dihedral_atoms[1], 
-                                            entry.dihedral_atoms[2],
-                                            entry.dihedral_atoms[3],
-                                            visiting[idx]);
+                torsions[idx].setDeg(work_conf, visiting[idx]);
             }
             idx++;
         }
@@ -437,29 +452,14 @@ ProductList stochasticSamplingDiscrete(RDKit::ROMol& mol,
             for (int bond_idx : to_rotate) {
                 if (bond_idx >= static_cast<int>(angle_map.size())) continue;
                 
-                auto map_it = angle_map.begin();
-                std::advance(map_it, bond_idx);
-                const auto& entry = map_it->second;
+                const auto& entry = *angle_entries[bond_idx];
                 
-                // Get score weights for this bond
-                auto score_it = score_map.find(map_it->first);
-                std::vector<double> angle_scores;
-                if (score_it != score_map.end()) {
-                    angle_scores = score_it->second;
-                } else {
-                    angle_scores.assign(entry.possible_angles.size(), 1.0);
-                }
-                
-                int angle_idx = rand_gen.weightedChoice(angle_scores);
+                // Score weights for this bond (uniform when none were given)
+                int angle_idx = rand_gen.weightedChoice(angle_scores_by_bond[bond_idx]);
                 double angle = entry.possible_angles[angle_idx];
                 visiting[bond_idx] = angle;
                 
-                MolTransforms::setDihedralDeg(work_conf,
-                                            entry.dihedral_atoms[0],
-                                            entry.dihedral_atoms[1], 
-                                            entry.dihedral_atoms[2],
-                                            entry.dihedral_atoms[3],
-                                            angle);
+                torsions[bond_idx].setDeg(work_conf, angle);
             }
 
             // Check if this state has been visited
@@ -543,19 +543,9 @@ ProductList stochasticSamplingDiscrete(RDKit::ROMol& mol,
                   return a.energy < b.energy;
               });
         
-    // Apply energy window filtering
-    if (!products.empty() && window > 0) {
-        double min_energy_final = products[0].energy;
-        std::vector<ConformerResult> filtered_products;
-        for (const auto& product : products) {
-            if (product.energy - min_energy_final <= window) {
-                filtered_products.push_back(product);
-            }
-        }
-        products = std::move(filtered_products);
-        if (verbose) {
-            fprintf(stderr, "Energy window filter (%.2f kcal/mol): %zu conformers within window\n", window, products.size());
-        }
+    // Apply energy window filtering against the final minimum
+    if (applyEnergyWindow(products, window) && verbose) {
+        fprintf(stderr, "Energy window filter (%.2f kcal/mol): %zu conformers within window\n", window, products.size());
     }
     
     // Handle hydroxyl rotations if present
@@ -570,6 +560,12 @@ ProductList stochasticSamplingDiscrete(RDKit::ROMol& mol,
             if (verbose) {
                 fprintf(stderr, "Resized to core allocation: %d core conformers\n", core_allocation);
             }
+        }
+
+        // Spread the budget over the cores actually found.
+        f = hydroxylVariantsPerCore(numConfs, products.size(), f);
+        if (verbose) {
+            fprintf(stderr, "%zu core conformers, %d hydroxyl variants per core\n", products.size(), f);
         }
         
         std::vector<std::vector<double>> hydroxyl_choices;
@@ -601,13 +597,7 @@ ProductList stochasticSamplingDiscrete(RDKit::ROMol& mol,
                     const auto& hydroxyl_angles = shuffled_combinations[var];
                     for (int h = 0; h < num_hetero_H_bonds; ++h) {
                         int bond_idx = angle_keys.size() - 1 - h;
-                        const auto& entry = angle_map.at(angle_keys[bond_idx]);
-                        MolTransforms::setDihedralDeg(work_conf,
-                                                    entry.dihedral_atoms[0],
-                                                    entry.dihedral_atoms[1], 
-                                                    entry.dihedral_atoms[2],
-                                                    entry.dihedral_atoms[3],
-                                                    hydroxyl_angles[h]);
+                        torsions[bond_idx].setDeg(work_conf, hydroxyl_angles[h]);
                     }
 
                     // Check for clashes
@@ -754,6 +744,13 @@ ProductList stochasticSamplingContinuous(RDKit::ROMol& mol,
     int timeout_check_counter = 0;
     
 
+    // Resolve the moving atoms of every torsion once (torsion_library order).
+    std::vector<PreparedTorsion> torsions;
+    torsions.reserve(torsion_library.size());
+    for (const auto& [bond_id, bond_info] : torsion_library) {
+        torsions.emplace_back(mol, bond_info.dihedral_atoms);
+    }
+
     // Initialize visiting state with first angles from each bond
     int idx = 0;
     for (const auto& [bond_id, bond_info] : torsion_library) {
@@ -764,12 +761,7 @@ ProductList stochasticSamplingContinuous(RDKit::ROMol& mol,
                 random_method
             );
             visiting[idx] = angle;
-            MolTransforms::setDihedralDeg(work_conf,
-                                         bond_info.dihedral_atoms[0],
-                                         bond_info.dihedral_atoms[1],
-                                         bond_info.dihedral_atoms[2],
-                                         bond_info.dihedral_atoms[3],
-                                         angle);
+            torsions[idx].setDeg(work_conf, angle);
         }
         idx++;
     }
@@ -801,15 +793,12 @@ ProductList stochasticSamplingContinuous(RDKit::ROMol& mol,
             }
         }
         
-        // Calculate scaling factor from hydroxyl combinations
-        if (num_hydroxyl_combinations > 30) {
-            f = 30;
-        } else {
-            f = static_cast<int>(std::min<std::uint64_t>(num_hydroxyl_combinations, 3));
-        }
-        core_allocation = (f < 30) ? core_allocation / f : core_allocation / 30;
+        // Split the budget between core conformers and hydroxyl variants
+        const HydroxylBudget budget = allocateHydroxylBudget(numConfs, num_hydroxyl_combinations);
+        f = budget.max_variants_per_core;
+        core_allocation = budget.core_allocation;
         if (verbose) {
-            fprintf(stderr, "[Fallback] Hydroxyl combinations: %llu, f: %d, core allocation: %d\n",
+            fprintf(stderr, "[Fallback] Hydroxyl combinations: %llu, max variants per core: %d, core allocation: %d\n",
                     static_cast<unsigned long long>(num_hydroxyl_combinations), f, core_allocation);
         }
     }
@@ -840,12 +829,7 @@ ProductList stochasticSamplingContinuous(RDKit::ROMol& mol,
                 random_method
             );
             visiting[bond_idx] = angle;
-            MolTransforms::setDihedralDeg(work_conf,
-                                         bond_info.dihedral_atoms[0],
-                                         bond_info.dihedral_atoms[1],
-                                         bond_info.dihedral_atoms[2],
-                                         bond_info.dihedral_atoms[3],
-                                         angle);
+            torsions[bond_idx].setDeg(work_conf, angle);
         }
 
 
@@ -910,13 +894,20 @@ ProductList stochasticSamplingContinuous(RDKit::ROMol& mol,
         }
     }
 
-    // Downsample by f, sample f conformers per core as in Discrete method (to be implemented after this main loop)
-    // ...existing code for sorting, filtering, and hydroxyl sampling as in Discrete method should be added here...
+    // Sort by energy (lowest first)
     std::sort(products.begin(), products.end(),
               [](const ConformerResult& a, const ConformerResult& b) {
                   return a.energy < b.energy;
               });
-    
+
+    // Apply energy window filtering against the final minimum, as in the
+    // discrete method: conformers accepted while the running minimum was still
+    // high can lie outside the window.
+    if (applyEnergyWindow(products, window) && verbose) {
+        fprintf(stderr, "[Fallback] Energy window filter (%.2f kcal/mol): %zu conformers within window\n",
+                window, products.size());
+    }
+
     // Handle hydroxyl rotations if present
     if (num_hetero_H_bonds > 0 && !products.empty()) {
         if (verbose) {
@@ -929,6 +920,12 @@ ProductList stochasticSamplingContinuous(RDKit::ROMol& mol,
             if (verbose) {
                 fprintf(stderr, "[Fallback] Resized to core allocation: %d core conformers\n", core_allocation);
             }
+        }
+
+        // Spread the budget over the cores actually found.
+        f = hydroxylVariantsPerCore(numConfs, products.size(), f);
+        if (verbose) {
+            fprintf(stderr, "[Fallback] %zu core conformers, %d hydroxyl variants per core\n", products.size(), f);
         }
         
         std::vector<std::vector<double>> hydroxyl_choices;
@@ -964,14 +961,7 @@ ProductList stochasticSamplingContinuous(RDKit::ROMol& mol,
                     const auto& hydroxyl_angles = shuffled_combinations[var];
                     for (int h = 0; h < num_hetero_H_bonds; ++h) {
                         int bond_idx_in_torsion_library = bond_indices.size() - 1 - h;
-                        int actual_bond_id = bond_indices[bond_idx_in_torsion_library];
-                        const auto& bond_info = torsion_library.at(actual_bond_id);
-                        MolTransforms::setDihedralDeg(work_conf_hydroxyl,
-                                                    bond_info.dihedral_atoms[0],
-                                                    bond_info.dihedral_atoms[1],
-                                                    bond_info.dihedral_atoms[2],
-                                                    bond_info.dihedral_atoms[3],
-                                                    hydroxyl_angles[h]);
+                        torsions[bond_idx_in_torsion_library].setDeg(work_conf_hydroxyl, hydroxyl_angles[h]);
                     }
                     
                     // Check for clashes

@@ -1,4 +1,4 @@
-"""Bootstrap msani_build and a reusable Windows RDKit 2025.9.1 shared SDK."""
+"""Bootstrap msani_build and a reusable Windows RDKit shared SDK."""
 import argparse
 import json
 import os
@@ -12,10 +12,17 @@ import tempfile
 from build_wheels import run
 from windows_toolchain import select_msvc
 
-RDKIT_REF = 'Release_2025_09_1'
+RDKIT_REF = 'Release_2026_09_2'
+RDKIT_VERSION = '2026.9.2'
 BOOST_VERSION = '1.85.0'
 ENV_PACKAGES = ['python=3.12', 'cmake>=3.28,<4', 'ninja', 'git', 'eigen=3.4',
                 f'libboost={BOOST_VERSION}', f'libboost-devel={BOOST_VERSION}']
+
+
+def rdkit_ref_for(version):
+    """Return the RDKit release tag for a PyPI-style version: 2026.9.2 -> Release_2026_09_2."""
+    year, month, patch = version.split('.')
+    return f'Release_{year}_{int(month):02d}_{patch}'
 
 
 def capture(command, env=None):
@@ -66,7 +73,10 @@ def reject_python_dlls(dlls, env, log):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--root', type=Path,
-                        default=Path.home() / 'msani-sdk' / 'windows-2025.9.1-conda')
+                        help='SDK workspace (default: ~/msani-sdk/windows-<rdkit version>-conda)')
+    parser.add_argument('--rdkit-ref', default=RDKIT_REF, help='RDKit git tag to compile')
+    parser.add_argument('--rdkit-version', default=RDKIT_VERSION,
+                        help='Matching RDKit release version (PyPI spelling)')
     parser.add_argument('--jobs', type=int, default=2)
     parser.add_argument('--conda-lock', type=Path, help='Exact win-64 conda export from a previous build')
     parser.add_argument('--rdkit-commit', help='Require the recorded RDKit commit when rebuilding elsewhere')
@@ -86,12 +96,15 @@ def main():
     if arch.lower() not in ('x64', 'amd64'):
         parser.error('Initialize VS tools for x64 (VSCMD_ARG_TGT_ARCH must be x64).')
 
-    root = args.root.resolve()
+    rdkit_ref, rdkit_version = args.rdkit_ref, args.rdkit_version
+    if rdkit_ref != rdkit_ref_for(rdkit_version):
+        parser.error(f'--rdkit-ref {rdkit_ref} does not match --rdkit-version {rdkit_version}')
+    root = (args.root or Path.home() / 'msani-sdk' / f'windows-{rdkit_version}-conda').resolve()
     owner = root / 'msani-sdk-build.json'
     if root.exists() and any(root.iterdir()) and not owner.exists():
         parser.error(f'{root} is not an SDK workspace created by this script; choose an empty --root.')
     root.mkdir(parents=True, exist_ok=True)
-    identity = {'schema': 2, 'rdkit_ref': RDKIT_REF, 'boost_version': BOOST_VERSION,
+    identity = {'schema': 2, 'rdkit_ref': rdkit_ref, 'boost_version': BOOST_VERSION,
                 'architecture': 'x64', 'runtime': '/MD', 'rdkit_linkage': 'shared',
                 'boost_linkage': 'shared', 'boost_provider': 'conda-forge'}
     if owner.exists() and json.loads(owner.read_text()) != identity:
@@ -153,13 +166,13 @@ def main():
             # Clone atomically so a failed download does not poison retries.
             with tempfile.TemporaryDirectory(dir=root) as tmp:
                 clone = Path(tmp) / 'source'
-                run([git, 'clone', '--depth', '1', '--branch', RDKIT_REF,
+                run([git, 'clone', '--depth', '1', '--branch', rdkit_ref,
                      'https://github.com/rdkit/rdkit.git', clone], env=env, cwd=root, log=log)
                 clone.rename(rdkit_src)
         commit = capture([str(git), '-C', str(rdkit_src), 'rev-parse', 'HEAD'], env)
         if args.rdkit_commit and commit.lower() != args.rdkit_commit.lower():
             raise RuntimeError('RDKit commit differs from --rdkit-commit; refusing to build.')
-        expected = capture([str(git), '-C', str(rdkit_src), 'rev-parse', RDKIT_REF + '^{commit}'], env)
+        expected = capture([str(git), '-C', str(rdkit_src), 'rev-parse', rdkit_ref + '^{commit}'], env)
         if commit != expected or capture([str(git), '-C', str(rdkit_src), 'diff', 'HEAD', '--'], env):
             raise RuntimeError('Cached RDKit checkout differs from the pinned tag; use a fresh --root.')
         sdk = root / 'rdkit'
@@ -182,6 +195,9 @@ def main():
             'RDK_BUILD_INCHI_SUPPORT': 'OFF', 'RDK_BUILD_FREETYPE_SUPPORT': 'OFF',
             'RDK_INSTALL_COMIC_FONTS': 'OFF', 'RDK_BUILD_MAEPARSER_SUPPORT': 'OFF',
             'RDK_BUILD_PUBCHEMSHAPE_SUPPORT': 'OFF', 'RDK_BUILD_COMPRESSED_SUPPLIERS': 'OFF',
+            # ChemDraw support needs Expat from RDKit 2026.09 on; MolSanitizer never
+            # reads ChemDraw files, so it stays out of the SDK.
+            'RDK_BUILD_CHEMDRAW_SUPPORT': 'OFF',
             'Boost_USE_STATIC_LIBS': 'OFF', 'Boost_USE_STATIC_RUNTIME': 'OFF',
         }
         run([cmake, '-S', rdkit_src, '-B', build, '-G', 'Ninja',
@@ -213,13 +229,13 @@ def main():
         shutil.copy2(rdkit_src / 'license.txt', notices / 'RDKit.txt')
         copy_boost_licenses(tools, notices)
         json_write(sdk / 'msani-sdk.json', {
-            **identity, 'rdkit_version': '2025.9.1', 'rdkit_commit': commit,
+            **identity, 'rdkit_version': rdkit_version, 'rdkit_commit': commit,
             'extra_prefixes': [str(boost)],
             'cmake_options': options, 'validation': 'C++ probe and DLL Python-dependency checks passed',
         })
         print(f'\nSDK validated: {sdk}')
         print('Next, from the MolSanitizer repository:')
-        print(f'packaging\\windows\\build_wheels.cmd --sdk "{sdk}" --rdkit-version 2025.9.1 --versions 3.12')
+        print(f'packaging\\windows\\build_wheels.cmd --sdk "{sdk}" --rdkit-version {rdkit_version} --versions 3.12')
         print('Omit --versions 3.12 after that passes to build the full matrix.')
     return 0
 

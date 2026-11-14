@@ -27,7 +27,7 @@ packaging\windows\build_sdk.cmd
 
 This creates a root-local **msani_build** conda environment containing Python
 3.12, CMake, Ninja, Git, Eigen and native **Boost 1.85.0** from conda-forge.
-**RDKit Release_2025_09_1 is compiled from source** with your VS x64 compiler,
+**RDKit Release_2026_09_2 is compiled from source** with your VS x64 compiler,
 without Python wrappers. The old SDK/environment are untouched. An exact conda
 package export supports recreation on another development machine; see
 [SDK details](BUILD_SDK.md).
@@ -35,13 +35,13 @@ package export supports recreation on another development machine; see
 The default SDK is installed at:
 
 ```text
-%USERPROFILE%\msani-sdk\windows-2025.9.1-conda\rdkit
+%USERPROFILE%\msani-sdk\windows-2026.9.2-conda\rdkit
 ```
 
 After SDK validation passes:
 
 ```bat
-packaging\windows\build_wheels.cmd --sdk "%USERPROFILE%\msani-sdk\windows-2025.9.1-conda\rdkit" --rdkit-version 2025.9.1 --versions 3.12
+packaging\windows\build_wheels.cmd --sdk "%USERPROFILE%\msani-sdk\windows-2026.9.2-conda\rdkit" --rdkit-version 2026.9.2 --versions 3.12
 ```
 
 The generated SDK manifest supplies Boost/Eigen paths automatically. Omit
@@ -64,7 +64,7 @@ Activate an environment with Python 3.10 or newer to run the orchestrator:
 ```bat
 conda activate msani
 cd /d C:\src\MolSanitizer
-packaging\windows\build_wheels.cmd --sdk "C:\msani-sdk\rdkit-2025.9.1" --rdkit-version 2025.9.1 --versions 3.12
+packaging\windows\build_wheels.cmd --sdk "C:\msani-sdk\rdkit-2026.9.2" --rdkit-version 2026.9.2 --versions 3.12
 ```
 
 Replace example paths with your actual checkout and **already built SDK**.
@@ -80,7 +80,7 @@ Prefer a local Windows checkout over the WSL network drive for performance.
 After 3.12 passes, omit `--versions` to build all five:
 
 ```bat
-packaging\windows\build_wheels.cmd --sdk "C:\msani-sdk\rdkit-2025.9.1" --rdkit-version 2025.9.1
+packaging\windows\build_wheels.cmd --sdk "C:\msani-sdk\rdkit-2026.9.2" --rdkit-version 2026.9.2
 ```
 
 Options:

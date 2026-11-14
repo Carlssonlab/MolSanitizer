@@ -445,11 +445,13 @@ to limit these compounds to 30 conformers.
 
 The conformer generator platform can be triggered using the ``--gen3d`` or ``-3d`` flag. Three initial embeeder are supported (``-m`` or ``--method`` flag):
 
-* RDKit srETKDG-v3 (default ``-m rdkit``): `Ref <https://pubs.acs.org/doi/10.1021/acs.jcim.0c00025>`__
+* RDKit (default ``-m rdkit``): ETKDGv4 starting from internal coordinates, with srETKDG-v3 (`Ref <https://pubs.acs.org/doi/10.1021/acs.jcim.0c00025>`__) as the fallback
 * CORINA (``-m corina``): `Ref <https://doi.org/10.1016/0898-5529(90)90156-3>`__
 * Open Babel (``-m obabel``): `Ref <https://jcheminf.biomedcentral.com/articles/10.1186/s13321-019-0372-5>`__
 
 Multiple aliphatic ring conformations are supported for RDKit and CORINA with the ``-nr`` flag.
+
+ETKDGv4 is used when the compiled extension was built against RDKit 2026.09 or newer; otherwise srETKDG-v3 is used directly. The ``MSANI_EMBEDDER`` environment variable selects the RDKit embedder explicitly: ``etkdgv4-ic`` (the default), ``etkdgv4`` (ETKDGv4 with distance-geometry starting coordinates) or ``sretkdgv3`` (the default of MolSanitizer 0.8 and earlier, for reproducing older results).
 
 As RDKit ETKDGv3 is based on distance geometry method, it may takes a long time to generate the initial conformer for some large molecules. In this case, the program will opt for the OpenBabel method, after the timeout (default: 2 minutes) is reached. The timeout can be modified using the ``--timeout`` flag.
 

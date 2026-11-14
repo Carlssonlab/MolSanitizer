@@ -13,11 +13,13 @@ From the repository root:
 bash packaging/macos/build_wheels.sh
 ```
 
-The wrapper provisions an isolated Conda C++ SDK with RDKit 2025.09.1, Boost
-1.86, and Eigen 3.4 under `build/macos-<arch>/sdk`. It installs uv into a local tool
+The wrapper provisions an isolated Conda C++ SDK with RDKit 2026.09.2, Boost
+1.90, and Eigen 5.0 under `build/macos-<arch>/sdk`. It installs uv into a local tool
 venv and uses uv-managed CPython to build and test Python 3.10–3.14. Existing
 Conda environments are not changed. SDK packages are recorded in
 `build/macos-<arch>/sdk-explicit.txt`; caches and interpreters stay in `build/macos-<arch>`.
+An SDK prefix left over from a different RDKit pin is rejected rather than reused:
+remove `build/macos-<arch>/sdk` (or point `MSANI_MACOS_SDK` elsewhere) after a pin change.
 
 For a smaller matrix or more build workers:
 
@@ -29,7 +31,7 @@ To use an existing arm64 SDK and uv installation directly:
 
 ```bash
 python packaging/macos/build_wheels.py \
-  --sdk /absolute/path/to/sdk --rdkit-version 2025.9.1 \
+  --sdk /absolute/path/to/sdk --rdkit-version 2026.9.2 \
   --uv /absolute/path/to/uv --versions 3.12 3.13
 ```
 
