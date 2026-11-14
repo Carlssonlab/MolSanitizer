@@ -50,7 +50,10 @@ if not args or args == ['-']:
     parts = state['version'].split('.')
     rd_base.rdkitVersion = '.'.join([parts[0], parts[1].zfill(2), parts[2]])
     sys.modules['rdkit'].rdBase = rd_base
-    sys.modules['amsolcpp']._amsolcpp = sys.modules['amsolcpp._amsolcpp']
+    # The wrapper also checks the RDKit the extension was compiled against.
+    sys.modules['msani_confgen_cpp'].RDKIT_CPP_VERSION = '2026.09.2'
+    sys.modules['msani_confgen_cpp'].EMBEDDING_PRESETS = ('sretkdgv3', 'etkdgv4', 'etkdgv4-ic')
+    sys.modules['amsolcpp']._amsolcpp =sys.modules['amsolcpp._amsolcpp']
     importlib.metadata.version = lambda name: state['version']
     exec(compile(sys.stdin.read(), '<wheel-runtime-check>', 'exec'))
 '''
