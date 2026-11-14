@@ -27,6 +27,11 @@ class TestSDKHelpers(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, 'MSVC'):
                 build_sdk.select_msvc({'PATH': 'conda-mingw'})
 
+    def test_default_ref_matches_default_version(self):
+        self.assertEqual(build_sdk.rdkit_ref_for(build_sdk.RDKIT_VERSION), build_sdk.RDKIT_REF)
+        self.assertEqual(build_sdk.rdkit_ref_for('2025.9.1'), 'Release_2025_09_1')
+        self.assertEqual(build_sdk.rdkit_ref_for('2026.03.6'), 'Release_2026_03_6')
+
     def test_pinned_boost_accepted(self):
         build_sdk.validate_packages([{'name': name, 'version': build_sdk.BOOST_VERSION}
                                      for name in ('libboost', 'libboost-devel')])

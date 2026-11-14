@@ -20,10 +20,10 @@ on:
         options: [full, linux-only]
       sdk_tag:
         description: Release tag holding the SDK assets
-        default: sdk-2025.09.1
+        default: sdk-2026.09.2
       rdkit_version:
         description: RDKit version matching the SDK
-        default: 2025.9.1
+        default: 2026.9.2
       publish_testpypi:
         description: Upload the bundle to TestPyPI when the matrix passes
         type: boolean
@@ -40,8 +40,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  SDK_TAG: ${{ inputs.sdk_tag || 'sdk-2025.09.1' }}
-  RDKIT_VERSION: ${{ inputs.rdkit_version || '2025.9.1' }}
+  SDK_TAG: ${{ inputs.sdk_tag || 'sdk-2026.09.2' }}
+  RDKIT_VERSION: ${{ inputs.rdkit_version || '2026.9.2' }}
   GH_TOKEN: ${{ github.token }}
 
 jobs:

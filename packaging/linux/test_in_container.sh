@@ -54,6 +54,9 @@ for module in (rdkit, msani, msani_confgen_cpp, msani_stereoisomers, amsolcpp, _
     assert 'site-packages' in path.parts, path
     print(module.__name__, path)
 print('Runtime RDKit:', rdBase.rdkitVersion)
+# Release wheels must embed with ETKDGv4 whatever the runtime Python RDKit is.
+print('Native RDKit:', msani_confgen_cpp.RDKIT_CPP_VERSION)
+assert 'etkdgv4-ic' in msani_confgen_cpp.EMBEDDING_PRESETS, msani_confgen_cpp.EMBEDDING_PRESETS
 PY
 
 python -m pip install --only-binary=rdkit "${constraints[@]}" "${wheel_paths[0]}[pdbqt]"

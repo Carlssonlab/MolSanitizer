@@ -7,7 +7,7 @@
 # and aarch64; nothing here is architecture specific.
 set -euo pipefail
 
-RDKIT_REF=${RDKIT_REF:-Release_2025_09_1}
+RDKIT_REF=${RDKIT_REF:-Release_2026_09_2}
 RDKIT_PREFIX=${RDKIT_PREFIX:-/opt/msani-rdkit}
 BOOST_PREFIX=${BOOST_PREFIX:-/opt/boost}
 EIGEN_REF=${EIGEN_REF:-3.4.0}

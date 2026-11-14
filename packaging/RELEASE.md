@@ -136,8 +136,8 @@ stable. **These assets are CI inputs; for local builds, run the platform's own
 
 The **RDKit compatibility** workflow (`rdkit-compatibility.yml`) runs on code
 PRs, pushes to `main`, and manual dispatch. It restores the existing
-`sdk-2025.09.1` Linux SDK and builds one repaired Linux x86_64 CPython 3.12
-wheel against native RDKit `2025.9.1`. At the start of each run, a discovery
+`sdk-2026.09.2` Linux SDK and builds one repaired Linux x86_64 CPython 3.12
+wheel against native RDKit `2026.9.2`. At the start of each run, a discovery
 job queries PyPI's JSON simple index and selects every stable RDKit release
 from `2025.3.1` onward with a non-yanked wheel compatible with Linux x86_64
 CPython 3.12. It checks wheel tags and `Requires-Python` inside the same
