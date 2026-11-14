@@ -81,7 +81,8 @@ stage_rdkit() {
         -DRDK_BUILD_FREETYPE_SUPPORT=OFF \
         -DRDK_INSTALL_COMIC_FONTS=OFF \
         -DRDK_BUILD_MAEPARSER_SUPPORT=OFF \
-        -DRDK_BUILD_PUBCHEMSHAPE_SUPPORT=OFF
+        -DRDK_BUILD_PUBCHEMSHAPE_SUPPORT=OFF \
+        -DRDK_BUILD_CHEMDRAW_SUPPORT=OFF
     cmake --build /tmp/rdkit-build --parallel "$JOBS"
     cmake --install /tmp/rdkit-build
     # Record provenance so a restored SDK tarball can be matched to its pin.

@@ -195,6 +195,9 @@ def main():
             'RDK_BUILD_INCHI_SUPPORT': 'OFF', 'RDK_BUILD_FREETYPE_SUPPORT': 'OFF',
             'RDK_INSTALL_COMIC_FONTS': 'OFF', 'RDK_BUILD_MAEPARSER_SUPPORT': 'OFF',
             'RDK_BUILD_PUBCHEMSHAPE_SUPPORT': 'OFF', 'RDK_BUILD_COMPRESSED_SUPPLIERS': 'OFF',
+            # ChemDraw support needs Expat from RDKit 2026.09 on; MolSanitizer never
+            # reads ChemDraw files, so it stays out of the SDK.
+            'RDK_BUILD_CHEMDRAW_SUPPORT': 'OFF',
             'Boost_USE_STATIC_LIBS': 'OFF', 'Boost_USE_STATIC_RUNTIME': 'OFF',
         }
         run([cmake, '-S', rdkit_src, '-B', build, '-G', 'Ninja',
