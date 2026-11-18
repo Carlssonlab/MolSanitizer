@@ -51,7 +51,9 @@ class Neutralizer:
         try:
             for rxn in exception_groups:
                 template = rxn.GetReactantTemplate(0)
-                # Each pass edits at least one atom, so the atom count bounds the loop.
+                # A productive pass consumes one matching atom, so the atom count
+                # is enough passes. The cap guards against a rule whose product
+                # still matches (e.g. explicit H atoms), which would never end.
                 for _ in range(mol.GetNumAtoms() + 1):
                     if not mol.HasSubstructMatch(template):
                         break
@@ -62,6 +64,11 @@ class Neutralizer:
                     else:
                         logger.info(f"Error sanitizing molecule: {Chem.MolToSmiles(mol)}")
                         return None
+                else:
+                    logger.warning(
+                        "Neutralization rule did not converge and was skipped "
+                        f"for molecule: {Chem.MolToSmiles(mol)}"
+                    )
         
             # Find all matching atoms
             at_matches = mol.GetSubstructMatches(neutralizable_pattern)
