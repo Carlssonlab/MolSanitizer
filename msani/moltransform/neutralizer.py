@@ -45,10 +45,16 @@ class Neutralizer:
         -----
         Adapted from RDKit Cookbook: https://rdkit.org/docs/Cookbook.html
         """
+        if mol is None:
+            return None
         input_mol = mol
         try:
             for rxn in exception_groups:
-                while mol.HasSubstructMatch(rxn.GetReactantTemplate(0)):
+                template = rxn.GetReactantTemplate(0)
+                # Each pass edits at least one atom, so the atom count bounds the loop.
+                for _ in range(mol.GetNumAtoms() + 1):
+                    if not mol.HasSubstructMatch(template):
+                        break
                     new_mol = run_reaction_preserving_fragments(rxn, mol)[0][0]
                     error = Chem.SanitizeMol(new_mol, catchErrors=True)
                     if error == 0:
