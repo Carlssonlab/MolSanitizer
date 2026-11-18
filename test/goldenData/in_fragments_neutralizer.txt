@@ -1,0 +1,5 @@
+O[B-](O)(O)c1ccccc1.CCO boronate_ethanol
+CCO.O[B-](O)(O)c1ccccc1 reordered_boronate_ethanol
+O[B-](O)(O)c1ccccc1.O[B-](O)(O)c1ccccc1.CCO repeated_boronates
+O[B-](O)(O)c1ccccc1.[13CH3][C@H](F)Cl stereo_isotope_spectator
+C[SH+][N-]C.CCO fake_sulfonium_ethanol

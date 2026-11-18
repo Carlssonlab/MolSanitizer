@@ -316,6 +316,17 @@ class Test_MolSanitizer(unittest.TestCase):
                 self.compareFiles(f'{temp_dir}/dummy_output_clean.txt',
                                   f'{self.path}/out_fragments_{stage}.txt')
 
+    def test_neutralizer_fragment_preservation(self):
+        # Boronate and fake-sulfonium rules run as reactions; untouched
+        # fragments such as ethanol must survive them.
+        with tempfile.TemporaryDirectory() as temp_dir:
+            args = self.generate_mock_arguments(
+                [f'{self.path}/in_fragments_neutralizer.txt'],
+                ['neutralize', 'test'], temp_dir)
+            cli.clean_data(args)
+            self.compareFiles(f'{temp_dir}/dummy_output_clean.txt',
+                              f'{self.path}/out_fragments_neutralizer.txt')
+
     def test_ionization_fragment_states_share_ph(self):
         # A pH range must keep the fragments at the same pH in each product.
         for pH_range in (0, 4):

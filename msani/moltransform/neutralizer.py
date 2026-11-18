@@ -6,6 +6,7 @@ from rdkit import Chem
 from rdkit.Chem import AllChem
 
 from msani.io.utils import log_error_entries
+from msani.moltransform.utils import run_reaction_preserving_fragments
 
 logger = logging.getLogger('msani')
 
@@ -48,7 +49,7 @@ class Neutralizer:
         try:
             for rxn in exception_groups:
                 while mol.HasSubstructMatch(rxn.GetReactantTemplate(0)):
-                    new_mol = rxn.RunReactants((mol,))[0][0]
+                    new_mol = run_reaction_preserving_fragments(rxn, mol)[0][0]
                     error = Chem.SanitizeMol(new_mol, catchErrors=True)
                     if error == 0:
                         mol = new_mol
