@@ -276,29 +276,22 @@ class Ionizer:
             product, rxn, fallback_smi, fallback_mol
         ))
 
-    def apply_reactions_mols(self, input_mol, reactions, rule_matches=None):
-        """Apply ordered rules using canonical keys mapped to product molecules.
-
-        ``rule_matches`` is the optional cache from :meth:`_cache_rule_matches`
-        for ``input_mol``. Until the first rule fires the molecule is still the
-        input, so rules the cache marks as non-matching are skipped without
-        another substructure search.
-        """
+    def apply_reactions_mols(self, input_mol, reactions):
+        """Apply ordered rules using canonical keys mapped to product molecules."""
         initial_mol = Chem.Mol(input_mol)
         initial_smiles = Chem.MolToSmiles(initial_mol)
         current_mols = {initial_smiles: initial_mol}
-        unchanged = rule_matches is not None
         try:
             for rxn, name, additional_info in reactions:
-                if unchanged:
-                    if not rule_matches.get(id(rxn), True):
-                        continue
-                    # This rule may modify the molecule: the cache no longer applies.
-                    unchanged = False
                 next_mols = {}
                 for smi, mol in current_mols.items():
                     if mol.HasSubstructMatch(rxn.GetReactantTemplate(0)):
                         outcomes = run_reaction_preserving_fragments(rxn, mol)
+                        if not outcomes:
+                            # The template matched but the reaction produced
+                            # nothing: keep the molecule instead of dropping it.
+                            next_mols[smi] = mol
+                            continue
                         if self.debug:
                             print(
                                 f"\tApplying reaction {name} "
@@ -389,13 +382,20 @@ class Ionizer:
             raise ValueError("Either 'smiles' or 'mol' must be provided.")
         if mol is None:
             mol = Chem.MolFromSmiles(smiles)
+            if mol is None:
+                raise ValueError(f"Could not parse SMILES: {smiles!r}")
         else:
             # Reactions sanitize their products in place, so isolate all work
             # from a molecule owned by the caller or another DataFrame row.
             mol = Chem.Mol(mol)
 
         if self.neutralize:
-            mol = Neutralizer.neutralize_mol(mol)
+            neutralized = Neutralizer.neutralize_mol(mol)
+            if neutralized is None:
+                raise ValueError(
+                    f"Neutralization failed for {Chem.MolToSmiles(mol)}"
+                )
+            mol = neutralized
 
         variation_mols = {}
         applied_rule_combinations = set()
@@ -409,8 +409,16 @@ class Ionizer:
                 continue
             applied_rule_combinations.add(rule_combinations)
             if self.debug: print('Processing pH:', round(pH, 1))
+            rules = self.rules_across_pH[pH]
+            # Until the first rule fires the molecule is still the input, so
+            # rules the cache marks as non-matching before it cannot change it.
+            first = next(
+                (i for i, (rxn, _, _) in enumerate(rules)
+                 if rule_matches[id(rxn)]),
+                len(rules),
+            )
             variation_mols.update(self.apply_reactions_mols(
-                mol, self.rules_across_pH[pH], rule_matches
+                mol, rules[first:]
             ))
         return variation_mols
 

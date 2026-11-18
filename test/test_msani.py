@@ -330,6 +330,36 @@ class Test_MolSanitizer(unittest.TestCase):
                 self.compareFiles(f'{temp_dir}/dummy_output_clean.txt',
                                   f'{self.path}/out_fragments_ph_range{pH_range}.txt')
 
+    def test_ionizer_cached_rules_match_full_scan(self):
+        # Skipping rules the match cache rules out must not change the output.
+        from msani.moltransform.ionizer import Ionizer
+        from msani.moltransform.neutralizer import Neutralizer
+
+        ionizer = Ionizer(pH=7, pH_range=2)
+        with open(f'{self.path}/in_protonation.txt') as handle:
+            smiles_list = [line.split()[0] for line in handle if line.strip()]
+
+        for smiles in smiles_list:
+            with self.subTest(smiles=smiles):
+                mol = Neutralizer.neutralize_mol(Chem.MolFromSmiles(smiles))
+                expected = {}
+                seen_combinations = set()
+                for pH in ionizer.pH_values:
+                    # Reference: uncached matching and a scan of every rule.
+                    combination = ionizer.check_duplicated_rule_combs(mol, pH)
+                    if combination in seen_combinations:
+                        continue
+                    seen_combinations.add(combination)
+                    expected.update(ionizer.apply_reactions_mols(
+                        mol, ionizer.rules_across_pH[pH]))
+                self.assertEqual(ionizer.ionize(smiles=smiles), list(expected))
+
+    def test_ionizer_rejects_unparsable_smiles(self):
+        from msani.moltransform.ionizer import Ionizer
+
+        with self.assertRaises(ValueError):
+            Ionizer().ionize(smiles='not_a_smiles')
+
     def test_tautomer_fragment_limit(self):
         # Twenty repeated fragments have 21 possible combinations; the CLI
         # must retain 20 complete molecules under the default enumeration cap.
