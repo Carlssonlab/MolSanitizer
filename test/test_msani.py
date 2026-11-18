@@ -27,7 +27,7 @@ from msani.batchmode import (
     prepare_batch_input,
 )
 from msani.conformers import mol2writer, utils
-from msani.conformers.conformers import ConformerGenerator
+from msani.conformers.conformers import CPP_AVAILABLE, ConformerGenerator
 from msani.db2.db2writer import write_db2
 from msani.filtering.filters import (
     Filters,
@@ -1497,6 +1497,23 @@ class TestRigidPart(unittest.TestCase):
                 self.assertTrue(generator.atom_maps)
                 self.assertTrue(generator.conf_sampled)
                 self.assertGreater(generator.ring_confs[0].GetNumConformers(), 0)
+
+
+@unittest.skipUnless(CPP_AVAILABLE, 'requires the C++ sampling extension')
+class TestEmbeddingFallbacks(unittest.TestCase):
+    """The srETKDGv3 -> ETKDGv3 -> Open Babel chain must survive a sampler that raises."""
+
+    # trans-cyclopentane-1,2-diamine, mono-protonated: RDKit's BFGS minimiser
+    # gives up on this one with "bad direction in linearSearch".
+    SMILES = 'N[C@H]1CCC[C@H]1[NH3+]'
+
+    def test_sampler_exception_reaches_babel_fallback(self):
+        generator = ConformerGenerator(self.SMILES, name='diaminocyclopentane', pre_embed=True)
+        with patch('msani.conformers.conformers.cpp_sampler.embed_multiple_confs',
+                   side_effect=RuntimeError('bad direction in linearSearch')), \
+             patch.object(ConformerGenerator, '_embed_smiles_babel') as babel:
+            generator._embed_smiles_rdkit()
+        babel.assert_called_once()
 
 
 if __name__ == '__main__':

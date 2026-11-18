@@ -484,15 +484,26 @@ class ConformerGenerator:
         # Step 1: Generate initial conformers
         try:
             conf_ring_descriptors_df = embed_fix_ring_confs(method = 'srETKDGv3')
-        except Exception as e: 
-            print(e)
+        except Exception as e:
+            # Bind an empty frame so the len() check below is reachable: leaving the
+            # name unbound turned every sampler exception into an UnboundLocalError
+            # on that line, which skipped the ETKDGv3 and Open Babel fallbacks and
+            # discarded a molecule msani can embed.
+            logger.warning(f"srETKDGv3 raised for {self.name}: {e}")
+            conf_ring_descriptors_df = DataFrame()
 
         if len(conf_ring_descriptors_df) == 0:
             # In case where srETKDGv3 failed in embedding the molecule, 
             # we have to use the macrocyclic version.
             print(f"srETKDGv3 failed for {self.name}, using macrocyclic version")
             logger.warning(f"srETKDGv3 failed for {self.name}, using macrocyclic version")
-            conf_ring_descriptors_df = embed_fix_ring_confs(method = 'ETKDGv3')
+            try:
+                conf_ring_descriptors_df = embed_fix_ring_confs(method = 'ETKDGv3')
+            except Exception as e:
+                # Same reason: an exception here must still reach the Open Babel
+                # fallback instead of propagating out of the method.
+                logger.warning(f"ETKDGv3 raised for {self.name}: {e}")
+                conf_ring_descriptors_df = DataFrame()
 
         if len(conf_ring_descriptors_df) == 0:
             print(f"ETKDGv3 also failed for {self.name}, using OpenBabel")
