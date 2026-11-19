@@ -11,11 +11,12 @@ logger = logging.getLogger('msani')
 
 exception_groups = [
     AllChem.ReactionFromSmarts('[BX4&-:1][OH]>>[B&+0:1]'), # Neutralize boronates
-    AllChem.ReactionFromSmarts('[SH+;$(S-[*-]):1]>>[SH0&+:1]') # Neutralize fake positive SH
+    AllChem.ReactionFromSmarts('[SH+;$(S-[*-]):1]>>[SH0&+:1]'), # Neutralize fake positive SH
+    AllChem.ReactionFromSmarts('[S+H0X2:1]~[*-:2]>>[S+0H0:1]~[*+0H:2]') # Neutralize fake positive S-radicals
     ]
 
 # SMARTS pattern to find charged atoms that can be neutralized
-neutralizable_pattern = Chem.MolFromSmarts("[+1!h0!$([*]~[-1,-2,-3,-4]),-1!$([*]~[+1,+2,+3,+4])!$([BX4&-;!$(B-[OH])])!$([F-,Cl-,Br-,I-]->*)]")
+neutralizable_pattern = Chem.MolFromSmarts("[+1!h0!$([*]~[-1,-2,-3,-4]),-1!$([*]~[+1,+2,+3,+4])!$([BX4&-;!$(B-[OH])])!$([F-,Cl-,Br-,I-]->*),$([*;$([#7!X3!H0+{1-}]),$([#8!v2!H0+{1-}]),$([#15!X3!H0+{1-}]),$([#16!v2!H0+{1-}])]),$([*;$([#6!v4+{-0}]),$([#7!X3+{-0}]),$([#8!v2+{-0}]),$([#14!v4+{-0}]),$([#15!X3+{-0}]),$([#16!X2+{-0}]);!$(*~[*H0+{1-}])])]")
 
 class Neutralizer:
     """
