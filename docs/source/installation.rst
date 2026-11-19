@@ -9,6 +9,13 @@ The source-build Conda environment requests RDKit ``>=2025.9.1``. These are
 installation requirements; they do not mean every permitted combination has
 been tested.
 
+The initial embedding runs inside MolSanitizer's compiled extension, on the
+RDKit C++ libraries the extension was built with, not on the installed Python
+RDKit. The default embedder, srETKDGv3, is available in every build. The
+optional ETKDGv4 embedders (see ``MSANI_EMBEDDER`` in the usage guide) need an
+extension built against RDKit ``>=2026.09``. The log line
+``Initial embedder: ...`` shows which one a run uses.
+
 
 .. list-table:: Reported platform testing
    :header-rows: 1
