@@ -4,3 +4,15 @@ O=C(O)c1ccccc1O Salicylic_acid
 CC1=C(/C=C/C(C)=C/C=C/C(C)=C/C(=O)O)C(C)(C)CCC1 tretinoin
 C[N+](C)(C)CC(CO)C(=O)O 3-oxido-2-((trimethylammonio)methyl)propanoate
 CNc1ccncc1 4-(methylamino)pyridin-1-ium
+CNSC vicinal_zwitterion_1
+CNSC vicinal_zwitterion_2
+CNNC vicinal_zwitterion_3
+CNN vicinal_zwitterion_4
+CNN vicinal_zwitterion_5
+COO vicinal_zwitterion_6
+CSO vicinal_zwitterion_7
+CNC vicinal_zwitterion_8
+CPO vicinal_zwitterion_9
+CP(C)O vicinal_zwitterion_10
+C[S+](C)[O-] vicinal_zwitterion_11
+CSN vicinal_zwitterion_12

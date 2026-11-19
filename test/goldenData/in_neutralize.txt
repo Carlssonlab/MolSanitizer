@@ -4,3 +4,15 @@ O=C(c1c(O)cccc1)[O-] Salicylic_acid
 CC1=C(/C=C/C(C)=C/C=C/C(C)=C/C([O-])=O)C(C)(C)CCC1 tretinoin
 [O-]CC(C[N+](C)(C)C)C([O-])=O 3-oxido-2-((trimethylammonio)methyl)propanoate
 CNC1=CC=[NH+]C=C1 4-(methylamino)pyridin-1-ium
+C[SH2+2][N-]C vicinal_zwitterion_1
+C[SH+][N-]C vicinal_zwitterion_2
+C[NH2+][N-]C vicinal_zwitterion_3
+C[NH2+][NH-] vicinal_zwitterion_4
+C[NH2+][N-2] vicinal_zwitterion_5
+C[OH+][O-] vicinal_zwitterion_6
+C[SH+][O-] vicinal_zwitterion_7
+[CH2-][NH2+]C vicinal_zwitterion_8
+C[PH2+][O-] vicinal_zwitterion_9
+C[PH+](C)[O-] vicinal_zwitterion_10
+C[SH+](C)[O-] vicinal_zwitterion_11
+C[SH+][N-2] vicinal_zwitterion_12

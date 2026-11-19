@@ -6,16 +6,18 @@ from rdkit import Chem
 from rdkit.Chem import AllChem
 
 from msani.io.utils import log_error_entries
+from msani.moltransform.utils import run_reaction_preserving_fragments
 
 logger = logging.getLogger('msani')
 
 exception_groups = [
     AllChem.ReactionFromSmarts('[BX4&-:1][OH]>>[B&+0:1]'), # Neutralize boronates
-    AllChem.ReactionFromSmarts('[SH+;$(S-[*-]):1]>>[SH0&+:1]') # Neutralize fake positive SH
+    AllChem.ReactionFromSmarts('[SH+;$(S-[*-]):1]>>[SH0&+:1]'), # Neutralize fake positive SH
+    AllChem.ReactionFromSmarts('[S+H0X2:1]~[*-:2]>>[S+0H0:1]~[*+0H:2]') # Neutralize fake positive S-radicals
     ]
 
 # SMARTS pattern to find charged atoms that can be neutralized
-neutralizable_pattern = Chem.MolFromSmarts("[+1!h0!$([*]~[-1,-2,-3,-4]),-1!$([*]~[+1,+2,+3,+4])!$([BX4&-;!$(B-[OH])])!$([F-,Cl-,Br-,I-]->*)]")
+neutralizable_pattern = Chem.MolFromSmarts("[+1!h0!$([*]~[-1,-2,-3,-4]),-1!$([*]~[+1,+2,+3,+4])!$([BX4&-;!$(B-[OH])])!$([F-,Cl-,Br-,I-]->*),$([*;$([#7!X3!H0+{1-}]),$([#8!v2!H0+{1-}]),$([#15!X3!H0+{1-}]),$([#16!v2!H0+{1-}])]),$([*;$([#6!v4+{-0}]),$([#7!X3+{-0}]),$([#8!v2+{-0}]),$([#14!v4+{-0}]),$([#15!X3+{-0}]),$([#16!X2+{-0}]);!$(*~[*H0+{1-}])])]")
 
 class Neutralizer:
     """
@@ -44,17 +46,30 @@ class Neutralizer:
         -----
         Adapted from RDKit Cookbook: https://rdkit.org/docs/Cookbook.html
         """
+        if mol is None:
+            return None
         input_mol = mol
         try:
             for rxn in exception_groups:
-                while mol.HasSubstructMatch(rxn.GetReactantTemplate(0)):
-                    new_mol = rxn.RunReactants((mol,))[0][0]
+                template = rxn.GetReactantTemplate(0)
+                # A productive pass consumes one matching atom, so the atom count
+                # is enough passes. The cap guards against a rule whose product
+                # still matches (e.g. explicit H atoms), which would never end.
+                for _ in range(mol.GetNumAtoms() + 1):
+                    if not mol.HasSubstructMatch(template):
+                        break
+                    new_mol = run_reaction_preserving_fragments(rxn, mol)[0][0]
                     error = Chem.SanitizeMol(new_mol, catchErrors=True)
                     if error == 0:
                         mol = new_mol
                     else:
                         logger.info(f"Error sanitizing molecule: {Chem.MolToSmiles(mol)}")
                         return None
+                else:
+                    logger.warning(
+                        "Neutralization rule did not converge and was skipped "
+                        f"for molecule: {Chem.MolToSmiles(mol)}"
+                    )
         
             # Find all matching atoms
             at_matches = mol.GetSubstructMatches(neutralizable_pattern)
