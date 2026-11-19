@@ -24,7 +24,9 @@
 
 #include <random>
 #include <chrono>
+#include <set>
 #include <unordered_set>
+#include <utility>
 
 #include <boost/dynamic_bitset/dynamic_bitset.hpp>
 
@@ -66,6 +68,21 @@ struct MSANI_ENUMERATESTEREOISOMERS_EXPORT StereoEnumerationOptions {
   double timeout{0.0};  // Wall-clock timeout in seconds.  0 means no limit.
                           // When the limit is reached, enumeration stops and
                           // returns whatever isomers were found so far.
+  bool useRingSystemFilter{true};  // If true, stereoisomers of bridged ring
+                                   // systems that are known to be impossible
+                                   // in 3D are discarded from the parities
+                                   // of their bridgeheads, without embedding
+                                   // them.
+  unsigned int embedMaxAttempts{20};  // Only used with tryEmbedding: the
+                                      // number of embedding attempts made
+                                      // before a stereoisomer is declared
+                                      // non-physical.  0 means RDKit's
+                                      // default (10 x the number of atoms),
+                                      // which makes every impossible
+                                      // stereoisomer very expensive to
+                                      // reject.  Needs internal-coordinate
+                                      // embedding: ignored (no cap) when
+                                      // built against RDKit < 2026.09.
 };
 
 // Class that enumerates the stereoisomers of a molecule.  Acts like a
@@ -118,8 +135,17 @@ class MSANI_ENUMERATESTEREOISOMERS_EXPORT StereoisomerEnumerator {
   // Wall-clock start time, used to enforce d_options.timeout.
   std::chrono::steady_clock::time_point d_startTime;
 
+  // Pairs of atoms that must have the same/opposite parities for the
+  // ring system they are in to be possible in 3D.
+  std::set<std::pair<unsigned int, unsigned int>> d_pattern_same_parity;
+  std::set<std::pair<unsigned int, unsigned int>> d_pattern_opposite_parity;
+
   void buildFlippers();
   std::unique_ptr<ROMol> generateRandomIsomer();
+  bool passesRingPatternsCheck(const ROMol &mol) const;
+  // Seconds left before d_options.timeout expires; negative once it has.
+  // Only meaningful if d_options.timeout > 0.
+  double secondsLeft() const;
   bool embeddable(ROMol &isomer);
 };
 }  // namespace EnumerateStereoisomers
