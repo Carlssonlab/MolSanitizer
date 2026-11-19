@@ -6,6 +6,7 @@ from rdkit import Chem
 from rdkit.Chem import AllChem
 
 from msani.io.utils import log_error_entries
+from msani.moltransform.utils import run_reaction_preserving_fragments
 
 logger = logging.getLogger('msani')
 
@@ -44,17 +45,30 @@ class Neutralizer:
         -----
         Adapted from RDKit Cookbook: https://rdkit.org/docs/Cookbook.html
         """
+        if mol is None:
+            return None
         input_mol = mol
         try:
             for rxn in exception_groups:
-                while mol.HasSubstructMatch(rxn.GetReactantTemplate(0)):
-                    new_mol = rxn.RunReactants((mol,))[0][0]
+                template = rxn.GetReactantTemplate(0)
+                # A productive pass consumes one matching atom, so the atom count
+                # is enough passes. The cap guards against a rule whose product
+                # still matches (e.g. explicit H atoms), which would never end.
+                for _ in range(mol.GetNumAtoms() + 1):
+                    if not mol.HasSubstructMatch(template):
+                        break
+                    new_mol = run_reaction_preserving_fragments(rxn, mol)[0][0]
                     error = Chem.SanitizeMol(new_mol, catchErrors=True)
                     if error == 0:
                         mol = new_mol
                     else:
                         logger.info(f"Error sanitizing molecule: {Chem.MolToSmiles(mol)}")
                         return None
+                else:
+                    logger.warning(
+                        "Neutralization rule did not converge and was skipped "
+                        f"for molecule: {Chem.MolToSmiles(mol)}"
+                    )
         
             # Find all matching atoms
             at_matches = mol.GetSubstructMatches(neutralizable_pattern)
