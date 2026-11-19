@@ -399,24 +399,22 @@ class Ionizer:
 
         variation_mols = {}
         applied_rule_combinations = set()
-        rule_matches, phosphate_match = self._cache_rule_matches(mol)
+        rule_matches, _ = self._cache_rule_matches(mol)
         for pH in self.pH_values:
-            rule_combinations = self.check_duplicated_rule_combs(
-                mol, pH, rule_matches, phosphate_match
-            )
-            if rule_combinations in applied_rule_combinations:
-                if self.debug: print(f'Skipping pH {round(pH, 1)} due to the duplicated rule applied.')
-                continue
-            applied_rule_combinations.add(rule_combinations)
-            if self.debug: print('Processing pH:', round(pH, 1))
             rules = self.rules_across_pH[pH]
-            # Until the first rule fires the molecule is still the input, so
-            # rules the cache marks as non-matching before it cannot change it.
+            # Before the first match the molecule is unchanged; afterwards,
+            # even rules that do not match the input may match a product.
             first = next(
                 (i for i, (rxn, _, _) in enumerate(rules)
                  if rule_matches[id(rxn)]),
                 len(rules),
             )
+            rule_combinations = tuple(id(rxn) for rxn, _, _ in rules[first:])
+            if rule_combinations in applied_rule_combinations:
+                if self.debug: print(f'Skipping pH {round(pH, 1)} due to the duplicated rule applied.')
+                continue
+            applied_rule_combinations.add(rule_combinations)
+            if self.debug: print('Processing pH:', round(pH, 1))
             variation_mols.update(self.apply_reactions_mols(
                 mol, rules[first:]
             ))

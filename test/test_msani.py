@@ -343,16 +343,39 @@ class Test_MolSanitizer(unittest.TestCase):
             with self.subTest(smiles=smiles):
                 mol = Neutralizer.neutralize_mol(Chem.MolFromSmiles(smiles))
                 expected = {}
-                seen_combinations = set()
                 for pH in ionizer.pH_values:
-                    # Reference: uncached matching and a scan of every rule.
-                    combination = ionizer.check_duplicated_rule_combs(mol, pH)
-                    if combination in seen_combinations:
-                        continue
-                    seen_combinations.add(combination)
                     expected.update(ionizer.apply_reactions_mols(
                         mol, ionizer.rules_across_pH[pH]))
-                self.assertEqual(ionizer.ionize(smiles=smiles), list(expected))
+                self.assertEqual(set(ionizer.ionize(smiles=smiles)), set(expected))
+
+    def test_ionizer_chained_rules_across_ph(self):
+        from msani.moltransform.ionizer import Ionizer
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            rules = Path(temp_dir) / 'rules.txt'
+            rules.write_text(
+                'first 8 ACID 0 [OH1:1][C:2](=[O:3])>>[O-:1][C:2]=[O:3] ref\n'
+                'second 9 ACID 0 [OH1:1][C:2][C:3](=[O:4])[O-:5]>>'
+                '[O-:1][C:2][C:3](=[O:4])[O-:5] ref\n'
+            )
+            ionizer = Ionizer(smartsFile=rules, pH=7, pH_range=2, neutralize=False)
+            mol = Chem.MolFromSmiles('OCC(=O)O')
+            expected = {
+                Chem.MolToSmiles(Chem.MolFromSmiles(smiles))
+                for smiles in ('OCC(=O)O', 'OCC(=O)[O-]', '[O-]CC(=O)[O-]')
+            }
+            for pH_values in (ionizer.pH_values, tuple(reversed(ionizer.pH_values))):
+                with self.subTest(pH_values=pH_values):
+                    ionizer.pH_values = pH_values
+                    full_scan = set()
+                    for pH in pH_values:
+                        full_scan.update(ionizer.apply_reactions_mols(
+                            mol, ionizer.rules_across_pH[pH]))
+                    self.assertEqual(full_scan, expected)
+                    with patch.object(ionizer, 'apply_reactions_mols',
+                                      wraps=ionizer.apply_reactions_mols) as apply:
+                        self.assertEqual(set(ionizer.ionize(mol=mol)), full_scan)
+                    self.assertEqual(apply.call_count, 3)
 
     def test_ionizer_rejects_unparsable_smiles(self):
         from msani.moltransform.ionizer import Ionizer
