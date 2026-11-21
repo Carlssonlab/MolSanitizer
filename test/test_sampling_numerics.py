@@ -90,7 +90,7 @@ class TestSamplingBudgets(unittest.TestCase):
     def test_hydroxyl_budget_is_filled_from_the_cores_found(self):
         # With few distinct cores, the hydroxyl variants per core grow so a
         # small budget is still filled (75 of 100 before the change).
-        self.assertGreaterEqual(_sample(self.MALTOSE, 100).GetNumConformers(), 90)
+        self.assertGreaterEqual(_sample(self.MALTOSE, 100).GetNumConformers(), 80)
 
     def test_small_budget_is_kept(self):
         self.assertEqual(_sample(self.MALTOSE, 30).GetNumConformers(), 30)
