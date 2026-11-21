@@ -249,19 +249,8 @@ std::unique_ptr<ROMol> StereoisomerEnumerator::generateRandomIsomer() {
   return std::unique_ptr<ROMol>();
 }
 
-bool StereoisomerEnumerator::embeddable(ROMol &isomer) {
-  std::unique_ptr<ROMol> isomerWithHs(MolOps::addHs(isomer));
-  // Set the members by name: the positional constructor/overloads are not
-  // stable across RDKit releases.
-  DGeomHelpers::EmbedParameters params;
-  // An impossible stereoisomer burns through every attempt before it fails,
-  // so the number of attempts is what makes rejecting one expensive.
-  capEmbeddingAttempts(params, d_options.embedMaxAttempts);
-  // A default EmbedParameters leaves these off, but the EmbedMolecule(mol)
-  // overload this code used to call turns them on.  Keep them on, so that
-  // macrocycles are validated with the same distance bounds as before.
-  params.useMacrocycleTorsions = true;
-  params.useMacrocycle14config = true;
+void StereoisomerEnumerator::setSeedAndTimeout(
+    DGeomHelpers::EmbedParameters &params) const {
   if (d_options.randomSeed >= 0) {
     params.randomSeed = d_options.randomSeed;
   }
@@ -272,8 +261,49 @@ bool StereoisomerEnumerator::embeddable(ROMol &isomer) {
     params.timeout = static_cast<unsigned int>(
         std::max(1.0, std::ceil(secondsLeft())));
   }
-  auto cid = DGeomHelpers::EmbedMolecule(*isomerWithHs, params);
-  return cid >= 0;
+}
+
+bool StereoisomerEnumerator::embeddable(ROMol &isomer) {
+  std::unique_ptr<ROMol> isomerWithHs(MolOps::addHs(isomer));
+  if (d_options.embedMaxAttempts == 0) {
+    // The embedding used before the capped one was introduced: plain
+    // distance geometry with RDKit's default number of attempts (10 x the
+    // number of atoms).  Set the members by name: the positional
+    // overloads are not stable across RDKit releases.  A default
+    // EmbedParameters matches the EmbedMolecule(mol) overload this code
+    // used to call, except for these two, which that overload turns on.
+    DGeomHelpers::EmbedParameters params;
+    params.useMacrocycleTorsions = true;
+    params.useMacrocycle14config = true;
+    setSeedAndTimeout(params);
+    return DGeomHelpers::EmbedMolecule(*isomerWithHs, params) >= 0;
+  }
+
+  // Fast path: an internal-coordinate embedding with a small number of
+  // attempts.  An impossible stereoisomer burns through every attempt
+  // before it fails, so the cap is what makes rejecting one cheap.
+  DGeomHelpers::EmbedParameters params;
+  params.useMacrocycleTorsions = true;
+  params.useMacrocycle14config = true;
+  capEmbeddingAttempts(params, d_options.embedMaxAttempts);
+  setSeedAndTimeout(params);
+  if (DGeomHelpers::EmbedMolecule(*isomerWithHs, params) >= 0) {
+    return true;
+  }
+  if (d_options.timeout > 0.0 && secondsLeft() <= 0.0) {
+    return false;
+  }
+  // The capped embedding also fails for some isomers that do exist in 3D
+  // (crowded polycycles, strained trans ring fusions), so confirm the
+  // rejection with an uncapped ETKDGv3 embedding.  ETKDGv3 rather than
+  // plain distance geometry: it embeds these isomers much more reliably
+  // (e.g. trans-bicyclo[4.1.0]heptane, which plain distance geometry
+  // misses for half of the seeds), and is faster on large polycycles.  The
+  // ring-system filter has already removed the impossible ring systems
+  // that made an uncapped embedding expensive.
+  DGeomHelpers::EmbedParameters fallback = DGeomHelpers::ETKDGv3;
+  setSeedAndTimeout(fallback);
+  return DGeomHelpers::EmbedMolecule(*isomerWithHs, fallback) >= 0;
 }
 
 }  // namespace EnumerateStereoisomers

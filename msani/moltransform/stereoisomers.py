@@ -35,17 +35,19 @@ class Stereoisomerizer:
     unique : bool, default = True.
         If true, only stereoisomers that differ in canonical SMILES will be returned.
     tryEmbedding : bool, default = False.
-        If true, the process attempts to embed the stereoisomer in 3D with RDKit, starting from
-        internal coordinates. If this fails, we assume that the stereoisomer is non-physical and don't return it.
+        If true, the process attempts to embed the stereoisomer in 3D with RDKit (see ``embedMaxAttempts``).
+        If this fails, we assume that the stereoisomer is non-physical and don't return it.
     useRingSystemFilter : bool, default = True.
         If true, stereoisomers of bridged ring systems that are known to be impossible in 3D (e.g. a
         norbornane with inverted bridgeheads) are discarded from the parities of their bridgeheads, without
         embedding them. This applies whether or not ``tryEmbedding`` is set. The patterns only cover ring
         systems made of neutral C, N, O and S atoms (plus N+); anything else is left to ``tryEmbedding``.
     embedMaxAttempts : int, default = 20.
-        Only used with ``tryEmbedding``: the number of embedding attempts made before a stereoisomer is
-        declared non-physical. 0 means RDKit's default (10 x the number of atoms), which makes every
-        impossible stereoisomer very expensive to reject.
+        Only used with ``tryEmbedding``: each stereoisomer is first embedded from internal coordinates
+        with at most this many attempts. If that fails, it is retried with an uncapped ETKDGv3 embedding
+        (RDKit's default of 10 x the number of atoms attempts) before it is declared non-physical. 0 skips
+        both and uses only the plain distance-geometry embedding used before the cap was added (uncapped,
+        slower).
     randomSeed: int, default = -1.
         Random seed for choosing a random subset of stereoisomers of a given compound.
     numcores: int, default = 1.
@@ -374,7 +376,7 @@ def main():
         '--embedMaxAttempts',
         type=int,
         default=20,
-        help="With --tryEmbedding, the number of embedding attempts made before a stereoisomer is declared non-physical. 0 means RDKit's default (10 x the number of atoms). Default is 20."
+        help="With --tryEmbedding, the number of capped (internal-coordinate) embedding attempts made before a stereoisomer is retried with an uncapped ETKDGv3 embedding. 0 uses only the plain uncapped embedding used before the cap was added (slower). Default is 20."
     )
     parser.add_argument(
         '--randomSeed',
