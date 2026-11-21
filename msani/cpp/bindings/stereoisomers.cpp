@@ -90,6 +90,12 @@ StereoEnumerationOptions options_from_dict(const py::dict &params) {
   if (params.contains("timeout")) {
     options.timeout = params["timeout"].cast<double>();
   }
+  if (params.contains("useRingSystemFilter")) {
+    options.useRingSystemFilter = params["useRingSystemFilter"].cast<bool>();
+  }
+  if (params.contains("embedMaxAttempts")) {
+    options.embedMaxAttempts = params["embedMaxAttempts"].cast<unsigned int>();
+  }
   
   return options;
 }
@@ -150,7 +156,16 @@ PYBIND11_MODULE(msani_stereoisomers, m) {
         .def_readwrite("timeout", &StereoEnumerationOptions::timeout,
                        "Wall-clock timeout in seconds. 0 = no limit. Enumeration stops early"
                        " and returns whatever isomers were collected within the time window."
-                       " Default=0.");
+                       " Default=0.")
+        .def_readwrite("useRingSystemFilter", &StereoEnumerationOptions::useRingSystemFilter,
+                       "If true, stereoisomers of bridged ring systems that are known to be"
+                       " impossible in 3D are discarded from the parities of their bridgeheads,"
+                       " without embedding them. Default=True.")
+        .def_readwrite("embedMaxAttempts", &StereoEnumerationOptions::embedMaxAttempts,
+                       "Only used with tryEmbedding: the number of embedding attempts made before"
+                       " a stereoisomer is declared non-physical. 0 means RDKit's default (10 x the"
+                       " number of atoms), which makes every impossible stereoisomer very expensive"
+                       " to reject. Ignored (no cap) when built against RDKit < 2026.09. Default=20.");
 
     // Expose dictionary-based enumeration function
     m.def("enumerate_stereoisomers", &enumerate_stereoisomers,
@@ -170,6 +185,9 @@ PYBIND11_MODULE(msani_stereoisomers, m) {
           "    - unique (bool): Return only unique stereoisomers. Default=True\n"
           "    - tryEmbedding (bool): Validate stereoisomers via embedding. Default=False\n"
           "    - randomSeed (int): Random seed for subset selection. Default=-1\n"
+          "    - timeout (float): Wall-clock timeout in seconds. 0 = no limit. Default=0\n"
+          "    - useRingSystemFilter (bool): Discard known-impossible bridged ring isomers. Default=True\n"
+          "    - embedMaxAttempts (int): Embedding attempts per isomer with tryEmbedding. Default=20\n"
           "verbose : bool, optional\n"
           "    Enable verbose output. Default=False\n\n"
           "Returns\n"

@@ -652,11 +652,40 @@ class Test_MolSanitizer(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             args = self.generate_mock_arguments([f'{self.path}/in_stereo_complex.txt'],
                                                 ['stereoisomers', 'test'], temp_dir)
-            args.stereo_timeout = 1
+            # The molecule no longer takes long enough to enumerate for a
+            # realistic timeout to expire, so force the timeout: no isomer
+            # is produced and the input SMILES must be kept.
+            args.stereo_timeout = 1e-6
             args.max_isomers = 128
             cli.clean_data(args)
             self.compare_relative(f'{temp_dir}/dummy_output_clean.txt',
                                   f'{self.path}/out_stereo_complex.txt')
+
+    def test_stereoisomers_ring_system_filter(self):
+        """Bridgehead configurations that cannot exist in 3D are discarded
+        from their parities alone, matching what embedding would reject."""
+        import msani_stereoisomers as ms
+        smiles = 'OC1CC2CCC1C2O'  # a norbornane diol
+        options = {'randomSeed': 42, 'tryEmbedding': False}
+        unfiltered = ms.enumerate_stereoisomers(
+            smiles, {**options, 'useRingSystemFilter': False})
+        filtered = ms.enumerate_stereoisomers(smiles, options)
+        embedded = ms.enumerate_stereoisomers(
+            smiles, {**options, 'tryEmbedding': True,
+                     'useRingSystemFilter': False, 'embedMaxAttempts': 0})
+        self.assertEqual(len(unfiltered), 16)
+        self.assertEqual(len(filtered), 8)
+        self.assertEqual(sorted(filtered), sorted(embedded))
+
+    def test_stereoisomers_embedding_cap_keeps_valid_isomers(self):
+        """Capping the embedding attempts must not cost valid isomers of a
+        large flexible molecule."""
+        import msani_stereoisomers as ms
+        options = {'randomSeed': 42, 'tryEmbedding': True}
+        # Orlistat: plain distance geometry needs ~180 attempts per isomer,
+        # far more than the default cap.
+        orlistat = 'CCCCCCCCCCCC(CC1OC(=O)C1CCCCCC)OC(=O)C(CC(C)C)NC=O'
+        self.assertEqual(len(ms.enumerate_stereoisomers(orlistat, options)), 16)
 
     def test_neutralize(self):
         with tempfile.TemporaryDirectory() as temp_dir:

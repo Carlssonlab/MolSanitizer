@@ -126,6 +126,7 @@ if(NOT RDKit_FOUND)
     # Find RDKit libraries (Windows .lib in Library/lib; Unix in lib)
     set(RDKIT_LIB_NAMES
         RDKitGraphMol
+        RDKitSubstructMatch
         RDKitSmilesParse
         RDKitRDGeneral
         RDKitDistGeomHelpers
@@ -152,7 +153,8 @@ if(NOT RDKit_FOUND)
 endif()
 
 msani_select_rdkit_targets(MSANI_STEREO_RDKIT_TARGETS
-    RDGeneral SmilesParse GraphMol ForceField ForceFieldHelpers DistGeomHelpers
+    RDGeneral SmilesParse GraphMol SubstructMatch ForceField ForceFieldHelpers
+    DistGeomHelpers
 )
 
 # Find Boost (required by RDKit)
@@ -162,6 +164,7 @@ find_package(Boost REQUIRED)
 add_library(stereoisomer_lib STATIC
     EnumerateStereoisomers.cpp
     Flippers.cpp
+    RingSystemFilter.cpp
 )
 msani_configure_native_static_target(stereoisomer_lib)
 if(TARGET Boost::headers)

@@ -8,6 +8,7 @@
 //  of the RDKit source tree.
 //
 
+#include <algorithm>
 #include <cmath>
 #include <chrono>
 #include <limits>
@@ -19,10 +20,29 @@
 #include <GraphMol/DistGeomHelpers/Embedder.h>
 #include "EnumerateStereoisomers.h"
 #include "Flippers.h"
+#include "RingSystemFilter.h"
 #include <GraphMol/SmilesParse/SmilesWrite.h>
 
 namespace RDKit {
 namespace EnumerateStereoisomers {
+namespace {
+// Plain distance geometry often needs tens to hundreds of attempts to embed
+// a large flexible molecule, so its attempts can't be capped without losing
+// valid stereoisomers.  Starting from internal coordinates (RDKit >= 2026.09)
+// nearly always succeeds within a few attempts, which is what makes the cap
+// safe.  Older RDKit releases keep the uncapped distance geometry embedding.
+// The member is detected at compile time because RDKit's RDKIT_VERSION macro
+// is not usable from the installed headers.
+template <typename Params>
+void capEmbeddingAttempts(Params &params, unsigned int maxAttempts) {
+  if constexpr (requires { params.initialEmbeddingMode; }) {
+    using Mode = decltype(params.initialEmbeddingMode);
+    params.initialEmbeddingMode = Mode::INTERNAL_COORDINATE_EMBEDDING;
+    params.maxIterations = maxAttempts;
+  }
+}
+}  // namespace
+
 StereoisomerEnumerator::StereoisomerEnumerator(
     const ROMol &mol, const StereoEnumerationOptions &options, bool verbose)
     : d_mol(mol), d_options(options), d_verbose(verbose) {
@@ -63,6 +83,18 @@ StereoisomerEnumerator::StereoisomerEnumerator(
     d_randGen.reset(new std::mt19937(d_options.randomSeed));
   }
   d_startTime = std::chrono::steady_clock::now();
+
+  // With no flippers the molecule is returned as-is, so there is nothing
+  // to filter.
+  if (d_options.useRingSystemFilter && !d_flippers.empty()) {
+    // Skip finding patterns only if we know there is at most one ring
+    // in the mol (maybe we haven't found them yet?)
+    if (auto ri = mol.getRingInfo();
+        !ri || !ri->isInitialized() || ri->atomRings().size() > 1) {
+      getRingPatternsParityRelations(mol, d_pattern_same_parity,
+                                     d_pattern_opposite_parity);
+    }
+  }
 }
 
 std::uint64_t StereoisomerEnumerator::getStereoisomerCount() const {
@@ -114,18 +146,45 @@ void StereoisomerEnumerator::buildFlippers() {
   }
 }
 
+double StereoisomerEnumerator::secondsLeft() const {
+  auto elapsed = std::chrono::duration<double>(
+                     std::chrono::steady_clock::now() - d_startTime)
+                     .count();
+  return d_options.timeout - elapsed;
+}
+
+bool StereoisomerEnumerator::passesRingPatternsCheck(const ROMol &mol) const {
+  for (auto [i, j] : d_pattern_same_parity) {
+    auto atomIParity = mol.getAtomWithIdx(i)->getChiralTag();
+    auto atomJParity = mol.getAtomWithIdx(j)->getChiralTag();
+    if ((atomIParity == Atom::CHI_TETRAHEDRAL_CW &&
+         atomJParity == Atom::CHI_TETRAHEDRAL_CCW) ||
+        (atomIParity == Atom::CHI_TETRAHEDRAL_CCW &&
+         atomJParity == Atom::CHI_TETRAHEDRAL_CW)) {
+      return false;
+    }
+  }
+  for (auto [i, j] : d_pattern_opposite_parity) {
+    auto atomIParity = mol.getAtomWithIdx(i)->getChiralTag();
+    auto atomJParity = mol.getAtomWithIdx(j)->getChiralTag();
+    if ((atomIParity == Atom::CHI_TETRAHEDRAL_CW &&
+         atomJParity == Atom::CHI_TETRAHEDRAL_CW) ||
+        (atomIParity == Atom::CHI_TETRAHEDRAL_CCW &&
+         atomJParity == Atom::CHI_TETRAHEDRAL_CCW)) {
+      return false;
+    }
+  }
+  return true;
+}
+
 std::unique_ptr<ROMol> StereoisomerEnumerator::generateRandomIsomer() {
   boost::dynamic_bitset<> nextConfig{d_flippers.size()};
   while (d_seen.size() < d_totalPoss) {
     // Check wall-clock timeout at the start of every iteration.
-    if (d_options.timeout > 0.0) {
-      auto elapsed = std::chrono::duration<double>(
-          std::chrono::steady_clock::now() - d_startTime).count();
-      if (elapsed >= d_options.timeout) {
-        // Return empty ptr — same signal as "all isomers exhausted".
-        // The caller (enumerate_stereoisomers) will stop iterating.
-        return std::unique_ptr<ROMol>();
-      }
+    if (d_options.timeout > 0.0 && secondsLeft() <= 0.0) {
+      // Return empty ptr — same signal as "all isomers exhausted".
+      // The caller (enumerate_stereoisomers) will stop iterating.
+      return std::unique_ptr<ROMol>();
     }
     for (size_t i = 0; i < d_flippers.size(); i++) {
       bool config = d_randDis(*d_randGen);
@@ -147,6 +206,11 @@ std::unique_ptr<ROMol> StereoisomerEnumerator::generateRandomIsomer() {
       MolOps::setDoubleBondNeighborDirections(*isomer);
       isomer->clearComputedProps(false);
       MolOps::assignStereochemistry(*isomer, true, true, true);
+      // Cheap rejection of ring systems that can't exist in 3D, so that
+      // they never reach the (expensive) embedding below.
+      if (!passesRingPatternsCheck(*isomer)) {
+        continue;
+      }
       if (d_options.unique) {
         auto smi =
             MolToCXSmiles(*isomer, SmilesWriteParams(),
@@ -178,7 +242,22 @@ std::unique_ptr<ROMol> StereoisomerEnumerator::generateRandomIsomer() {
 
 bool StereoisomerEnumerator::embeddable(ROMol &isomer) {
   std::unique_ptr<ROMol> isomerWithHs(MolOps::addHs(isomer));
-  auto cid = DGeomHelpers::EmbedMolecule(*isomerWithHs);
+  // Set the members by name: the positional constructor/overloads are not
+  // stable across RDKit releases.
+  DGeomHelpers::EmbedParameters params;
+  // An impossible stereoisomer burns through every attempt before it fails,
+  // so the number of attempts is what makes rejecting one expensive.
+  capEmbeddingAttempts(params, d_options.embedMaxAttempts);
+  if (d_options.randomSeed >= 0) {
+    params.randomSeed = d_options.randomSeed;
+  }
+  if (d_options.timeout > 0.0) {
+    // Don't let a single embedding run past the enumeration deadline.
+    // RDKit's timeout has a resolution of one second.
+    params.timeout = static_cast<unsigned int>(
+        std::max(1.0, std::ceil(secondsLeft())));
+  }
+  auto cid = DGeomHelpers::EmbedMolecule(*isomerWithHs, params);
   return cid >= 0;
 }
 
