@@ -1148,14 +1148,16 @@ class ConformerGenerator:
 
         def write_conformer(writer, mol, conf_id):
             """Write one conformer, retaining its C++ force-field energy in debug mode."""
-            output_mol = Chem.Mol(mol)
+            # Copy only this conformer: copying the full ensemble for every
+            # conformer made SDF writing quadratic in the number of conformers.
+            output_mol = Chem.Mol(mol, False, conf_id)
             if self.VERBOSE:
                 conformer = mol.GetConformer(conf_id)
                 if conformer.HasProp('Energy'):
                     output_mol.SetProp('Energy', conformer.GetProp('Energy'))
                 elif conformer.HasProp('MMFF_Energy'):
                     output_mol.SetProp('Energy', conformer.GetProp('MMFF_Energy'))
-            writer.write(output_mol, confId=conf_id)
+            writer.write(output_mol)
 
         # Write the conformers to SDF file(s)
         if len(self.ring_confs) == 1:
