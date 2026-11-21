@@ -18,6 +18,7 @@
 #include <ForceField/ForceField.h>
 #include <ForceField/MMFF/AngleConstraint.h>
 #include <ForceField/MMFF/TorsionConstraint.h>
+#include <RDGeneral/versions.h>
 #include <memory>
 #include <stdexcept>
 #include <unordered_map>
@@ -28,7 +29,9 @@
 #include <set>
 #include <optional>
 #include <limits>
+#include <map>
 #include <sstream>
+#include <type_traits>
 
 namespace py = pybind11;
 using namespace RDKit;
@@ -707,6 +710,95 @@ py::object stochasticSamplingContinuousWrapper(py::object mol_obj,
     }
 }
 
+// Named embedding presets. The module owns them because it carries its own
+// RDKit: the Python RDKit next to it may be older and not know the newer ones.
+// ETKDGv4 and internal-coordinate embedding need RDKit >= 2026.09 at build time
+// (MSANI_RDKIT_HAS_ETKDGV4 is set by CMake from the RDKit version).
+const std::map<std::string, DGeomHelpers::EmbedParameters> &embeddingPresets() {
+    static const std::map<std::string, DGeomHelpers::EmbedParameters> presets = [] {
+        std::map<std::string, DGeomHelpers::EmbedParameters> result = {
+            {"kdg", InitialEmbedder::KDG},
+            {"etdg", InitialEmbedder::ETDG},
+            {"etdgv2", InitialEmbedder::ETDGv2},
+            {"etkdg", InitialEmbedder::ETKDG},
+            {"etkdgv2", InitialEmbedder::ETKDGv2},
+            {"etkdgv3", InitialEmbedder::ETKDGv3},
+            {"sretkdgv3", InitialEmbedder::srETKDGv3}
+        };
+#ifdef MSANI_RDKIT_HAS_ETKDGV4
+        result.emplace("etkdgv4", DGeomHelpers::ETKDGv4);
+        // Start from internal coordinates instead of the distance-geometry
+        // eigenvalue embedding.
+        DGeomHelpers::EmbedParameters internalCoordinates = DGeomHelpers::ETKDGv4;
+        internalCoordinates.initialEmbeddingMode =
+            DGeomHelpers::InitialEmbeddingMode::INTERNAL_COORDINATE_EMBEDDING;
+        result.emplace("etkdgv4-ic", std::move(internalCoordinates));
+#endif
+        return result;
+    }();
+    return presets;
+}
+
+const DGeomHelpers::EmbedParameters &embeddingPreset(const std::string &name) {
+    std::string lowered(name.size(), '\0');
+    std::transform(name.begin(), name.end(), lowered.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    const auto &presets = embeddingPresets();
+    auto it = presets.find(lowered);
+    if (it == presets.end()) {
+        std::string known;
+        for (const auto &entry : presets) {
+            known += (known.empty() ? "" : ", ") + entry.first;
+        }
+        throw std::invalid_argument("Unknown embedding preset: " + name +
+                                    " (this build knows: " + known + ")");
+    }
+    return it->second;
+}
+
+// Embedding options added in recent RDKit releases (useLegacyImplementation in
+// 2026.03; initialEmbeddingMode and embedForceField in 2026.09) are detected by
+// member presence so this module keeps building against older RDKit releases.
+// `fetch(name)` returns the requested value, or a null object when it is unset.
+template <typename Params, typename Fetch>
+void copyModernEmbedOptions(Params &params, Fetch &&fetch) {
+    if constexpr (requires { params.useLegacyImplementation; }) {
+        if (py::object value = fetch("useLegacyImplementation")) {
+            params.useLegacyImplementation = value.template cast<bool>();
+        }
+    }
+    if constexpr (requires { params.initialEmbeddingMode; }) {
+        using Mode = std::remove_reference_t<decltype(params.initialEmbeddingMode)>;
+        if (py::object value = fetch("initialEmbeddingMode")) {
+            params.initialEmbeddingMode =
+                static_cast<Mode>(py::int_(value).template cast<int>());
+        }
+    }
+    if constexpr (requires { params.embedForceField; }) {
+        using FF = std::remove_reference_t<decltype(params.embedForceField)>;
+        if (py::object value = fetch("embedForceField")) {
+            params.embedForceField =
+                static_cast<FF>(py::int_(value).template cast<int>());
+        }
+    }
+}
+
+// True when the parameters ask for something the forked InitialEmbedder cannot
+// do, in which case RDKit's own embedder is used.
+template <typename Params>
+bool needsRDKitEmbedder(const Params &params) {
+    // The fork only knows versions 1 and 2 of the torsion preferences.
+    bool needed = params.ETversion > 2;
+    if constexpr (requires { params.useLegacyImplementation; }) {
+        needed = needed || !params.useLegacyImplementation;
+    }
+    if constexpr (requires { params.initialEmbeddingMode; }) {
+        using Mode = std::remove_cvref_t<decltype(params.initialEmbeddingMode)>;
+        needed = needed || params.initialEmbeddingMode != Mode{};
+    }
+    return needed;
+}
+
 py::object embedMultipleConfsWrapper(py::object mol_obj,
                                      unsigned int numConfs,
                                      py::object params_obj = py::none(),
@@ -717,85 +809,92 @@ py::object embedMultipleConfsWrapper(py::object mol_obj,
             throw std::runtime_error("Could not extract molecule");
         }
 
-        static const std::unordered_map<std::string, const DGeomHelpers::EmbedParameters *> presetMap = {
-            {"kdg", &InitialEmbedder::KDG},
-            {"etdg", &InitialEmbedder::ETDG},
-            {"etdgv2", &InitialEmbedder::ETDGv2},
-            {"etkdg", &InitialEmbedder::ETKDG},
-            {"etkdgv2", &InitialEmbedder::ETKDGv2},
-            {"etkdgv3", &InitialEmbedder::ETKDGv3},
-            {"sretkdgv3", &InitialEmbedder::srETKDGv3}
-        };
-
         DGeomHelpers::EmbedParameters params = InitialEmbedder::ETKDGv3;
-        if (!params_obj.is_none()) {
-            if (py::isinstance<py::str>(params_obj)) {
-                std::string preset = params_obj.cast<std::string>();
-                std::string lowered;
-                lowered.resize(preset.size());
-                std::transform(preset.begin(), preset.end(), lowered.begin(),
-                               [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-                auto it = presetMap.find(lowered);
-                if (it != presetMap.end()) {
-                    params = *(it->second);
-                } else {
-                    throw std::invalid_argument("Unknown embedding preset: " + preset);
+        if (py::isinstance<py::str>(params_obj)) {
+            params = embeddingPreset(params_obj.cast<std::string>());
+        } else if (!params_obj.is_none()) {
+            // Either a dict {"preset": name, <option>: value, ...} applied on
+            // top of one of this module's presets, or an object exposing the
+            // options as attributes (an RDKit EmbedParameters).
+            const bool is_dict = py::isinstance<py::dict>(params_obj);
+            py::dict options;
+            if (is_dict) {
+                options = params_obj.cast<py::dict>();
+                if (options.contains("preset")) {
+                    params = embeddingPreset(options["preset"].cast<std::string>());
                 }
-            } else {
-                auto copyUnsigned = [&](const char *name, unsigned int &target) {
-                    if (py::hasattr(params_obj, name)) {
-                        target = params_obj.attr(name).cast<unsigned int>();
-                    }
-                };
-                auto copyInt = [&](const char *name, int &target) {
-                    if (py::hasattr(params_obj, name)) {
-                        target = params_obj.attr(name).cast<int>();
-                    }
-                };
-                auto copyDouble = [&](const char *name, double &target) {
-                    if (py::hasattr(params_obj, name)) {
-                        target = params_obj.attr(name).cast<double>();
-                    }
-                };
-                auto copyBool = [&](const char *name, bool &target) {
-                    if (py::hasattr(params_obj, name)) {
-                        target = params_obj.attr(name).cast<bool>();
-                    }
-                };
+            }
+            std::set<std::string> known_options = {"preset"};
+            auto fetch = [&](const char *name) -> py::object {
+                known_options.insert(name);
+                if (is_dict) {
+                    return options.contains(name) ? py::object(options[name]) : py::object();
+                }
+                return py::hasattr(params_obj, name) ? py::object(params_obj.attr(name))
+                                                     : py::object();
+            };
+            auto copyUnsigned = [&](const char *name, unsigned int &target) {
+                if (py::object value = fetch(name)) {
+                    target = value.cast<unsigned int>();
+                }
+            };
+            auto copyInt = [&](const char *name, int &target) {
+                if (py::object value = fetch(name)) {
+                    target = value.cast<int>();
+                }
+            };
+            auto copyDouble = [&](const char *name, double &target) {
+                if (py::object value = fetch(name)) {
+                    target = value.cast<double>();
+                }
+            };
+            auto copyBool = [&](const char *name, bool &target) {
+                if (py::object value = fetch(name)) {
+                    target = value.cast<bool>();
+                }
+            };
 
-                copyUnsigned("maxIterations", params.maxIterations);
-                copyInt("numThreads", params.numThreads);
-                copyInt("randomSeed", params.randomSeed);
-                copyBool("clearConfs", params.clearConfs);
-                copyBool("useRandomCoords", params.useRandomCoords);
-                copyDouble("boxSizeMult", params.boxSizeMult);
-                copyBool("randNegEig", params.randNegEig);
-                copyUnsigned("numZeroFail", params.numZeroFail);
-                copyDouble("optimizerForceTol", params.optimizerForceTol);
-                copyBool("ignoreSmoothingFailures", params.ignoreSmoothingFailures);
-                copyBool("enforceChirality", params.enforceChirality);
-                copyBool("useExpTorsionAnglePrefs", params.useExpTorsionAnglePrefs);
-                copyBool("useBasicKnowledge", params.useBasicKnowledge);
-                copyBool("verbose", params.verbose);
-                copyDouble("basinThresh", params.basinThresh);
-                copyDouble("pruneRmsThresh", params.pruneRmsThresh);
-                copyBool("onlyHeavyAtomsForRMS", params.onlyHeavyAtomsForRMS);
-                copyUnsigned("ETversion", params.ETversion);
-                copyBool("embedFragmentsSeparately", params.embedFragmentsSeparately);
-                copyBool("useSmallRingTorsions", params.useSmallRingTorsions);
-                copyBool("useMacrocycleTorsions", params.useMacrocycleTorsions);
-                copyBool("useMacrocycle14config", params.useMacrocycle14config);
-                copyUnsigned("timeout", params.timeout);
-                copyBool("trackFailures", params.trackFailures);
-                copyBool("useSymmetryForPruning", params.useSymmetryForPruning);
-                copyBool("symmetrizeConjugatedTerminalGroupsForPruning",
-                         params.symmetrizeConjugatedTerminalGroupsForPruning);
-                copyBool("enableSequentialRandomSeeds",
-                         params.enableSequentialRandomSeeds);
-                copyBool("forceTransAmides", params.forceTransAmides);
-                copyDouble("boundsMatForceScaling", params.boundsMatForceScaling);
+            copyUnsigned("maxIterations", params.maxIterations);
+            copyInt("numThreads", params.numThreads);
+            copyInt("randomSeed", params.randomSeed);
+            copyBool("clearConfs", params.clearConfs);
+            copyBool("useRandomCoords", params.useRandomCoords);
+            copyDouble("boxSizeMult", params.boxSizeMult);
+            copyBool("randNegEig", params.randNegEig);
+            copyUnsigned("numZeroFail", params.numZeroFail);
+            copyDouble("optimizerForceTol", params.optimizerForceTol);
+            copyBool("ignoreSmoothingFailures", params.ignoreSmoothingFailures);
+            copyBool("enforceChirality", params.enforceChirality);
+            copyBool("useExpTorsionAnglePrefs", params.useExpTorsionAnglePrefs);
+            copyBool("useBasicKnowledge", params.useBasicKnowledge);
+            copyBool("verbose", params.verbose);
+            copyDouble("basinThresh", params.basinThresh);
+            copyDouble("pruneRmsThresh", params.pruneRmsThresh);
+            copyBool("onlyHeavyAtomsForRMS", params.onlyHeavyAtomsForRMS);
+            copyUnsigned("ETversion", params.ETversion);
+            copyBool("embedFragmentsSeparately", params.embedFragmentsSeparately);
+            copyBool("useSmallRingTorsions", params.useSmallRingTorsions);
+            copyBool("useMacrocycleTorsions", params.useMacrocycleTorsions);
+            copyBool("useMacrocycle14config", params.useMacrocycle14config);
+            copyUnsigned("timeout", params.timeout);
+            copyBool("trackFailures", params.trackFailures);
+            copyBool("useSymmetryForPruning", params.useSymmetryForPruning);
+            copyBool("symmetrizeConjugatedTerminalGroupsForPruning", params.symmetrizeConjugatedTerminalGroupsForPruning);
+            copyBool("enableSequentialRandomSeeds", params.enableSequentialRandomSeeds);
+            copyBool("forceTransAmides", params.forceTransAmides);
+            copyDouble("boundsMatForceScaling", params.boundsMatForceScaling);
+            copyModernEmbedOptions(params, fetch);
+
+            if (is_dict) {
+                for (const auto &item : options) {
+                    const std::string key = py::str(item.first).cast<std::string>();
+                    if (!known_options.count(key)) {
+                        throw std::invalid_argument("Unknown embedding option: " + key);
+                    }
+                }
             }
         }
+        const bool useRDKitEmbedder = needsRDKitEmbedder(params);
 
         TorsionConstraintData constraint_data = parseTorsionConstraintData(constraints_obj);
 
@@ -816,7 +915,11 @@ py::object embedMultipleConfsWrapper(py::object mol_obj,
         }
 
         INT_VECT res;
-        InitialEmbedder::EmbedMultipleConfs(*mol, res, numConfs, params);
+        if (useRDKitEmbedder) {
+            DGeomHelpers::EmbedMultipleConfs(*mol, res, numConfs, params);
+        } else {
+            InitialEmbedder::EmbedMultipleConfs(*mol, res, numConfs, params);
+        }
 
         // Create MMFF properties using the same pattern as RDKit's MMFFOptimizeMoleculeConfs
         RDKit::MMFF::MMFFMolProperties mmff_properties(*mol, mmff_variant);
@@ -882,6 +985,16 @@ PYBIND11_MODULE(msani_confgen_cpp, m) {
     
     // Version information
     m.attr("__author__") = "Phong Lam, Uppsala University (2025)";
+
+    // What this build can embed with. Python picks its default from this list
+    // rather than from the installed Python RDKit, which may be a different
+    // release from the RDKit this module was built against.
+    py::list preset_names;
+    for (const auto &entry : embeddingPresets()) {
+        preset_names.append(entry.first);
+    }
+    m.attr("EMBEDDING_PRESETS") = py::tuple(preset_names);
+    m.attr("RDKIT_CPP_VERSION") = RDKit::rdkitVersion;
 
     // Discrete sampling function
     m.def("stochastic_sampling_discrete", &stochasticSamplingDiscreteWrapper,
@@ -997,8 +1110,12 @@ PYBIND11_MODULE(msani_confgen_cpp, m) {
         Args:
             mol (rdkit.Chem.Mol): Input molecule object
             numConfs (int): Number of conformers to generate
-            params (str or object, optional): Embedding parameters. Can be:
-                - String preset: "kdg", "etdg", "etkdg", "etkdgv2", "etkdgv3", "sretkdgv3"
+            params (str, dict or object, optional): Embedding parameters. Can be:
+                - String preset: any name in EMBEDDING_PRESETS ("kdg", "etdg", "etdgv2",
+                  "etkdg", "etkdgv2", "etkdgv3", "sretkdgv3", and "etkdgv4" / "etkdgv4-ic"
+                  when the module was built against RDKit >= 2026.09)
+                - Dict {"preset": name, option: value, ...}: a preset with EmbedParameters
+                  options such as randomSeed, numThreads or pruneRmsThresh set on top
                 - RDKit EmbedParameters object with custom settings
                 - None for default ETKDGv3 parameters
             constraints (dict or object, optional): Torsion constraint specifications.

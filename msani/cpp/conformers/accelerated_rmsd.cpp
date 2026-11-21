@@ -12,6 +12,7 @@
 #include <stdexcept>
 #include <iostream>
 #include <algorithm>
+#include <numeric>
 #if __cplusplus >= 202002L
 #include <span>
 #endif
@@ -176,6 +177,62 @@ void SameMoleculeRMSDCalculator::generateSymmetricMappings(const RDKit::ROMol& m
     
 } 
 
+void SameMoleculeRMSDCalculator::computeSymmetryOrbits() {
+    // Union-find over every atom pair the mappings can exchange.
+    std::vector<int> parent(num_heavy_atoms_);
+    std::iota(parent.begin(), parent.end(), 0);
+    const auto find = [&parent](int atom) {
+        while (parent[atom] != atom) {
+            parent[atom] = parent[parent[atom]];
+            atom = parent[atom];
+        }
+        return atom;
+    };
+    for (const auto& mapping : symmetric_mappings_) {
+        for (const auto& pair : mapping) {
+            const int root_a = find(pair.first);
+            const int root_b = find(pair.second);
+            if (root_a != root_b) parent[root_a] = root_b;
+        }
+    }
+
+    // Flatten the orbits, keeping atoms in index order inside each one.
+    std::vector<int> root(num_heavy_atoms_);
+    for (size_t i = 0; i < num_heavy_atoms_; ++i) root[i] = find(static_cast<int>(i));
+    orbit_atoms_.resize(num_heavy_atoms_);
+    std::iota(orbit_atoms_.begin(), orbit_atoms_.end(), 0);
+    std::stable_sort(orbit_atoms_.begin(), orbit_atoms_.end(),
+                     [&root](int a, int b) { return root[a] < root[b]; });
+    orbit_offsets_.clear();
+    for (size_t i = 0; i < num_heavy_atoms_; ++i) {
+        if (i == 0 || root[orbit_atoms_[i]] != root[orbit_atoms_[i - 1]]) {
+            orbit_offsets_.push_back(i);
+        }
+    }
+    orbit_offsets_.push_back(num_heavy_atoms_);
+}
+
+void SameMoleculeRMSDCalculator::orbitSortedRadii(const std::vector<double>& radii,
+                                                  std::vector<double>& sorted_radii) const {
+    if (!initialized_) {
+        throw std::runtime_error("Calculator not initialized");
+    }
+    if (radii.size() < num_heavy_atoms_) {
+        throw std::invalid_argument("Radii do not cover every heavy atom");
+    }
+    sorted_radii.resize(num_heavy_atoms_);
+    for (size_t i = 0; i < num_heavy_atoms_; ++i) {
+        sorted_radii[i] = radii[orbit_atoms_[i]];
+    }
+    for (size_t orbit = 0; orbit + 1 < orbit_offsets_.size(); ++orbit) {
+        const size_t begin = orbit_offsets_[orbit];
+        const size_t end = orbit_offsets_[orbit + 1];
+        if (end - begin > 1) {
+            std::sort(sorted_radii.begin() + begin, sorted_radii.begin() + end);
+        }
+    }
+}
+
 SameMoleculeRMSDCalculator::SameMoleculeRMSDCalculator(bool use_symmetry, bool symmetrize_conjugated_terminal_groups) 
     : initialized_(false), use_symmetry_(use_symmetry), symmetrize_conjugated_terminal_groups_(symmetrize_conjugated_terminal_groups), num_heavy_atoms_(0) {}
 
@@ -222,6 +279,8 @@ void SameMoleculeRMSDCalculator::initialize(const RDKit::ROMol& mol) {
 
     scored_mappings_.clear();
     scored_mappings_.reserve(symmetric_mappings_.size());
+
+    computeSymmetryOrbits();
     
     initialized_ = true;
 }
@@ -275,18 +334,29 @@ double SameMoleculeRMSDCalculator::calculateAlignedRMSD(
     const auto& probe_radii = *cached_probe_radii;
     const auto& ref_radii = *cached_ref_radii;
 
-    // Compute heuristic score (radial lower bound) for each mapping
+    // Compute heuristic score (radial lower bound) for each mapping. With a
+    // threshold, a mapping is dropped as soon as its partial sum proves the
+    // bound exceeds it; such mappings were never aligned anyway.
     scored_mappings_.clear();
+    const double sum_sq_limit = (thres2 >= 0.0)
+        ? thres2 * static_cast<double>(n_heavy)
+        : std::numeric_limits<double>::infinity();
 
     for (size_t mapping_index = 0;
          mapping_index < symmetric_mappings_.size();
          ++mapping_index) {
         const auto& mapping = symmetric_mappings_[mapping_index];
         double sum_sq = 0.0;
+        bool over_limit = false;
         for (auto& pair : mapping) {
             double d = probe_radii[pair.first] - ref_radii[pair.second];
             sum_sq += d * d;
+            if (sum_sq > sum_sq_limit) {
+                over_limit = true;
+                break;
+            }
         }
+        if (over_limit) continue;
         double heuristic = (mapping.empty() ? 0.0 : sum_sq / mapping.size());
         scored_mappings_.push_back({heuristic, mapping_index});
     }
@@ -333,48 +403,60 @@ double SameMoleculeRMSDCalculator::calculateAlignedRMSD(
 bool SameMoleculeRMSDCalculator::isSimilarToAny(const RDKit::ROMol& mol,
                                                const RDKit::Conformer& probe_conf,
                                                const std::vector<double>& probe_radii,
+                                               const std::vector<double>& probe_orbit_radii,
                                                double rmsd_threshold,
                                                const std::vector<std::vector<double>>* cached_ref_radii,
-                                               const std::vector<RDGeom::Point3D>* cached_ref_centroids) const {
+                                               const std::vector<std::vector<double>>* cached_ref_orbit_radii) const {
     if (!initialized_) {
         throw std::runtime_error("Calculator not initialized");
     }
 
-    if (cached_ref_radii == nullptr) {
+    if (cached_ref_radii == nullptr || cached_ref_orbit_radii == nullptr) {
         throw std::invalid_argument("Cached reference radii are required");
     }
-    if (probe_radii.size() < num_heavy_atoms_) {
+    if (probe_radii.size() < num_heavy_atoms_ ||
+        probe_orbit_radii.size() < num_heavy_atoms_) {
         throw std::invalid_argument(
             "Probe radii do not cover every heavy atom");
     }
-    if (cached_ref_radii->size() != mol.getNumConformers()) {
+    if (cached_ref_radii->size() != mol.getNumConformers() ||
+        cached_ref_orbit_radii->size() != mol.getNumConformers()) {
         throw std::invalid_argument(
             "Cached reference radii do not match the conformer cache");
     }
-    // Centroids are retained in the API for compatibility, but radial
-    // descriptors contain everything needed by the current lower bound.
-    (void)cached_ref_centroids;
     
     double thres2 = (rmsd_threshold >= 0.0) ? rmsd_threshold * rmsd_threshold : -1.0;
     const size_t n_heavy = num_heavy_atoms_;
+    const double sum_sq_limit = (thres2 >= 0.0)
+        ? thres2 * static_cast<double>(n_heavy)
+        : std::numeric_limits<double>::infinity();
 
-    // Build candidate list with heuristic (mean squared difference of radii)
+    // Build the candidate list from the orbit-sorted radial bound. It holds
+    // for every symmetric mapping at once, so a reference whose bound exceeds
+    // the threshold is discarded here, before any per-mapping work.
     candidates_.clear();
     size_t cache_index = 0;
     for (auto conformer = mol.beginConformers();
          conformer != mol.endConformers();
          ++conformer, ++cache_index) {
         // Cached radii are indexed identically to the cache molecule's conformers.
-        const auto& ref_r = (*cached_ref_radii)[cache_index];
-        if (ref_r.size() < n_heavy) {
+        const auto& ref_r = (*cached_ref_orbit_radii)[cache_index];
+        if (ref_r.size() < n_heavy ||
+            (*cached_ref_radii)[cache_index].size() < n_heavy) {
             throw std::invalid_argument(
                 "Cached reference radii do not cover every heavy atom");
         }
         double sum_sq = 0.0;
+        bool over_limit = false;
         for (size_t i = 0; i < n_heavy; ++i) {
-            double d = probe_radii[i] - ref_r[i];
+            double d = probe_orbit_radii[i] - ref_r[i];
             sum_sq += d * d;
+            if (sum_sq > sum_sq_limit) {
+                over_limit = true;
+                break;
+            }
         }
+        if (over_limit) continue;
         double heuristic = sum_sq / static_cast<double>(n_heavy);
         candidates_.push_back({conformer->get(), cache_index, heuristic});
     }

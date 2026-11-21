@@ -8,7 +8,7 @@ bash packaging/linux/build_wheels.sh
 ```
 
 Prerequisites: Docker must be running and the previously built image
-`msani-builder:rdkit-2025.09.1` must exist. The script does not rebuild the SDK.
+`msani-builder:rdkit-2026.09.2` must exist. The script does not rebuild the SDK.
 Internet access is needed for pip dependencies and the clean Python images.
 No GitHub Actions minutes are used.
 
@@ -63,7 +63,7 @@ MSANI_PYTHON_VERSIONS=3.12 bash packaging/linux/build_wheels.sh
 the build-time Python RDKit version; keep it matched to the SDK in that image.
 `MSANI_PYTHON_VERSIONS` selects interpreters, and `MSANI_DOCKER_PLATFORM`
 selects the Docker platform (`linux/arm64` for a native aarch64 host).
-Defaults are `msani-builder:rdkit-2025.09.1`, `2025.9.1`, all five versions
+Defaults are `msani-builder:rdkit-2026.09.2`, `2026.9.2`, all five versions
 and `linux/amd64`.
 
 The build and test commands themselves live in `build_in_container.sh` and
@@ -77,7 +77,7 @@ Run from the repository root:
 
 ```bash
 docker build --platform linux/amd64 --progress=plain \
-  -t msani-builder:rdkit-2025.09.1 \
+  -t msani-builder:rdkit-2026.09.2 \
   -f packaging/linux/Dockerfile packaging/linux
 bash packaging/linux/build_wheels.sh
 ```

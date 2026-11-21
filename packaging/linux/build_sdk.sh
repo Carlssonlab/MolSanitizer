@@ -7,7 +7,7 @@
 # and aarch64; nothing here is architecture specific.
 set -euo pipefail
 
-RDKIT_REF=${RDKIT_REF:-Release_2025_09_1}
+RDKIT_REF=${RDKIT_REF:-Release_2026_09_2}
 RDKIT_PREFIX=${RDKIT_PREFIX:-/opt/msani-rdkit}
 BOOST_PREFIX=${BOOST_PREFIX:-/opt/boost}
 EIGEN_REF=${EIGEN_REF:-3.4.0}
@@ -81,7 +81,8 @@ stage_rdkit() {
         -DRDK_BUILD_FREETYPE_SUPPORT=OFF \
         -DRDK_INSTALL_COMIC_FONTS=OFF \
         -DRDK_BUILD_MAEPARSER_SUPPORT=OFF \
-        -DRDK_BUILD_PUBCHEMSHAPE_SUPPORT=OFF
+        -DRDK_BUILD_PUBCHEMSHAPE_SUPPORT=OFF \
+        -DRDK_BUILD_CHEMDRAW_SUPPORT=OFF
     cmake --build /tmp/rdkit-build --parallel "$JOBS"
     cmake --install /tmp/rdkit-build
     # Record provenance so a restored SDK tarball can be matched to its pin.

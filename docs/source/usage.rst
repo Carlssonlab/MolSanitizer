@@ -451,6 +451,8 @@ The conformer generator platform can be triggered using the ``--gen3d`` or ``-3d
 
 Multiple aliphatic ring conformations are supported for RDKit and CORINA with the ``-nr`` flag.
 
+ETKDGv4 is available as an experimental alternative when the compiled extension was built against RDKit 2026.09 or newer. It is selected with the ``MSANI_EMBEDDER`` environment variable: ``etkdgv4-ic`` (ETKDGv4 starting from internal coordinates) or ``etkdgv4`` (ETKDGv4 with distance-geometry starting coordinates), each with srETKDG-v3 as the fallback. Leaving the variable unset, or setting it to ``sretkdgv3``, uses srETKDG-v3. ETKDGv4 currently yields fewer chair conformations of saturated six-membered rings than srETKDG-v3 and can keep a high-energy ring pucker, so selecting either ETKDGv4 embedder prints a one-line warning and writes it to the log. Use it only if you are sure how to deal with that.
+
 As RDKit ETKDGv3 is based on distance geometry method, it may takes a long time to generate the initial conformer for some large molecules. In this case, the program will opt for the OpenBabel method, after the timeout (default: 2 minutes) is reached. The timeout can be modified using the ``--timeout`` flag.
 
 A modified version of `TorsionLibrary v3 <https://pubs.acs.org/doi/10.1021/acs.jcim.2c00043>`_ is used to drive the generation of conformations. The modifications made and the full library can be obtained `here <https://github.com/carlssonlab/msani/blob/main/msani/Data/modified_tor_lib_2020.xml>`_. The number of conformers are controlled by the ``--numconfs`` or ``-nconfs`` flag. The default value is 2000, but it can be modified to any number. The program will sample the conformers based on the energy window (default: 25 kcal/mol) using the ``--energywindow`` or ``-w`` flag.
@@ -502,10 +504,15 @@ the number of conformers retained.
        make the filter stricter.
    * - ``--timeout``, ``-to``
      - 2 minutes
-     - Limit initial embedding before attempting Open Babel fallback.
+     - Limit initial embedding before attempting Open Babel fallback. The time
+       counts from the start of embedding; worker process start-up is excluded.
    * - ``--timeout_conf``, ``-toc``
      - 1 minute
      - Limit torsional conformer sampling separately from initial embedding.
+   * - ``--timeout_obabel``, ``-tob``
+     - 30 seconds
+     - Limit each Open Babel embedding, including the fallback after an RDKit
+       timeout. The time includes starting the ``obabel`` process.
    * - ``--forcefield``, ``-ff``
      - ``MMFF94s``
      - Force field for energy calculations; supported values are ``MMFF94``,

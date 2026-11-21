@@ -81,6 +81,7 @@ wheel.license-files = [
     "third_party/zstd/LICENSE",
     "third_party/libcxx/LICENSE",
     "third_party/zlib/LICENSE",
+    "third_party/icu/LICENSE",
 ]
 sdist.exclude = ["build/**", "dist/**", "**/.DS_Store", "**/__pycache__/**", "msani/**/*.a", ".git_archival.txt"]
 # Useful for development rebuilds
