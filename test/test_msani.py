@@ -1589,6 +1589,33 @@ class TestInitialEmbedderSelection(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.select(self.MODERN, 'etkdgv5')
 
+    def test_etkdgv4_warns_once_that_it_is_experimental(self):
+        for embedder in ('etkdgv4', 'etkdgv4-ic'):
+            with self.subTest(embedder=embedder), \
+                    patch.object(conformers, '_experimental_embedder_warned', False), \
+                    patch('builtins.print') as printed:
+                with self.assertLogs('msani', level='WARNING') as logged:
+                    conformers._warn_experimental_embedder(embedder)
+                    conformers._warn_experimental_embedder(embedder)
+                self.assertEqual(len(logged.output), 1)
+                self.assertIn(f'{embedder} is experimental', logged.output[0])
+                printed.assert_called_once()
+
+    @unittest.skipUnless(conformers.CPP_AVAILABLE, 'C++ extension not available')
+    def test_direct_generator_warns_only_for_etkdgv4(self):
+        if 'etkdgv4-ic' not in conformers.cpp_sampler.EMBEDDING_PRESETS:
+            self.skipTest('extension built without ETKDGv4')
+        with patch.object(conformers, '_warn_experimental_embedder') as warn:
+            with patch.dict(os.environ, {'MSANI_EMBEDDER': 'etkdgv4-ic'}):
+                ConformerGenerator('CCO', 'ethanol')
+            warn.assert_called_once_with('etkdgv4-ic')
+            warn.reset_mock()
+            # The default embedder, and a worker given the name by its parent, stay quiet.
+            with patch.dict(os.environ, {'MSANI_EMBEDDER': 'sretkdgv3'}):
+                ConformerGenerator('CCO', 'ethanol')
+                ConformerGenerator('CCO', 'ethanol', embedder='etkdgv4-ic')
+            warn.assert_not_called()
+
     @unittest.skipUnless(conformers.CPP_AVAILABLE, 'C++ extension not available')
     def test_extension_presets_embed(self):
         for preset in conformers.cpp_sampler.EMBEDDING_PRESETS:

@@ -451,7 +451,7 @@ The conformer generator platform can be triggered using the ``--gen3d`` or ``-3d
 
 Multiple aliphatic ring conformations are supported for RDKit and CORINA with the ``-nr`` flag.
 
-ETKDGv4 is available as an experimental alternative when the compiled extension was built against RDKit 2026.09 or newer. It is selected with the ``MSANI_EMBEDDER`` environment variable: ``etkdgv4-ic`` (ETKDGv4 starting from internal coordinates) or ``etkdgv4`` (ETKDGv4 with distance-geometry starting coordinates), each with srETKDG-v3 as the fallback. Leaving the variable unset, or setting it to ``sretkdgv3``, uses srETKDG-v3. ETKDGv4 currently yields fewer chair conformations of saturated six-membered rings than srETKDG-v3.
+ETKDGv4 is available as an experimental alternative when the compiled extension was built against RDKit 2026.09 or newer. It is selected with the ``MSANI_EMBEDDER`` environment variable: ``etkdgv4-ic`` (ETKDGv4 starting from internal coordinates) or ``etkdgv4`` (ETKDGv4 with distance-geometry starting coordinates), each with srETKDG-v3 as the fallback. Leaving the variable unset, or setting it to ``sretkdgv3``, uses srETKDG-v3. ETKDGv4 currently yields fewer chair conformations of saturated six-membered rings than srETKDG-v3 and can keep a high-energy ring pucker, so selecting either ETKDGv4 embedder prints a one-line warning and writes it to the log. Use it only if you are sure how to deal with that.
 
 As RDKit ETKDGv3 is based on distance geometry method, it may takes a long time to generate the initial conformer for some large molecules. In this case, the program will opt for the OpenBabel method, after the timeout (default: 2 minutes) is reached. The timeout can be modified using the ``--timeout`` flag.
 

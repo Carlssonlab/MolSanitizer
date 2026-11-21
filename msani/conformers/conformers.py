@@ -504,6 +504,10 @@ class ConformerGenerator:
         # srETKDGv3 chain below is the default and its fallback.
         conf_ring_descriptors_df = DataFrame()
         modern_method = _modern_embedder(self.embedder)
+        if modern_method is not None and self.embedder is None:
+            # Direct use, with the embedder taken from MSANI_EMBEDDER. A run
+            # through gen_conf_chunk has already warned and passes the name.
+            _warn_experimental_embedder(modern_method)
         if modern_method is not None:
             try:
                 conf_ring_descriptors_df = embed_fix_ring_confs(method = modern_method)
@@ -1403,6 +1407,21 @@ _DEFAULT_EMBEDDER = 'sretkdgv3'
 _OPTIONAL_EMBEDDERS = ('etkdgv4-ic', 'etkdgv4')
 
 
+_experimental_embedder_warned = False
+
+
+def _warn_experimental_embedder(embedder):
+    """Warn once per process, on the console and in the log, that `embedder` is experimental."""
+    global _experimental_embedder_warned
+    if _experimental_embedder_warned:
+        return
+    _experimental_embedder_warned = True
+    message = f'{embedder} is experimental: use it only if you are sure how to deal with it.'
+    # The console handler of the msani logger only shows errors.
+    print(f'Warning: {message}')
+    logger.warning(message)
+
+
 def _modern_embedder(requested=None):
     """Return the requested ETKDGv4 preset, or None.
 
@@ -1702,6 +1721,8 @@ def gen_conf_chunk(df: DataFrame, args, input_file='0'):
         logger.info('Initial embedder: %s (RDKit C++ %s)',
                     config.embedder,
                     getattr(cpp_sampler, 'RDKIT_CPP_VERSION', 'unknown') if CPP_AVAILABLE else 'unavailable')
+        if config.embedder != _DEFAULT_EMBEDDER:
+            _warn_experimental_embedder(config.embedder)
     if 'mol' not in df.columns:
         df = df.copy()
         df.loc[:, 'mol'] = df['smiles'].apply(Chem.MolFromSmiles)
