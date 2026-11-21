@@ -26,7 +26,7 @@ from msani.batchmode import (
     parse_flags_single_job,
     prepare_batch_input,
 )
-from msani.conformers import mol2writer, utils
+from msani.conformers import conformers, mol2writer, utils
 from msani.conformers.conformers import CPP_AVAILABLE, ConformerGenerator
 from msani.db2.db2writer import write_db2
 from msani.filtering.filters import (
@@ -1555,6 +1555,80 @@ class TestEmbeddingFallbacks(unittest.TestCase):
              patch.object(ConformerGenerator, '_embed_smiles_babel') as babel:
             generator._embed_smiles_rdkit()
         babel.assert_called_once()
+
+
+class TestInitialEmbedderSelection(unittest.TestCase):
+    """srETKDGv3 is the default; ETKDGv4 is opt-in through MSANI_EMBEDDER."""
+
+    MODERN = SimpleNamespace(EMBEDDING_PRESETS=('etkdgv3', 'etkdgv4', 'etkdgv4-ic', 'sretkdgv3'))
+    LEGACY = SimpleNamespace(EMBEDDING_PRESETS=('etkdgv3', 'sretkdgv3'))
+
+    def select(self, module, embedder=None):
+        environment = {} if embedder is None else {'MSANI_EMBEDDER': embedder}
+        with patch.object(conformers, 'cpp_sampler', module, create=True), \
+                patch.object(conformers, 'CPP_AVAILABLE', True), \
+                patch.dict(os.environ, environment):
+            if embedder is None:
+                os.environ.pop('MSANI_EMBEDDER', None)
+            return conformers._modern_embedder()
+
+    def test_default_is_sretkdgv3(self):
+        # None selects the srETKDGv3 chain, whatever the extension supports.
+        self.assertIsNone(self.select(self.MODERN))
+        self.assertIsNone(self.select(self.LEGACY))
+        self.assertIsNone(self.select(SimpleNamespace()))
+        self.assertEqual(conformers._DEFAULT_EMBEDDER, 'sretkdgv3')
+
+    def test_environment_override(self):
+        self.assertEqual(self.select(self.MODERN, 'ETKDGv4'), 'etkdgv4')
+        self.assertEqual(self.select(self.MODERN, 'etkdgv4-ic'), 'etkdgv4-ic')
+        self.assertIsNone(self.select(self.MODERN, 'srETKDGv3'))
+        self.assertIsNone(self.select(self.LEGACY, 'sretkdgv3'))
+        with self.assertRaises(RuntimeError):
+            self.select(self.LEGACY, 'etkdgv4-ic')
+        with self.assertRaises(ValueError):
+            self.select(self.MODERN, 'etkdgv5')
+
+    def test_etkdgv4_warns_once_that_it_is_experimental(self):
+        for embedder in ('etkdgv4', 'etkdgv4-ic'):
+            with self.subTest(embedder=embedder), \
+                    patch.object(conformers, '_experimental_embedder_warned', False), \
+                    patch('builtins.print') as printed:
+                with self.assertLogs('msani', level='WARNING') as logged:
+                    conformers._warn_experimental_embedder(embedder)
+                    conformers._warn_experimental_embedder(embedder)
+                self.assertEqual(len(logged.output), 1)
+                self.assertIn(f'{embedder} is experimental', logged.output[0])
+                printed.assert_called_once()
+
+    @unittest.skipUnless(conformers.CPP_AVAILABLE, 'C++ extension not available')
+    def test_direct_generator_warns_only_for_etkdgv4(self):
+        if 'etkdgv4-ic' not in conformers.cpp_sampler.EMBEDDING_PRESETS:
+            self.skipTest('extension built without ETKDGv4')
+        with patch.object(conformers, '_warn_experimental_embedder') as warn:
+            with patch.dict(os.environ, {'MSANI_EMBEDDER': 'etkdgv4-ic'}):
+                ConformerGenerator('CCO', 'ethanol')
+            warn.assert_called_once_with('etkdgv4-ic')
+            warn.reset_mock()
+            # The default embedder, and a worker given the name by its parent, stay quiet.
+            with patch.dict(os.environ, {'MSANI_EMBEDDER': 'sretkdgv3'}):
+                ConformerGenerator('CCO', 'ethanol')
+                ConformerGenerator('CCO', 'ethanol', embedder='etkdgv4-ic')
+            warn.assert_not_called()
+
+    @unittest.skipUnless(conformers.CPP_AVAILABLE, 'C++ extension not available')
+    def test_extension_presets_embed(self):
+        for preset in conformers.cpp_sampler.EMBEDDING_PRESETS:
+            if preset not in ('sretkdgv3', 'etkdgv4', 'etkdgv4-ic'):
+                continue
+            with self.subTest(preset=preset):
+                mol = Chem.AddHs(Chem.MolFromSmiles('CC(C)Cc1ccc(cc1)C(C)C(=O)O'))
+                result = conformers.cpp_sampler.embed_multiple_confs(
+                    mol, 4, {'preset': preset, 'randomSeed': 42, 'numThreads': 1}, None)
+                self.assertGreater(result.GetNumConformers(), 0)
+        with self.assertRaises(RuntimeError):
+            conformers.cpp_sampler.embed_multiple_confs(
+                Chem.AddHs(Chem.MolFromSmiles('CCO')), 1, {'preset': 'sretkdgv3', 'randomSed': 1}, None)
 
 
 if __name__ == '__main__':

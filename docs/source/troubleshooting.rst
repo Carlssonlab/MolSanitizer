@@ -101,6 +101,10 @@ Common problems
   is unavailable or the fallback fails, the reason is recorded and processing
   continues with other molecules. ``--timeout_conf`` separately limits
   torsional sampling; consult ``--help_advanced`` for its current setting.
+  ``--timeout_obabel`` (seconds, default 30) limits the Open Babel fallback.
+  The limits are wall-clock times, so on a heavily loaded machine (for example
+  under memory pressure or disk contention) simple molecules can time out.
+  Rerun failed molecules when the machine is quieter, or raise the limits.
 * **Fewer conformers than requested:** ``--numconfs`` is a maximum. Symmetry,
   molecular rigidity, RMSD pruning, energy/clash filters, and time limits can
   all reduce the ensemble size.

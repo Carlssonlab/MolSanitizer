@@ -5,9 +5,18 @@ Supported environments
 ----------------------
 
 Package metadata requires Python ``>=3.10,<3.15`` and RDKit ``>=2025.3.1``.
-The source-build Conda environment requests RDKit ``>=2025.9.1``. These are
+The source-build Conda environment pins RDKit ``2026.9.2``, the release the
+wheels are built with, because the conformers produced depend on the RDKit
+release. These are
 installation requirements; they do not mean every permitted combination has
 been tested.
+
+The initial embedding runs inside MolSanitizer's compiled extension, on the
+RDKit C++ libraries the extension was built with, not on the installed Python
+RDKit. The default embedder, srETKDGv3, is available in every build. The
+optional ETKDGv4 embedders (see ``MSANI_EMBEDDER`` in the usage guide) need an
+extension built against RDKit ``>=2026.09``. The log line
+``Initial embedder: ...`` shows which one a run uses.
 
 
 .. list-table:: Reported platform testing
