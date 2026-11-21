@@ -156,16 +156,19 @@ PYBIND11_MODULE(msani_stereoisomers, m) {
         .def_readwrite("timeout", &StereoEnumerationOptions::timeout,
                        "Wall-clock timeout in seconds. 0 = no limit. Enumeration stops early"
                        " and returns whatever isomers were collected within the time window."
-                       " Default=0.")
+                       " With tryEmbedding, the embedding running at that moment can overshoot"
+                       " the limit by up to 1 s. Default=0.")
         .def_readwrite("useRingSystemFilter", &StereoEnumerationOptions::useRingSystemFilter,
                        "If true, stereoisomers of bridged ring systems that are known to be"
                        " impossible in 3D are discarded from the parities of their bridgeheads,"
-                       " without embedding them. Default=True.")
+                       " without embedding them, whether or not tryEmbedding is set. The patterns"
+                       " only cover ring systems made of neutral C, N, O and S atoms (plus N+)."
+                       " Default=True.")
         .def_readwrite("embedMaxAttempts", &StereoEnumerationOptions::embedMaxAttempts,
                        "Only used with tryEmbedding: the number of embedding attempts made before"
                        " a stereoisomer is declared non-physical. 0 means RDKit's default (10 x the"
                        " number of atoms), which makes every impossible stereoisomer very expensive"
-                       " to reject. Ignored (no cap) when built against RDKit < 2026.09. Default=20.");
+                       " to reject. Default=20.");
 
     // Expose dictionary-based enumeration function
     m.def("enumerate_stereoisomers", &enumerate_stereoisomers,

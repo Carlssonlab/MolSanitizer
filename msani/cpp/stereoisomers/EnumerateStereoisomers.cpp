@@ -30,16 +30,19 @@ namespace {
 // a large flexible molecule, so its attempts can't be capped without losing
 // valid stereoisomers.  Starting from internal coordinates (RDKit >= 2026.09)
 // nearly always succeeds within a few attempts, which is what makes the cap
-// safe.  Older RDKit releases keep the uncapped distance geometry embedding.
-// The member is detected at compile time because RDKit's RDKIT_VERSION macro
-// is not usable from the installed headers.
+// safe.  Building against an older RDKit is therefore refused.  The member
+// is detected at compile time because RDKit's RDKIT_VERSION macro is not
+// usable from the installed headers.
 template <typename Params>
 void capEmbeddingAttempts(Params &params, unsigned int maxAttempts) {
-  if constexpr (requires { params.initialEmbeddingMode; }) {
-    using Mode = decltype(params.initialEmbeddingMode);
-    params.initialEmbeddingMode = Mode::INTERNAL_COORDINATE_EMBEDDING;
-    params.maxIterations = maxAttempts;
-  }
+  static_assert(
+      requires { params.initialEmbeddingMode; },
+      "MolSanitizer must be built against RDKit >= 2026.09 (internal-"
+      "coordinate embedding). Install a newer librdkit-dev, or install the "
+      "prebuilt wheel from PyPI.");
+  using Mode = decltype(params.initialEmbeddingMode);
+  params.initialEmbeddingMode = Mode::INTERNAL_COORDINATE_EMBEDDING;
+  params.maxIterations = maxAttempts;
 }
 }  // namespace
 
@@ -91,8 +94,8 @@ StereoisomerEnumerator::StereoisomerEnumerator(
     // in the mol (maybe we haven't found them yet?)
     if (auto ri = mol.getRingInfo();
         !ri || !ri->isInitialized() || ri->atomRings().size() > 1) {
-      getRingPatternsParityRelations(mol, d_pattern_same_parity,
-                                     d_pattern_opposite_parity);
+      msani::getRingPatternsParityRelations(mol, d_pattern_same_parity,
+                                            d_pattern_opposite_parity);
     }
   }
 }
@@ -228,6 +231,12 @@ std::unique_ptr<ROMol> StereoisomerEnumerator::generateRandomIsomer() {
         if (embeddable(*isomer)) {
           return isomer;
         }
+        if (d_options.timeout > 0.0 && secondsLeft() <= 0.0) {
+          // The embedding was cut short by the deadline, which says nothing
+          // about whether the isomer can exist: stop here instead of
+          // reporting it as non-physical.
+          return std::unique_ptr<ROMol>();
+        }
         if (d_verbose) {
           BOOST_LOG(rdInfoLog)
               << MolToSmiles(*isomer) << "     failed to embed." << std::endl;
@@ -248,12 +257,18 @@ bool StereoisomerEnumerator::embeddable(ROMol &isomer) {
   // An impossible stereoisomer burns through every attempt before it fails,
   // so the number of attempts is what makes rejecting one expensive.
   capEmbeddingAttempts(params, d_options.embedMaxAttempts);
+  // A default EmbedParameters leaves these off, but the EmbedMolecule(mol)
+  // overload this code used to call turns them on.  Keep them on, so that
+  // macrocycles are validated with the same distance bounds as before.
+  params.useMacrocycleTorsions = true;
+  params.useMacrocycle14config = true;
   if (d_options.randomSeed >= 0) {
     params.randomSeed = d_options.randomSeed;
   }
   if (d_options.timeout > 0.0) {
     // Don't let a single embedding run past the enumeration deadline.
-    // RDKit's timeout has a resolution of one second.
+    // RDKit's timeout has a resolution of one second, so the embedding that
+    // is running when the deadline passes can overshoot it by up to 1 s.
     params.timeout = static_cast<unsigned int>(
         std::max(1.0, std::ceil(secondsLeft())));
   }

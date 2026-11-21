@@ -12,6 +12,10 @@
 // EnumerateStereoisomers"), which is not part of an RDKit release yet.
 // Keep the patterns in sync with upstream.
 //
+// Differences from upstream: the declarations are wrapped in namespace msani
+// so that they cannot clash with RDKit's own copy once a release ships it,
+// and RingSystemFilter.cpp includes <algorithm>.
+//
 #pragma once
 
 #include <set>
@@ -22,6 +26,8 @@ namespace RDKit {
 class ROMol;
 }
 
+namespace msani {
+
 using FilterPattern_t =
     std::pair<RDKit::ROMol, std::vector<std::pair<unsigned int, int>>>;
 
@@ -31,3 +37,5 @@ void getRingPatternsParityRelations(
     const RDKit::ROMol &mol,
     std::set<std::pair<unsigned int, unsigned int>> &same,
     std::set<std::pair<unsigned int, unsigned int>> &opposite);
+
+}  // namespace msani

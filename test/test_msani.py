@@ -2,6 +2,7 @@ import contextlib
 import io
 import unittest
 import tempfile
+import time
 import os
 import shutil
 import tarfile
@@ -652,9 +653,10 @@ class Test_MolSanitizer(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             args = self.generate_mock_arguments([f'{self.path}/in_stereo_complex.txt'],
                                                 ['stereoisomers', 'test'], temp_dir)
-            # The molecule no longer takes long enough to enumerate for a
-            # realistic timeout to expire, so force the timeout: no isomer
-            # is produced and the input SMILES must be kept.
+            # Force the timeout to expire before the first isomer: none is
+            # produced and the input SMILES must be kept.  What a realistic
+            # timeout returns is covered by
+            # test_stereoisomers_timeout_returns_partial_set.
             args.stereo_timeout = 1e-6
             args.max_isomers = 128
             cli.clean_data(args)
@@ -686,6 +688,78 @@ class Test_MolSanitizer(unittest.TestCase):
         # far more than the default cap.
         orlistat = 'CCCCCCCCCCCC(CC1OC(=O)C1CCCCCC)OC(=O)C(CC(C)C)NC=O'
         self.assertEqual(len(ms.enumerate_stereoisomers(orlistat, options)), 16)
+
+    def test_stereoisomers_timeout_returns_partial_set(self):
+        """A timeout that expires part-way returns the isomers validated so
+        far: a subset of the full set, never an isomer the full run rejects."""
+        import msani_stereoisomers as ms
+        with open(f'{self.path}/in_stereo_complex.txt') as handle:
+            smiles = handle.read().split()[0]
+        options = {'randomSeed': 42, 'tryEmbedding': True, 'maxIsomers': 128}
+        full = ms.enumerate_stereoisomers(smiles, options)
+        self.assertGreater(len(full), 1)
+        start = time.perf_counter()
+        # Short enough to expire part-way on most machines; the assertions
+        # hold wherever it happens to cut.
+        partial = ms.enumerate_stereoisomers(
+            smiles, {**options, 'timeout': 0.05})
+        elapsed = time.perf_counter() - start
+        self.assertLessEqual(set(partial), set(full))
+        # The embedding running at the deadline may overshoot it by up to
+        # 1 s; allow some slack for a loaded machine.
+        self.assertLess(elapsed, 5)
+
+    def test_stereoisomers_ring_system_filter_keeps_possible_isomers(self):
+        """Ring fusions that exist in both configurations, and spiro
+        centres, must pass the filter untouched."""
+        import msani_stereoisomers as ms
+        options = {'randomSeed': 42, 'tryEmbedding': False}
+        must_keep = {
+            'decalin': 'C1CCC2CCCCC2C1',
+            'bicyclo[3.3.0]octane': 'C1CC2CCCC2C1',
+            'hydrindane': 'C1CCC2CCCC2C1',
+            'spiro[5.5]undecane': 'CC1CCCC2(C1)CCCC(C)C2',
+        }
+        for name, smiles in must_keep.items():
+            with self.subTest(name):
+                unfiltered = ms.enumerate_stereoisomers(
+                    smiles, {**options, 'useRingSystemFilter': False})
+                filtered = ms.enumerate_stereoisomers(smiles, options)
+                self.assertGreater(len(unfiltered), 1)
+                self.assertEqual(sorted(filtered), sorted(unfiltered))
+
+    def test_stereoisomers_ring_system_filter_cage_systems(self):
+        """On cage and bridged polycyclic systems the filter must fire, and
+        must never discard an isomer that embedding accepts."""
+        import msani_stereoisomers as ms
+        options = {'randomSeed': 42, 'tryEmbedding': False}
+        cages = {
+            'adamantane': 'CC12CC3CC(C1)CC(O)(C3)C2',
+            'camphor': 'CC1(C)C2CCC1(C)C(=O)C2',
+            'tropine': 'CN1C2CCC1CC(O)C2',
+        }
+        for name, smiles in cages.items():
+            with self.subTest(name):
+                unfiltered = ms.enumerate_stereoisomers(
+                    smiles, {**options, 'useRingSystemFilter': False})
+                filtered = ms.enumerate_stereoisomers(smiles, options)
+                embedded = ms.enumerate_stereoisomers(
+                    smiles, {**options, 'tryEmbedding': True,
+                             'useRingSystemFilter': False,
+                             'embedMaxAttempts': 0})
+                self.assertLess(len(filtered), len(unfiltered))
+                self.assertLessEqual(set(embedded), set(filtered))
+
+    def test_stereoisomerizer_exposes_ring_system_filter(self):
+        """The filter is on by default in Stereoisomerizer and can be
+        switched off."""
+        from msani.moltransform.stereoisomers import Stereoisomerizer
+        smiles = 'OC1CC2CCC1C2O'  # a norbornane diol
+        default = Stereoisomerizer(randomSeed=42).enumerate(smiles)
+        unfiltered = Stereoisomerizer(
+            randomSeed=42, useRingSystemFilter=False).enumerate(smiles)
+        self.assertEqual(len(default), 8)
+        self.assertEqual(len(unfiltered), 16)
 
     def test_neutralize(self):
         with tempfile.TemporaryDirectory() as temp_dir:

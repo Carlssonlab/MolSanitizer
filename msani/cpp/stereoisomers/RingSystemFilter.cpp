@@ -96,6 +96,8 @@ bool isParitySwapped(const RDKit::ROMol &mol, const RDKit::ROMol &pattern,
 }
 }  // namespace
 
+namespace msani {
+
 // Lazily initialize the patterns
 const std::vector<FilterPattern_t> &getRingSystemFilterPatterns() {
   // Note: the "1" and "-1" values for the "parity" atom property are arbitrary:
@@ -330,3 +332,5 @@ void getRingPatternsParityRelations(
     }
   }
 }
+
+}  // namespace msani
