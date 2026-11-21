@@ -761,6 +761,94 @@ class Test_MolSanitizer(unittest.TestCase):
         self.assertEqual(len(default), 8)
         self.assertEqual(len(unfiltered), 16)
 
+    # A PITA compound with one stereocentre left open.  Both isomers embed
+    # (ETKDGv3 and plain distance geometry, 20/20 seeds), but the capped
+    # internal-coordinate embedding rejects them with seed 42.
+    PITA_ONE_CENTRE_OPEN = (
+        'C[S@@H+]([O-])C[C@@](C)(O)C1OC(=O)C=C2[C@@]3(C)C[C@@H]4O[C@H]4'
+        '[C@@]4(C)C(=O)O[C@@H]([C@H]43)[C@@H]3O[C@@]213')
+
+    def test_stereoisomers_embedding_fallback_keeps_valid_isomers(self):
+        """An isomer the capped embedding rejects is retried with the
+        uncapped ETKDGv3 embedding before it is declared non-physical."""
+        import msani_stereoisomers as ms
+        options = {'randomSeed': 42, 'tryEmbedding': True, 'maxIsomers': 0}
+        for attempts in (20, 0):
+            with self.subTest(embedMaxAttempts=attempts):
+                isomers = ms.enumerate_stereoisomers(
+                    self.PITA_ONE_CENTRE_OPEN,
+                    {**options, 'embedMaxAttempts': attempts})
+                self.assertEqual(len(isomers), 2)
+
+    def test_stereoisomers_embedding_fallback_keeps_strained_trans_fusion(self):
+        """trans-Bicyclo[4.1.0]heptane exists (ETKDGv3 embeds it for every
+        seed), but the capped embedding never embeds it.  The fallback must
+        keep both trans enantiomers next to the cis (meso) isomer."""
+        import msani_stereoisomers as ms
+        options = {'randomSeed': 42, 'tryEmbedding': True, 'maxIsomers': 0}
+        isomers = ms.enumerate_stereoisomers('C1CCC2CC2C1', options)
+        self.assertEqual({Chem.CanonSmiles(smi) for smi in isomers},
+                         {Chem.CanonSmiles(smi) for smi in (
+                             'C1CC[C@H]2C[C@H]2C1',     # cis
+                             'C1CC[C@@H]2C[C@H]2C1',    # trans
+                             'C1CC[C@H]2C[C@@H]2C1')})  # trans
+
+    def test_stereoisomers_embed_attempts_zero_skips_capped_embedding(self):
+        """embedMaxAttempts=0 uses only the plain uncapped embedding, as before
+        the capped embedding was introduced."""
+        import msani_stereoisomers as ms
+        options = {'randomSeed': 42, 'tryEmbedding': True, 'maxIsomers': 0,
+                   'embedMaxAttempts': 0}
+        self.assertEqual(len(ms.enumerate_stereoisomers(
+            self.PITA_ONE_CENTRE_OPEN, options)), 2)
+        # The ring-system filter alone decides the norbornane diol.
+        self.assertEqual(len(ms.enumerate_stereoisomers(
+            'OC1CC2CCC1C2O', options)), 8)
+
+    def test_msani_passes_stereo_embedding_options(self):
+        """Msani and the msani CLI pass the ring-system filter switch and
+        the embedding attempts on to Stereoisomerizer."""
+        from msani.api import Msani
+        default = Msani(stereoisomers=True)
+        default._prepare_transformers()
+        options = default._transformers['stereo'].options
+        self.assertTrue(options['useRingSystemFilter'])
+        self.assertEqual(options['embedMaxAttempts'], 20)
+
+        custom = Msani(stereoisomers=True, stereo_ring_filter=False,
+                       stereo_embed_attempts=0)
+        custom._prepare_transformers()
+        options = custom._transformers['stereo'].options
+        self.assertFalse(options['useRingSystemFilter'])
+        self.assertEqual(options['embedMaxAttempts'], 0)
+        with self.assertRaises(ValueError):
+            Msani(stereoisomers=True, stereo_embed_attempts=-1)
+
+        args = parsers.parseArguments([])
+        self.assertTrue(args.stereo_ring_filter)
+        self.assertEqual(args.stereo_embed_attempts, 20)
+        args, parser = parsers.parseArguments(
+            ['--no-stereo_ring_filter', '--stereo_embed_attempts', '0'],
+            batch_mode=True)
+        self.assertFalse(args.stereo_ring_filter)
+        self.assertEqual(args.stereo_embed_attempts, 0)
+        flags = parse_flags_single_job(args, parser)
+        self.assertIn('--no-stereo_ring_filter', flags)
+        self.assertIn("--stereo_embed_attempts '0'", flags)
+        with self.assertRaises(SystemExit), contextlib.redirect_stderr(io.StringIO()):
+            parsers.parseArguments(['--stereo_embed_attempts', '-1'])
+
+        created = []
+        with tempfile.TemporaryDirectory() as temp_dir, \
+                patch.object(cli, 'Msani', side_effect=lambda **kw: created.append(kw) or Msani(**kw)):
+            args = self.generate_mock_arguments(
+                [f'{self.path}/in_stereo.txt'], ['stereoisomers', 'test'], temp_dir)
+            args.stereo_ring_filter = False
+            args.stereo_embed_attempts = 5
+            cli.clean_data(args)
+        self.assertFalse(created[0]['stereo_ring_filter'])
+        self.assertEqual(created[0]['stereo_embed_attempts'], 5)
+
     def test_neutralize(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             args = self.generate_mock_arguments([f'{self.path}/in_neutralize.txt'],
