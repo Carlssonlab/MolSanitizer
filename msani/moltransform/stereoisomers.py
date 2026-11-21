@@ -35,8 +35,17 @@ class Stereoisomerizer:
     unique : bool, default = True.
         If true, only stereoisomers that differ in canonical SMILES will be returned.
     tryEmbedding : bool, default = False.
-        If true, the process attempts to generate a standard RDKit distance geometry conformation for
-        the stereoisomer. If this fails, we assume that the stereoisomer is non-physical and don't return it.
+        If true, the process attempts to embed the stereoisomer in 3D with RDKit, starting from
+        internal coordinates. If this fails, we assume that the stereoisomer is non-physical and don't return it.
+    useRingSystemFilter : bool, default = True.
+        If true, stereoisomers of bridged ring systems that are known to be impossible in 3D (e.g. a
+        norbornane with inverted bridgeheads) are discarded from the parities of their bridgeheads, without
+        embedding them. This applies whether or not ``tryEmbedding`` is set. The patterns only cover ring
+        systems made of neutral C, N, O and S atoms (plus N+); anything else is left to ``tryEmbedding``.
+    embedMaxAttempts : int, default = 20.
+        Only used with ``tryEmbedding``: the number of embedding attempts made before a stereoisomer is
+        declared non-physical. 0 means RDKit's default (10 x the number of atoms), which makes every
+        impossible stereoisomer very expensive to reject.
     randomSeed: int, default = -1.
         Random seed for choosing a random subset of stereoisomers of a given compound.
     numcores: int, default = 1.
@@ -44,7 +53,8 @@ class Stereoisomerizer:
     timeout: int, default = 60.
         Maximum number of seconds to spend enumerating stereoisomers for a single molecule. If the timeout is
         reached, a partial set of stereoisomers may be returned; if no stereoisomers are generated (e.g., due to
-        timeout or an error), the original input SMILES is kept.
+        timeout or an error), the original input SMILES is kept. With ``tryEmbedding``, the embedding that is
+        running when the timeout expires can overshoot it by up to one second.
     useCorina: bool, default = False.
         Use CORINA rather than RDKit to enumerate stereoisomers.
     corinaPath: str, optional.
@@ -84,7 +94,9 @@ class Stereoisomerizer:
                 timeout: int = 60,
                 useCorina: bool = False,
                 corinaPath: str = None,
-                debug: bool = False
+                debug: bool = False,
+                useRingSystemFilter: bool = True,
+                embedMaxAttempts: int = 20
                 ):
 
         self.options = {
@@ -95,6 +107,8 @@ class Stereoisomerizer:
             'tryEmbedding': tryEmbedding,
             'randomSeed': randomSeed,
             'timeout': float(timeout),
+            'useRingSystemFilter': useRingSystemFilter,
+            'embedMaxAttempts': embedMaxAttempts,
             'useCorina': useCorina,
             'corinaPath': corinaPath
         }
@@ -346,8 +360,21 @@ def main():
     parser.add_argument(
         '--tryEmbedding',
         action='store_true',
-        help="If true, the process attempts to generate a standard RDKit distance geometry conformation for the stereoisomer. If this fails, we assume that the stereoisomer is non-physical and don't return it. Default is False.",
+        help="If true, the process attempts to embed the stereoisomer in 3D with RDKit. If this fails, we assume that the stereoisomer is non-physical and don't return it. Default is False.",
         default=False
+    )
+    parser.add_argument(
+        '--no-ring-system-filter',
+        dest='useRingSystemFilter',
+        action='store_false',
+        help="Keep stereoisomers of bridged ring systems that are known to be impossible in 3D. By default they are discarded from the parities of their bridgeheads, with or without --tryEmbedding.",
+        default=True
+    )
+    parser.add_argument(
+        '--embedMaxAttempts',
+        type=int,
+        default=20,
+        help="With --tryEmbedding, the number of embedding attempts made before a stereoisomer is declared non-physical. 0 means RDKit's default (10 x the number of atoms). Default is 20."
     )
     parser.add_argument(
         '--randomSeed',
@@ -388,7 +415,9 @@ def main():
         randomSeed=args.randomSeed,
         numcores=args.numcores,
         timeout=args.timeout,
-        debug=args.debug
+        debug=args.debug,
+        useRingSystemFilter=args.useRingSystemFilter,
+        embedMaxAttempts=args.embedMaxAttempts
     )
 
     if args.smiles is not None:

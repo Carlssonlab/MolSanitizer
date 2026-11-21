@@ -39,7 +39,20 @@ class StereoEnumerationOptions:
     randomSeed : int
         Seed for random number generator. Default=-1 means no seed.
     timeout : float
-        Wall-clock timeout in seconds. 0 = no limit. Default=0
+        Wall-clock timeout in seconds. 0 = no limit. With tryEmbedding, the
+        embedding running when the limit is reached can overshoot it by up to
+        1 s. Default=0
+    useRingSystemFilter : bool
+        If true, stereoisomers of bridged ring systems that are known to be
+        impossible in 3D are discarded from the parities of their bridgeheads,
+        without embedding them, whether or not tryEmbedding is set. The patterns
+        only cover ring systems made of neutral C, N, O and S atoms (plus N+).
+        Default=True.
+    embedMaxAttempts : int
+        Only used with tryEmbedding: the number of embedding attempts made before
+        a stereoisomer is declared non-physical. 0 means RDKit's default (10 x the
+        number of atoms), which makes every impossible stereoisomer very expensive
+        to reject. Default=20.
     """
 
     tryEmbedding: bool
@@ -49,6 +62,8 @@ class StereoEnumerationOptions:
     maxIsomers: int
     randomSeed: int
     timeout: float
+    useRingSystemFilter: bool
+    embedMaxAttempts: int
 
     def __init__(self) -> None: ...
 
@@ -74,6 +89,8 @@ def enumerate_stereoisomers(
         - tryEmbedding (bool): Validate stereoisomers via embedding. Default=False
         - randomSeed (int): Random seed for subset selection. Default=-1
         - timeout (float): Wall-clock timeout in seconds. 0 = no limit. Default=0
+        - useRingSystemFilter (bool): Discard known-impossible bridged ring isomers. Default=True
+        - embedMaxAttempts (int): Embedding attempts per isomer with tryEmbedding. Default=20
 
     verbose : bool, optional
         Enable verbose output. Default=False

@@ -24,7 +24,9 @@
 
 #include <random>
 #include <chrono>
+#include <set>
 #include <unordered_set>
+#include <utility>
 
 #include <boost/dynamic_bitset/dynamic_bitset.hpp>
 
@@ -66,6 +68,28 @@ struct MSANI_ENUMERATESTEREOISOMERS_EXPORT StereoEnumerationOptions {
   double timeout{0.0};  // Wall-clock timeout in seconds.  0 means no limit.
                           // When the limit is reached, enumeration stops and
                           // returns whatever isomers were found so far.
+                          // With tryEmbedding, the embedding running at that
+                          // moment can overshoot the limit by up to 1 s
+                          // (the resolution of RDKit's embedding timeout).
+  bool useRingSystemFilter{true};  // If true, stereoisomers of bridged ring
+                                   // systems that are known to be impossible
+                                   // in 3D are discarded from the parities
+                                   // of their bridgeheads, without embedding
+                                   // them.  Applied whether or not
+                                   // tryEmbedding is set.  The patterns only
+                                   // cover ring systems made of neutral C, N,
+                                   // O and S atoms (plus N+); anything else
+                                   // is left to tryEmbedding.
+  unsigned int embedMaxAttempts{20};  // Only used with tryEmbedding: the
+                                      // number of embedding attempts made
+                                      // before a stereoisomer is declared
+                                      // non-physical.  0 means RDKit's
+                                      // default (10 x the number of atoms),
+                                      // which makes every impossible
+                                      // stereoisomer very expensive to
+                                      // reject.  Uses internal-coordinate
+                                      // embedding, which is why the build
+                                      // requires RDKit >= 2026.09.
 };
 
 // Class that enumerates the stereoisomers of a molecule.  Acts like a
@@ -85,6 +109,11 @@ class MSANI_ENUMERATESTEREOISOMERS_EXPORT StereoisomerEnumerator {
       delete;
   StereoisomerEnumerator &operator=(StereoisomerEnumerator &&other) = delete;
 
+  // The number of stereo configurations that will be tried: 2**N, where N
+  // is the number of stereo elements being enumerated.  This is an upper
+  // bound on what next() yields: duplicates (unique), isomers rejected by
+  // the ring system filter or by tryEmbedding, maxIsomers and the timeout
+  // all reduce it.
   std::uint64_t getStereoisomerCount() const;
 
   // Return another stereoisomer, or an empty unique_ptr if we're done.
@@ -118,8 +147,17 @@ class MSANI_ENUMERATESTEREOISOMERS_EXPORT StereoisomerEnumerator {
   // Wall-clock start time, used to enforce d_options.timeout.
   std::chrono::steady_clock::time_point d_startTime;
 
+  // Pairs of atoms that must have the same/opposite parities for the
+  // ring system they are in to be possible in 3D.
+  std::set<std::pair<unsigned int, unsigned int>> d_pattern_same_parity;
+  std::set<std::pair<unsigned int, unsigned int>> d_pattern_opposite_parity;
+
   void buildFlippers();
   std::unique_ptr<ROMol> generateRandomIsomer();
+  bool passesRingPatternsCheck(const ROMol &mol) const;
+  // Seconds left before d_options.timeout expires; negative once it has.
+  // Only meaningful if d_options.timeout > 0.
+  double secondsLeft() const;
   bool embeddable(ROMol &isomer);
 };
 }  // namespace EnumerateStereoisomers

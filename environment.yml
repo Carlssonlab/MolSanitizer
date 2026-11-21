@@ -11,10 +11,10 @@ dependencies:
   - pandas
   - pip
   # They are pinned to the release the wheel SDK is built with, because the
-  # conformers produced depend on the RDKit release. RDKit >= 2026.09 makes the
-  # optional ETKDGv4 embedders available; older releases still build. To build
-  # against an older release, pin both lines to it, e.g. rdkit=2025.9.1 and
-  # librdkit-dev=2025.9.1.
+  # conformers produced depend on the RDKit release. A source build needs
+  # RDKit >= 2026.09: the stereoisomer extension uses its internal-coordinate
+  # embedding and refuses to compile against older headers. (Wheels from PyPI
+  # link RDKit statically and still run with older Python RDKit releases.)
   - rdkit=2026.9.2
   - librdkit-dev=2026.9.2
   - libboost-devel

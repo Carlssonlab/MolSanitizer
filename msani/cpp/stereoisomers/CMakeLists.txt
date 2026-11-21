@@ -110,6 +110,22 @@ find_package(pybind11 CONFIG REQUIRED)
 # Prefer imported RDKit targets via CMake config (Conda installs ship RDKitConfig.cmake)
 find_package(RDKit CONFIG QUIET)
 
+# The stereoisomer validation relies on internal-coordinate embedding, which
+# RDKit only has from 2026.09 on.  This is a requirement on the RDKit C++
+# libraries the extension is built against, not on the Python RDKit package
+# it runs next to.  The manual fallback below has no version to check, so
+# EnumerateStereoisomers.cpp repeats the requirement as a static_assert.
+set(MSANI_MIN_RDKIT_BUILD_VERSION "2026.09.2")
+if(RDKit_FOUND AND RDKit_VERSION
+   AND RDKit_VERSION VERSION_LESS MSANI_MIN_RDKIT_BUILD_VERSION)
+    message(FATAL_ERROR
+        "MolSanitizer must be built against RDKit >= "
+        "${MSANI_MIN_RDKIT_BUILD_VERSION}, but found RDKit ${RDKit_VERSION} "
+        "at ${RDKit_DIR}. Install a newer librdkit-dev (see environment.yml), "
+        "or install the prebuilt wheel from PyPI, which runs with older "
+        "Python RDKit releases.")
+endif()
+
 # Fallback: manual header/lib discovery
 if(NOT RDKit_FOUND)
     # Find RDKit include directory
@@ -126,6 +142,7 @@ if(NOT RDKit_FOUND)
     # Find RDKit libraries (Windows .lib in Library/lib; Unix in lib)
     set(RDKIT_LIB_NAMES
         RDKitGraphMol
+        RDKitSubstructMatch
         RDKitSmilesParse
         RDKitRDGeneral
         RDKitDistGeomHelpers
@@ -152,7 +169,8 @@ if(NOT RDKit_FOUND)
 endif()
 
 msani_select_rdkit_targets(MSANI_STEREO_RDKIT_TARGETS
-    RDGeneral SmilesParse GraphMol ForceField ForceFieldHelpers DistGeomHelpers
+    RDGeneral SmilesParse GraphMol SubstructMatch ForceField ForceFieldHelpers
+    DistGeomHelpers
 )
 
 # Find Boost (required by RDKit)
@@ -162,6 +180,7 @@ find_package(Boost REQUIRED)
 add_library(stereoisomer_lib STATIC
     EnumerateStereoisomers.cpp
     Flippers.cpp
+    RingSystemFilter.cpp
 )
 msani_configure_native_static_target(stereoisomer_lib)
 if(TARGET Boost::headers)
