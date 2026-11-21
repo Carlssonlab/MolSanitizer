@@ -504,10 +504,15 @@ the number of conformers retained.
        make the filter stricter.
    * - ``--timeout``, ``-to``
      - 2 minutes
-     - Limit initial embedding before attempting Open Babel fallback.
+     - Limit initial embedding before attempting Open Babel fallback. The time
+       counts from the start of embedding; worker process start-up is excluded.
    * - ``--timeout_conf``, ``-toc``
      - 1 minute
      - Limit torsional conformer sampling separately from initial embedding.
+   * - ``--timeout_obabel``, ``-tob``
+     - 30 seconds
+     - Limit each Open Babel embedding, including the fallback after an RDKit
+       timeout. The time includes starting the ``obabel`` process.
    * - ``--forcefield``, ``-ff``
      - ``MMFF94s``
      - Force field for energy calculations; supported values are ``MMFF94``,

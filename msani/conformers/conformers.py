@@ -124,6 +124,7 @@ class ConformerRunConfig:
     formats: frozenset
     synthon: bool
     corina_path: str | None = None
+    obabel_timeout: float = 30
 
     @property
     def ignore_torlib(self):
@@ -135,7 +136,8 @@ class ConformerRunConfig:
                    args.forcefield, args.nringconfs, args.numcores, args.mode,
                    args.tolerance, args.rmsd, args.clash_scale, args.timeout_conf, args.timeout,
                    args.eps, args.allowNonring, args.cleanup, args.debug,
-                   args.timing, frozenset(args.format), args.synthon, getattr(args, 'corinaPath', None))
+                   args.timing, frozenset(args.format), args.synthon, getattr(args, 'corinaPath', None),
+                   getattr(args, 'timeout_obabel', 30))
     
 class ConformerGenerator:
     '''
@@ -207,7 +209,8 @@ class ConformerGenerator:
                  tolerance = 30,
                  torlib = Torlib,
                  VERBOSE = False,
-                 corina_path = None):
+                 corina_path = None,
+                 obabel_timeout = 30):
         """
         Initialize the ConformerGenerator object.
         
@@ -226,11 +229,14 @@ class ConformerGenerator:
             mode (str): Mode for conformer sampling ('fixed', 'random', 'ignoretorlib)
             tolerance (float): Tolerance for dihedral angle sampling.
             VERBOSE (bool): Whether to print verbose output
+            obabel_timeout (float): Seconds allowed for an Open Babel embedding, including
+                process start-up (default: 30).
         """
         # Validate inputs
         self.smiles = smiles
         self.name = name
         self.corina_path = corina_path
+        self.obabel_timeout = obabel_timeout
         self.method = method
         self.randomSeed = randomSeed
         random.seed(self.randomSeed)
@@ -269,7 +275,7 @@ class ConformerGenerator:
                         'Open Babel is required for method="obabel" but its obabel executable '
                         'was not found. Install Open Babel or use method="rdkit".'
                     )
-                self._embed_smiles_babel()
+                self._embed_smiles_babel(timeout=self.obabel_timeout)
             elif self.method == 'rdkit':
                 self._embed_smiles_rdkit()
             else:
@@ -528,7 +534,7 @@ class ConformerGenerator:
             print(f"ETKDGv3 also failed for {self.name}, using OpenBabel")
             logger.warning(f"ETKDGv3 also failed for {self.name}, using OpenBabel")
             try:
-                self._embed_smiles_babel()
+                self._embed_smiles_babel(timeout=self.obabel_timeout)
             except RuntimeError as e:
                 raise RuntimeError(
                     f'Open Babel fallback could not embed {self.name}: {e}'
@@ -1416,14 +1422,25 @@ def _log_conformer_failure(smiles, name, stage, error):
     log_error(smiles, name, f'{stage}: {error}')
 
 
+# Seconds allowed for the embedding worker process to start (imports included)
+# before the embedding timeout begins, and for it to exit after SIGTERM.
+_EMBED_WORKER_STARTUP_TIMEOUT = 300
+_EMBED_WORKER_TERMINATE_GRACE = 1
+_WORKER_STARTED = '__started__'
+
+
 def _embed_rdkit_worker(result_connection, smiles, name, config):
     """Run RDKit embedding in an isolated process so it can be terminated safely."""
     try:
+        # Tell the parent the worker is running, so process start-up on a busy
+        # machine does not count against the embedding timeout.
+        result_connection.send(_WORKER_STARTED)
         generator = ConformerGenerator(
             smiles, name, forcefield=config.forcefield, method='rdkit',
             randomSeed=config.random_seed, num_ring_confs=config.ring_confs,
             numcores=config.num_cores, mode=config.mode, tolerance=config.tolerance,
             rmsd=config.rmsd, clash_scale=config.clash_scale, VERBOSE=config.verbose,
+            obabel_timeout=config.obabel_timeout,
         )
         generator.validate_embedding()
         property_flags = PropertyPickleOptions.MolProps | PropertyPickleOptions.PrivateProps
@@ -1437,9 +1454,15 @@ def _embed_rdkit_worker(result_connection, smiles, name, config):
 
 
 def _receive_embedding_result(connection, messages):
-    """Drain IPC on a reader thread so even a partial send has a deadline."""
+    """Drain IPC on a reader thread so even a partial send has a deadline.
+
+    Forwards the start-up message and then the result."""
     try:
-        messages.put((True, connection.recv()))
+        while True:
+            message = connection.recv()
+            messages.put((True, message))
+            if message != _WORKER_STARTED:
+                return
     except (EOFError, OSError) as error:
         messages.put((False, str(error)))
 
@@ -1452,7 +1475,6 @@ def _run_embedding_worker(smiles, name, config):
     process = ctx.Process(
         target=_embed_rdkit_worker, args=(sender, smiles, name, config))
     reader = None
-    deadline = time.monotonic() + config.embedding_timeout * 60
     try:
         process.start()
         # Only the child owns the write end now. Its exit produces EOF even
@@ -1461,21 +1483,34 @@ def _run_embedding_worker(smiles, name, config):
         reader = Thread(target=_receive_embedding_result,
                         args=(receiver, messages), daemon=True)
         reader.start()
-        remaining = max(0, deadline - time.monotonic())
         try:
-            received, payload = messages.get(timeout=remaining)
+            received, payload = messages.get(timeout=_EMBED_WORKER_STARTUP_TIMEOUT)
         except Empty as error:
-            raise TimeoutError('RDKit embedding worker exceeded its deadline') from error
+            raise TimeoutError(
+                f'RDKit embedding worker did not start within {_EMBED_WORKER_STARTUP_TIMEOUT} s'
+            ) from error
+        if received and payload == _WORKER_STARTED:
+            # The embedding timeout covers embedding only, not process start-up.
+            deadline = time.monotonic() + config.embedding_timeout * 60
+            try:
+                received, payload = messages.get(timeout=max(0, deadline - time.monotonic()))
+            except Empty as error:
+                raise TimeoutError('RDKit embedding worker exceeded its deadline') from error
         if not received:
             raise RuntimeError('RDKit embedding worker exited without returning a result')
-        process.join(timeout=max(0, deadline - time.monotonic()))
-        if process.is_alive():
-            raise TimeoutError('RDKit embedding worker exceeded its deadline')
+        # The result is complete; a slow interpreter exit must not discard it.
+        # The finally block reaps the worker.
+        process.join(timeout=_EMBED_WORKER_TERMINATE_GRACE)
         return payload
     finally:
         if process.pid is not None:
             if process.is_alive():
                 process.terminate()
+                # A worker blocked in native code or on I/O may not exit promptly
+                # on SIGTERM; do not let it hold up the caller.
+                process.join(timeout=_EMBED_WORKER_TERMINATE_GRACE)
+                if process.is_alive():
+                    process.kill()
             process.join()
         sender.close()
         receiver.close()
@@ -1499,6 +1534,7 @@ def _create_conformer_generator(smiles, name, config, request_alignment, exclude
         numcores=config.num_cores, request_alignment=request_alignment,
         exclude_alignment=exclude_alignment, mode=config.mode, tolerance=config.tolerance, rmsd=config.rmsd,
         clash_scale=config.clash_scale, VERBOSE=config.verbose,
+        obabel_timeout=config.obabel_timeout,
     )
     if config.method != 'rdkit':
         return ConformerGenerator(smiles, name, method=config.method, **common_kwargs), time.perf_counter() - start
