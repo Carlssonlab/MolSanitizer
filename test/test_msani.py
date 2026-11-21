@@ -26,8 +26,8 @@ from msani.batchmode import (
     parse_flags_single_job,
     prepare_batch_input,
 )
-from msani.conformers import mol2writer, utils
-from msani.conformers.conformers import ConformerGenerator
+from msani.conformers import conformers, mol2writer, utils
+from msani.conformers.conformers import CPP_AVAILABLE, ConformerGenerator
 from msani.db2.db2writer import write_db2
 from msani.filtering.filters import (
     Filters,
@@ -316,6 +316,17 @@ class Test_MolSanitizer(unittest.TestCase):
                 self.compareFiles(f'{temp_dir}/dummy_output_clean.txt',
                                   f'{self.path}/out_fragments_{stage}.txt')
 
+    def test_neutralizer_fragment_preservation(self):
+        # Boronate and fake-sulfonium rules run as reactions; untouched
+        # fragments such as ethanol must survive them.
+        with tempfile.TemporaryDirectory() as temp_dir:
+            args = self.generate_mock_arguments(
+                [f'{self.path}/in_fragments_neutralizer.txt'],
+                ['neutralize', 'test'], temp_dir)
+            cli.clean_data(args)
+            self.compareFiles(f'{temp_dir}/dummy_output_clean.txt',
+                              f'{self.path}/out_fragments_neutralizer.txt')
+
     def test_ionization_fragment_states_share_ph(self):
         # A pH range must keep the fragments at the same pH in each product.
         for pH_range in (0, 4):
@@ -329,6 +340,36 @@ class Test_MolSanitizer(unittest.TestCase):
                 cli.clean_data(args)
                 self.compareFiles(f'{temp_dir}/dummy_output_clean.txt',
                                   f'{self.path}/out_fragments_ph_range{pH_range}.txt')
+
+    def test_ionizer_cached_rules_match_full_scan(self):
+        # Skipping rules the match cache rules out must not change the output.
+        from msani.moltransform.ionizer import Ionizer
+        from msani.moltransform.neutralizer import Neutralizer
+
+        ionizer = Ionizer(pH=7, pH_range=2)
+        with open(f'{self.path}/in_protonation.txt') as handle:
+            smiles_list = [line.split()[0] for line in handle if line.strip()]
+
+        for smiles in smiles_list:
+            with self.subTest(smiles=smiles):
+                mol = Neutralizer.neutralize_mol(Chem.MolFromSmiles(smiles))
+                expected = {}
+                seen_combinations = set()
+                for pH in ionizer.pH_values:
+                    # Reference: uncached matching and a scan of every rule.
+                    combination = ionizer.check_duplicated_rule_combs(mol, pH)
+                    if combination in seen_combinations:
+                        continue
+                    seen_combinations.add(combination)
+                    expected.update(ionizer.apply_reactions_mols(
+                        mol, ionizer.rules_across_pH[pH]))
+                self.assertEqual(ionizer.ionize(smiles=smiles), list(expected))
+
+    def test_ionizer_rejects_unparsable_smiles(self):
+        from msani.moltransform.ionizer import Ionizer
+
+        with self.assertRaises(ValueError):
+            Ionizer().ionize(smiles='not_a_smiles')
 
     def test_tautomer_fragment_limit(self):
         # Twenty repeated fragments have 21 possible combinations; the CLI
@@ -1526,6 +1567,97 @@ class TestRigidPart(unittest.TestCase):
                 self.assertTrue(generator.atom_maps)
                 self.assertTrue(generator.conf_sampled)
                 self.assertGreater(generator.ring_confs[0].GetNumConformers(), 0)
+
+
+@unittest.skipUnless(CPP_AVAILABLE, 'requires the C++ sampling extension')
+class TestEmbeddingFallbacks(unittest.TestCase):
+    """The srETKDGv3 -> ETKDGv3 -> Open Babel chain must survive a sampler that raises."""
+
+    # trans-cyclopentane-1,2-diamine, mono-protonated: RDKit's BFGS minimiser
+    # gives up on this one with "bad direction in linearSearch".
+    SMILES = 'N[C@H]1CCC[C@H]1[NH3+]'
+
+    def test_sampler_exception_reaches_babel_fallback(self):
+        generator = ConformerGenerator(self.SMILES, name='diaminocyclopentane', pre_embed=True)
+        with patch('msani.conformers.conformers.cpp_sampler.embed_multiple_confs',
+                   side_effect=RuntimeError('bad direction in linearSearch')), \
+             patch.object(ConformerGenerator, '_embed_smiles_babel') as babel:
+            generator._embed_smiles_rdkit()
+        babel.assert_called_once()
+
+
+class TestInitialEmbedderSelection(unittest.TestCase):
+    """srETKDGv3 is the default; ETKDGv4 is opt-in through MSANI_EMBEDDER."""
+
+    MODERN = SimpleNamespace(EMBEDDING_PRESETS=('etkdgv3', 'etkdgv4', 'etkdgv4-ic', 'sretkdgv3'))
+    LEGACY = SimpleNamespace(EMBEDDING_PRESETS=('etkdgv3', 'sretkdgv3'))
+
+    def select(self, module, embedder=None):
+        environment = {} if embedder is None else {'MSANI_EMBEDDER': embedder}
+        with patch.object(conformers, 'cpp_sampler', module, create=True), \
+                patch.object(conformers, 'CPP_AVAILABLE', True), \
+                patch.dict(os.environ, environment):
+            if embedder is None:
+                os.environ.pop('MSANI_EMBEDDER', None)
+            return conformers._modern_embedder()
+
+    def test_default_is_sretkdgv3(self):
+        # None selects the srETKDGv3 chain, whatever the extension supports.
+        self.assertIsNone(self.select(self.MODERN))
+        self.assertIsNone(self.select(self.LEGACY))
+        self.assertIsNone(self.select(SimpleNamespace()))
+        self.assertEqual(conformers._DEFAULT_EMBEDDER, 'sretkdgv3')
+
+    def test_environment_override(self):
+        self.assertEqual(self.select(self.MODERN, 'ETKDGv4'), 'etkdgv4')
+        self.assertEqual(self.select(self.MODERN, 'etkdgv4-ic'), 'etkdgv4-ic')
+        self.assertIsNone(self.select(self.MODERN, 'srETKDGv3'))
+        self.assertIsNone(self.select(self.LEGACY, 'sretkdgv3'))
+        with self.assertRaises(RuntimeError):
+            self.select(self.LEGACY, 'etkdgv4-ic')
+        with self.assertRaises(ValueError):
+            self.select(self.MODERN, 'etkdgv5')
+
+    def test_etkdgv4_warns_once_that_it_is_experimental(self):
+        for embedder in ('etkdgv4', 'etkdgv4-ic'):
+            with self.subTest(embedder=embedder), \
+                    patch.object(conformers, '_experimental_embedder_warned', False), \
+                    patch('builtins.print') as printed:
+                with self.assertLogs('msani', level='WARNING') as logged:
+                    conformers._warn_experimental_embedder(embedder)
+                    conformers._warn_experimental_embedder(embedder)
+                self.assertEqual(len(logged.output), 1)
+                self.assertIn(f'{embedder} is experimental', logged.output[0])
+                printed.assert_called_once()
+
+    @unittest.skipUnless(conformers.CPP_AVAILABLE, 'C++ extension not available')
+    def test_direct_generator_warns_only_for_etkdgv4(self):
+        if 'etkdgv4-ic' not in conformers.cpp_sampler.EMBEDDING_PRESETS:
+            self.skipTest('extension built without ETKDGv4')
+        with patch.object(conformers, '_warn_experimental_embedder') as warn:
+            with patch.dict(os.environ, {'MSANI_EMBEDDER': 'etkdgv4-ic'}):
+                ConformerGenerator('CCO', 'ethanol')
+            warn.assert_called_once_with('etkdgv4-ic')
+            warn.reset_mock()
+            # The default embedder, and a worker given the name by its parent, stay quiet.
+            with patch.dict(os.environ, {'MSANI_EMBEDDER': 'sretkdgv3'}):
+                ConformerGenerator('CCO', 'ethanol')
+                ConformerGenerator('CCO', 'ethanol', embedder='etkdgv4-ic')
+            warn.assert_not_called()
+
+    @unittest.skipUnless(conformers.CPP_AVAILABLE, 'C++ extension not available')
+    def test_extension_presets_embed(self):
+        for preset in conformers.cpp_sampler.EMBEDDING_PRESETS:
+            if preset not in ('sretkdgv3', 'etkdgv4', 'etkdgv4-ic'):
+                continue
+            with self.subTest(preset=preset):
+                mol = Chem.AddHs(Chem.MolFromSmiles('CC(C)Cc1ccc(cc1)C(C)C(=O)O'))
+                result = conformers.cpp_sampler.embed_multiple_confs(
+                    mol, 4, {'preset': preset, 'randomSeed': 42, 'numThreads': 1}, None)
+                self.assertGreater(result.GetNumConformers(), 0)
+        with self.assertRaises(RuntimeError):
+            conformers.cpp_sampler.embed_multiple_confs(
+                Chem.AddHs(Chem.MolFromSmiles('CCO')), 1, {'preset': 'sretkdgv3', 'randomSed': 1}, None)
 
 
 if __name__ == '__main__':

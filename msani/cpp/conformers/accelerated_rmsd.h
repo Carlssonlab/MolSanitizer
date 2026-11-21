@@ -44,6 +44,11 @@ private:
     bool use_symmetry_;
     bool symmetrize_conjugated_terminal_groups_;
     size_t num_heavy_atoms_;
+
+    // Symmetry orbits of the heavy atoms (atoms the stored mappings can exchange),
+    // flattened: orbit o holds orbit_atoms_[orbit_offsets_[o] .. orbit_offsets_[o+1]).
+    std::vector<int> orbit_atoms_;
+    std::vector<size_t> orbit_offsets_;
     
     // Scratch storage used by calculateAlignedRMSD() and isSimilarToAny(). A
     // calculator instance is intentionally serial/non-reentrant; the point
@@ -62,6 +67,11 @@ private:
      * symmetrization of conjugated terminal groups (like COO-, NO2-)
      */
     void generateSymmetricMappings(const RDKit::ROMol& mol);
+
+    /**
+     * Group heavy atoms into the orbits of the stored symmetric mappings
+     */
+    void computeSymmetryOrbits();
     
 public:
     SameMoleculeRMSDCalculator(bool use_symmetry = true, bool symmetrize_conjugated_terminal_groups = true);
@@ -87,16 +97,28 @@ public:
                                    const std::vector<double>* cached_probe_radii = nullptr) const;
      
     /**
+     * Mapping-independent radial descriptor of a conformer: its per-atom radii
+     * (distance from the centroid, heavy-atom order) sorted inside each symmetry
+     * orbit. The mean squared difference of two descriptors is a lower bound on
+     * the aligned MSD under every stored mapping, because sorting gives the
+     * best pairing any permutation within the orbits could reach.
+     */
+    void orbitSortedRadii(const std::vector<double>& radii,
+                          std::vector<double>& sorted_radii) const;
+
+    /**
      * Check if a conformer is similar to any in a set (below threshold)
-     * Optimized version of the conformer filtering logic
+     * References whose orbit-sorted radial bound already exceeds the threshold
+     * are rejected without looking at the individual mappings.
      */
     bool isSimilarToAny(const RDKit::ROMol& mol,
                        const RDKit::Conformer& probe_conf,
                        const std::vector<double>& probe_radii,
+                       const std::vector<double>& probe_orbit_radii,
                        double rmsd_threshold,
-                       // Optional cached per-ref data from ConformerCache
-                       const std::vector<std::vector<double>>* cached_ref_radii = nullptr,
-                       const std::vector<RDGeom::Point3D>* cached_ref_centroids = nullptr) const;
+                       // Cached per-ref data from ConformerCache (conformer-list order)
+                       const std::vector<std::vector<double>>* cached_ref_radii,
+                       const std::vector<std::vector<double>>* cached_ref_orbit_radii) const;
     
     /**
      * Get the number of heavy atoms being used for RMSD calculation

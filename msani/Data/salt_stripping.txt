@@ -23,7 +23,7 @@
 [#56] barium_salts
 [#64] gadolinium_complexes
 [#39] yttrium_complexes
-[#79] gold_comprexes
+[#79] gold_complexes
 [#62] samarium_complexes
 [#83] bismuth_complexes
 [#49] indium_complexes
@@ -32,7 +32,7 @@
 [N] azide_ammonia
 [N+]([O-])(=O)O nitrate
 [P](=O)(O)(O)O phosphate
-[P](F)(F)(F)(F)(F)F hexafluorophophate
+[P](F)(F)(F)(F)(F)F hexafluorophosphate
 [S](=O)(=O)(O)O sulfate
 CS(C)=O dimethylsulfoxide
 [CH3][S](=O)(=O)(O) mesilate
@@ -51,7 +51,7 @@ c1([CH3])[cH][cH][cH]c([CH3])c1[S](=O)(=O)(O) oo-dimethylbenzenesulfonate
 [CH3][CH2][CH2]C(=O)O butyrate
 [CH3][CH]([OH])C(=O)[OH,O-] lactate
 [Br]-[Br] brom_complex
-OC(=O)[CH2]C(=O)O maleate
+OC(=O)[CH2]C(=O)O malonate
 OC(=O)[CH2][CH2]C(=O)O succinate
 OC(=O)[CH2][CH2][CH2]C(=O)O glutarate
 OC(=O)[CH2][CH2][CH2][CH2]C(=O)O adipate

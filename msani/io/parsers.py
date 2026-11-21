@@ -478,6 +478,12 @@ def parseArguments(args = None, batch_mode = False):
         default=defaults.get('timeout_conf', 1), 
         help='Timeout for conformational sampling stage (default: 1 minute).' if show_advanced_help else argparse.SUPPRESS)
     gen3d.add_argument(
+        '--timeout_obabel', '-tob',
+        type=float,
+        default=defaults.get('timeout_obabel', 30),
+        help='Timeout in seconds for each Open Babel embedding, including the fallback after an '
+             'RDKit timeout (default: 30).' if show_advanced_help else argparse.SUPPRESS)
+    gen3d.add_argument(
         '--clash_scale', '-clash',
         type=float,
         default=defaults.get('clash_scale', 0.6),

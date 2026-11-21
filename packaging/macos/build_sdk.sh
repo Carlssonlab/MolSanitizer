@@ -7,7 +7,7 @@
 #
 # Environment:
 #   MSANI_MACOS_SDK   SDK prefix override
-#   MSANI_BUILD_RDKIT PyPI/conda RDKit version (default 2025.9.1)
+#   MSANI_BUILD_RDKIT PyPI/conda RDKit version (default 2026.9.2)
 #   CONDA_EXE         conda executable
 set -euo pipefail
 
@@ -29,17 +29,28 @@ if [[ -z "$conda_exe" || ! -x "$conda_exe" ]]; then
 fi
 cache="$repo/build/macos-$arch"
 sdk=${MSANI_MACOS_SDK:-$cache/sdk}
-rdkit=${MSANI_BUILD_RDKIT:-2025.9.1}
+rdkit=${MSANI_BUILD_RDKIT:-2026.9.2}
 mkdir -p "$cache"
 # Keep all new environments and caches local to the repository.
 export CONDA_PKGS_DIRS="$cache/conda-pkgs"
 
 # The SDK supplies RDKit's C++ libraries, headers and CMake exports only; the
 # Python RDKit API is installed separately by the wheel build.
+# Boost and Eigen follow what conda-forge built this librdkit release against.
 if [[ ! -f "$sdk/lib/cmake/rdkit/rdkit-config.cmake" ]]; then
     "$conda_exe" create --yes --prefix "$sdk" --override-channels \
         -c conda-forge --platform "$subdir" "librdkit-dev=$rdkit" \
-        'libboost-devel=1.86' 'eigen=3.4'
+        'libboost-devel=1.90' 'eigen=5.0'
+fi
+# A prefix provisioned for another RDKit pin must not be reused silently.
+# Compare with leading zeros dropped: conda spells 2026.9.2 as 2026.09.2.
+unpad() { sed -E 's/(^|\.)0+([0-9])/\1\2/g' <<<"$1"; }
+installed=$(sed -nE 's/^set\(PACKAGE_VERSION "([0-9.]+)"\)$/\1/p' \
+    "$sdk/lib/cmake/rdkit/rdkit-config-version.cmake" | head -n 1)
+if [[ "$(unpad "$installed")" != "$(unpad "$rdkit")" ]]; then
+    printf 'SDK at %s holds RDKit %s, not %s. Remove it or set MSANI_MACOS_SDK.\n' \
+        "$sdk" "${installed:-unknown}" "$rdkit" >&2
+    exit 1
 fi
 "$conda_exe" list --prefix "$sdk" --explicit > "$cache/sdk-explicit.txt"
 printf '%s\n' "$sdk"

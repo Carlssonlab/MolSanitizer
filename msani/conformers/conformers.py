@@ -11,8 +11,6 @@
 
 import logging
 import os
-import multiprocessing
-import platform
 import subprocess
 import shutil
 import random
@@ -34,6 +32,7 @@ from msani.io.parsers import CustomHelpFormatter
 from msani.conformers import utils, mol2writer, oebwriter, torsions
 from msani.filtering import filters
 from msani.io.utils import log_error
+from msani.multiprocessing_context import get_context
 
 def _find_obabel_executable():
     """Find the Open Babel CLI without requiring its optional Python bindings."""
@@ -97,8 +96,6 @@ except:
 
 logger = logging.getLogger('msani')
 
-# Avoid forking the threaded parent, matching the molecule transformation workers.
-_MP_START_METHOD = 'forkserver' if platform.system() == 'Linux' else 'spawn'
 
 SRLib = torsions.SmallRingLibrary()
 Torlib = torsions.TorsionLibrary()
@@ -127,6 +124,10 @@ class ConformerRunConfig:
     formats: frozenset
     synthon: bool
     corina_path: str | None = None
+    obabel_timeout: float = 30
+    # Initial embedder, resolved once in the parent so that every worker uses
+    # the one that was validated and logged. None: read MSANI_EMBEDDER.
+    embedder: str | None = None
 
     @property
     def ignore_torlib(self):
@@ -138,7 +139,9 @@ class ConformerRunConfig:
                    args.forcefield, args.nringconfs, args.numcores, args.mode,
                    args.tolerance, args.rmsd, args.clash_scale, args.timeout_conf, args.timeout,
                    args.eps, args.allowNonring, args.cleanup, args.debug,
-                   args.timing, frozenset(args.format), args.synthon, getattr(args, 'corinaPath', None))
+                   args.timing, frozenset(args.format), args.synthon, getattr(args, 'corinaPath', None),
+                   getattr(args, 'timeout_obabel', 30),
+                   (_modern_embedder() or _DEFAULT_EMBEDDER) if args.method == 'rdkit' else None)
     
 class ConformerGenerator:
     '''
@@ -210,7 +213,9 @@ class ConformerGenerator:
                  tolerance = 30,
                  torlib = Torlib,
                  VERBOSE = False,
-                 corina_path = None):
+                 corina_path = None,
+                 obabel_timeout = 30,
+                 embedder = None):
         """
         Initialize the ConformerGenerator object.
         
@@ -229,11 +234,17 @@ class ConformerGenerator:
             mode (str): Mode for conformer sampling ('fixed', 'random', 'ignoretorlib)
             tolerance (float): Tolerance for dihedral angle sampling.
             VERBOSE (bool): Whether to print verbose output
+            obabel_timeout (float): Seconds allowed for an Open Babel embedding, including
+                process start-up (default: 30).
+            embedder (str): Initial RDKit embedder ('sretkdgv3', 'etkdgv4' or 'etkdgv4-ic').
+                None (default) reads the MSANI_EMBEDDER environment variable.
         """
         # Validate inputs
         self.smiles = smiles
         self.name = name
         self.corina_path = corina_path
+        self.obabel_timeout = obabel_timeout
+        self.embedder = embedder
         self.method = method
         self.randomSeed = randomSeed
         random.seed(self.randomSeed)
@@ -272,7 +283,7 @@ class ConformerGenerator:
                         'Open Babel is required for method="obabel" but its obabel executable '
                         'was not found. Install Open Babel or use method="rdkit".'
                     )
-                self._embed_smiles_babel()
+                self._embed_smiles_babel(timeout=self.obabel_timeout)
             elif self.method == 'rdkit':
                 self._embed_smiles_rdkit()
             else:
@@ -439,15 +450,22 @@ class ConformerGenerator:
             """
             Generate initial conformers for the molecule using RDKit.
             Parameters:
-                method (str): The method to use for embedding ('srETKDGv3' or 'ETKDGv3').
+                method (str): The method to use for embedding ('srETKDGv3', 'ETKDGv3',
+                    or a preset of the C++ module such as 'etkdgv4-ic').
                 """
-            if method == 'srETKDGv3': params = rdDistGeom.srETKDGv3()
-            else: params = rdDistGeom.ETKDGv3()
-            params.numThreads = self.numcores
+            options = {'numThreads': self.numcores,
+                       'randomSeed': self.randomSeed} # For reproducibility
             if not(self.flippable_Cs) and not(self.flippable_Ns): 
                 # If there are flippable C or N atoms, we need to generate more to filter out the favorable
-                params.pruneRmsThresh = 0.35 
-            params.randomSeed = self.randomSeed # For reproducibility
+                options['pruneRmsThresh'] = 0.35
+            if method in ('srETKDGv3', 'ETKDGv3'):
+                params = rdDistGeom.srETKDGv3() if method == 'srETKDGv3' else rdDistGeom.ETKDGv3()
+                for option, value in options.items():
+                    setattr(params, option, value)
+            else:
+                # Presets newer than ETKDGv3 are owned by the C++ module, which
+                # carries its own RDKit; the installed Python RDKit may not have them.
+                params = {'preset': method, **options}
             conf_ring_descriptors_df = DataFrame()
             if CPP_AVAILABLE:
                 result_mols = cpp_sampler.embed_multiple_confs(mol = self.mol_H, 
@@ -482,23 +500,53 @@ class ConformerGenerator:
         
         
         # Step 1: Generate initial conformers
-        try:
-            conf_ring_descriptors_df = embed_fix_ring_confs(method = 'srETKDGv3')
-        except Exception as e: 
-            print(e)
+        # An ETKDGv4 preset requested through MSANI_EMBEDDER goes first; the
+        # srETKDGv3 chain below is the default and its fallback.
+        conf_ring_descriptors_df = DataFrame()
+        modern_method = _modern_embedder(self.embedder)
+        if modern_method is not None and self.embedder is None:
+            # Direct use, with the embedder taken from MSANI_EMBEDDER. A run
+            # through gen_conf_chunk has already warned and passes the name.
+            _warn_experimental_embedder(modern_method)
+        if modern_method is not None:
+            try:
+                conf_ring_descriptors_df = embed_fix_ring_confs(method = modern_method)
+            except Exception as e:
+                logger.warning(f"{modern_method} raised for {self.name}: {e}")
+                conf_ring_descriptors_df = DataFrame()
+            if len(conf_ring_descriptors_df) == 0:
+                print(f"{modern_method} failed for {self.name}, using srETKDGv3")
+                logger.warning(f"{modern_method} failed for {self.name}, using srETKDGv3")
+
+        if len(conf_ring_descriptors_df) == 0:
+            try:
+                conf_ring_descriptors_df = embed_fix_ring_confs(method = 'srETKDGv3')
+            except Exception as e:
+                # Bind an empty frame so the len() check below is reachable: leaving the
+                # name unbound turned every sampler exception into an UnboundLocalError
+                # on that line, which skipped the ETKDGv3 and Open Babel fallbacks and
+                # discarded a molecule msani can embed.
+                logger.warning(f"srETKDGv3 raised for {self.name}: {e}")
+                conf_ring_descriptors_df = DataFrame()
 
         if len(conf_ring_descriptors_df) == 0:
             # In case where srETKDGv3 failed in embedding the molecule, 
             # we have to use the macrocyclic version.
             print(f"srETKDGv3 failed for {self.name}, using macrocyclic version")
             logger.warning(f"srETKDGv3 failed for {self.name}, using macrocyclic version")
-            conf_ring_descriptors_df = embed_fix_ring_confs(method = 'ETKDGv3')
+            try:
+                conf_ring_descriptors_df = embed_fix_ring_confs(method = 'ETKDGv3')
+            except Exception as e:
+                # Same reason: an exception here must still reach the Open Babel
+                # fallback instead of propagating out of the method.
+                logger.warning(f"ETKDGv3 raised for {self.name}: {e}")
+                conf_ring_descriptors_df = DataFrame()
 
         if len(conf_ring_descriptors_df) == 0:
             print(f"ETKDGv3 also failed for {self.name}, using OpenBabel")
             logger.warning(f"ETKDGv3 also failed for {self.name}, using OpenBabel")
             try:
-                self._embed_smiles_babel()
+                self._embed_smiles_babel(timeout=self.obabel_timeout)
             except RuntimeError as e:
                 raise RuntimeError(
                     f'Open Babel fallback could not embed {self.name}: {e}'
@@ -903,7 +951,9 @@ class ConformerGenerator:
                                                 random_method= 'uniform'
                                                 )
 
-            if result.GetNumConformers() == 1: # No conformers are generated, use initial conformation instead
+            # A single conformer is a valid result (e.g. the only one inside the
+            # energy window); only the C++ failure flag means nothing was sampled.
+            if result is None or (result.HasProp('Failed_sampling') and result.GetProp('Failed_sampling') == '1'):
                 print(f'Failed for stochastic sampling, use the original conformation')
                 continue
             
@@ -1116,14 +1166,16 @@ class ConformerGenerator:
 
         def write_conformer(writer, mol, conf_id):
             """Write one conformer, retaining its C++ force-field energy in debug mode."""
-            output_mol = Chem.Mol(mol)
+            # Copy only this conformer: copying the full ensemble for every
+            # conformer made SDF writing quadratic in the number of conformers.
+            output_mol = Chem.Mol(mol, False, conf_id)
             if self.VERBOSE:
                 conformer = mol.GetConformer(conf_id)
                 if conformer.HasProp('Energy'):
                     output_mol.SetProp('Energy', conformer.GetProp('Energy'))
                 elif conformer.HasProp('MMFF_Energy'):
                     output_mol.SetProp('Energy', conformer.GetProp('MMFF_Energy'))
-            writer.write(output_mol, confId=conf_id)
+            writer.write(output_mol)
 
         # Write the conformers to SDF file(s)
         if len(self.ring_confs) == 1:
@@ -1346,19 +1398,82 @@ def write_to_tarball(ball, data, name):
     ball.addfile(tar, io.BytesIO(data))
 
 
+# srETKDGv3 is the initial embedder. The MSANI_EMBEDDER environment variable
+# opts in to an ETKDGv4 preset of the C++ module, tried before the
+# srETKDGv3 -> ETKDGv3 -> Open Babel chain: 'etkdgv4-ic' (ETKDGv4 starting from
+# internal coordinates) or 'etkdgv4' (ETKDGv4 with distance-geometry starting
+# coordinates).
+_DEFAULT_EMBEDDER = 'sretkdgv3'
+_OPTIONAL_EMBEDDERS = ('etkdgv4-ic', 'etkdgv4')
+
+
+_experimental_embedder_warned = False
+
+
+def _warn_experimental_embedder(embedder):
+    """Warn once per process, on the console and in the log, that `embedder` is experimental."""
+    global _experimental_embedder_warned
+    if _experimental_embedder_warned:
+        return
+    _experimental_embedder_warned = True
+    message = f'{embedder} is experimental: use it only if you are sure how to deal with it.'
+    # The console handler of the msani logger only shows errors.
+    print(f'Warning: {message}')
+    logger.warning(message)
+
+
+def _modern_embedder(requested=None):
+    """Return the requested ETKDGv4 preset, or None.
+
+    `requested` is an embedder name; None reads the MSANI_EMBEDDER environment
+    variable. Worker processes are given the name resolved by their parent,
+    because a forkserver worker does not see later changes to the parent's
+    environment.
+    None means the srETKDGv3 chain is used directly, which is the default.
+    ETKDGv4 needs a msani_confgen_cpp built against RDKit >= 2026.09, whatever
+    the installed Python RDKit is; requesting it without one is an error.
+    """
+    if requested is None:
+        requested = os.environ.get('MSANI_EMBEDDER', '')
+    requested = requested.strip().lower()
+    if requested in ('', _DEFAULT_EMBEDDER):
+        return None
+    if requested not in _OPTIONAL_EMBEDDERS:
+        raise ValueError(
+            f"MSANI_EMBEDDER={requested!r} is not one of '{_DEFAULT_EMBEDDER}', "
+            + ', '.join(f"'{name}'" for name in _OPTIONAL_EMBEDDERS))
+    available = getattr(cpp_sampler, 'EMBEDDING_PRESETS', ()) if CPP_AVAILABLE else ()
+    if requested not in available:
+        raise RuntimeError(
+            f'MSANI_EMBEDDER={requested} needs the MolSanitizer C++ extension to be '
+            'built against RDKit >= 2026.09')
+    return requested
+
+
 def _log_conformer_failure(smiles, name, stage, error):
     logger.error('%s failed for %s: %s', stage, name, error)
     log_error(smiles, name, f'{stage}: {error}')
 
 
+# Seconds allowed for the embedding worker process to start (imports included)
+# before the embedding timeout begins, and for it to exit after SIGTERM.
+_EMBED_WORKER_STARTUP_TIMEOUT = 300
+_EMBED_WORKER_TERMINATE_GRACE = 1
+_WORKER_STARTED = '__started__'
+
+
 def _embed_rdkit_worker(result_connection, smiles, name, config):
     """Run RDKit embedding in an isolated process so it can be terminated safely."""
     try:
+        # Tell the parent the worker is running, so process start-up on a busy
+        # machine does not count against the embedding timeout.
+        result_connection.send(_WORKER_STARTED)
         generator = ConformerGenerator(
             smiles, name, forcefield=config.forcefield, method='rdkit',
             randomSeed=config.random_seed, num_ring_confs=config.ring_confs,
             numcores=config.num_cores, mode=config.mode, tolerance=config.tolerance,
             rmsd=config.rmsd, clash_scale=config.clash_scale, VERBOSE=config.verbose,
+            obabel_timeout=config.obabel_timeout, embedder=config.embedder,
         )
         generator.validate_embedding()
         property_flags = PropertyPickleOptions.MolProps | PropertyPickleOptions.PrivateProps
@@ -1372,22 +1487,27 @@ def _embed_rdkit_worker(result_connection, smiles, name, config):
 
 
 def _receive_embedding_result(connection, messages):
-    """Drain IPC on a reader thread so even a partial send has a deadline."""
+    """Drain IPC on a reader thread so even a partial send has a deadline.
+
+    Forwards the start-up message and then the result."""
     try:
-        messages.put((True, connection.recv()))
+        while True:
+            message = connection.recv()
+            messages.put((True, message))
+            if message != _WORKER_STARTED:
+                return
     except (EOFError, OSError) as error:
         messages.put((False, str(error)))
 
 
 def _run_embedding_worker(smiles, name, config):
     """Receive before joining; stop and reap the worker on every exit path."""
-    ctx = multiprocessing.get_context(_MP_START_METHOD)
+    ctx = get_context()
     receiver, sender = ctx.Pipe(duplex=False)
     messages = Queue()
     process = ctx.Process(
         target=_embed_rdkit_worker, args=(sender, smiles, name, config))
     reader = None
-    deadline = time.monotonic() + config.embedding_timeout * 60
     try:
         process.start()
         # Only the child owns the write end now. Its exit produces EOF even
@@ -1396,21 +1516,34 @@ def _run_embedding_worker(smiles, name, config):
         reader = Thread(target=_receive_embedding_result,
                         args=(receiver, messages), daemon=True)
         reader.start()
-        remaining = max(0, deadline - time.monotonic())
         try:
-            received, payload = messages.get(timeout=remaining)
+            received, payload = messages.get(timeout=_EMBED_WORKER_STARTUP_TIMEOUT)
         except Empty as error:
-            raise TimeoutError('RDKit embedding worker exceeded its deadline') from error
+            raise TimeoutError(
+                f'RDKit embedding worker did not start within {_EMBED_WORKER_STARTUP_TIMEOUT} s'
+            ) from error
+        if received and payload == _WORKER_STARTED:
+            # The embedding timeout covers embedding only, not process start-up.
+            deadline = time.monotonic() + config.embedding_timeout * 60
+            try:
+                received, payload = messages.get(timeout=max(0, deadline - time.monotonic()))
+            except Empty as error:
+                raise TimeoutError('RDKit embedding worker exceeded its deadline') from error
         if not received:
             raise RuntimeError('RDKit embedding worker exited without returning a result')
-        process.join(timeout=max(0, deadline - time.monotonic()))
-        if process.is_alive():
-            raise TimeoutError('RDKit embedding worker exceeded its deadline')
+        # The result is complete; a slow interpreter exit must not discard it.
+        # The finally block reaps the worker.
+        process.join(timeout=_EMBED_WORKER_TERMINATE_GRACE)
         return payload
     finally:
         if process.pid is not None:
             if process.is_alive():
                 process.terminate()
+                # A worker blocked in native code or on I/O may not exit promptly
+                # on SIGTERM; do not let it hold up the caller.
+                process.join(timeout=_EMBED_WORKER_TERMINATE_GRACE)
+                if process.is_alive():
+                    process.kill()
             process.join()
         sender.close()
         receiver.close()
@@ -1434,6 +1567,7 @@ def _create_conformer_generator(smiles, name, config, request_alignment, exclude
         numcores=config.num_cores, request_alignment=request_alignment,
         exclude_alignment=exclude_alignment, mode=config.mode, tolerance=config.tolerance, rmsd=config.rmsd,
         clash_scale=config.clash_scale, VERBOSE=config.verbose,
+        obabel_timeout=config.obabel_timeout,
     )
     if config.method != 'rdkit':
         return ConformerGenerator(smiles, name, method=config.method, **common_kwargs), time.perf_counter() - start
@@ -1581,6 +1715,14 @@ def gen_conf_chunk(df: DataFrame, args, input_file='0'):
         logger.warning('Empty DataFrame provided, skipping conformation generation.')
         return
     config = ConformerRunConfig.from_args(args)
+    if config.method == 'rdkit':
+        # from_args already rejected an unusable MSANI_EMBEDDER, before any
+        # molecule is run.
+        logger.info('Initial embedder: %s (RDKit C++ %s)',
+                    config.embedder,
+                    getattr(cpp_sampler, 'RDKIT_CPP_VERSION', 'unknown') if CPP_AVAILABLE else 'unavailable')
+        if config.embedder != _DEFAULT_EMBEDDER:
+            _warn_experimental_embedder(config.embedder)
     if 'mol' not in df.columns:
         df = df.copy()
         df.loc[:, 'mol'] = df['smiles'].apply(Chem.MolFromSmiles)

@@ -181,6 +181,14 @@ if(NOT RDKit_FOUND)
     message(FATAL_ERROR "RDKit not found. Please ensure RDKit is installed and RDBASE or CONDA_PREFIX is set.")
 endif()
 
+# ETKDGv4 and internal-coordinate embedding arrived in RDKit 2026.09. Older
+# RDKit releases still build; the module then offers the ETKDGv3 presets only
+# and MolSanitizer falls back to srETKDGv3 for the initial embedding.
+set(MSANI_RDKIT_HAS_ETKDGV4 OFF)
+if(RDKit_VERSION AND NOT RDKit_VERSION VERSION_LESS "2026.09")
+    set(MSANI_RDKIT_HAS_ETKDGV4 ON)
+endif()
+
 # Wheel builds use a pinned static RDKit SDK; the shared/manual lookup path is
 # retained for local development only.
 msani_select_rdkit_targets(MSANI_CONFGEN_RDKIT_TARGETS
@@ -337,6 +345,10 @@ endif()
 # Properties for the Python module
 target_compile_definitions(msani_confgen_cpp PRIVATE VERSION_INFO="1.0.0")
 
+if(MSANI_RDKIT_HAS_ETKDGV4)
+    target_compile_definitions(msani_confgen_cpp PRIVATE MSANI_RDKIT_HAS_ETKDGV4)
+endif()
+
 if(RDK_THREADSAFE_SSS)
     target_compile_definitions(stochastic_sampling_lib PUBLIC RDK_BUILD_THREADSAFE_SSS)
     target_compile_definitions(msani_confgen_cpp PRIVATE RDK_BUILD_THREADSAFE_SSS)
@@ -384,6 +396,7 @@ message(STATUS "Eigen3 found: ${Eigen3_FOUND}")
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 message(STATUS "C++ compiler: ${CMAKE_CXX_COMPILER}")
 message(STATUS "RDKit linkage mode: ${MSANI_RDKIT_LINKAGE}")
+message(STATUS "RDKit version: ${RDKit_VERSION} (ETKDGv4 embedding: ${MSANI_RDKIT_HAS_ETKDGV4})")
 message(STATUS "=============================")
 message(STATUS "")
 

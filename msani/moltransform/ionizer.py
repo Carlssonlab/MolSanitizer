@@ -1,9 +1,7 @@
 from contextlib import nullcontext
 import argparse
 import logging
-import platform
 import shutil
-import multiprocessing as mp
 from io import StringIO
 
 from pandas import DataFrame, read_csv, concat
@@ -14,10 +12,7 @@ from rdkit.Chem import AllChem
 from msani.moltransform.neutralizer import Neutralizer
 from msani.moltransform.utils import run_reaction_preserving_fragments
 from msani.io.parsers import CustomHelpFormatter
-
-# forkserver avoids inheriting parent locks (RDKit allocator, logging) on Linux.
-# Windows only supports 'spawn'; macOS prefers 'spawn' too (fork is deprecated).
-_MP_START_METHOD = 'forkserver' if platform.system() == 'Linux' else 'spawn'
+from msani.multiprocessing_context import get_context
 
 RDLogger.DisableLog('rdApp.*') # To disable error messages with kekulizing tautomers from RDKit
 logger = logging.getLogger('msani')
@@ -287,6 +282,11 @@ class Ionizer:
                 for smi, mol in current_mols.items():
                     if mol.HasSubstructMatch(rxn.GetReactantTemplate(0)):
                         outcomes = run_reaction_preserving_fragments(rxn, mol)
+                        if not outcomes:
+                            # The template matched but the reaction produced
+                            # nothing: keep the molecule instead of dropping it.
+                            next_mols[smi] = mol
+                            continue
                         if self.debug:
                             print(
                                 f"\tApplying reaction {name} "
@@ -377,13 +377,20 @@ class Ionizer:
             raise ValueError("Either 'smiles' or 'mol' must be provided.")
         if mol is None:
             mol = Chem.MolFromSmiles(smiles)
+            if mol is None:
+                raise ValueError(f"Could not parse SMILES: {smiles!r}")
         else:
             # Reactions sanitize their products in place, so isolate all work
             # from a molecule owned by the caller or another DataFrame row.
             mol = Chem.Mol(mol)
 
         if self.neutralize:
-            mol = Neutralizer.neutralize_mol(mol)
+            neutralized = Neutralizer.neutralize_mol(mol)
+            if neutralized is None:
+                raise ValueError(
+                    f"Neutralization failed for {Chem.MolToSmiles(mol)}"
+                )
+            mol = neutralized
 
         variation_mols = {}
         applied_rule_combinations = set()
@@ -397,8 +404,16 @@ class Ionizer:
                 continue
             applied_rule_combinations.add(rule_combinations)
             if self.debug: print('Processing pH:', round(pH, 1))
+            rules = self.rules_across_pH[pH]
+            # Until the first rule fires the molecule is still the input, so
+            # rules the cache marks as non-matching before it cannot change it.
+            first = next(
+                (i for i, (rxn, _, _) in enumerate(rules)
+                 if rule_matches[id(rxn)]),
+                len(rules),
+            )
             variation_mols.update(self.apply_reactions_mols(
-                mol, self.rules_across_pH[pH]
+                mol, rules[first:]
             ))
         return variation_mols
 
@@ -435,7 +450,7 @@ class Ionizer:
             df[mol_column] = df[smiles_column].apply(Chem.MolFromSmiles)
 
         numcores = min(self.numcores, len(df))
-        ctx = mp.get_context(_MP_START_METHOD)
+        ctx = get_context()
         # Package the row data efficiently using python dicts to avoid memory bloat of large Pandas Series
         keys = df.columns.tolist()
         rows = ((dict(zip(keys, r)), smiles_column, name_column, mol_column) for r in df.itertuples(index=False, name=None))
