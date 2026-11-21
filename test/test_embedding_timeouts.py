@@ -2,6 +2,9 @@
 from dataclasses import replace
 from multiprocessing import Pipe
 from queue import Queue
+from types import SimpleNamespace
+from unittest.mock import patch
+import os
 import time
 import unittest
 
@@ -40,6 +43,20 @@ class TestEmbeddingTimeouts(unittest.TestCase):
         self.assertEqual(_config().obabel_timeout, 30)
         args = parsers.parseArguments(['-s', 'CCO', '--gen3d', '-tob', '12.5'])
         self.assertEqual(conformers.ConformerRunConfig.from_args(args).obabel_timeout, 12.5)
+
+    def test_embedder_is_resolved_once_into_run_config(self):
+        # The worker uses the embedder its parent resolved, not its own environment.
+        self.assertEqual(_config().embedder, conformers._DEFAULT_EMBEDDER)
+        module = SimpleNamespace(EMBEDDING_PRESETS=('sretkdgv3', 'etkdgv4-ic'))
+        with patch.object(conformers, 'cpp_sampler', module, create=True), \
+                patch.object(conformers, 'CPP_AVAILABLE', True):
+            with patch.dict(os.environ, {'MSANI_EMBEDDER': 'ETKDGv4-IC'}):
+                config = _config()
+            self.assertEqual(config.embedder, 'etkdgv4-ic')
+            # An explicit name wins over the environment of the calling process.
+            self.assertEqual(conformers._modern_embedder(config.embedder), 'etkdgv4-ic')
+            with patch.dict(os.environ, {'MSANI_EMBEDDER': 'etkdgv4-ic'}):
+                self.assertIsNone(conformers._modern_embedder('sretkdgv3'))
 
     def test_embedding_worker_returns_result(self):
         amsol, ring_confs, _, error = conformers._run_embedding_worker('CCO', 'ethanol', _config())

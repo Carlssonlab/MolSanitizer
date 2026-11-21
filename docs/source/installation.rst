@@ -5,7 +5,9 @@ Supported environments
 ----------------------
 
 Package metadata requires Python ``>=3.10,<3.15`` and RDKit ``>=2025.3.1``.
-The source-build Conda environment requests RDKit ``>=2025.9.1``. These are
+The source-build Conda environment pins RDKit ``2026.9.2``, the release the
+wheels are built with, because the conformers produced depend on the RDKit
+release. These are
 installation requirements; they do not mean every permitted combination has
 been tested.
 

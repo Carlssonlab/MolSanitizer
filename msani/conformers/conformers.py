@@ -125,6 +125,9 @@ class ConformerRunConfig:
     synthon: bool
     corina_path: str | None = None
     obabel_timeout: float = 30
+    # Initial embedder, resolved once in the parent so that every worker uses
+    # the one that was validated and logged. None: read MSANI_EMBEDDER.
+    embedder: str | None = None
 
     @property
     def ignore_torlib(self):
@@ -137,7 +140,8 @@ class ConformerRunConfig:
                    args.tolerance, args.rmsd, args.clash_scale, args.timeout_conf, args.timeout,
                    args.eps, args.allowNonring, args.cleanup, args.debug,
                    args.timing, frozenset(args.format), args.synthon, getattr(args, 'corinaPath', None),
-                   getattr(args, 'timeout_obabel', 30))
+                   getattr(args, 'timeout_obabel', 30),
+                   (_modern_embedder() or _DEFAULT_EMBEDDER) if args.method == 'rdkit' else None)
     
 class ConformerGenerator:
     '''
@@ -210,7 +214,8 @@ class ConformerGenerator:
                  torlib = Torlib,
                  VERBOSE = False,
                  corina_path = None,
-                 obabel_timeout = 30):
+                 obabel_timeout = 30,
+                 embedder = None):
         """
         Initialize the ConformerGenerator object.
         
@@ -231,12 +236,15 @@ class ConformerGenerator:
             VERBOSE (bool): Whether to print verbose output
             obabel_timeout (float): Seconds allowed for an Open Babel embedding, including
                 process start-up (default: 30).
+            embedder (str): Initial RDKit embedder ('sretkdgv3', 'etkdgv4' or 'etkdgv4-ic').
+                None (default) reads the MSANI_EMBEDDER environment variable.
         """
         # Validate inputs
         self.smiles = smiles
         self.name = name
         self.corina_path = corina_path
         self.obabel_timeout = obabel_timeout
+        self.embedder = embedder
         self.method = method
         self.randomSeed = randomSeed
         random.seed(self.randomSeed)
@@ -495,7 +503,7 @@ class ConformerGenerator:
         # An ETKDGv4 preset requested through MSANI_EMBEDDER goes first; the
         # srETKDGv3 chain below is the default and its fallback.
         conf_ring_descriptors_df = DataFrame()
-        modern_method = _modern_embedder()
+        modern_method = _modern_embedder(self.embedder)
         if modern_method is not None:
             try:
                 conf_ring_descriptors_df = embed_fix_ring_confs(method = modern_method)
@@ -1395,14 +1403,20 @@ _DEFAULT_EMBEDDER = 'sretkdgv3'
 _OPTIONAL_EMBEDDERS = ('etkdgv4-ic', 'etkdgv4')
 
 
-def _modern_embedder():
-    """Return the ETKDGv4 preset requested through MSANI_EMBEDDER, or None.
+def _modern_embedder(requested=None):
+    """Return the requested ETKDGv4 preset, or None.
 
+    `requested` is an embedder name; None reads the MSANI_EMBEDDER environment
+    variable. Worker processes are given the name resolved by their parent,
+    because a forkserver worker does not see later changes to the parent's
+    environment.
     None means the srETKDGv3 chain is used directly, which is the default.
     ETKDGv4 needs a msani_confgen_cpp built against RDKit >= 2026.09, whatever
     the installed Python RDKit is; requesting it without one is an error.
     """
-    requested = os.environ.get('MSANI_EMBEDDER', '').strip().lower()
+    if requested is None:
+        requested = os.environ.get('MSANI_EMBEDDER', '')
+    requested = requested.strip().lower()
     if requested in ('', _DEFAULT_EMBEDDER):
         return None
     if requested not in _OPTIONAL_EMBEDDERS:
@@ -1440,7 +1454,7 @@ def _embed_rdkit_worker(result_connection, smiles, name, config):
             randomSeed=config.random_seed, num_ring_confs=config.ring_confs,
             numcores=config.num_cores, mode=config.mode, tolerance=config.tolerance,
             rmsd=config.rmsd, clash_scale=config.clash_scale, VERBOSE=config.verbose,
-            obabel_timeout=config.obabel_timeout,
+            obabel_timeout=config.obabel_timeout, embedder=config.embedder,
         )
         generator.validate_embedding()
         property_flags = PropertyPickleOptions.MolProps | PropertyPickleOptions.PrivateProps
@@ -1683,9 +1697,10 @@ def gen_conf_chunk(df: DataFrame, args, input_file='0'):
         return
     config = ConformerRunConfig.from_args(args)
     if config.method == 'rdkit':
-        # Also rejects an unusable MSANI_EMBEDDER before any molecule is run.
+        # from_args already rejected an unusable MSANI_EMBEDDER, before any
+        # molecule is run.
         logger.info('Initial embedder: %s (RDKit C++ %s)',
-                    _modern_embedder() or _DEFAULT_EMBEDDER,
+                    config.embedder,
                     getattr(cpp_sampler, 'RDKIT_CPP_VERSION', 'unknown') if CPP_AVAILABLE else 'unavailable')
     if 'mol' not in df.columns:
         df = df.copy()
