@@ -211,6 +211,15 @@ def parseArguments(args = None, batch_mode = False):
         default=defaults.get('removesalts', False), 
         help='Remove salts from the structures.\nSmall fragments within the same molecule are also removed.')
     filter_group.add_argument(
+        '--create_saltlib',
+        action='store_true',
+        help='Generate a template of the default salt list (salt_stripping.txt) for editing.')
+    filter_group.add_argument(
+        '--saltlib',
+        default=defaults.get('saltlib', None),
+        type=str,
+        help='Use your own salt list instead of the default one (replaces it).\nRequires --removesalts. To generate an example list, use --create_saltlib.')
+    filter_group.add_argument(
         '--create_custom', 
         action='store_true', 
         help='Generate a template for customized substructure filtering.')
@@ -644,6 +653,19 @@ def parseArguments(args = None, batch_mode = False):
             parser.error(f'The custom file: {args.custom} does not exist.')
         else:
             args.custom = Path(args.custom).resolve()
+
+    if args.saltlib:
+        if not Path(args.saltlib).is_file():
+            parser.error(f'The salt library file: {args.saltlib} does not exist.')
+        if not args.removesalts:
+            parser.error('--saltlib requires --removesalts.')
+        try:
+            from rdkit.Chem import SaltRemover
+            SaltRemover.SaltRemover(defnFilename=str(args.saltlib))
+        except Exception as exc:
+            parser.error(f'The salt library file: {args.saltlib} could not be read '
+                         f'(one SMARTS per line, optional name after a space): {exc}')
+        args.saltlib = Path(args.saltlib).resolve()
 
     if args.protlib:
         if not Path(args.protlib).is_file():

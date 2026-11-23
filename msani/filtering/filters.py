@@ -13,6 +13,20 @@ logger = logging.getLogger('msani')
 uncharger = rdMolStandardize.Uncharger()
 saltfile = Path(__file__).parent.parent / 'Data' / 'salt_stripping.txt'
 salt_remover = SaltRemover.SaltRemover(defnFilename=saltfile)        
+_custom_salt_removers = {}
+
+def get_salt_remover(salt_library=None):
+    """Return the SaltRemover for the default list or for a user-supplied salt file.
+
+    The remover of a user file is built once and reused for all later chunks.
+    """
+    if salt_library is None:
+        return salt_remover
+    key = str(Path(salt_library).resolve())
+    if key not in _custom_salt_removers:
+        _custom_salt_removers[key] = SaltRemover.SaltRemover(defnFilename=key)
+    return _custom_salt_removers[key]
+
 _fragment_params = rdMolStandardize.CleanupParameters()
 _fragment_params.largestFragmentChooserCountHeavyAtomsOnly = True
 _fragment_chooser = rdMolStandardize.LargestFragmentChooser(_fragment_params)
@@ -279,18 +293,20 @@ class Filters():
         return res
     
     @staticmethod
-    def saltstripping(df: DataFrame, debug = False) -> DataFrame:
+    def saltstripping(df: DataFrame, debug = False, salt_library = None) -> DataFrame:
         """Remove salts from the input molecules using the RDKit SaltRemover class.
 
         Args:
             df (DataFrame): Input DataFrame with 'mol' column containing RDKit molecule objects.
             debug (bool, optional): Debug mode. Defaults to False.
+            salt_library (str or Path, optional): Salt list to use instead of the
+                default Data/salt_stripping.txt. Defaults to None (default list).
 
         Returns:
             DataFrame: A new DataFrame chunk with salt-stripped molecules.
         """
 
-        global salt_remover
+        remover = get_salt_remover(salt_library)
 
         # We will track molecules and smiles directly
         # To avoid a full df copy, work directly on the series. 
@@ -302,7 +318,7 @@ class Filters():
         has_dot = new_smiles.str.contains('.', regex=False, na=False)
         idx = df.index[has_dot]
         
-        updated_mols = new_mols.loc[idx].apply(lambda m: Filters.stripSMILESsalt(m, salt_remover, debug))
+        updated_mols = new_mols.loc[idx].apply(lambda m: Filters.stripSMILESsalt(m, remover, debug))
         new_mols.loc[idx] = updated_mols
         new_smiles.loc[idx] = updated_mols.map(Chem.MolToSmiles)
 

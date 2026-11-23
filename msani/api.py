@@ -84,6 +84,7 @@ class Msani:
                 metal = 'strict',
                 metal_max_variants = metal_complex.MAX_VARIANTS,
                 metal_max_combinations = metal_complex.MAX_COMBINATIONS,
+                salt_library = None,
                 ):
 
         if parallel_min_rows < 0:
@@ -104,6 +105,11 @@ class Msani:
         self._pool_processes = 0
         self._session_depth = 0
         self.removesalts = removesalts
+
+        if salt_library is not None and not Path(salt_library).is_file():
+            raise FileNotFoundError(f'The salt library file: {salt_library} does not exist.')
+
+        self.salt_library = salt_library
         self.ha = str(ha) if ha is not None else None
         self.logp = str(logp) if logp is not None else None
         self.hba = str(hba) if hba is not None else None
@@ -286,7 +292,7 @@ class Msani:
                 max_variants=self.metal_max_variants,
                 max_combinations=self.metal_max_combinations, provenance=False)
         if self.standardize: df = Filters.remove_exotic_chem_to_db2(df)
-        if self.removesalts: df = Filters.saltstripping(df, debug=self.debug)
+        if self.removesalts: df = Filters.saltstripping(df, debug=self.debug, salt_library=self.salt_library)
         if self.ha is not None: df = Filters.filter_by_ha(df, self.ha, rejectedFile=rejected_file, debug=self.debug)
         if self.hba is not None: df = Filters.filter_by_hba(df, self.hba, rejectedFile=rejected_file, debug=self.debug)
         if self.hbd is not None: df = Filters.filter_by_hbd(df, self.hbd, rejectedFile=rejected_file, debug=self.debug)
