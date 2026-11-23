@@ -1734,5 +1734,59 @@ class TestInitialEmbedderSelection(unittest.TestCase):
                 Chem.AddHs(Chem.MolFromSmiles('CCO')), 1, {'preset': 'sretkdgv3', 'randomSed': 1}, None)
 
 
+@unittest.skipUnless(CPP_AVAILABLE, 'requires the C++ sampling extension')
+class TestConformerBudgetPerRingConformation(unittest.TestCase):
+    """A --numconfs below the ring-conformation count must still sample.
+
+    N-phenylbenzenesulfonamide matches the sulfonamide scaffold, so num_ring_confs
+    becomes 2 and the budget is divided by two before it reaches the sampler.
+    """
+
+    SMILES = 'O=S(=O)(Nc1ccccc1)c1ccccc1'
+
+    def generator(self):
+        # The default embeds in the constructor, and the sulfonamide flip leaves two
+        # ring conformations to share the budget.
+        generator = ConformerGenerator(self.SMILES, name='phenylbenzenesulfonamide')
+        # 'fixed' is the default mode, so conf_sampling delegates to conf_samplingv2.
+        self.assertEqual(generator.mode, 'fixed')
+        self.assertGreater(len(generator.ring_confs), 1)
+        return generator
+
+    def test_one_conformer_is_requested_per_ring_conformation(self):
+        generator = self.generator()
+        requested = []
+
+        def sampler(*args, **kwargs):
+            requested.append(kwargs['numConfs'])
+            return Chem.Mol(kwargs['mol'])
+
+        with patch.object(conformers.cpp_sampler, 'stochastic_sampling_discrete',
+                          side_effect=sampler):
+            generator.conf_sampling(numConfs=1)
+        # int(1 / 2) asked the sampler for zero conformers, which it rejects, so the
+        # molecule came out of a --numconfs 1 run with no file in any format.
+        self.assertTrue(requested)
+        self.assertGreaterEqual(min(requested), 1)
+
+    def test_a_sampler_that_raises_reaches_the_fallback(self):
+        generator = self.generator()
+
+        def failed(*args, **kwargs):
+            mol = Chem.Mol(kwargs['mol'])
+            mol.SetProp('Failed_sampling', '1')
+            return mol
+
+        with patch.object(conformers.cpp_sampler, 'stochastic_sampling_discrete',
+                          side_effect=RuntimeError('Conformer and attempt counts '
+                                                   'must be positive')), \
+                patch.object(ConformerGenerator, 'stochastic_sampling',
+                             side_effect=failed) as fallback:
+            generator.conf_sampling(numConfs=1)
+        # An extension that raises leaves stochastic_sampling_v2 returning None, which
+        # has to read as a failed sampling rather than as an AttributeError.
+        self.assertEqual(fallback.call_count, len(generator.ring_confs))
+
+
 if __name__ == '__main__':
         unittest.main()

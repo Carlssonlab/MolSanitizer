@@ -908,7 +908,9 @@ class ConformerGenerator:
             return
         # For very flexible molecules, we need to sample more, then filter by energy later
         else:
-            numConfs = int(numConfs/len(self.ring_confs))
+            # Floored at one per ring conformation: int() of a budget smaller than the
+            # number of ring conformations is zero, and the sampler rejects a zero count.
+            numConfs = max(1, int(numConfs/len(self.ring_confs)))
         
         if (self.label_map) and not (AllowNonRing): numConfs = 30
     
@@ -1061,7 +1063,9 @@ class ConformerGenerator:
             return
         else:
             # In case of sulfonamides and cycloheptatrienes, we divine the numConfs by the number of ring conformers
-            numConfs = int(numConfs/len(self.ring_confs))
+            # Floored at one: int(1/2) is zero, the sampler rejects a zero count, and
+            # --numconfs 1 then produced no conformers at all for these molecules.
+            numConfs = max(1, int(numConfs/len(self.ring_confs)))
 
         # Molecules which don't have rings are not of interest --> only sample limitedly.
         if (self.label_map) and not (AllowNonRing): numConfs = 30
@@ -1096,7 +1100,11 @@ class ConformerGenerator:
                                                   hetero_H_bonds = self.hetero_H_bonds, 
                                                   timeout_conf = timeout_conf,
                                                   eps = eps)
-            if result.HasProp('Failed_sampling') and result.GetProp('Failed_sampling') == '1':
+            # stochastic_sampling_v2 returns None when the extension raises, exactly as
+            # in conf_sampling: without the None check the line below raises an
+            # AttributeError and the molecule is discarded instead of reaching the
+            # random dihedral angles fallback.
+            if result is None or (result.HasProp('Failed_sampling') and result.GetProp('Failed_sampling') == '1'):
                 if self.VERBOSE: print(f'Failed to find any confs for {self.name}, using the random dihedral angles approach as a fallback')
                 possible_numConfs, match_torlib, self.hetero_H_bonds = utils.count_confs_by_rotbonds(mol = self.ring_confs[0],
                                                              rot_bonds = self.rot_bonds,
@@ -1115,7 +1123,7 @@ class ConformerGenerator:
                                                 random_method= 'uniform'
                                                 )
                 
-                if result.HasProp('Failed_sampling') and result.GetProp('Failed_sampling') == '1':
+                if result is None or (result.HasProp('Failed_sampling') and result.GetProp('Failed_sampling') == '1'):
                     if self.VERBOSE: print(f'Failed for stochastic sampling for {self.name}, use the original conformation')
                     continue
             
