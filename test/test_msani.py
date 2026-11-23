@@ -1734,5 +1734,87 @@ class TestInitialEmbedderSelection(unittest.TestCase):
                 Chem.AddHs(Chem.MolFromSmiles('CCO')), 1, {'preset': 'sretkdgv3', 'randomSed': 1}, None)
 
 
+class TestEmbedOnly(unittest.TestCase):
+    """--embed-only writes each ring conformation's initial embedding, unsampled."""
+
+    SULFONAMIDE = 'O=S(=O)(Nc1ccccc1)c1ccccc1'
+
+    def test_flag_is_parsed_and_reaches_the_run_config(self):
+        for argv in (['-3d', '--embed-only'], ['-3d', '-eo']):
+            with self.subTest(argv=argv):
+                args = parsers.parseArguments(argv)
+                self.assertTrue(args.embed_only)
+                self.assertTrue(conformers.ConformerRunConfig.from_args(args).embed_only)
+        args = parsers.parseArguments(['-3d'])
+        self.assertFalse(args.embed_only)
+        self.assertFalse(conformers.ConformerRunConfig.from_args(args).embed_only)
+
+    def test_batch_jobs_forward_the_option_string(self):
+        args, parser = parsers.parseArguments(['-3d', '-eo'], batch_mode=True)
+        flags = parse_flags_single_job(args, parser).split()
+        self.assertIn('--embed-only', flags)
+        self.assertNotIn('--embed_only', flags)
+
+    @unittest.skipUnless(CPP_AVAILABLE, 'requires the C++ sampling extension')
+    def test_initial_embedding_is_kept_without_sampling(self):
+        generator = ConformerGenerator(self.SULFONAMIDE, name='phenylbenzenesulfonamide')
+        self.assertEqual(len(generator.ring_confs), 2)
+        embedded = [mol.GetConformer(0).GetPositions().tolist() for mol in generator.ring_confs]
+        with patch.object(ConformerGenerator, 'conf_sampling') as sampling, \
+                patch.object(conformers.cpp_sampler, 'stochastic_sampling_discrete') as sampler:
+            generator.use_initial_embedding()
+            with tempfile.TemporaryDirectory() as temp_dir:
+                cwd = os.getcwd()
+                os.chdir(temp_dir)
+                try:
+                    os.makedirs('sdf')
+                    generator.to_sdf()
+                    written = sorted(os.listdir('sdf'))
+                    records = [list(Chem.SDMolSupplier(f'sdf/{name}', removeHs=False))
+                               for name in written]
+                finally:
+                    os.chdir(cwd)
+        sampling.assert_not_called()
+        sampler.assert_not_called()
+        self.assertTrue(generator.conf_sampled)
+        self.assertTrue(generator.atom_maps)
+        self.assertEqual(written, ['phenylbenzenesulfonamide.nr0.sdf',
+                                   'phenylbenzenesulfonamide.nr1.sdf'])
+        self.assertEqual([len(mols) for mols in records], [1, 1])
+        # The SDF keeps four decimals of the embedded coordinates.
+        for mols, positions in zip(records, embedded):
+            for written_xyz, embedded_xyz in zip(mols[0].GetConformer().GetPositions().tolist(), positions):
+                for written_value, embedded_value in zip(written_xyz, embedded_xyz):
+                    self.assertAlmostEqual(written_value, embedded_value, places=3)
+
+    @unittest.skipUnless(CPP_AVAILABLE and conformers.AMSOLCPP_AVAILABLE,
+                         'requires the C++ sampling extension and AMSOLcpp')
+    def test_run_writes_one_record_per_ring_conformation(self):
+        df = DataFrame({'smiles': [self.SULFONAMIDE, 'Oc1ccc(Cl)c(Cl)c1'],
+                        'ids': ['sulfonamide', 'dichlorophenol']})
+        args = parsers.parseArguments(['-3d', '-eo', '-f', 'sdf', 'mol2', 'db2'])
+        with tempfile.TemporaryDirectory() as temp_dir:
+            cwd = os.getcwd()
+            os.chdir(temp_dir)
+            try:
+                with patch.object(ConformerGenerator, 'conf_sampling') as sampling:
+                    conformers.gen_conf_chunk(df, args)
+                sampling.assert_not_called()
+                self.assertEqual(sorted(os.listdir('sdf')),
+                                 ['dichlorophenol.sdf', 'sulfonamide.nr0.sdf', 'sulfonamide.nr1.sdf'])
+                self.assertEqual(sorted(os.listdir('mol2')),
+                                 ['dichlorophenol.mol2', 'sulfonamide.nr0.mol2', 'sulfonamide.nr1.mol2'])
+                for name in os.listdir('sdf'):
+                    with self.subTest(sdf=name):
+                        self.assertEqual(len(Chem.SDMolSupplier(f'sdf/{name}')), 1)
+                # DB2 keeps one file per molecule, now holding one conformer per ring conformation.
+                self.assertEqual(sorted(os.listdir('db2')), ['dichlorophenol.db2', 'sulfonamide.db2'])
+                for name in os.listdir('db2'):
+                    with self.subTest(db2=name):
+                        self.assertGreater(Path(f'db2/{name}').stat().st_size, 0)
+            finally:
+                os.chdir(cwd)
+
+
 if __name__ == '__main__':
         unittest.main()

@@ -447,6 +447,13 @@ def parseArguments(args = None, batch_mode = False):
         default=defaults.get('mode', 'fixed'),
         help='Mode for generating conformers\nDefault: fixed - Options: fixed, random, ignoretorlib')
     gen3d.add_argument(
+        '--embed-only', '-eo',
+        action='store_true',
+        dest='embed_only',
+        default=defaults.get('embed_only', False),
+        help='Skip torsional sampling and write the initial embedding of each ring conformation\n'
+             '(one conformer per ring conformation, nr0, nr1, ... as for pdbqt).')
+    gen3d.add_argument(
         '--tolerance', '-tol',
         type=float,
         default=defaults.get('tolerance', 30),

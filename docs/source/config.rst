@@ -207,6 +207,7 @@ The file will be created in the current working directory with the name ``config
     # format: [db2.tgz]
     # method: rdkit
     # numconfs: 2000
+    # embed_only: false # Write the initial embedding of each ring conformation, no sampling
     # energywindow: 25
     # rigid: None
     # rigid_exclude: None # One or more SMILES/SMARTS, e.g. [c1ccoc1]
