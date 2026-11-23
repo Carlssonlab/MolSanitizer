@@ -220,6 +220,24 @@ def parseArguments(args = None, batch_mode = False):
         type=str,
         help='Use your own salt list instead of the default one (replaces it).\nRequires --removesalts. To generate an example list, use --create_saltlib.')
     filter_group.add_argument(
+        '--create_protlib',
+        action='store_true',
+        help='Create a template for customized protonation scheme.')
+    filter_group.add_argument(
+        '--protlib',
+        type=str,
+        default=defaults.get('protlib', None),
+        help='Path to the protonation library file (replaces the default: msani/Data/ionizations_v3.txt).')
+    filter_group.add_argument(
+        '--create_taulib',
+        action='store_true',
+        help='Create a template for customized tautomerization scheme.')
+    filter_group.add_argument(
+        '--taulib',
+        type=str,
+        default=defaults.get('taulib', None),
+        help='Path to the tautomer library file (replaces the default: msani/Data/tautomers_v3.txt).')
+    filter_group.add_argument(
         '--create_custom', 
         action='store_true', 
         help='Generate a template for customized substructure filtering.')
@@ -548,27 +566,9 @@ def parseArguments(args = None, batch_mode = False):
         action='store_true', 
         help='Show the current version of MolSanitizer')
     misc_group.add_argument(
-        '--create_protlib', 
-        action='store_true', 
-        help='Create a template for customized protonation scheme' if show_advanced_help else argparse.SUPPRESS)
-    misc_group.add_argument(
-        '--create_taulib', 
-        action='store_true', 
-        help='Create a template for customized tautomerization scheme' if show_advanced_help else argparse.SUPPRESS)
-    misc_group.add_argument(
         '--create_torsion', 
         action='store_true', 
         help='Create a template for customized torsion definition' if show_advanced_help else argparse.SUPPRESS)
-    misc_group.add_argument(
-        '--protlib',  
-        type=str, 
-        default=defaults.get('protlib', None), 
-        help='Path to the protonation library file (default: msani/Data/ionizations_v3.txt).' if show_advanced_help else argparse.SUPPRESS)
-    misc_group.add_argument(
-        '--taulib', 
-        type=str, 
-        default=defaults.get('taulib', None), 
-        help='Path to the tautomer library file (default:  msani/Data/tautomers_v3.txt).' if show_advanced_help else argparse.SUPPRESS)
     misc_group.add_argument(
         '--torsion', '-tor', 
         type=str, 
