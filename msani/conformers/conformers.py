@@ -847,6 +847,30 @@ class ConformerGenerator:
         except Exception as e:
             print(f'Error in C++ extension: {e}')
 
+    def _split_budget_over_ring_confs(self, numConfs, fixed_budget=None):
+        """Share numConfs over the ring conformations and drop those left with none.
+
+        The remainder goes to the first ring conformations (3 over 2 gives 2 and 1).
+        A ring conformation whose share is zero is removed from self.ring_confs, so it
+        is neither sampled nor written: --numconfs 1 with two ring conformations
+        gives one output instead of asking the sampler for zero conformers. The first
+        ring conformation is always kept. fixed_budget, if given, is used for every
+        ring conformation instead (the limited sampling of molecules without rings).
+
+        Returns:
+            list[int]: The number of conformers to sample for each kept ring conformation.
+        """
+        if fixed_budget is not None:
+            return [fixed_budget] * len(self.ring_confs)
+        share, remainder = divmod(numConfs, len(self.ring_confs))
+        budgets = [share + (idx < remainder) for idx in range(len(self.ring_confs))]
+        kept = max(1, sum(budget > 0 for budget in budgets))
+        if kept < len(self.ring_confs):
+            if self.VERBOSE:
+                print(f"\t--numconfs {numConfs} covers {kept} of {len(self.ring_confs)} ring conformations, skipping the others")
+            del self.ring_confs[kept:]
+        return budgets[:kept]
+
     def conf_sampling(self, 
                       numConfs=2000, 
                       energywindow = 25,
@@ -906,11 +930,10 @@ class ConformerGenerator:
             log_error(self.smiles, self.name)
             logger.error(f'No rigid part left for {self.name} after applying --rigid/--rigid_exclude. No conformers are generated')
             return
-        # For very flexible molecules, we need to sample more, then filter by energy later
-        else:
-            numConfs = int(numConfs/len(self.ring_confs))
-        
-        if (self.label_map) and not (AllowNonRing): numConfs = 30
+        # For very flexible molecules, we need to sample more, then filter by energy later.
+        # Molecules which don't have rings are not of interest --> only sample limitedly.
+        budgets = self._split_budget_over_ring_confs(
+            numConfs, fixed_budget=30 if (self.label_map and not AllowNonRing) else None)
     
 
         if self.VERBOSE:
@@ -943,7 +966,7 @@ class ConformerGenerator:
             result = self.stochastic_sampling( mol = processing_mol,
                                                 tolerance_level = 2,
                                                 match_torlib = match_torlib,
-                                                numConfs = numConfs,
+                                                numConfs = budgets[idx],
                                                 window = energywindow,
                                                 max_attempts = 50000,
                                                 eps = eps,
@@ -1059,12 +1082,10 @@ class ConformerGenerator:
             log_error(self.smiles, self.name)
             logger.error(f'No rigid part left for {self.name} after applying --rigid/--rigid_exclude. No conformers are generated')
             return
-        else:
-            # In case of sulfonamides and cycloheptatrienes, we divine the numConfs by the number of ring conformers
-            numConfs = int(numConfs/len(self.ring_confs))
-
+        # In case of sulfonamides and cycloheptatrienes, numConfs is shared by the ring conformers.
         # Molecules which don't have rings are not of interest --> only sample limitedly.
-        if (self.label_map) and not (AllowNonRing): numConfs = 30
+        budgets = self._split_budget_over_ring_confs(
+            numConfs, fixed_budget=30 if (self.label_map and not AllowNonRing) else None)
 
         if (len(self.rot_bonds) == 0):
             print('No rotatable bonds found, returning the original conformation')
@@ -1088,7 +1109,7 @@ class ConformerGenerator:
             result = self.stochastic_sampling_v2(mol = processing_mol,
                                                   angle_map = angle_map,
                                                   score_map = score_map,
-                                                  numConfs = numConfs,
+                                                  numConfs = budgets[idx],
                                                   possible_numConfs = possible_numConfs,
                                                   importance_order =  importance_order, 
                                                   window = energywindow, 
@@ -1096,7 +1117,9 @@ class ConformerGenerator:
                                                   hetero_H_bonds = self.hetero_H_bonds, 
                                                   timeout_conf = timeout_conf,
                                                   eps = eps)
-            if result.HasProp('Failed_sampling') and result.GetProp('Failed_sampling') == '1':
+            # stochastic_sampling_v2 returns None when the extension raises: treat it as a
+            # failed sampling, as conf_sampling does, so the random dihedral fallback runs.
+            if result is None or (result.HasProp('Failed_sampling') and result.GetProp('Failed_sampling') == '1'):
                 if self.VERBOSE: print(f'Failed to find any confs for {self.name}, using the random dihedral angles approach as a fallback')
                 possible_numConfs, match_torlib, self.hetero_H_bonds = utils.count_confs_by_rotbonds(mol = self.ring_confs[0],
                                                              rot_bonds = self.rot_bonds,
@@ -1107,7 +1130,7 @@ class ConformerGenerator:
                 result = self.stochastic_sampling( mol = processing_mol,
                                                 tolerance_level = 2,
                                                 match_torlib = match_torlib,
-                                                numConfs = numConfs,
+                                                numConfs = budgets[idx],
                                                 window = energywindow,
                                                 max_attempts = 50000,
                                                 eps = eps,
@@ -1115,7 +1138,7 @@ class ConformerGenerator:
                                                 random_method= 'uniform'
                                                 )
                 
-                if result.HasProp('Failed_sampling') and result.GetProp('Failed_sampling') == '1':
+                if result is None or (result.HasProp('Failed_sampling') and result.GetProp('Failed_sampling') == '1'):
                     if self.VERBOSE: print(f'Failed for stochastic sampling for {self.name}, use the original conformation')
                     continue
             

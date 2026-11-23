@@ -1752,5 +1752,98 @@ class TestInitialEmbedderSelection(unittest.TestCase):
                 Chem.AddHs(Chem.MolFromSmiles('CCO')), 1, {'preset': 'sretkdgv3', 'randomSed': 1}, None)
 
 
+@unittest.skipUnless(CPP_AVAILABLE, 'requires the C++ sampling extension')
+class TestConformerBudgetPerRingConformation(unittest.TestCase):
+    """--numconfs is shared over the ring conformations, remainder first.
+
+    N-phenylbenzenesulfonamide matches the sulfonamide scaffold, so there are two
+    ring conformations to share the budget.
+    """
+
+    SMILES = 'O=S(=O)(Nc1ccccc1)c1ccccc1'
+
+    def generator(self):
+        generator = ConformerGenerator(self.SMILES, name='phenylbenzenesulfonamide')
+        # 'fixed' is the default mode, so conf_sampling delegates to conf_samplingv2.
+        self.assertEqual(generator.mode, 'fixed')
+        self.assertEqual(len(generator.ring_confs), 2)
+        return generator
+
+    def requested_counts(self, numConfs):
+        generator = self.generator()
+        requested = []
+
+        def sampler(*args, **kwargs):
+            requested.append(kwargs['numConfs'])
+            return Chem.Mol(kwargs['mol'])
+
+        with patch.object(conformers.cpp_sampler, 'stochastic_sampling_discrete',
+                          side_effect=sampler):
+            generator.conf_sampling(numConfs=numConfs)
+        return generator, requested
+
+    def test_budget_is_split_with_the_remainder_first(self):
+        for numConfs, expected in ((20, [10, 10]), (3, [2, 1]), (2, [1, 1])):
+            with self.subTest(numConfs=numConfs):
+                generator, requested = self.requested_counts(numConfs)
+                self.assertEqual(requested, expected)
+                self.assertEqual(len(generator.ring_confs), 2)
+
+    def test_ring_conformation_without_budget_is_skipped(self):
+        # int(1 / 2) used to ask the sampler for zero conformers, which it rejects,
+        # so the molecule came out of a --numconfs 1 run with no file at all.
+        generator, requested = self.requested_counts(1)
+        self.assertEqual(requested, [1])
+        self.assertEqual(len(generator.ring_confs), 1)
+
+    def test_skipped_ring_conformation_is_not_written(self):
+        generator, _ = self.requested_counts(1)
+        with tempfile.TemporaryDirectory() as temp_dir:
+            cwd = os.getcwd()
+            os.chdir(temp_dir)
+            try:
+                os.makedirs('sdf')
+                os.makedirs('mol2')
+                generator.to_sdf()
+                generator.to_mol2()
+            finally:
+                os.chdir(cwd)
+            # One ring conformation left: written under the plain name, as for any
+            # molecule with a single ring conformation.
+            self.assertEqual(sorted(os.listdir(f'{temp_dir}/sdf')),
+                             ['phenylbenzenesulfonamide.sdf'])
+            self.assertEqual(sorted(os.listdir(f'{temp_dir}/mol2')),
+                             ['phenylbenzenesulfonamide.mol2'])
+
+    def test_a_sampler_that_raises_reaches_the_fallback(self):
+        generator = self.generator()
+
+        def failed(*args, **kwargs):
+            mol = Chem.Mol(kwargs['mol'])
+            mol.SetProp('Failed_sampling', '1')
+            return mol
+
+        with patch.object(conformers.cpp_sampler, 'stochastic_sampling_discrete',
+                          side_effect=RuntimeError('Conformer and attempt counts '
+                                                   'must be positive')), \
+                patch.object(ConformerGenerator, 'stochastic_sampling',
+                             side_effect=failed) as fallback:
+            generator.conf_sampling(numConfs=2)
+        # An extension that raises leaves stochastic_sampling_v2 returning None, which
+        # has to read as a failed sampling rather than as an AttributeError.
+        self.assertEqual(fallback.call_count, 2)
+        self.assertEqual([call.kwargs['numConfs'] for call in fallback.call_args_list], [1, 1])
+        self.assertEqual(len(generator.ring_confs), 2)
+
+    def test_fallback_that_returns_none_keeps_the_embedding(self):
+        generator = self.generator()
+        with patch.object(conformers.cpp_sampler, 'stochastic_sampling_discrete',
+                          side_effect=RuntimeError('boom')), \
+                patch.object(ConformerGenerator, 'stochastic_sampling', return_value=None):
+            generator.conf_sampling(numConfs=2)
+        # Both samplers failed: each ring conformation keeps its single embedded conformer.
+        self.assertEqual([mol.GetNumConformers() for mol in generator.ring_confs], [1, 1])
+
+
 if __name__ == '__main__':
         unittest.main()
