@@ -35,8 +35,8 @@ Contents
 .. toctree::
    :maxdepth: 1
    :caption: Advanced Topics
-   
    changes
+   customization
    python
    contributors
 

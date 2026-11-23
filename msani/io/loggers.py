@@ -67,7 +67,9 @@ def arguments(args):
 
     if args.removesalts:
         logger.info(f"Remove salts and retain largest fragments: {args.removesalts}")
-        if args.debug:
+        if args.saltlib:
+            logger.info(f"Using salt library: {args.saltlib}")
+        elif args.debug:
             smartsFile = Path(__file__).parent.parent / 'Data' / 'salt_stripping.txt'
             logger.info(f'Loading salt stripping rules from: {smartsFile.resolve()}')
 

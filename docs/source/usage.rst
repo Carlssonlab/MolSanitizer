@@ -347,7 +347,7 @@ Example of the **_rejected** output is as below:
 7. Unwanted substructures filtering
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Molecules that contain unwanted substructures can be efficiently eliminated using the ``--unwanted`` flag. msani uses an expert-curated list that contains undesirable substructures, accompanied by the reasons and references for filtering. The list can be obtained from `msani/Data/filter_out.csv <https://github.com/carlssonlab/msani/blob/main/msani/Data/filter_out.csv>`_.
+Molecules that contain unwanted substructures can be efficiently eliminated using the ``--unwanted`` flag. msani uses an expert-curated list that contains undesirable substructures, accompanied by the reasons and references for filtering. The list can be obtained from `msani/Data/filter_out.txt <https://github.com/Carlssonlab/MolSanitizer/blob/main/msani/Data/filter_out.txt>`_.
 
 There are four options accompanied by the ``--unwanted`` flag, which are *['all', 'regular', 'special', 'optional']*. If no option is specified, the *regular* filters will be applied. The choice of the options depends on the user and can vary between targets.
 
@@ -358,18 +358,18 @@ There are four options accompanied by the ``--unwanted`` flag, which are *['all'
     $ msani -i example.smi --unwanted regular special
     $ msani -i example.smi --unwanted all
 
-It is also possible to filter out customized unwanted substructures, depending on the user's preference, using a customized SMARTS list. To generate a template for this list, use the ``--create_custom`` flag. This will result in the **templates.txt** file.
+It is also possible to filter out customized unwanted substructures, depending on the user's preference, using a customized SMARTS list. To generate a template for this list, use the ``--create_custom`` flag. This writes a copy of the built-in list as **filter_out.txt** (or **NAME.txt** with ``--prefix NAME``), which can be edited (for example, saved as **my_filters.txt** with only the patterns you need).
 
 .. code-block:: console
 
     $ msani --create_custom
 
-The first two columns (SMARTS and LABEL) are required for the program to parse, while the remaining columns will be omitted by the program. To filter using the customized list, use the ``--custom`` flag with the path to the customized list file. It is also possible to apply both the available filters and the customized filters.
+The first two columns (SMARTS and LABEL) are required for the program to parse, while the remaining columns will be omitted by the program. To filter using the customized list, use the ``--custom`` flag with the path to the customized list file. The customized list does not replace the built-in filters; it is applied in addition to them when ``--unwanted`` is also given. See :doc:`customization` for the file format.
 
 .. code-block:: console
 
-    $ msani -i example.smi --custom templates.txt
-    $ msani -i example.smi --unwanted all --custom templates.tsv
+    $ msani -i example.smi --custom my_filters.txt
+    $ msani -i example.smi --unwanted all --custom my_filters.txt
 
 8. Protonation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
