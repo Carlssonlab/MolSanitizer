@@ -199,8 +199,9 @@ The file will be created in the current working directory with the name ``config
     protonation: true
     pH: 7
     pH_range: 1
-    # prot_lib: None #In case of modified protonation library
-    # tau_lib: None  # In case of modified tautomer library
+    # protlib: None #In case of modified protonation library
+    # taulib: None  # In case of modified tautomer library
+    # saltlib: None  # Path to a modified salt list (replaces the default; needs removesalts: true)
 
     # Conformer generation options
     # gen3d: false
