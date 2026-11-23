@@ -6,6 +6,7 @@ from msani import __version__
 
 
 import os
+import re
 import shlex
 import sys
 import time
@@ -442,6 +443,65 @@ def prepare_batch_chunks(file_path, output_dir, lines_per_file):
             stream.write(f'{chunk_path.name}\n')
     return chunk_paths
 
+# Below this default, one-core jobs are at risk of being killed for memory.
+LOW_MEMORY_MB = 2000
+
+
+def _default_memory_setting(text):
+    """Read DefMemPerCPU/DefMemPerNode from scontrol output.
+
+    Returns the value in MB, math.inf for UNLIMITED, or None when absent.
+    A one-core job gets the same amount under either setting.
+    """
+    match = re.search(r'\bDefMemPer(?:CPU|Node)\s*=\s*(\S+)', text)
+    if match is None:
+        return None
+    value = match.group(1)
+    if value.upper() == 'UNLIMITED':
+        return math.inf
+    return int(value) if value.isdigit() else None
+
+
+def _scontrol(*arguments):
+    return subprocess.run(
+        ['scontrol', *arguments],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        text=True,
+        check=True,
+        timeout=10,
+    ).stdout
+
+
+def default_job_memory_mb(partition=None):
+    """Memory a one-core job gets when submitted without --mem.
+
+    Returns MB, math.inf when the cluster sets no limit, or None when it
+    cannot be determined. This is advisory, so it never raises.
+    """
+    try:
+        if partition is None:
+            # One line per partition; the default one is used when none is named.
+            lines = _scontrol('show', 'partition', '--oneliner').splitlines()
+            partitions = [line for line in lines if re.search(r'\bDefault=YES\b', line)]
+        else:
+            partitions = [_scontrol('show', 'partition', name, '--oneliner')
+                          for name in partition.split(',') if name]
+        # A partition without its own default reports UNLIMITED and inherits
+        # the cluster-wide setting.
+        limits = [_default_memory_setting(text) for text in partitions]
+        if any(limit in (None, math.inf) for limit in limits) or not limits:
+            limits.append(_default_memory_setting(_scontrol('show', 'config')))
+        limits = [limit for limit in limits if limit is not None]
+        # With several partitions the job may land on the smallest default.
+        finite = [limit for limit in limits if limit != math.inf]
+        if finite:
+            return min(finite)
+        return math.inf if limits else None
+    except (OSError, subprocess.SubprocessError):
+        return None
+
+
 def parse_flags_single_job(args: dict, parser):
     """Parse the flags for a single job
 
@@ -606,7 +666,7 @@ def Split_Submit_jobs(args: dict, parser):
         if args.mem is not None:
             active_header = active_header.replace('MEMORY_LIMIT', f'#SBATCH --mem={args.mem}')
         else:
-            active_header = active_header.replace('MEMORY_LIMIT', '')
+            active_header = active_header.replace('MEMORY_LIMIT\n', '')
 
         # --- Standard execution script (local copy) ---
         flags = parse_flags_single_job(args, parser)
@@ -623,9 +683,16 @@ def Split_Submit_jobs(args: dict, parser):
         if args.proj_name is not None: print(f"Using project name (-A): {args.proj_name}")
         if args.whole_node:
             print(f"Using whole-node mode:   partition = {args.partition}, {cores} cores per node")
+            if args.mem is not None: print("Warning: --mem is ignored with --whole_node.")
         else:
             if args.partition is not None: print(f"Using partition = {args.partition}")
-            if args.mem is not None: print(f"Memory per job (--mem): {args.mem}")
+            if args.mem is not None:
+                print(f"Memory per job (--mem): {args.mem}")
+            else:
+                default_memory = default_job_memory_mb(args.partition)
+                if default_memory is not None and default_memory < LOW_MEMORY_MB:
+                    print(f"Warning: this cluster gives one-core jobs only {default_memory} MB of memory by default. "
+                          "Set --mem (or SLURM_MEMORY in the msani configuration) if jobs are killed for memory.")
         print(f"Time limit for each job (-tl): {args.timelimit} hours")
         print(f"Maximum number of jobs in an array: {max_array_size} jobs")
         print(f"Maximum number of jobs running parallelly (-mj): {args.max_jobs} jobs")

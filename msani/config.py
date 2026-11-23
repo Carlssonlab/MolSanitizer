@@ -3,6 +3,7 @@ import argparse
 import json
 import math
 import os
+import re
 from importlib.resources import files
 from pathlib import Path
 import sys
@@ -48,6 +49,10 @@ def selected_path():
     return config_directory() / 'msani_configurations.yaml', False
 
 
+# What sbatch --mem accepts. Zero is excluded: SLURM reads it as "all the node's memory".
+SLURM_MEMORY_PATTERN = re.compile(r'[1-9]\d*[KMGT]?', re.IGNORECASE)
+
+
 def read_config(path):
     try:
         data = yaml.safe_load(path.read_text(encoding='utf-8'))
@@ -66,6 +71,9 @@ def read_config(path):
             valid = True
             if key in {'CORINA', 'SLURM_ACCOUNT', 'SLURM_PARTITION'}:
                 valid = value is None or (isinstance(value, str) and bool(value.strip()))
+            elif key == 'SLURM_MEMORY':
+                valid = value is None or (type(value) in (int, str)
+                                          and bool(SLURM_MEMORY_PATTERN.fullmatch(str(value))))
             elif isinstance(default, bool):
                 valid = isinstance(value, bool)
             elif key in {'PH', 'PH_RANGE', 'TIMEOUT', 'ENERGY_WINDOW'}:

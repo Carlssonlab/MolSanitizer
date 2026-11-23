@@ -26,6 +26,8 @@ PH_RANGE: 1 # 0 means choose specific pH=7, 1 means will sample pH 6 and 8, 2 me
 # Please approximate that each entry can take up to 2 minutes to process, but the average time could be much less. 
 # If you have ~ 5000 compounds, it will take around 3 days to process all of them. 
 # But for the safety, we recommend to set the time limit to 5 days (120 hours).
+# SLURM_MEMORY: Memory per one-core job, for example 4G. Leave it as null to get the cluster's
+#               per-core default; clusters may bill extra cores for memory above that share.
 # LINE_PER_JOB: Number of compounds per job
 # TIME_LIMIT: Time limit for each job in hours (default: 72 hours)
 # MAX_ARRAY_SIZE: Maximum of jobs per array allowed to be submitted at the same time 
@@ -34,6 +36,7 @@ PH_RANGE: 1 # 0 means choose specific pH=7, 1 means will sample pH 6 and 8, 2 me
 # MAX_LIMIT_PROJECT: Maximum number of jobs allowed for a project account (for example: naiss2023-3-39 is 5000 jobs)
 SLURM_ACCOUNT: null # Can be set to null if you don't need it in the submitting script.
 SLURM_PARTITION: null # If it is set to null, the default partition of the cluster will be used.
+SLURM_MEMORY: null # If it is set to null, the default memory per core of the cluster will be used.
 LINES_PER_JOB: 200
 TIME_LIMIT: 72
 MAX_ARRAY_SIZE: 1000

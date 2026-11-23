@@ -1,3 +1,4 @@
+import math
 import argparse
 import contextlib
 import io
@@ -268,10 +269,15 @@ class Test_MolSanitizer(unittest.TestCase):
                     patch('msani.batchmode.write_single_job_script'),
                     patch('msani.batchmode.subprocess.run', side_effect=run_command),
                     patch('msani.config.load_defaults', return_value=({'MAX_ARRAY_SIZE': 2, 'MAX_LIMIT_PROJECT': 5000}, {})),
+                    patch('msani.batchmode.default_job_memory_mb', return_value=1000) as default_memory,
+                    contextlib.redirect_stdout(io.StringIO()) as output,
                 ):
                     Split_Submit_jobs(args, parser)
             finally:
                 os.chdir(previous_dir)
+
+            default_memory.assert_called_once_with(None)
+            self.assertIn('only 1000 MB of memory by default', output.getvalue())
 
             # The oversized first input is skipped without preventing the
             # independently valid second input from being submitted.
@@ -1348,6 +1354,8 @@ class Test_MolSanitizer(unittest.TestCase):
                                  "submit_msani.sh header is incorrect.")
                 # No memory request by default: the cluster's per-core share applies.
                 self.assertNotIn('--mem', contents)
+                self.assertNotIn('MEMORY_LIMIT', contents)
+                self.assertIn('#SBATCH --mail-type=FAIL\n\nexport MSANI_CONFIG=', contents)
 
                 self.assertIn('dd if=input.data', contents)
                 self.assertIn('-i "$smiles_file" -j 1', contents)
@@ -1386,6 +1394,53 @@ class Test_MolSanitizer(unittest.TestCase):
             self.assertIn('#SBATCH --mem=4G\n', contents)
             # --mem configures the submission; it is not an msani flag.
             self.assertNotIn(' --mem', contents.replace('#SBATCH --mem=4G', ''))
+
+    def test_batch_memory_from_job_config(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            job_config = Path(temp_dir) / 'job.yaml'
+            job_config.write_text('mem: 4000\n')
+            args, _ = parsers.parseArguments(['--config', str(job_config)], batch_mode=True)
+            self.assertEqual(args.mem, '4000')
+            # An integer from YAML is validated like a command-line value.
+            job_config.write_text('mem: 0\n')
+            with self.assertRaises(SystemExit), contextlib.redirect_stderr(io.StringIO()):
+                parsers.parseArguments(['--config', str(job_config)], batch_mode=True)
+
+    def test_default_job_memory(self):
+        from msani import batchmode
+
+        config_text = 'DefMemPerNode           = UNLIMITED\nMaxArraySize            = 1001\n'
+        low = 'PartitionName=low Default=NO DefMemPerCPU=1000 MaxMemPerNode=UNLIMITED'
+        main = 'PartitionName=main Default=YES DefMemPerNode=UNLIMITED MaxMemPerNode=UNLIMITED'
+        cases = [
+            # (partition, cluster-wide config, expected MB)
+            (None, config_text, math.inf),
+            (None, 'DefMemPerCPU            = 2700\n', 2700),
+            ('low', config_text, 1000),
+            ('main', 'DefMemPerNode           = 1500\n', 1500),
+            # A job may land on either partition, so the smaller default counts.
+            ('main,low', 'DefMemPerCPU            = 2700\n', 1000),
+            (None, 'MaxArraySize            = 1001\n', math.inf),
+        ]
+        for partition, cluster, expected in cases:
+            def scontrol(*arguments, cluster=cluster):
+                if arguments == ('show', 'config'):
+                    return cluster
+                if arguments == ('show', 'partition', '--oneliner'):
+                    return f'{low}\n{main}\n'
+                return {'low': low, 'main': main}[arguments[2]]
+
+            with self.subTest(partition=partition, cluster=cluster):
+                with patch('msani.batchmode._scontrol', side_effect=scontrol):
+                    self.assertEqual(batchmode.default_job_memory_mb(partition), expected)
+
+        # Without SLURM, or with a failing scontrol, the check stays silent.
+        for error in (FileNotFoundError('scontrol'),
+                      subprocess.CalledProcessError(1, 'scontrol'),
+                      subprocess.TimeoutExpired('scontrol', 10)):
+            with self.subTest(error=type(error).__name__):
+                with patch('msani.batchmode.subprocess.run', side_effect=error):
+                    self.assertIsNone(batchmode.default_job_memory_mb('main'))
 
     def test_batch_memory_validation(self):
         self.assertIsNone(parsers.slurm_memory('none'))
