@@ -650,6 +650,7 @@ defaults. Account and partition are unset unless configured.
 
     --projectName, -A       SLURM account (default: unset); use "none" or "null" to omit it.
     --partition            SLURM partition (default: cluster default).
+    --mem                  Memory per one-core job, e.g. 4G (default: cluster per-core default).
     --lines_per_job, -l     Input records per task (default: 200).
     --timelimit, -tl        Time limit per job in hours (default: 72).
     --max_jobs, -mj         Maximum concurrent array tasks (default: 2000).

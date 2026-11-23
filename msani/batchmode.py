@@ -50,7 +50,7 @@ PARTITION_NAME
 #SBATCH -J msani_3d
 #SBATCH -t TIME_LIMIT
 #SBATCH --mail-type=FAIL
-#SBATCH --mem=MEMORY
+MEMORY_LIMIT
 '''
 
 slurm_header_whole_node = '''#!/bin/bash
@@ -452,7 +452,7 @@ def parse_flags_single_job(args: dict, parser):
         str: The flags for a single job
     """
     flags = []
-    omitted_args = ["input_files", "input_list", "config", "smiles", "proj_name", "timelimit", "lines", "max_jobs", "help", "whole_node", "whole_node_cores", "partition", "metal_error_file"]
+    omitted_args = ["input_files", "input_list", "config", "smiles", "proj_name", "timelimit", "lines", "max_jobs", "help", "whole_node", "whole_node_cores", "partition", "mem", "metal_error_file"]
     # Load the config file to see if the defaults are really the defaults by intention or already set
     # by the config file
     config_defaults = {}
@@ -601,10 +601,12 @@ def Split_Submit_jobs(args: dict, parser):
         active_header = active_header.replace('TIME_LIMIT', f'{args.timelimit}:00:00')
         if not args.gen3d:
             active_header = active_header.replace('msani_3d', 'msani_2d')
-        if args.lines >= 100_000: active_header = active_header.replace('MEMORY', '8G')
-        elif args.lines >= 50_000: active_header = active_header.replace('MEMORY', '6G')
-        elif args.lines >= 25_000: active_header = active_header.replace('MEMORY', '4G')
-        else: active_header = active_header.replace('MEMORY', '2G')
+        # Without --mem SLURM grants the per-core default, which is the most
+        # memory a one-core job can use without being billed for extra cores.
+        if args.mem is not None:
+            active_header = active_header.replace('MEMORY_LIMIT', f'#SBATCH --mem={args.mem}')
+        else:
+            active_header = active_header.replace('MEMORY_LIMIT', '')
 
         # --- Standard execution script (local copy) ---
         flags = parse_flags_single_job(args, parser)
@@ -623,6 +625,7 @@ def Split_Submit_jobs(args: dict, parser):
             print(f"Using whole-node mode:   partition = {args.partition}, {cores} cores per node")
         else:
             if args.partition is not None: print(f"Using partition = {args.partition}")
+            if args.mem is not None: print(f"Memory per job (--mem): {args.mem}")
         print(f"Time limit for each job (-tl): {args.timelimit} hours")
         print(f"Maximum number of jobs in an array: {max_array_size} jobs")
         print(f"Maximum number of jobs running parallelly (-mj): {args.max_jobs} jobs")

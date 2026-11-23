@@ -34,6 +34,10 @@ logo=r""" __  __         _  _____                _  _    _
 \_|  |_/ \___/ |_|\____/  \__,_||_| |_||_| \__||_|/___|\___||_|   
 """
 
+# Rows parsed and processed at a time; this bounds peak memory independently
+# of the input size.
+READ_CHUNK_SIZE = 10_000
+
 
 def process_enamine_name(chunk):
     # Split the 'smiles' column by space
@@ -94,7 +98,7 @@ def read_input_file(input_file, is_extended, is_synthon):
 
     read_options = {
         'header': None,
-        'chunksize': 100_000,
+        'chunksize': READ_CHUNK_SIZE,
         'compression': compression,
     }
 

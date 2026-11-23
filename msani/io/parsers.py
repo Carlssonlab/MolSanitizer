@@ -1,4 +1,5 @@
 import argparse
+import re
 import sys
 
 from pathlib import Path
@@ -60,6 +61,14 @@ class CustomHelpFormatter(argparse.RawTextHelpFormatter):
 def none_or_str(value):
     if value.lower() in ("none", "null", ""):
         return None
+    return value
+
+def slurm_memory(value):
+    """Validate a SLURM --mem value such as 2500M or 4G; "none" leaves it unset."""
+    value = none_or_str(value)
+    if value is not None and not re.fullmatch(r'[1-9]\d*[KMGT]?', value, re.IGNORECASE):
+        raise argparse.ArgumentTypeError(
+            f'invalid memory {value!r}: expected an integer with an optional K, M, G or T suffix')
     return value
 
 class PHOption(argparse.Action):
@@ -581,6 +590,13 @@ def parseArguments(args = None, batch_mode = False):
             dest='partition', 
             type=none_or_str, 
             help=f'Partition for the SLURM script (default: {slurm_partition})')
+        batch_group.add_argument(
+            '--mem',
+            default=defaults.get('mem', None),
+            dest='mem',
+            type=slurm_memory,
+            help='Memory per job for the SLURM script, e.g. 4G (default: unset, the cluster\'s per-core default).\n'
+                 'Clusters may bill extra cores for memory above one core\'s share. Ignored with --whole_node')
         batch_group.add_argument(
             '--lines_per_job', '-l',
             dest='lines', 

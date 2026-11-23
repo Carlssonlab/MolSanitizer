@@ -1,3 +1,4 @@
+import argparse
 import contextlib
 import io
 import unittest
@@ -110,7 +111,7 @@ class Test_MolSanitizer(unittest.TestCase):
                         is_extended=False,
                         is_synthon=False,
                     ) as chunks:
-                        self.assertEqual(chunks.chunksize, 100_000)
+                        self.assertEqual(chunks.chunksize, cli.READ_CHUNK_SIZE)
                         frame = next(chunks)
                     self.assertEqual(frame.to_dict('records'), [
                         {'smiles': 'CC', 'ids': 'ethanol'},
@@ -230,6 +231,7 @@ class Test_MolSanitizer(unittest.TestCase):
             args.input_files = [first_input, second_input]
             args.proj_name = 'test-project'
             args.partition = None
+            args.mem = None
             args.lines = 2
             args.timelimit = 1
             args.max_jobs = 10
@@ -1308,6 +1310,7 @@ class Test_MolSanitizer(unittest.TestCase):
             args.prefix = Path(temp_dir)
             args.proj_name = 'dummy_output'
             args.partition = None
+            args.mem = None
             args.whole_node = False
             args.whole_node_cores = 1
             args.max_jobs = 2
@@ -1343,6 +1346,8 @@ class Test_MolSanitizer(unittest.TestCase):
                 file_contents = contents.splitlines(keepends=True)
                 self.assertEqual(file_contents[:7], expected_template,
                                  "submit_msani.sh header is incorrect.")
+                # No memory request by default: the cluster's per-core share applies.
+                self.assertNotIn('--mem', contents)
 
                 self.assertIn('dd if=input.data', contents)
                 self.assertIn('-i "$smiles_file" -j 1', contents)
@@ -1354,6 +1359,39 @@ class Test_MolSanitizer(unittest.TestCase):
                         self.assertIn(f'--{flag}', contents)
             subprocess.run(['bash', '-n', 'submit_msani.sh'], check=True)
             os.chdir(self.path)
+
+    @unittest.skipIf(OS == "Windows",
+                     "Skipping SLURM shell-script test on Windows.")
+    def test_batch_explicit_memory(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            args, parser = parsers.parseArguments(['--mem', '4G'], batch_mode=True)
+            self.assertEqual(args.mem, '4G')
+            batch_args = self.generate_mock_arguments([f'{self.path}/in_data100.txt'],
+                                                      ['test'], temp_dir)
+            batch_args.prefix = Path(temp_dir)
+            batch_args.proj_name = None
+            batch_args.partition = None
+            batch_args.mem = args.mem
+            batch_args.whole_node = False
+            batch_args.whole_node_cores = 1
+            batch_args.max_jobs = 2
+            batch_args.lines = 50
+            batch_args.timelimit = 1
+
+            try:
+                Split_Submit_jobs(batch_args, parser)
+                contents = (Path(temp_dir) / 'in_data100' / 'submit_msani.sh').read_text()
+            finally:
+                os.chdir(self.path)
+            self.assertIn('#SBATCH --mem=4G\n', contents)
+            # --mem configures the submission; it is not an msani flag.
+            self.assertNotIn(' --mem', contents.replace('#SBATCH --mem=4G', ''))
+
+    def test_batch_memory_validation(self):
+        self.assertIsNone(parsers.slurm_memory('none'))
+        self.assertEqual(parsers.slurm_memory('2500M'), '2500M')
+        with self.assertRaises(argparse.ArgumentTypeError):
+            parsers.slurm_memory('lots')
 
     @unittest.skipIf(OS == "Windows",
                      "Skipping SLURM shell-script test on Windows.")
