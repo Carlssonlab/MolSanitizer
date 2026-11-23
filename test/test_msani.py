@@ -297,8 +297,9 @@ class Test_MolSanitizer(unittest.TestCase):
     def test_removesalts_custom_salt_library(self):
         """--saltlib replaces the default salt list: acetate is dropped from it,
         so sodium acetate keeps its acetic acid instead of being stripped away."""
-        default_salts = Path(__file__).parent.parent / 'msani' / 'Data' / 'salt_stripping.txt'
-        lines = default_salts.read_text().splitlines()
+        # Read from the installed package: CI runs this file from a copied test dir.
+        import pkgutil
+        lines = pkgutil.get_data('msani', 'Data/salt_stripping.txt').decode().splitlines()
         custom = [line for line in lines if not line.endswith(' acetate')]
         self.assertEqual(len(lines) - len(custom), 1)
         with tempfile.TemporaryDirectory() as temp_dir:
