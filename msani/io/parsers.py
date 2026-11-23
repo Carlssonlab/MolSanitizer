@@ -211,36 +211,10 @@ def parseArguments(args = None, batch_mode = False):
         default=defaults.get('removesalts', False), 
         help='Remove salts from the structures.\nSmall fragments within the same molecule are also removed.')
     filter_group.add_argument(
-        '--create_saltlib',
-        action='store_true',
-        help='Generate a template of the default salt list (salt_stripping.txt) for editing.')
-    filter_group.add_argument(
         '--saltlib',
         default=defaults.get('saltlib', None),
         type=str,
         help='Use your own salt list instead of the default one (replaces it).\nRequires --removesalts. To generate an example list, use --create_saltlib.')
-    filter_group.add_argument(
-        '--create_protlib',
-        action='store_true',
-        help='Create a template for customized protonation scheme.')
-    filter_group.add_argument(
-        '--protlib',
-        type=str,
-        default=defaults.get('protlib', None),
-        help='Path to the protonation library file (replaces the default: msani/Data/ionizations_v3.txt).')
-    filter_group.add_argument(
-        '--create_taulib',
-        action='store_true',
-        help='Create a template for customized tautomerization scheme.')
-    filter_group.add_argument(
-        '--taulib',
-        type=str,
-        default=defaults.get('taulib', None),
-        help='Path to the tautomer library file (replaces the default: msani/Data/tautomers_v3.txt).')
-    filter_group.add_argument(
-        '--create_custom', 
-        action='store_true', 
-        help='Generate a template for customized substructure filtering.')
     filter_group.add_argument(
         '--custom', 
         default=defaults.get('custom', None), 
@@ -374,6 +348,11 @@ def parseArguments(args = None, batch_mode = False):
               "and vinylogous acids (up to 20 forms per compound total)."
     )
     smiles_group.add_argument(
+        '--taulib',
+        type=str,
+        default=defaults.get('taulib', None),
+        help='Path to the tautomer library file (replaces the default: msani/Data/tautomers_v3.txt).')
+    smiles_group.add_argument(
         '--protonation', '-prot',
         action='store_true',
         default=defaults.get('protonation', False),
@@ -394,6 +373,11 @@ def parseArguments(args = None, batch_mode = False):
         help=f'pH range for the protonation (default: {defaults.get("pH_range", pH_range)}; '
              'bundled default changed from 0 to 1 in 0.8.0; use -r 0 for the previous range)'
     )
+    smiles_group.add_argument(
+        '--protlib',
+        type=str,
+        default=defaults.get('protlib', None),
+        help='Path to the protonation library file (replaces the default: msani/Data/ionizations_v3.txt).')
     smiles_group.add_argument(
         '--notaurdkit',
         action='store_false',
@@ -532,6 +516,22 @@ def parseArguments(args = None, batch_mode = False):
         action='store_true', 
         help='Create a template for the configuration file')
     misc_group.add_argument(
+        '--create_saltlib',
+        action='store_true',
+        help='Create a template for the salt list for editing.')
+    misc_group.add_argument(
+        '--create_custom', 
+        action='store_true', 
+        help='Create a template for the customized substructure filtering.')
+    misc_group.add_argument(
+        '--create_protlib',
+        action='store_true',
+        help='Create a template for customized protonation scheme.')
+    misc_group.add_argument(
+        '--create_taulib',
+        action='store_true',
+        help='Create a template for customized tautomerization scheme.')
+    misc_group.add_argument(
         "--debug", "-d", 
         action="store_true", 
         help="Enable debugging mode" if show_advanced_help else argparse.SUPPRESS)
@@ -657,7 +657,7 @@ def parseArguments(args = None, batch_mode = False):
     if args.saltlib:
         if not Path(args.saltlib).is_file():
             parser.error(f'The salt library file: {args.saltlib} does not exist.')
-        if not args.removesalts:
+        if not (args.removesalts or args.lazy):
             parser.error('--saltlib requires --removesalts.')
         try:
             from rdkit.Chem import SaltRemover
