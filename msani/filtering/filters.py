@@ -81,6 +81,10 @@ class Filters():
         
         removesalts: bool, default False.
             Remove salts from the input molecules. Only the largest fragment will be retained if the salt is not in the database.
+
+        salt_library: str or Path, default None.
+            Path to a custom salt list that replaces the default msani/Data/salt_stripping.txt
+            (one SMARTS per line, optional name after a space). Only used when removesalts is True.
         
         ha: str, default None.
             Filter molecules by the number of heavy atoms. Accepts a string in the format '1-5', '>=5', '<=5', or '5'.
@@ -142,9 +146,8 @@ class Filters():
                             custom='path/to/custom.smarts',
                             unwanted=['regular'],
                             pains=True,
-                            rejectedFile='rejected.txt',
-                            debug=True)
-    >>> filtered_df = filters.filter_df(df)
+                            rejectedFile='rejected.txt')
+    >>> filtered_df = filters.filter_df(df, debug=True)
     
     the second way is to use the static methods of the class directly on a DataFrame:
 
@@ -177,8 +180,15 @@ class Filters():
                  rejectedFile = 'rejected_entries.txt',
                  tpsa = None,
                  fsp3 = None,
-                 numcores = 1):
+                 numcores = 1,
+                 salt_library = None):
         self.removesalts = removesalts
+        if salt_library is not None and not Path(salt_library).is_file():
+            raise FileNotFoundError(f'The salt library file: {salt_library} does not exist.')
+        self.salt_library = salt_library
+        if removesalts:
+            # Build (and cache) the remover now so an unreadable salt list fails here.
+            get_salt_remover(salt_library)
         self.ha = ha
         self.logp = logp
         self.hba = hba
@@ -856,19 +866,22 @@ class Filters():
             
         return df.loc[mask_ok].copy()
     
-    def filter_df(self, df: DataFrame, rejectedFile: str, debug: bool = False) -> DataFrame:
+    def filter_df(self, df: DataFrame, rejectedFile: str = None, debug: bool = False) -> DataFrame:
         """Apply the filters to the input DataFrame.
 
         Args:
             df (DataFrame): Input DataFrame with 'mol' column containing RDKit molecule objects.
-            rejectedFile (str): Path to the file to save rejected molecules.
+            rejectedFile (str, optional): Path to the file to save rejected molecules.
+                Defaults to the rejectedFile given to the constructor.
             debug (bool, optional): Debug mode. Defaults to False.
 
         Returns:
             DataFrame: A new DataFrame chunk with molecules that passed all the filters.
         """
+        if rejectedFile is None:
+            rejectedFile = self.rejectedFile
         if self.removesalts:
-            df = Filters.saltstripping(df, debug)
+            df = Filters.saltstripping(df, debug, salt_library=self.salt_library)
         if self.ha:
             df = Filters.filter_by_ha(df, self.ha, rejectedFile, debug)
         if self.hba:

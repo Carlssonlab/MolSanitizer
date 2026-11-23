@@ -294,6 +294,23 @@ class Test_MolSanitizer(unittest.TestCase):
             self.compareFiles(f'{temp_dir}/dummy_output_clean.txt',
                               f'{self.path}/out_salt_clean.txt')
 
+    def test_removesalts_custom_salt_library(self):
+        """--saltlib replaces the default salt list: acetate is dropped from it,
+        so sodium acetate keeps its acetic acid instead of being stripped away."""
+        default_salts = Path(__file__).parent.parent / 'msani' / 'Data' / 'salt_stripping.txt'
+        lines = default_salts.read_text().splitlines()
+        custom = [line for line in lines if not line.endswith(' acetate')]
+        self.assertEqual(len(lines) - len(custom), 1)
+        with tempfile.TemporaryDirectory() as temp_dir:
+            salt_file = Path(temp_dir) / 'custom_salts.txt'
+            salt_file.write_text('\n'.join(custom) + '\n')
+            args = self.generate_mock_arguments([f'{self.path}/in_salt.txt'],
+                                                ['removesalts', 'test'], temp_dir)
+            args.saltlib = salt_file
+            cli.clean_data(args)
+            self.compareFiles(f'{temp_dir}/dummy_output_clean.txt',
+                              f'{self.path}/out_salt_custom.txt')
+
     def test_tautomers(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             args = self.generate_mock_arguments([f'{self.path}/in_tautomers.txt'],
