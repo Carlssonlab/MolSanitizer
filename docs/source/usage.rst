@@ -206,7 +206,8 @@ change the defaults shown by your installed command.
       --mode, -mode         Mode for generating conformers
                             Default: fixed - Options: fixed, random, ignoretorlib
       --embed-only, -eo     Skip torsional sampling and write the initial embedding of each ring conformation
-                            (one conformer per ring conformation, nr0, nr1, ... as for pdbqt).
+                            (one conformer per ring conformation, nr0, nr1, ... as for pdbqt;
+                            also applies to db2, oeb and oeb.lib).
       --allowNonring        Allow full sampling of non-ring compounds (enabled by default in msani).
       --rmsd, -rmsd         Minimum RMSD between two conformers (default: 0.5 Å).
 
@@ -464,8 +465,8 @@ To skip torsional sampling altogether, add ``--embed-only`` (``-eo``). Each ring
 conformation is then written as its initial embedding, one conformer per ring
 conformation, which is what PDBQT output always holds: SDF and MOL2 get one file
 per ring conformation (``name.nr0.sdf``, ``name.nr1.sdf``, ...; ``name.sdf`` when
-there is only one), and DB2 gets one file per molecule with one conformer per ring
-conformation. ``--numconfs``, ``--energywindow`` and ``--mode`` have no effect then.
+there is only one), and DB2, OEB and the OEB library (``oeb.lib``) get one entry per molecule with
+one conformer per ring conformation. ``--numconfs``, ``--energywindow`` and ``--mode`` have no effect then.
 
 .. code-block:: console
 

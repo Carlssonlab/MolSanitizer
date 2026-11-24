@@ -1856,7 +1856,7 @@ def main():
     parser.add_argument('--prefix', '-p', type=str, default = 'db2', help='Prefix for the output files.')
     parser.add_argument('--format', '-f', type=str, nargs='+', default=['db2.tgz'], choices=['db2', 'db2.tgz', 'pdbqt', 'sdf', 'mol2', 'oeb', 'oeb.lib'], help='Output format(s) (e.g., db2.tgz, pdbqt, sdf, mol2, oeb, oeb.lib).')
     parser.add_argument('--mode', '-mode', type=str, default='fixed', choices=['fixed', 'random', 'ignoretorlib'], help='Mode for conformer generation (fixed, random, ignoretorlib).')
-    parser.add_argument('--embed-only', '-eo', action='store_true', dest='embed_only', help='Skip sampling and write the initial embedding of each ring conformation.')
+    parser.add_argument('--embed-only', '-eo', action='store_true', dest='embed_only', help='Skip sampling and write the initial embedding of each ring conformation (sdf, mol2, db2, oeb, oeb.lib).')
     parser.add_argument('--tolerance', '-tol', type=float, default=30, help='Tolerance for dihedral angle sampling (default: 30).')
     parser.add_argument('--allowNonring', '-anr', action='store_true', help='Allow full sampling of non-ring compounds.')
     parser.add_argument('--eps', type=float, default=4, help='The dielectric constant for electrostatic calculations (default: 4).')

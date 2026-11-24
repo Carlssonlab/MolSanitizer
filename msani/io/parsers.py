@@ -463,7 +463,8 @@ def parseArguments(args = None, batch_mode = False):
         dest='embed_only',
         default=defaults.get('embed_only', False),
         help='Skip torsional sampling and write the initial embedding of each ring conformation\n'
-             '(one conformer per ring conformation, nr0, nr1, ... as for pdbqt).')
+             '(one conformer per ring conformation, nr0, nr1, ... as for pdbqt;\n'
+             'also applies to db2, oeb and oeb.lib).')
     gen3d.add_argument(
         '--tolerance', '-tol',
         type=float,
