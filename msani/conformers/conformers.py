@@ -1669,24 +1669,37 @@ def _write_conformer_outputs(confgen, longname, config, archive, library=None, l
 
 
 def _restore_db2_archive(archive, restart_tgz):
-    """Copy completed DB2 members from an interrupted archive into a new one."""
+    """Copy completed DB2 members from an interrupted archive into a new one.
+
+    An archive whose writer was killed (time limit, memory) has no gzip
+    trailer and ends in the middle of a member. Every member before that
+    point is complete, so those are kept and the rest is generated again.
+    """
     processed_mols = set()
     if restart_tgz is None:
         return processed_mols
 
     try:
         with tarfile.open(restart_tgz, mode='r:gz') as restart_archive:
-            for member in restart_archive.getmembers():
+            # Read one member at a time: getmembers() scans the whole archive
+            # first and fails on a truncated one before anything is restored.
+            for member in restart_archive:
                 if not member.isfile() or not member.name.endswith('.db2'):
                     continue
                 source = restart_archive.extractfile(member)
                 if source is None:
                     continue
-                archive.addfile(member, source)
+                # Read it fully before writing, so a member cut short never
+                # reaches the new archive.
+                data = source.read()
+                if len(data) != member.size:
+                    raise EOFError(f'{member.name} is incomplete')
+                archive.addfile(member, io.BytesIO(data))
                 processed_mols.add(member.name.removesuffix('.db2'))
-    except (OSError, tarfile.TarError) as error:
-        logger.error('Could not restore %s; starting fresh: %s', restart_tgz, error)
-        processed_mols.clear()
+    except (EOFError, OSError, tarfile.TarError) as error:
+        # EOFError is what gzip raises for a truncated file; it is not an OSError.
+        logger.warning('%s is incomplete (%s); kept the %d molecules read before that point',
+                       restart_tgz, error, len(processed_mols))
     finally:
         if os.path.exists(restart_tgz):
             os.remove(restart_tgz)
