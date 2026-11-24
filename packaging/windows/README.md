@@ -1,7 +1,7 @@
 # Windows wheels from a conda Command Prompt
 
 The default workflow now uses **conda**, not the `py` launcher. It builds
-CPython 3.10–3.14 x64 wheels locally with VS Build Tools. No Docker or GitHub
+CPython 3.10–3.15 x64 wheels locally with VS Build Tools. No Docker or GitHub
 Actions is required.
 
 Use `build_sdk.cmd` and `build_wheels.cmd` as the Windows entry points.
@@ -16,7 +16,7 @@ CMake build directory, so no manual cache deletion or SDK rebuild is needed.
 Expect the compiler identification to say MSVC. Compiler paths are recorded in
 the output directory's build-settings.json.
 
-## One SDK reused across five builds
+## One SDK reused across six builds
 
 To build that SDK from scratch, run from a conda-enabled Command Prompt:
 
@@ -45,7 +45,7 @@ packaging\windows\build_wheels.cmd --sdk "%USERPROFILE%\msani-sdk\windows-2026.9
 ```
 
 The generated SDK manifest supplies Boost/Eigen paths automatically. Omit
-`--versions 3.12` once it passes to build Python 3.10–3.14.
+`--versions 3.12` once it passes to build Python 3.10–3.15.
 
 The wheel script itself does not build an RDKit SDK. Supply your existing Windows shared
 SDK, with headers, CMake exports and DLLs, plus matching Boost/Eigen. It accepts
@@ -77,7 +77,7 @@ The wrapper initializes VS x64 tools if cl.exe is absent. If that fails, open
 **x64 Native Tools Command Prompt for VS**, activate conda there, and retry.
 Prefer a local Windows checkout over the WSL network drive for performance.
 
-After 3.12 passes, omit `--versions` to build all five:
+After 3.12 passes, omit `--versions` to build all six:
 
 ```bat
 packaging\windows\build_wheels.cmd --sdk "C:\msani-sdk\rdkit-2026.9.2" --rdkit-version 2026.9.2
@@ -112,7 +112,7 @@ then installs it into a **separate fresh test environment**. Test PATH contains
 only that environment's runtime directories and Windows system directories,
 not the original SDK or build environment. Only tests/fixtures are copied;
 the source package is not exposed. Native imports are checked before installing
-the wheel's pdbqt extra, followed by pip check, dependency listing and full
+the wheel's pdbqt extra (skipped on 3.15 until gemmi publishes a wheel for it), followed by pip check, dependency listing and full
 unittest discovery. Review skips before releasing.
 
 Failures do not prevent trying remaining versions. The script returns nonzero

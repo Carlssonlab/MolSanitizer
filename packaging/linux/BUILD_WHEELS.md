@@ -12,7 +12,7 @@ Prerequisites: Docker must be running and the previously built image
 Internet access is needed for pip dependencies and the clean Python images.
 No GitHub Actions minutes are used.
 
-The script builds CPython 3.10 through 3.14 wheels sequentially, repairs
+The script builds CPython 3.10 through 3.15 wheels sequentially, repairs
 them for manylinux 2.28 x86_64, and checks metadata with Twine. For each wheel
 it installs into a separate `python:<version>-slim` container and runs
 `python -m unittest discover -s /tmp/tests -p 'test*.py' -v`.
@@ -38,7 +38,7 @@ Unittest skips are reported in the logs; review them before publishing.
 Nothing is uploaded to PyPI automatically.
 
 To install on another compatible Linux x86_64 machine, select the wheel whose
-`cp310`, `cp311`, `cp312`, `cp313`, or `cp314` tag matches the active Python interpreter:
+`cp310`, `cp311`, `cp312`, `cp313`, `cp314`, or `cp315` tag matches the active Python interpreter:
 
 ```bash
 python -m pip install /path/to/the/matching-wheel.whl
@@ -63,7 +63,7 @@ MSANI_PYTHON_VERSIONS=3.12 bash packaging/linux/build_wheels.sh
 the build-time Python RDKit version; keep it matched to the SDK in that image.
 `MSANI_PYTHON_VERSIONS` selects interpreters, and `MSANI_DOCKER_PLATFORM`
 selects the Docker platform (`linux/arm64` for a native aarch64 host).
-Defaults are `msani-builder:rdkit-2026.09.2`, `2026.9.2`, all five versions
+Defaults are `msani-builder:rdkit-2026.09.2`, `2026.9.2`, all six versions
 and `linux/amd64`.
 
 The build and test commands themselves live in `build_in_container.sh` and

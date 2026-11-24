@@ -181,7 +181,7 @@ The **Wheels** workflow builds, repairs and clean-install tests every wheel.
 | Trigger | What runs |
 | --- | --- |
 | `workflow_dispatch`, scope `linux-only` | Linux x86_64, CPython 3.12 |
-| `workflow_dispatch`, scope `full` | 25 jobs: 5 targets x CPython 3.10-3.14 |
+| `workflow_dispatch`, scope `full` | 30 jobs: 5 targets x CPython 3.10-3.15 |
 | Version tag, e.g. `0.7.5` | Full matrix, plus a tag/version consistency check |
 
 Keeping PR compatibility checks on Linux is deliberate. A full matrix costs roughly $7-10 of the
@@ -193,6 +193,8 @@ installed into a clean interpreter that has no SDK, conda or build directory
 on its search path, where the repository suite runs against it. On Linux the
 test runs in a bare `python:X.Y-slim` image rather than the manylinux build
 image, because a wheel needing build-image libraries is not redistributable.
+The `pdbqt` extra is installed for the test on every version except CPython
+3.15, where gemmi has no wheel yet; the PDBQT unit test is skipped there.
 
 ## 3. Publish the verified bundle
 

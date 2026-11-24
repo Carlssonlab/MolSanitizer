@@ -69,7 +69,7 @@ jobs:
           macos='[{"key":"macos-arm64","arch":"arm64","runner":"macos-15"},
                   {"key":"macos-x86_64","arch":"x86_64","runner":"macos-15-intel"}]'
           windows='[{"key":"windows-x64","runner":"windows-latest"}]'
-          pythons='["3.10","3.11","3.12","3.13","3.14"]'
+          pythons='["3.10","3.11","3.12","3.13","3.14","3.15"]'
           if [ "$CHEAP" = true ]; then
             linux=$(jq -c '[.[0]]' <<<"$linux")
             macos='[]'

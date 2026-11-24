@@ -6,7 +6,7 @@
 # container job, so the local and CI wheels come from identical commands.
 #
 # Inputs (environment):
-#   MSANI_TAG           cp310 .. cp314          (required)
+#   MSANI_TAG           cp310 .. cp315          (required)
 #   MSANI_SOURCE        repository checkout     (default /source)
 #   MSANI_OUT           repaired wheel output   (default /out/wheels)
 #   MSANI_BUILD_RDKIT   PyPI RDKit version matching the SDK

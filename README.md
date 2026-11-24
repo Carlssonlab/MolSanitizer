@@ -4,7 +4,7 @@
 
 <p align="center">
   <a href="https://pypi.org/project/MolSanitizer/"><img src="https://img.shields.io/pypi/v/molsanitizer?style=for-the-badge" alt="PyPI version"></a>
-  <a href="https://github.com/carlssonlab/MolSanitizer/blob/main/pyproject.toml"><img src="https://img.shields.io/badge/python-3.10--3.14-blue?style=for-the-badge" alt="Python"></a>
+  <a href="https://github.com/carlssonlab/MolSanitizer/blob/main/pyproject.toml"><img src="https://img.shields.io/badge/python-3.10--3.15-blue?style=for-the-badge" alt="Python"></a>
   <a href="https://msani.readthedocs.io/en/stable/"><img src="https://img.shields.io/badge/docs-msani.readthedocs.io-orange?style=for-the-badge" alt="Documentation"></a>
   <a href="https://github.com/carlssonlab/MolSanitizer/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-yellow?style=for-the-badge" alt="License"></a>
 </p>
