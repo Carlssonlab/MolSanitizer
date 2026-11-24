@@ -1927,5 +1927,62 @@ class TestConformerBudgetPerRingConformation(unittest.TestCase):
         self.assertEqual([mol.GetNumConformers() for mol in generator.ring_confs], [1, 1])
 
 
+class TestRestoreInterruptedDb2Archive(unittest.TestCase):
+    """Restarting from a db2.tgz whose writer was killed (time limit, memory)."""
+
+    @staticmethod
+    def _write_archive(path, names):
+        with tarfile.open(path, 'w:gz') as archive:
+            for name in names:
+                # Incompressible content, so cutting the file cuts a member.
+                data = os.urandom(20000)
+                info = tarfile.TarInfo(name=f'{name}.db2')
+                info.size = len(data)
+                archive.addfile(info, io.BytesIO(data))
+
+    def _restore(self, restart_tgz, output_tgz):
+        with tarfile.open(output_tgz, 'w:gz') as archive:
+            processed = conformers._restore_db2_archive(archive, str(restart_tgz))
+        with tarfile.open(output_tgz, 'r:gz') as archive:
+            restored = [member.name.removesuffix('.db2') for member in archive.getmembers()]
+        return processed, restored
+
+    def test_complete_archive_is_restored_in_full(self):
+        names = [f'mol{i}' for i in range(5)]
+        with tempfile.TemporaryDirectory() as temp_dir:
+            restart_tgz = Path(temp_dir) / 'restart_in.db2.tgz'
+            self._write_archive(restart_tgz, names)
+            processed, restored = self._restore(restart_tgz, Path(temp_dir) / 'in.db2.tgz')
+            self.assertEqual(processed, set(names))
+            self.assertEqual(restored, names)
+            self.assertFalse(restart_tgz.exists())
+
+    def test_truncated_archive_keeps_the_complete_members(self):
+        names = [f'mol{i}' for i in range(20)]
+        with tempfile.TemporaryDirectory() as temp_dir:
+            restart_tgz = Path(temp_dir) / 'restart_in.db2.tgz'
+            self._write_archive(restart_tgz, names)
+            content = restart_tgz.read_bytes()
+            # A killed writer leaves no gzip trailer and stops inside a member.
+            restart_tgz.write_bytes(content[:len(content) // 2])
+            with self.assertLogs('msani', level='WARNING'):
+                processed, restored = self._restore(restart_tgz, Path(temp_dir) / 'in.db2.tgz')
+            # The members before the cut are kept, in order, and nothing else.
+            self.assertTrue(0 < len(restored) < len(names))
+            self.assertEqual(restored, names[:len(restored)])
+            self.assertEqual(processed, set(restored))
+            self.assertFalse(restart_tgz.exists())
+
+    def test_unreadable_archive_starts_fresh(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            restart_tgz = Path(temp_dir) / 'restart_in.db2.tgz'
+            restart_tgz.write_bytes(b'not a gzip file')
+            with self.assertLogs('msani', level='WARNING'):
+                processed, restored = self._restore(restart_tgz, Path(temp_dir) / 'in.db2.tgz')
+            self.assertEqual(processed, set())
+            self.assertEqual(restored, [])
+            self.assertFalse(restart_tgz.exists())
+
+
 if __name__ == '__main__':
         unittest.main()
