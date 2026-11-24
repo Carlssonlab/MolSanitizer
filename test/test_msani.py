@@ -1494,6 +1494,116 @@ class Test_MolSanitizer(unittest.TestCase):
             batchmode.Split_Submit_jobs(args, parser)
         self.assertIn('Nothing was submitted', output.getvalue())
 
+    def test_batch_retry(self):
+        from msani import batchmode
+
+        self.assertEqual(batchmode._array_spec([7, 1, 2, 3, 9, 10, 3]), '1-3,7,9-10')
+
+        def make_batch(root, name, n_jobs, locked, whole_node_cores=None):
+            batch_dir = Path(root) / name
+            batch_dir.mkdir()
+            script = '#!/bin/bash\n'
+            if whole_node_cores:
+                script += f'START_IDX=$(( TASK_ID * {whole_node_cores} ))\n'
+            (batch_dir / 'submit_msani.sh').write_text(script)
+            (batch_dir / 'input.data').write_text('C\n' * n_jobs)
+            (batch_dir / 'input.offsets').write_text(
+                ''.join(f'{2 * index}\n' for index in range(n_jobs + 1)))
+            for job in locked:
+                (batch_dir / f'in{job:04d}.lock').write_text('')
+            return batch_dir
+
+        def retry(batch_dirs, squeue_lines, extra_flags=(), squeue_error=None):
+            args, parser = parsers.parseArguments(
+                ['--retry', *map(str, batch_dirs), '-mj', '50', *extra_flags],
+                batch_mode=True)
+            submissions = []
+
+            def run_command(command, **kwargs):
+                if command[0] == 'squeue':
+                    if squeue_error is not None:
+                        raise squeue_error
+                    return SimpleNamespace(stdout='\n'.join(squeue_lines), returncode=0)
+                self.assertEqual(command[0], 'sbatch')
+                submissions.append((command, Path(kwargs['cwd']).name))
+                return SimpleNamespace(returncode=0)
+
+            with (
+                patch('msani.batchmode.subprocess.run', side_effect=run_command),
+                contextlib.redirect_stdout(io.StringIO()) as output,
+            ):
+                batchmode.retry_jobs(args, parser)
+            return submissions, output.getvalue()
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            batch = make_batch(temp_dir, 'batch', 10, [1, 2, 3, 6, 8])
+            other = make_batch(temp_dir, 'other', 4, [])
+            squeue = [
+                f'900_2|{batch}',          # running
+                f'900_8|{batch}/',         # pending
+                f'901_6|{other}',          # same task ID, different folder
+                '902|/somewhere/else',     # unrelated job
+            ]
+
+            with self.subTest(msg='Active tasks are left alone'):
+                submissions, output = retry([batch, other], squeue)
+                self.assertEqual(submissions, [
+                    (['sbatch', '--array=1,3,6%50', 'submit_msani.sh'], 'batch'),
+                ])
+                self.assertIn('5 of 10 jobs are unfinished', output)
+                self.assertIn('array tasks 2,8', output)
+                self.assertIn('no lock files left', output)
+                self.assertIn('Resubmitted 3 jobs in total', output)
+
+            with self.subTest(msg='Explicit time limit and memory replace the script settings'):
+                submissions, _ = retry([batch], [], ['-tl', '5', '--mem', '8G'])
+                self.assertEqual(submissions, [
+                    (['sbatch', '--array=1-3,6,8%50', '--time=5:00:00', '--mem=8G',
+                      'submit_msani.sh'], 'batch'),
+                ])
+
+            with self.subTest(msg='Dry run'):
+                submissions, output = retry([batch], [], ['--test'])
+                self.assertEqual(submissions, [])
+                self.assertIn('sbatch --array=1-3,6,8%50 submit_msani.sh', output)
+
+            # Without a reliable answer from squeue nothing is resubmitted.
+            for error, lines in ((FileNotFoundError('squeue'), []),
+                                 (subprocess.CalledProcessError(1, 'squeue'), []),
+                                 (None, [f'900_[1-3%50]|{batch}'])):
+                with self.subTest(msg='squeue cannot tell', error=error, lines=lines):
+                    submissions, output = retry([batch], lines, squeue_error=error)
+                    self.assertEqual(submissions, [])
+                    self.assertIn('could not check with squeue', output)
+
+            with self.subTest(msg='Whole-node tasks cover several jobs'):
+                node = make_batch(temp_dir, 'node', 10, [0, 1, 5, 9], whole_node_cores=4)
+                # Task 1 (jobs 4-7) is still running; tasks 0 and 2 are retried.
+                submissions, output = retry([node], [f'903_1|{node}'], ['--mem', '8G'])
+                self.assertEqual(submissions, [
+                    (['sbatch', '--array=0,2%50', 'submit_msani.sh'], 'node'),
+                ])
+                self.assertIn('Resubmitting 3 jobs as 2 array tasks', output)
+                self.assertIn('--mem is ignored', output)
+
+            with self.subTest(msg='Folders that cannot be retried'):
+                cleaned = make_batch(temp_dir, 'cleaned', 4, [1])
+                (cleaned / 'input.offsets').unlink()
+                stray = make_batch(temp_dir, 'stray', 4, [7])
+                plain = Path(temp_dir) / 'plain'
+                plain.mkdir()
+                submissions, output = retry(
+                    [cleaned, stray, plain, Path(temp_dir) / 'missing'], [])
+                self.assertEqual(submissions, [])
+                self.assertIn('staged input', output)
+                self.assertIn('do not match the 4 jobs', output)
+                self.assertIn('not created by msani_batch', output)
+                self.assertIn('not a folder', output)
+
+        # A resubmitted whole-node task skips the chunks that already succeeded.
+        self.assertIn('[ -f "${log_prefix}.lock" ] || return 0',
+                      batchmode.slurm_script_whole_node)
+
     def test_batch_memory_validation(self):
         self.assertIsNone(parsers.slurm_memory('none'))
         self.assertEqual(parsers.slurm_memory('2500M'), '2500M')

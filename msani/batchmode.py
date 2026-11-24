@@ -109,6 +109,8 @@ run_chunk() {
     local chunk_status
 
     printf -v log_prefix "in%04d" "$i"
+    # A missing lock means this chunk already succeeded (resubmitted task).
+    [ -f "${log_prefix}.lock" ] || return 0
     log_file="${log_prefix}.log"
     task_dir=$(mktemp -d "${scratch_parent}/msani-${ARRAY_ID}-${i}-XXXXXX")
     smiles_file="${task_dir}/${log_prefix}.smi"
@@ -549,7 +551,7 @@ def parse_flags_single_job(args: dict, parser):
         str: The flags for a single job
     """
     flags = []
-    omitted_args = ["input_files", "input_list", "config", "smiles", "proj_name", "timelimit", "lines", "max_jobs", "help", "whole_node", "whole_node_cores", "partition", "mem", "metal_error_file"]
+    omitted_args = ["input_files", "input_list", "config", "smiles", "proj_name", "timelimit", "lines", "max_jobs", "help", "whole_node", "whole_node_cores", "partition", "mem", "metal_error_file", "retry"]
     # Load the config file to see if the defaults are really the defaults by intention or already set
     # by the config file
     config_defaults = {}
@@ -862,6 +864,144 @@ def Split_Submit_jobs(args: dict, parser):
                 if staging_dir.exists():
                     shutil.rmtree(staging_dir)
         
+def _array_spec(task_ids):
+    """Compress task IDs into a SLURM array specification, e.g. 1,4-6,9."""
+    ranges = []
+    for task_id in sorted(set(task_ids)):
+        if ranges and task_id == ranges[-1][1] + 1:
+            ranges[-1][1] = task_id
+        else:
+            ranges.append([task_id, task_id])
+    return ','.join(str(first) if first == last else f'{first}-{last}'
+                    for first, last in ranges)
+
+
+def active_array_tasks(batch_dir):
+    """Array task IDs that SLURM still has queued or running for a batch folder.
+
+    Jobs are matched by their working directory, which is the batch folder
+    for everything msani_batch submits. Raises OSError or
+    subprocess.SubprocessError when squeue cannot be queried.
+    """
+    batch_dir = os.path.realpath(batch_dir)
+    # --array lists every array element on its own line, pending ones included.
+    result = subprocess.run(
+        ['squeue', '--noheader', '--array', '--format=%i|%Z'],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        text=True,
+        check=True,
+    )
+    active = set()
+    for line in result.stdout.splitlines():
+        job_id, separator, work_dir = line.strip().partition('|')
+        if not separator or os.path.realpath(work_dir) != batch_dir:
+            continue
+        match = re.fullmatch(r'\d+_(\d+)', job_id)
+        if match is None:
+            # An array element that cannot be told apart, or a job that is not
+            # part of an array: nothing in this folder is safe to resubmit.
+            raise subprocess.SubprocessError(
+                f'cannot tell which tasks job {job_id} covers')
+        active.add(int(match.group(1)))
+    return active
+
+
+def retry_batch_dir(batch_dir, args, parser):
+    """Resubmit the jobs of one batch folder that still hold a lock file.
+
+    A lock file is removed only when its job succeeds, so the remaining ones
+    mark jobs that failed, timed out, or never ran. Jobs SLURM still has
+    queued or running are left alone. Returns the number of resubmitted jobs.
+    """
+    batch_dir = Path(batch_dir)
+    script = batch_dir / 'submit_msani.sh'
+    offsets = batch_dir / 'input.offsets'
+    if not batch_dir.is_dir():
+        print(f"Skipping {batch_dir}: it is not a folder.\n")
+        return 0
+    if not script.is_file():
+        print(f"Skipping {batch_dir}: no submit_msani.sh, so it was not created by msani_batch.\n")
+        return 0
+
+    locked = sorted(
+        int(match.group(1))
+        for path in batch_dir.iterdir()
+        if (match := re.fullmatch(r'in(\d+)\.lock', path.name))
+    )
+    if not locked:
+        print(f"{batch_dir}: no lock files left, all jobs finished. Nothing to retry.\n")
+        return 0
+    if not offsets.is_file() or not (batch_dir / 'input.data').exists():
+        print(f"Skipping {batch_dir}: the staged input (input.data, input.offsets) is missing. "
+              "Prepare a new batch from the original input instead.\n")
+        return 0
+    n_jobs = len(offsets.read_text().split()) - 1
+    unknown = [job for job in locked if job >= n_jobs]
+    if unknown:
+        print(f"Skipping {batch_dir}: lock files in{unknown[0]:04d}.lock and above "
+              f"do not match the {n_jobs} jobs of this batch.\n")
+        return 0
+
+    # In whole-node mode one array task runs several jobs.
+    whole_node = re.search(r'START_IDX=\$\(\( TASK_ID \* (\d+) \)\)', script.read_text())
+    jobs_per_task = int(whole_node.group(1)) if whole_node else 1
+
+    try:
+        active = active_array_tasks(batch_dir)
+    except (OSError, subprocess.SubprocessError) as error:
+        print(f"Skipping {batch_dir}: could not check with squeue which jobs are still "
+              f"queued or running ({error}).\n")
+        return 0
+
+    tasks = sorted({job // jobs_per_task for job in locked})
+    still_active = [task for task in tasks if task in active]
+    to_submit = [task for task in tasks if task not in active]
+    n_retry = sum(1 for job in locked if job // jobs_per_task not in active)
+
+    print(f"{batch_dir}: {len(locked)} of {n_jobs} jobs are unfinished.")
+    if still_active:
+        print(f"  {len(locked) - n_retry} of them are still queued or running in SLURM "
+              f"(array tasks {_array_spec(still_active)}) and are left alone.")
+    if not to_submit:
+        print("  Nothing to retry.\n")
+        return 0
+
+    command = ['sbatch', f'--array={_array_spec(to_submit)}%{args.max_jobs}']
+    # The folder's script keeps its original settings; an explicitly given
+    # time limit or memory request replaces them for the retried jobs.
+    if args.timelimit != parser.get_default('timelimit'):
+        command.append(f'--time={args.timelimit}:00:00')
+    if args.mem is not None and args.mem != parser.get_default('mem'):
+        if whole_node:
+            print("  Warning: --mem is ignored for whole-node batches.")
+        else:
+            command.append(f'--mem={args.mem}')
+    command.append(script.name)
+
+    if whole_node:
+        print(f"  Resubmitting {n_retry} jobs as {len(to_submit)} array tasks "
+              f"({jobs_per_task} jobs per node): {' '.join(command)}")
+    else:
+        print(f"  Resubmitting {n_retry} jobs: {' '.join(command)}")
+    if args.test:
+        print("  Test mode: nothing was submitted.\n")
+        return 0
+    submission = subprocess.run(command, cwd=batch_dir)
+    if submission.returncode != 0:
+        print(f"  Submission failed for {batch_dir}.\n")
+        return 0
+    print()
+    return n_retry
+
+
+def retry_jobs(args, parser):
+    """Resubmit the unfinished jobs of batch folders created by msani_batch."""
+    print(logo)
+    total = sum(retry_batch_dir(batch_dir, args, parser) for batch_dir in args.retry)
+    print(f"Resubmitted {total} jobs in total.")
+
+
 def main():
     from msani.config import dispatch
     if dispatch(sys.argv[1:]):
@@ -873,6 +1013,9 @@ def main():
         print(logo)
         print(f"MolSanitizer version: {__version__}")
         print(f"RDKit version: {rdkit_version}")
+        return
+    if args.retry:
+        retry_jobs(args, parser)
         return
     if (args.input_files is None or len(args.input_files) == 0):
         print("No input files provided. Please provide input files using the -i or --input_files option.")

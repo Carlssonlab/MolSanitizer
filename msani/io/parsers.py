@@ -626,6 +626,14 @@ def parseArguments(args = None, batch_mode = False):
             type=int, 
             default=defaults.get('whole_node_cores', whole_node_cores), 
             help=f'Number of CPU cores per node (default: {whole_node_cores}). Only to set when WHOLE_NODE is true.')
+        batch_group.add_argument(
+            '--retry',
+            nargs='+',
+            default=None,
+            metavar='BATCH_DIR',
+            help='Resubmit the unfinished jobs (remaining .lock files) of folders created by msani_batch.\n'
+                 'Jobs still queued or running in SLURM are left alone. The jobs keep their original\n'
+                 'settings; only --timelimit, --mem and --max_jobs can be changed. Add --test for a dry run')
 
     
     # Parse the arguments

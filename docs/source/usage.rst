@@ -656,12 +656,14 @@ defaults. Account and partition are unset unless configured.
     --max_jobs, -mj         Maximum concurrent array tasks (default: 2000).
     --whole_node           Use whole-node jobs (default: disabled).
     --whole_node_cores     CPU cores per node for whole-node jobs (default: 32).
+    --retry                Resubmit the unfinished jobs of existing batch directories.
 
 ``MAX_ARRAY_SIZE`` (default 1000) and ``MAX_LIMIT_PROJECT`` (default 5000) are
 personal configuration settings, not command-line flags. The former limits
 array size; the latter limits project capacity at submission. See :doc:`config`.
-For retained staging files, use ``--nocleanup``. See :doc:`troubleshooting`
-for failed-task resubmission and recovery.
+For retained staging files, use ``--nocleanup``. Failed or timed-out jobs can
+be resubmitted with ``msani_batch --retry <batch directory>``; see
+:doc:`troubleshooting` for details and recovery.
 
 **Memory per job.** Without ``--mem``, each job gets the cluster's default
 memory for one core. If that default is below about 2 GB, pass ``--mem`` (or
