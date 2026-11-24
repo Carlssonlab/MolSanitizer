@@ -128,6 +128,8 @@ class ConformerRunConfig:
     # Initial embedder, resolved once in the parent so that every worker uses
     # the one that was validated and logged. None: read MSANI_EMBEDDER.
     embedder: str | None = None
+    # Write each ring conformation's initial embedding instead of sampling.
+    embed_only: bool = False
 
     @property
     def ignore_torlib(self):
@@ -141,7 +143,8 @@ class ConformerRunConfig:
                    args.eps, args.allowNonring, args.cleanup, args.debug,
                    args.timing, frozenset(args.format), args.synthon, getattr(args, 'corinaPath', None),
                    getattr(args, 'timeout_obabel', 30),
-                   (_modern_embedder() or _DEFAULT_EMBEDDER) if args.method == 'rdkit' else None)
+                   (_modern_embedder() or _DEFAULT_EMBEDDER) if args.method == 'rdkit' else None,
+                   getattr(args, 'embed_only', False))
     
 class ConformerGenerator:
     '''
@@ -1152,6 +1155,27 @@ class ConformerGenerator:
             self.ring_confs[idx] = Chem.Mol(result)
 
 
+    def use_initial_embedding(self, request_alignment=None):
+        """Skip torsional sampling and keep each ring conformation's initial embedding.
+
+        Every ring conformation is reduced to its first conformer, the one to_pdbqt
+        writes, and the generator is marked as sampled so that the writers, to_db2
+        included, use it as is.
+
+        Args:
+            request_alignment (list): List of atom indices for alignment.
+        """
+        self.conf_sampled = True
+        if self.request_alignment is None and request_alignment is not None:
+            self.request_alignment = request_alignment
+        self.ring_confs = [Chem.Mol(mol, False, 0) for mol in self.ring_confs]
+        # to_db2 aligns on the rigid parts, which conf_sampling would otherwise find.
+        self.atom_maps, self.label_map = utils.find_rigid_part(
+            self.ring_confs[0], self.request_alignment, self.exclude_alignment)
+        if (self.request_alignment or self.exclude_alignment) and not self.atom_maps:
+            log_error(self.smiles, self.name)
+            logger.error(f'No rigid part left for {self.name} after applying --rigid/--rigid_exclude. No conformers are generated')
+
     # ========== Output to different file formats ===========
 
     def validate_embedding(self):
@@ -1690,7 +1714,9 @@ def _process_conformer_row(row, config, request_alignment, archive, library=None
         if 'pdbqt' in config.formats:
             confgen.to_pdbqt()
         sampling_time = 0.0
-        if config.formats.intersection({'sdf', 'mol2', 'oeb', 'oeb.lib'}):
+        if config.embed_only:
+            confgen.use_initial_embedding(request_alignment=request_alignment)
+        elif config.formats.intersection({'sdf', 'mol2', 'oeb', 'oeb.lib'}):
             sampling_started = time.perf_counter()
             confgen.conf_sampling(
                 numConfs=config.num_confs, energywindow=config.energy_window,
@@ -1830,6 +1856,7 @@ def main():
     parser.add_argument('--prefix', '-p', type=str, default = 'db2', help='Prefix for the output files.')
     parser.add_argument('--format', '-f', type=str, nargs='+', default=['db2.tgz'], choices=['db2', 'db2.tgz', 'pdbqt', 'sdf', 'mol2', 'oeb', 'oeb.lib'], help='Output format(s) (e.g., db2.tgz, pdbqt, sdf, mol2, oeb, oeb.lib).')
     parser.add_argument('--mode', '-mode', type=str, default='fixed', choices=['fixed', 'random', 'ignoretorlib'], help='Mode for conformer generation (fixed, random, ignoretorlib).')
+    parser.add_argument('--embed-only', '-eo', action='store_true', dest='embed_only', help='Skip sampling and write the initial embedding of each ring conformation (sdf, mol2, db2, oeb, oeb.lib).')
     parser.add_argument('--tolerance', '-tol', type=float, default=30, help='Tolerance for dihedral angle sampling (default: 30).')
     parser.add_argument('--allowNonring', '-anr', action='store_true', help='Allow full sampling of non-ring compounds.')
     parser.add_argument('--eps', type=float, default=4, help='The dielectric constant for electrostatic calculations (default: 4).')

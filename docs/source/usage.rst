@@ -128,7 +128,8 @@ change the defaults shown by your installed command.
                  [--method {rdkit,obabel,corina}] [--corinaPath CORINAPATH]
                  [--numconfs NUMCONFS] [--timeout TIMEOUT]
                  [--energywindow ENERGYWINDOW] [--nringconfs NRINGCONFS]
-                 [--mode {fixed,random,ignoretorlib}] [--allowNonring]
+                 [--mode {fixed,random,ignoretorlib}] [--embed-only]
+                 [--allowNonring]
                  [--rmsd RMSD] [--config CONFIG] [--create_config] [--lazy]
                  [--numcores NUMCORES] [--help] [--help_advanced] [--version]
 
@@ -204,6 +205,9 @@ change the defaults shown by your installed command.
       --nringconfs, -nr     Maximum number of ring conformers to generate (default: 1)
       --mode, -mode         Mode for generating conformers
                             Default: fixed - Options: fixed, random, ignoretorlib
+      --embed-only, -eo     Skip torsional sampling and write the initial embedding of each ring conformation
+                            (one conformer per ring conformation, nr0, nr1, ... as for pdbqt;
+                            also applies to db2, oeb and oeb.lib).
       --allowNonring        Allow full sampling of non-ring compounds (enabled by default in msani).
       --rmsd, -rmsd         Minimum RMSD between two conformers (default: 0.5 Å).
 
@@ -456,6 +460,17 @@ ETKDGv4 is available as an experimental alternative when the compiled extension 
 As RDKit ETKDGv3 is based on distance geometry method, it may takes a long time to generate the initial conformer for some large molecules. In this case, the program will opt for the OpenBabel method, after the timeout (default: 2 minutes) is reached. The timeout can be modified using the ``--timeout`` flag.
 
 A modified version of `TorsionLibrary v3 <https://pubs.acs.org/doi/10.1021/acs.jcim.2c00043>`_ is used to drive the generation of conformations. The modifications made and the full library can be obtained `here <https://github.com/carlssonlab/msani/blob/main/msani/Data/modified_tor_lib_2020.xml>`_. The number of conformers are controlled by the ``--numconfs`` or ``-nconfs`` flag. The default value is 2000, but it can be modified to any number. The program will sample the conformers based on the energy window (default: 25 kcal/mol) using the ``--energywindow`` or ``-w`` flag.
+
+To skip torsional sampling altogether, add ``--embed-only`` (``-eo``). Each ring
+conformation is then written as its initial embedding, one conformer per ring
+conformation, which is what PDBQT output always holds: SDF and MOL2 get one file
+per ring conformation (``name.nr0.sdf``, ``name.nr1.sdf``, ...; ``name.sdf`` when
+there is only one), and DB2, OEB and the OEB library (``oeb.lib``) get one entry per molecule with
+one conformer per ring conformation. ``--numconfs``, ``--energywindow`` and ``--mode`` have no effect then.
+
+.. code-block:: console
+
+    $ msani -i example_clean.smi --gen3d --format sdf db2 --embed-only
 
 Three sampling modes are supported (``--mode`` or ``-mode`` flag):
 
