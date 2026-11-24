@@ -450,8 +450,9 @@ LOW_MEMORY_MB = 2000
 def _default_memory_setting(text):
     """Read DefMemPerCPU/DefMemPerNode from scontrol output.
 
-    Returns the value in MB, math.inf for UNLIMITED, or None when absent.
-    A one-core job gets the same amount under either setting.
+    Returns the value in MB, math.inf for UNLIMITED or 0 (which SLURM also
+    treats as no limit), or None when absent. A one-core job gets the same
+    amount under either setting.
     """
     match = re.search(r'\bDefMemPer(?:CPU|Node)\s*=\s*(\S+)', text)
     if match is None:
@@ -459,7 +460,9 @@ def _default_memory_setting(text):
     value = match.group(1)
     if value.upper() == 'UNLIMITED':
         return math.inf
-    return int(value) if value.isdigit() else None
+    if not value.isdigit():
+        return None
+    return int(value) or math.inf
 
 
 def _scontrol(*arguments):
@@ -500,6 +503,40 @@ def default_job_memory_mb(partition=None):
         return math.inf if limits else None
     except (OSError, subprocess.SubprocessError):
         return None
+
+
+# msani reads its input in chunks of this many records (cli.READ_CHUNK_SIZE).
+LARGE_3D_JOB_LINES = 10_000
+# Formats collected into one archive per job, which is rewritten after every chunk.
+ARCHIVE_FORMATS = ('db2.tgz', 'oeb.lib')
+
+
+def confirm_large_3d_jobs(args):
+    """Ask before submitting 3D archive jobs that span more than one read chunk.
+
+    Only the db2.tgz and oeb.lib formats are affected; the other formats
+    write one file per molecule. Returns True when the submission should go
+    ahead.
+    """
+    if not args.gen3d or args.lines <= LARGE_3D_JOB_LINES:
+        return True
+    formats = [args.format] if isinstance(args.format, str) else (args.format or [])
+    archives = [name for name in ARCHIVE_FORMATS if name in formats]
+    if not archives:
+        return True
+    archive_text = (f"the {archives[0]} archive" if len(archives) == 1
+                    else f"the {' and '.join(archives)} archives")
+    print(f"Warning: -l {args.lines} puts more than {LARGE_3D_JOB_LINES:,} molecules in each 3D job. "
+          f"Each job works through its input in chunks of {LARGE_3D_JOB_LINES:,} molecules and rewrites "
+          f"{archive_text} after every chunk, which slows the job down, "
+          "and a failed or timed-out job loses more work. "
+          f"Prefer many small jobs (-l at or below {LARGE_3D_JOB_LINES:,}; we recommend fewer than 5000 lines per job).")
+    try:
+        answer = input("Do you want to submit anyway? (y/n): ")
+    except EOFError:
+        # No terminal to answer on, e.g. when called from a script.
+        answer = ''
+    return answer.strip().lower() in ['y', 'yes']
 
 
 def parse_flags_single_job(args: dict, parser):
@@ -697,6 +734,10 @@ def Split_Submit_jobs(args: dict, parser):
         print(f"Maximum number of jobs in an array: {max_array_size} jobs")
         print(f"Maximum number of jobs running parallelly (-mj): {args.max_jobs} jobs")
         print(f"Number of compounds per job (-l): {args.lines} lines\n")
+
+        if not confirm_large_3d_jobs(args):
+            print("Nothing was submitted. Exiting MolSanitizer...")
+            return
 
         squeue_command = ['squeue', '--noheader', '--array']
         if args.proj_name is not None:

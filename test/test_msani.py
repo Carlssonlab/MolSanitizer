@@ -1421,6 +1421,9 @@ class Test_MolSanitizer(unittest.TestCase):
             # A job may land on either partition, so the smaller default counts.
             ('main,low', 'DefMemPerCPU            = 2700\n', 1000),
             (None, 'MaxArraySize            = 1001\n', math.inf),
+            # 0 means no limit, like UNLIMITED, and must not trigger a warning.
+            (None, 'DefMemPerCPU            = 0\n', math.inf),
+            ('zero', 'DefMemPerCPU            = 2700\n', 2700),
         ]
         for partition, cluster, expected in cases:
             def scontrol(*arguments, cluster=cluster):
@@ -1428,7 +1431,8 @@ class Test_MolSanitizer(unittest.TestCase):
                     return cluster
                 if arguments == ('show', 'partition', '--oneliner'):
                     return f'{low}\n{main}\n'
-                return {'low': low, 'main': main}[arguments[2]]
+                zero = 'PartitionName=zero Default=NO DefMemPerCPU=0'
+                return {'low': low, 'main': main, 'zero': zero}[arguments[2]]
 
             with self.subTest(partition=partition, cluster=cluster):
                 with patch('msani.batchmode._scontrol', side_effect=scontrol):
@@ -1441,6 +1445,54 @@ class Test_MolSanitizer(unittest.TestCase):
             with self.subTest(error=type(error).__name__):
                 with patch('msani.batchmode.subprocess.run', side_effect=error):
                     self.assertIsNone(batchmode.default_job_memory_mb('main'))
+
+    def test_large_3d_jobs_need_confirmation(self):
+        from msani import batchmode
+
+        def confirm(gen3d, lines, answer=AssertionError('no prompt expected'),
+                    formats=('db2.tgz',)):
+            args = SimpleNamespace(gen3d=gen3d, lines=lines, format=list(formats))
+            with (
+                patch('builtins.input', side_effect=[answer]) as prompt,
+                contextlib.redirect_stdout(io.StringIO()) as output,
+            ):
+                return batchmode.confirm_large_3d_jobs(args), prompt.called, output.getvalue()
+
+        # 2D jobs and 3D jobs within one read chunk are submitted without asking.
+        for gen3d, lines in ((False, 100_000), (True, 200), (True, 10_000)):
+            with self.subTest(gen3d=gen3d, lines=lines):
+                self.assertEqual(confirm(gen3d, lines), (True, False, ''))
+
+        for answer, expected in (('y', True), (' YES ', True), ('n', False),
+                                 ('', False), (EOFError(), False)):
+            with self.subTest(answer=answer):
+                confirmed, asked, output = confirm(True, 10_001, answer)
+                self.assertEqual((confirmed, asked), (expected, True))
+                self.assertIn('the db2.tgz archive ', output)
+
+        # Only the archive formats are rewritten after every chunk.
+        for formats in (['db2'], ['sdf', 'mol2', 'pdbqt', 'oeb'], []):
+            with self.subTest(formats=formats):
+                self.assertEqual(confirm(True, 100_000, formats=formats), (True, False, ''))
+        for formats, named in ((['sdf', 'oeb.lib'], 'the oeb.lib archive '),
+                               (['oeb.lib', 'db2.tgz'], 'the db2.tgz and oeb.lib archives ')):
+            with self.subTest(formats=formats):
+                confirmed, asked, output = confirm(True, 100_000, 'y', formats)
+                self.assertEqual((confirmed, asked), (True, True))
+                self.assertIn(named, output)
+
+        # Declining stops before anything is staged or submitted.
+        args, parser = parsers.parseArguments(['-3d', '-l', '20000'], batch_mode=True)
+        args.input_files = ['missing.smi']
+        with (
+            patch('builtins.input', return_value='n'),
+            patch('msani.batchmode.default_job_memory_mb', return_value=None),
+            patch('msani.batchmode.subprocess.run',
+                  side_effect=AssertionError('nothing may run after declining')),
+            contextlib.redirect_stdout(io.StringIO()) as output,
+        ):
+            batchmode.Split_Submit_jobs(args, parser)
+        self.assertIn('Nothing was submitted', output.getvalue())
 
     def test_batch_memory_validation(self):
         self.assertIsNone(parsers.slurm_memory('none'))

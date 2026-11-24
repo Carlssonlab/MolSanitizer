@@ -663,6 +663,24 @@ array size; the latter limits project capacity at submission. See :doc:`config`.
 For retained staging files, use ``--nocleanup``. See :doc:`troubleshooting`
 for failed-task resubmission and recovery.
 
+**Memory per job.** Without ``--mem``, each job gets the cluster's default
+memory for one core. If that default is below about 2 GB, pass ``--mem`` (or
+set ``SLURM_MEMORY`` with ``msani config``). At submission ``msani_batch`` asks
+``scontrol`` for the default, checking the partition first and then the
+cluster-wide setting, and prints a warning when it is below 2000 MB. The check
+is best-effort: it is skipped when ``--mem`` is given and stays silent when the
+default is unlimited or cannot be determined.
+
+**Choosing** ``-l`` **for 3D generation.** Each job processes its input in chunks
+of 10,000 molecules, so memory use does not grow with ``-l``. For ``--gen3d``,
+keep ``-l`` at or below 10,000 (the default of 200 is a good starting point).
+Above that, the ``db2.tgz`` and ``oeb.lib`` archives are rewritten after every
+chunk, which slows the job down, and a failed or timed-out job loses more
+work. Prefer many small jobs over a few large ones. When one of these two
+formats is requested (``db2.tgz`` is the default), ``msani_batch`` prints a
+warning and asks for confirmation (``y``) before submitting 3D jobs with ``-l``
+above 10,000.
+
 
 Batch examples
 ~~~~~~~~~~~~~~
