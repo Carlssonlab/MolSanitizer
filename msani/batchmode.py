@@ -583,7 +583,8 @@ def parse_flags_single_job(args: dict, parser):
             elif arg in ("stereoisomers", "neutralize") and not current_value:
                 flags.append(f"--no-{arg}")
             elif current_value:
-                flags.append(f"--{arg}")
+                # The option string, not the dest: --embed-only is stored as embed_only.
+                flags.append(action.option_strings[0] if action.option_strings else f"--{arg}")
         elif isinstance(current_value, list):
             # List arguments
             value_str = " ".join(shlex.quote(str(value)) for value in current_value)

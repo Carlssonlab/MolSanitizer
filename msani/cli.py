@@ -227,7 +227,8 @@ def clean_data(args):
         corinaPath=args.corinaPath, standardize=args.standardize,
         protonation_library=args.protlib, tautomer_library=args.taulib,  
         debug=args.debug, metal=args.metal, metal_max_variants=args.metal_max_variants,
-        metal_max_combinations=args.metal_max_combinations)       
+        metal_max_combinations=args.metal_max_combinations,
+        salt_library=args.saltlib)
     with processor:
         if args.smiles:
             process_smiles(processor, args)
@@ -268,13 +269,15 @@ def main():
         print(version_text)
         return
    
-    if args.create_custom or args.create_protlib or args.create_taulib or args.create_torsion or args.create_config: 
+    if args.create_custom or args.create_protlib or args.create_taulib or args.create_saltlib or args.create_torsion or args.create_config:
         if args.create_custom:
             generateCustomTemplate(args, filename = 'filter_out.txt')
         if args.create_protlib:
             generateCustomTemplate(args, filename = 'ionizations_v3.txt')
         if args.create_taulib:
             generateCustomTemplate(args, filename = 'tautomers_v3.txt')
+        if args.create_saltlib:
+            generateCustomTemplate(args, filename = 'salt_stripping.txt')
         if args.create_torsion:
             generateCustomTemplate(args, filename = 'custom_torsion_templates.txt')
         if args.create_config:

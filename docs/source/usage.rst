@@ -128,7 +128,8 @@ change the defaults shown by your installed command.
                  [--method {rdkit,obabel,corina}] [--corinaPath CORINAPATH]
                  [--numconfs NUMCONFS] [--timeout TIMEOUT]
                  [--energywindow ENERGYWINDOW] [--nringconfs NRINGCONFS]
-                 [--mode {fixed,random,ignoretorlib}] [--allowNonring]
+                 [--mode {fixed,random,ignoretorlib}] [--embed-only]
+                 [--allowNonring]
                  [--rmsd RMSD] [--config CONFIG] [--create_config] [--lazy]
                  [--numcores NUMCORES] [--help] [--help_advanced] [--version]
 
@@ -204,6 +205,9 @@ change the defaults shown by your installed command.
       --nringconfs, -nr     Maximum number of ring conformers to generate (default: 1)
       --mode, -mode         Mode for generating conformers
                             Default: fixed - Options: fixed, random, ignoretorlib
+      --embed-only, -eo     Skip torsional sampling and write the initial embedding of each ring conformation
+                            (one conformer per ring conformation, nr0, nr1, ... as for pdbqt;
+                            also applies to db2, oeb and oeb.lib).
       --allowNonring        Allow full sampling of non-ring compounds (enabled by default in msani).
       --rmsd, -rmsd         Minimum RMSD between two conformers (default: 0.5 Å).
 
@@ -347,7 +351,7 @@ Example of the **_rejected** output is as below:
 7. Unwanted substructures filtering
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Molecules that contain unwanted substructures can be efficiently eliminated using the ``--unwanted`` flag. msani uses an expert-curated list that contains undesirable substructures, accompanied by the reasons and references for filtering. The list can be obtained from `msani/Data/filter_out.csv <https://github.com/carlssonlab/msani/blob/main/msani/Data/filter_out.csv>`_.
+Molecules that contain unwanted substructures can be efficiently eliminated using the ``--unwanted`` flag. msani uses an expert-curated list that contains undesirable substructures, accompanied by the reasons and references for filtering. The list can be obtained from `msani/Data/filter_out.txt <https://github.com/Carlssonlab/MolSanitizer/blob/main/msani/Data/filter_out.txt>`_.
 
 There are four options accompanied by the ``--unwanted`` flag, which are *['all', 'regular', 'special', 'optional']*. If no option is specified, the *regular* filters will be applied. The choice of the options depends on the user and can vary between targets.
 
@@ -358,18 +362,18 @@ There are four options accompanied by the ``--unwanted`` flag, which are *['all'
     $ msani -i example.smi --unwanted regular special
     $ msani -i example.smi --unwanted all
 
-It is also possible to filter out customized unwanted substructures, depending on the user's preference, using a customized SMARTS list. To generate a template for this list, use the ``--create_custom`` flag. This will result in the **templates.txt** file.
+It is also possible to filter out customized unwanted substructures, depending on the user's preference, using a customized SMARTS list. To generate a template for this list, use the ``--create_custom`` flag. This writes a copy of the built-in list as **filter_out.txt** (or **NAME.txt** with ``--prefix NAME``), which can be edited (for example, saved as **my_filters.txt** with only the patterns you need).
 
 .. code-block:: console
 
     $ msani --create_custom
 
-The first two columns (SMARTS and LABEL) are required for the program to parse, while the remaining columns will be omitted by the program. To filter using the customized list, use the ``--custom`` flag with the path to the customized list file. It is also possible to apply both the available filters and the customized filters.
+The first two columns (SMARTS and LABEL) are required for the program to parse, while the remaining columns will be omitted by the program. To filter using the customized list, use the ``--custom`` flag with the path to the customized list file. The customized list does not replace the built-in filters; it is applied in addition to them when ``--unwanted`` is also given. See :doc:`customization` for the file format.
 
 .. code-block:: console
 
-    $ msani -i example.smi --custom templates.txt
-    $ msani -i example.smi --unwanted all --custom templates.tsv
+    $ msani -i example.smi --custom my_filters.txt
+    $ msani -i example.smi --unwanted all --custom my_filters.txt
 
 8. Protonation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -456,6 +460,17 @@ ETKDGv4 is available as an experimental alternative when the compiled extension 
 As RDKit ETKDGv3 is based on distance geometry method, it may takes a long time to generate the initial conformer for some large molecules. In this case, the program will opt for the OpenBabel method, after the timeout (default: 2 minutes) is reached. The timeout can be modified using the ``--timeout`` flag.
 
 A modified version of `TorsionLibrary v3 <https://pubs.acs.org/doi/10.1021/acs.jcim.2c00043>`_ is used to drive the generation of conformations. The modifications made and the full library can be obtained `here <https://github.com/carlssonlab/msani/blob/main/msani/Data/modified_tor_lib_2020.xml>`_. The number of conformers are controlled by the ``--numconfs`` or ``-nconfs`` flag. The default value is 2000, but it can be modified to any number. The program will sample the conformers based on the energy window (default: 25 kcal/mol) using the ``--energywindow`` or ``-w`` flag.
+
+To skip torsional sampling altogether, add ``--embed-only`` (``-eo``). Each ring
+conformation is then written as its initial embedding, one conformer per ring
+conformation, which is what PDBQT output always holds: SDF and MOL2 get one file
+per ring conformation (``name.nr0.sdf``, ``name.nr1.sdf``, ...; ``name.sdf`` when
+there is only one), and DB2, OEB and the OEB library (``oeb.lib``) get one entry per molecule with
+one conformer per ring conformation. ``--numconfs``, ``--energywindow`` and ``--mode`` have no effect then.
+
+.. code-block:: console
+
+    $ msani -i example_clean.smi --gen3d --format sdf db2 --embed-only
 
 Three sampling modes are supported (``--mode`` or ``-mode`` flag):
 

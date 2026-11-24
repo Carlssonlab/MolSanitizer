@@ -302,6 +302,24 @@ class Test_MolSanitizer(unittest.TestCase):
             self.compareFiles(f'{temp_dir}/dummy_output_clean.txt',
                               f'{self.path}/out_salt_clean.txt')
 
+    def test_removesalts_custom_salt_library(self):
+        """--saltlib replaces the default salt list: acetate is dropped from it,
+        so sodium acetate keeps its acetic acid instead of being stripped away."""
+        # Read from the installed package: CI runs this file from a copied test dir.
+        import pkgutil
+        lines = pkgutil.get_data('msani', 'Data/salt_stripping.txt').decode().splitlines()
+        custom = [line for line in lines if not line.endswith(' acetate')]
+        self.assertEqual(len(lines) - len(custom), 1)
+        with tempfile.TemporaryDirectory() as temp_dir:
+            salt_file = Path(temp_dir) / 'custom_salts.txt'
+            salt_file.write_text('\n'.join(custom) + '\n')
+            args = self.generate_mock_arguments([f'{self.path}/in_salt.txt'],
+                                                ['removesalts', 'test'], temp_dir)
+            args.saltlib = salt_file
+            cli.clean_data(args)
+            self.compareFiles(f'{temp_dir}/dummy_output_clean.txt',
+                              f'{self.path}/out_salt_custom.txt')
+
     def test_tautomers(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             args = self.generate_mock_arguments([f'{self.path}/in_tautomers.txt'],
@@ -1987,6 +2005,238 @@ class TestInitialEmbedderSelection(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             conformers.cpp_sampler.embed_multiple_confs(
                 Chem.AddHs(Chem.MolFromSmiles('CCO')), 1, {'preset': 'sretkdgv3', 'randomSed': 1}, None)
+
+
+class TestEmbedOnly(unittest.TestCase):
+    """--embed-only writes each ring conformation's initial embedding, unsampled."""
+
+    SULFONAMIDE = 'O=S(=O)(Nc1ccccc1)c1ccccc1'
+
+    def test_flag_is_parsed_and_reaches_the_run_config(self):
+        for argv in (['-3d', '--embed-only'], ['-3d', '-eo']):
+            with self.subTest(argv=argv):
+                args = parsers.parseArguments(argv)
+                self.assertTrue(args.embed_only)
+                self.assertTrue(conformers.ConformerRunConfig.from_args(args).embed_only)
+        args = parsers.parseArguments(['-3d'])
+        self.assertFalse(args.embed_only)
+        self.assertFalse(conformers.ConformerRunConfig.from_args(args).embed_only)
+
+    def test_batch_jobs_forward_the_option_string(self):
+        args, parser = parsers.parseArguments(['-3d', '-eo'], batch_mode=True)
+        flags = parse_flags_single_job(args, parser).split()
+        self.assertIn('--embed-only', flags)
+        self.assertNotIn('--embed_only', flags)
+
+    @unittest.skipUnless(CPP_AVAILABLE, 'requires the C++ sampling extension')
+    def test_initial_embedding_is_kept_without_sampling(self):
+        generator = ConformerGenerator(self.SULFONAMIDE, name='phenylbenzenesulfonamide')
+        self.assertEqual(len(generator.ring_confs), 2)
+        embedded = [mol.GetConformer(0).GetPositions().tolist() for mol in generator.ring_confs]
+        with patch.object(ConformerGenerator, 'conf_sampling') as sampling, \
+                patch.object(conformers.cpp_sampler, 'stochastic_sampling_discrete') as sampler:
+            generator.use_initial_embedding()
+            with tempfile.TemporaryDirectory() as temp_dir:
+                cwd = os.getcwd()
+                os.chdir(temp_dir)
+                try:
+                    os.makedirs('sdf')
+                    generator.to_sdf()
+                    written = sorted(os.listdir('sdf'))
+                    records = [list(Chem.SDMolSupplier(f'sdf/{name}', removeHs=False))
+                               for name in written]
+                finally:
+                    os.chdir(cwd)
+        sampling.assert_not_called()
+        sampler.assert_not_called()
+        self.assertTrue(generator.conf_sampled)
+        self.assertTrue(generator.atom_maps)
+        self.assertEqual(written, ['phenylbenzenesulfonamide.nr0.sdf',
+                                   'phenylbenzenesulfonamide.nr1.sdf'])
+        self.assertEqual([len(mols) for mols in records], [1, 1])
+        # The SDF keeps four decimals of the embedded coordinates.
+        for mols, positions in zip(records, embedded):
+            for written_xyz, embedded_xyz in zip(mols[0].GetConformer().GetPositions().tolist(), positions):
+                for written_value, embedded_value in zip(written_xyz, embedded_xyz):
+                    self.assertAlmostEqual(written_value, embedded_value, places=3)
+
+    @unittest.skipUnless(CPP_AVAILABLE and conformers.AMSOLCPP_AVAILABLE,
+                         'requires the C++ sampling extension and AMSOLcpp')
+    def test_run_writes_one_record_per_ring_conformation(self):
+        df = DataFrame({'smiles': [self.SULFONAMIDE, 'Oc1ccc(Cl)c(Cl)c1'],
+                        'ids': ['sulfonamide', 'dichlorophenol']})
+        args = parsers.parseArguments(['-3d', '-eo', '-f', 'sdf', 'mol2', 'db2'])
+        with tempfile.TemporaryDirectory() as temp_dir:
+            cwd = os.getcwd()
+            os.chdir(temp_dir)
+            try:
+                with patch.object(ConformerGenerator, 'conf_sampling') as sampling:
+                    conformers.gen_conf_chunk(df, args)
+                sampling.assert_not_called()
+                self.assertEqual(sorted(os.listdir('sdf')),
+                                 ['dichlorophenol.sdf', 'sulfonamide.nr0.sdf', 'sulfonamide.nr1.sdf'])
+                self.assertEqual(sorted(os.listdir('mol2')),
+                                 ['dichlorophenol.mol2', 'sulfonamide.nr0.mol2', 'sulfonamide.nr1.mol2'])
+                for name in os.listdir('sdf'):
+                    with self.subTest(sdf=name):
+                        self.assertEqual(len(Chem.SDMolSupplier(f'sdf/{name}')), 1)
+                # DB2 keeps one file per molecule, now holding one conformer per ring conformation.
+                self.assertEqual(sorted(os.listdir('db2')), ['dichlorophenol.db2', 'sulfonamide.db2'])
+                for name in os.listdir('db2'):
+                    with self.subTest(db2=name):
+                        self.assertGreater(Path(f'db2/{name}').stat().st_size, 0)
+            finally:
+                os.chdir(cwd)
+
+
+@unittest.skipUnless(CPP_AVAILABLE, 'requires the C++ sampling extension')
+class TestConformerBudgetPerRingConformation(unittest.TestCase):
+    """--numconfs is shared over the ring conformations, remainder first.
+
+    N-phenylbenzenesulfonamide matches the sulfonamide scaffold, so there are two
+    ring conformations to share the budget.
+    """
+
+    SMILES = 'O=S(=O)(Nc1ccccc1)c1ccccc1'
+
+    def generator(self):
+        generator = ConformerGenerator(self.SMILES, name='phenylbenzenesulfonamide')
+        # 'fixed' is the default mode, so conf_sampling delegates to conf_samplingv2.
+        self.assertEqual(generator.mode, 'fixed')
+        self.assertEqual(len(generator.ring_confs), 2)
+        return generator
+
+    def requested_counts(self, numConfs):
+        generator = self.generator()
+        requested = []
+
+        def sampler(*args, **kwargs):
+            requested.append(kwargs['numConfs'])
+            return Chem.Mol(kwargs['mol'])
+
+        with patch.object(conformers.cpp_sampler, 'stochastic_sampling_discrete',
+                          side_effect=sampler):
+            generator.conf_sampling(numConfs=numConfs)
+        return generator, requested
+
+    def test_budget_is_split_with_the_remainder_first(self):
+        for numConfs, expected in ((20, [10, 10]), (3, [2, 1]), (2, [1, 1])):
+            with self.subTest(numConfs=numConfs):
+                generator, requested = self.requested_counts(numConfs)
+                self.assertEqual(requested, expected)
+                self.assertEqual(len(generator.ring_confs), 2)
+
+    def test_ring_conformation_without_budget_is_skipped(self):
+        # int(1 / 2) used to ask the sampler for zero conformers, which it rejects,
+        # so the molecule came out of a --numconfs 1 run with no file at all.
+        generator, requested = self.requested_counts(1)
+        self.assertEqual(requested, [1])
+        self.assertEqual(len(generator.ring_confs), 1)
+
+    def test_skipped_ring_conformation_is_not_written(self):
+        generator, _ = self.requested_counts(1)
+        with tempfile.TemporaryDirectory() as temp_dir:
+            cwd = os.getcwd()
+            os.chdir(temp_dir)
+            try:
+                os.makedirs('sdf')
+                os.makedirs('mol2')
+                generator.to_sdf()
+                generator.to_mol2()
+            finally:
+                os.chdir(cwd)
+            # One ring conformation left: written under the plain name, as for any
+            # molecule with a single ring conformation.
+            self.assertEqual(sorted(os.listdir(f'{temp_dir}/sdf')),
+                             ['phenylbenzenesulfonamide.sdf'])
+            self.assertEqual(sorted(os.listdir(f'{temp_dir}/mol2')),
+                             ['phenylbenzenesulfonamide.mol2'])
+
+    def test_a_sampler_that_raises_reaches_the_fallback(self):
+        generator = self.generator()
+
+        def failed(*args, **kwargs):
+            mol = Chem.Mol(kwargs['mol'])
+            mol.SetProp('Failed_sampling', '1')
+            return mol
+
+        with patch.object(conformers.cpp_sampler, 'stochastic_sampling_discrete',
+                          side_effect=RuntimeError('Conformer and attempt counts '
+                                                   'must be positive')), \
+                patch.object(ConformerGenerator, 'stochastic_sampling',
+                             side_effect=failed) as fallback:
+            generator.conf_sampling(numConfs=2)
+        # An extension that raises leaves stochastic_sampling_v2 returning None, which
+        # has to read as a failed sampling rather than as an AttributeError.
+        self.assertEqual(fallback.call_count, 2)
+        self.assertEqual([call.kwargs['numConfs'] for call in fallback.call_args_list], [1, 1])
+        self.assertEqual(len(generator.ring_confs), 2)
+
+    def test_fallback_that_returns_none_keeps_the_embedding(self):
+        generator = self.generator()
+        with patch.object(conformers.cpp_sampler, 'stochastic_sampling_discrete',
+                          side_effect=RuntimeError('boom')), \
+                patch.object(ConformerGenerator, 'stochastic_sampling', return_value=None):
+            generator.conf_sampling(numConfs=2)
+        # Both samplers failed: each ring conformation keeps its single embedded conformer.
+        self.assertEqual([mol.GetNumConformers() for mol in generator.ring_confs], [1, 1])
+
+
+class TestRestoreInterruptedDb2Archive(unittest.TestCase):
+    """Restarting from a db2.tgz whose writer was killed (time limit, memory)."""
+
+    @staticmethod
+    def _write_archive(path, names):
+        with tarfile.open(path, 'w:gz') as archive:
+            for name in names:
+                # Incompressible content, so cutting the file cuts a member.
+                data = os.urandom(20000)
+                info = tarfile.TarInfo(name=f'{name}.db2')
+                info.size = len(data)
+                archive.addfile(info, io.BytesIO(data))
+
+    def _restore(self, restart_tgz, output_tgz):
+        with tarfile.open(output_tgz, 'w:gz') as archive:
+            processed = conformers._restore_db2_archive(archive, str(restart_tgz))
+        with tarfile.open(output_tgz, 'r:gz') as archive:
+            restored = [member.name.removesuffix('.db2') for member in archive.getmembers()]
+        return processed, restored
+
+    def test_complete_archive_is_restored_in_full(self):
+        names = [f'mol{i}' for i in range(5)]
+        with tempfile.TemporaryDirectory() as temp_dir:
+            restart_tgz = Path(temp_dir) / 'restart_in.db2.tgz'
+            self._write_archive(restart_tgz, names)
+            processed, restored = self._restore(restart_tgz, Path(temp_dir) / 'in.db2.tgz')
+            self.assertEqual(processed, set(names))
+            self.assertEqual(restored, names)
+            self.assertFalse(restart_tgz.exists())
+
+    def test_truncated_archive_keeps_the_complete_members(self):
+        names = [f'mol{i}' for i in range(20)]
+        with tempfile.TemporaryDirectory() as temp_dir:
+            restart_tgz = Path(temp_dir) / 'restart_in.db2.tgz'
+            self._write_archive(restart_tgz, names)
+            content = restart_tgz.read_bytes()
+            # A killed writer leaves no gzip trailer and stops inside a member.
+            restart_tgz.write_bytes(content[:len(content) // 2])
+            with self.assertLogs('msani', level='WARNING'):
+                processed, restored = self._restore(restart_tgz, Path(temp_dir) / 'in.db2.tgz')
+            # The members before the cut are kept, in order, and nothing else.
+            self.assertTrue(0 < len(restored) < len(names))
+            self.assertEqual(restored, names[:len(restored)])
+            self.assertEqual(processed, set(restored))
+            self.assertFalse(restart_tgz.exists())
+
+    def test_unreadable_archive_starts_fresh(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            restart_tgz = Path(temp_dir) / 'restart_in.db2.tgz'
+            restart_tgz.write_bytes(b'not a gzip file')
+            with self.assertLogs('msani', level='WARNING'):
+                processed, restored = self._restore(restart_tgz, Path(temp_dir) / 'in.db2.tgz')
+            self.assertEqual(processed, set())
+            self.assertEqual(restored, [])
+            self.assertFalse(restart_tgz.exists())
 
 
 if __name__ == '__main__':

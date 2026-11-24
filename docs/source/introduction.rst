@@ -566,7 +566,7 @@ A full list of the substructures, their categories, and literature references is
         - Optional
         - none
 
-Users can also provide their own custom SMARTS patterns via the ``--custom_filter`` option to tailor the filtering process to specific project needs.
+Users can also provide their own custom SMARTS patterns via the ``--custom`` option (see :doc:`customization`) to tailor the filtering process to specific project needs.
 
 For more detailed usage and examples, refer to the :doc:`usage` section.
 

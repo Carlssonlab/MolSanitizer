@@ -13,6 +13,20 @@ logger = logging.getLogger('msani')
 uncharger = rdMolStandardize.Uncharger()
 saltfile = Path(__file__).parent.parent / 'Data' / 'salt_stripping.txt'
 salt_remover = SaltRemover.SaltRemover(defnFilename=saltfile)        
+_custom_salt_removers = {}
+
+def get_salt_remover(salt_library=None):
+    """Return the SaltRemover for the default list or for a user-supplied salt file.
+
+    The remover of a user file is built once and reused for all later chunks.
+    """
+    if salt_library is None:
+        return salt_remover
+    key = str(Path(salt_library).resolve())
+    if key not in _custom_salt_removers:
+        _custom_salt_removers[key] = SaltRemover.SaltRemover(defnFilename=key)
+    return _custom_salt_removers[key]
+
 _fragment_params = rdMolStandardize.CleanupParameters()
 _fragment_params.largestFragmentChooserCountHeavyAtomsOnly = True
 _fragment_chooser = rdMolStandardize.LargestFragmentChooser(_fragment_params)
@@ -67,6 +81,10 @@ class Filters():
         
         removesalts: bool, default False.
             Remove salts from the input molecules. Only the largest fragment will be retained if the salt is not in the database.
+
+        salt_library: str or Path, default None.
+            Path to a custom salt list that replaces the default msani/Data/salt_stripping.txt
+            (one SMARTS per line, optional name after a space). Only used when removesalts is True.
         
         ha: str, default None.
             Filter molecules by the number of heavy atoms. Accepts a string in the format '1-5', '>=5', '<=5', or '5'.
@@ -128,9 +146,8 @@ class Filters():
                             custom='path/to/custom.smarts',
                             unwanted=['regular'],
                             pains=True,
-                            rejectedFile='rejected.txt',
-                            debug=True)
-    >>> filtered_df = filters.filter_df(df)
+                            rejectedFile='rejected.txt')
+    >>> filtered_df = filters.filter_df(df, debug=True)
     
     the second way is to use the static methods of the class directly on a DataFrame:
 
@@ -163,8 +180,15 @@ class Filters():
                  rejectedFile = 'rejected_entries.txt',
                  tpsa = None,
                  fsp3 = None,
-                 numcores = 1):
+                 numcores = 1,
+                 salt_library = None):
         self.removesalts = removesalts
+        if salt_library is not None and not Path(salt_library).is_file():
+            raise FileNotFoundError(f'The salt library file: {salt_library} does not exist.')
+        self.salt_library = salt_library
+        if removesalts:
+            # Build (and cache) the remover now so an unreadable salt list fails here.
+            get_salt_remover(salt_library)
         self.ha = ha
         self.logp = logp
         self.hba = hba
@@ -279,18 +303,20 @@ class Filters():
         return res
     
     @staticmethod
-    def saltstripping(df: DataFrame, debug = False) -> DataFrame:
+    def saltstripping(df: DataFrame, debug = False, salt_library = None) -> DataFrame:
         """Remove salts from the input molecules using the RDKit SaltRemover class.
 
         Args:
             df (DataFrame): Input DataFrame with 'mol' column containing RDKit molecule objects.
             debug (bool, optional): Debug mode. Defaults to False.
+            salt_library (str or Path, optional): Salt list to use instead of the
+                default Data/salt_stripping.txt. Defaults to None (default list).
 
         Returns:
             DataFrame: A new DataFrame chunk with salt-stripped molecules.
         """
 
-        global salt_remover
+        remover = get_salt_remover(salt_library)
 
         # We will track molecules and smiles directly
         # To avoid a full df copy, work directly on the series. 
@@ -302,7 +328,7 @@ class Filters():
         has_dot = new_smiles.str.contains('.', regex=False, na=False)
         idx = df.index[has_dot]
         
-        updated_mols = new_mols.loc[idx].apply(lambda m: Filters.stripSMILESsalt(m, salt_remover, debug))
+        updated_mols = new_mols.loc[idx].apply(lambda m: Filters.stripSMILESsalt(m, remover, debug))
         new_mols.loc[idx] = updated_mols
         new_smiles.loc[idx] = updated_mols.map(Chem.MolToSmiles)
 
@@ -840,19 +866,22 @@ class Filters():
             
         return df.loc[mask_ok].copy()
     
-    def filter_df(self, df: DataFrame, rejectedFile: str, debug: bool = False) -> DataFrame:
+    def filter_df(self, df: DataFrame, rejectedFile: str = None, debug: bool = False) -> DataFrame:
         """Apply the filters to the input DataFrame.
 
         Args:
             df (DataFrame): Input DataFrame with 'mol' column containing RDKit molecule objects.
-            rejectedFile (str): Path to the file to save rejected molecules.
+            rejectedFile (str, optional): Path to the file to save rejected molecules.
+                Defaults to the rejectedFile given to the constructor.
             debug (bool, optional): Debug mode. Defaults to False.
 
         Returns:
             DataFrame: A new DataFrame chunk with molecules that passed all the filters.
         """
+        if rejectedFile is None:
+            rejectedFile = self.rejectedFile
         if self.removesalts:
-            df = Filters.saltstripping(df, debug)
+            df = Filters.saltstripping(df, debug, salt_library=self.salt_library)
         if self.ha:
             df = Filters.filter_by_ha(df, self.ha, rejectedFile, debug)
         if self.hba:

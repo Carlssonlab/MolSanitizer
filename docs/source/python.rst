@@ -146,9 +146,10 @@ The **Filters** class provides methods for applying various filters to molecules
                       hbd='1-2', mw='200-500',
                       chiral='0-2', custom='path/to/custom.smarts',
                       unwanted=['regular'], pains=True,
-                      rejectedFile='rejected.txt', debug=True)
+                      rejectedFile='rejected.txt',
+                      salt_library=None)  # or a path to your own salt list
 
-    filtered_df = filters.filter_df(df)
+    filtered_df = filters.filter_df(df, debug=True)
     
 the Filters class also has multiple static methods that can be used independently:
 

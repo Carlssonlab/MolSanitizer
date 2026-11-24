@@ -128,6 +128,8 @@ class ConformerRunConfig:
     # Initial embedder, resolved once in the parent so that every worker uses
     # the one that was validated and logged. None: read MSANI_EMBEDDER.
     embedder: str | None = None
+    # Write each ring conformation's initial embedding instead of sampling.
+    embed_only: bool = False
 
     @property
     def ignore_torlib(self):
@@ -141,7 +143,8 @@ class ConformerRunConfig:
                    args.eps, args.allowNonring, args.cleanup, args.debug,
                    args.timing, frozenset(args.format), args.synthon, getattr(args, 'corinaPath', None),
                    getattr(args, 'timeout_obabel', 30),
-                   (_modern_embedder() or _DEFAULT_EMBEDDER) if args.method == 'rdkit' else None)
+                   (_modern_embedder() or _DEFAULT_EMBEDDER) if args.method == 'rdkit' else None,
+                   getattr(args, 'embed_only', False))
     
 class ConformerGenerator:
     '''
@@ -847,6 +850,30 @@ class ConformerGenerator:
         except Exception as e:
             print(f'Error in C++ extension: {e}')
 
+    def _split_budget_over_ring_confs(self, numConfs, fixed_budget=None):
+        """Share numConfs over the ring conformations and drop those left with none.
+
+        The remainder goes to the first ring conformations (3 over 2 gives 2 and 1).
+        A ring conformation whose share is zero is removed from self.ring_confs, so it
+        is neither sampled nor written: --numconfs 1 with two ring conformations
+        gives one output instead of asking the sampler for zero conformers. The first
+        ring conformation is always kept. fixed_budget, if given, is used for every
+        ring conformation instead (the limited sampling of molecules without rings).
+
+        Returns:
+            list[int]: The number of conformers to sample for each kept ring conformation.
+        """
+        if fixed_budget is not None:
+            return [fixed_budget] * len(self.ring_confs)
+        share, remainder = divmod(numConfs, len(self.ring_confs))
+        budgets = [share + (idx < remainder) for idx in range(len(self.ring_confs))]
+        kept = max(1, sum(budget > 0 for budget in budgets))
+        if kept < len(self.ring_confs):
+            if self.VERBOSE:
+                print(f"\t--numconfs {numConfs} covers {kept} of {len(self.ring_confs)} ring conformations, skipping the others")
+            del self.ring_confs[kept:]
+        return budgets[:kept]
+
     def conf_sampling(self, 
                       numConfs=2000, 
                       energywindow = 25,
@@ -906,11 +933,10 @@ class ConformerGenerator:
             log_error(self.smiles, self.name)
             logger.error(f'No rigid part left for {self.name} after applying --rigid/--rigid_exclude. No conformers are generated')
             return
-        # For very flexible molecules, we need to sample more, then filter by energy later
-        else:
-            numConfs = int(numConfs/len(self.ring_confs))
-        
-        if (self.label_map) and not (AllowNonRing): numConfs = 30
+        # For very flexible molecules, we need to sample more, then filter by energy later.
+        # Molecules which don't have rings are not of interest --> only sample limitedly.
+        budgets = self._split_budget_over_ring_confs(
+            numConfs, fixed_budget=30 if (self.label_map and not AllowNonRing) else None)
     
 
         if self.VERBOSE:
@@ -943,7 +969,7 @@ class ConformerGenerator:
             result = self.stochastic_sampling( mol = processing_mol,
                                                 tolerance_level = 2,
                                                 match_torlib = match_torlib,
-                                                numConfs = numConfs,
+                                                numConfs = budgets[idx],
                                                 window = energywindow,
                                                 max_attempts = 50000,
                                                 eps = eps,
@@ -1059,12 +1085,10 @@ class ConformerGenerator:
             log_error(self.smiles, self.name)
             logger.error(f'No rigid part left for {self.name} after applying --rigid/--rigid_exclude. No conformers are generated')
             return
-        else:
-            # In case of sulfonamides and cycloheptatrienes, we divine the numConfs by the number of ring conformers
-            numConfs = int(numConfs/len(self.ring_confs))
-
+        # In case of sulfonamides and cycloheptatrienes, numConfs is shared by the ring conformers.
         # Molecules which don't have rings are not of interest --> only sample limitedly.
-        if (self.label_map) and not (AllowNonRing): numConfs = 30
+        budgets = self._split_budget_over_ring_confs(
+            numConfs, fixed_budget=30 if (self.label_map and not AllowNonRing) else None)
 
         if (len(self.rot_bonds) == 0):
             print('No rotatable bonds found, returning the original conformation')
@@ -1088,7 +1112,7 @@ class ConformerGenerator:
             result = self.stochastic_sampling_v2(mol = processing_mol,
                                                   angle_map = angle_map,
                                                   score_map = score_map,
-                                                  numConfs = numConfs,
+                                                  numConfs = budgets[idx],
                                                   possible_numConfs = possible_numConfs,
                                                   importance_order =  importance_order, 
                                                   window = energywindow, 
@@ -1096,7 +1120,9 @@ class ConformerGenerator:
                                                   hetero_H_bonds = self.hetero_H_bonds, 
                                                   timeout_conf = timeout_conf,
                                                   eps = eps)
-            if result.HasProp('Failed_sampling') and result.GetProp('Failed_sampling') == '1':
+            # stochastic_sampling_v2 returns None when the extension raises: treat it as a
+            # failed sampling, as conf_sampling does, so the random dihedral fallback runs.
+            if result is None or (result.HasProp('Failed_sampling') and result.GetProp('Failed_sampling') == '1'):
                 if self.VERBOSE: print(f'Failed to find any confs for {self.name}, using the random dihedral angles approach as a fallback')
                 possible_numConfs, match_torlib, self.hetero_H_bonds = utils.count_confs_by_rotbonds(mol = self.ring_confs[0],
                                                              rot_bonds = self.rot_bonds,
@@ -1107,7 +1133,7 @@ class ConformerGenerator:
                 result = self.stochastic_sampling( mol = processing_mol,
                                                 tolerance_level = 2,
                                                 match_torlib = match_torlib,
-                                                numConfs = numConfs,
+                                                numConfs = budgets[idx],
                                                 window = energywindow,
                                                 max_attempts = 50000,
                                                 eps = eps,
@@ -1115,7 +1141,7 @@ class ConformerGenerator:
                                                 random_method= 'uniform'
                                                 )
                 
-                if result.HasProp('Failed_sampling') and result.GetProp('Failed_sampling') == '1':
+                if result is None or (result.HasProp('Failed_sampling') and result.GetProp('Failed_sampling') == '1'):
                     if self.VERBOSE: print(f'Failed for stochastic sampling for {self.name}, use the original conformation')
                     continue
             
@@ -1128,6 +1154,27 @@ class ConformerGenerator:
                 rdMolAlign.AlignMol(result, original_mol, confId, 0, atomMap=[(i, i) for i in largest_ring])
             self.ring_confs[idx] = Chem.Mol(result)
 
+
+    def use_initial_embedding(self, request_alignment=None):
+        """Skip torsional sampling and keep each ring conformation's initial embedding.
+
+        Every ring conformation is reduced to its first conformer, the one to_pdbqt
+        writes, and the generator is marked as sampled so that the writers, to_db2
+        included, use it as is.
+
+        Args:
+            request_alignment (list): List of atom indices for alignment.
+        """
+        self.conf_sampled = True
+        if self.request_alignment is None and request_alignment is not None:
+            self.request_alignment = request_alignment
+        self.ring_confs = [Chem.Mol(mol, False, 0) for mol in self.ring_confs]
+        # to_db2 aligns on the rigid parts, which conf_sampling would otherwise find.
+        self.atom_maps, self.label_map = utils.find_rigid_part(
+            self.ring_confs[0], self.request_alignment, self.exclude_alignment)
+        if (self.request_alignment or self.exclude_alignment) and not self.atom_maps:
+            log_error(self.smiles, self.name)
+            logger.error(f'No rigid part left for {self.name} after applying --rigid/--rigid_exclude. No conformers are generated')
 
     # ========== Output to different file formats ===========
 
@@ -1622,24 +1669,37 @@ def _write_conformer_outputs(confgen, longname, config, archive, library=None, l
 
 
 def _restore_db2_archive(archive, restart_tgz):
-    """Copy completed DB2 members from an interrupted archive into a new one."""
+    """Copy completed DB2 members from an interrupted archive into a new one.
+
+    An archive whose writer was killed (time limit, memory) has no gzip
+    trailer and ends in the middle of a member. Every member before that
+    point is complete, so those are kept and the rest is generated again.
+    """
     processed_mols = set()
     if restart_tgz is None:
         return processed_mols
 
     try:
         with tarfile.open(restart_tgz, mode='r:gz') as restart_archive:
-            for member in restart_archive.getmembers():
+            # Read one member at a time: getmembers() scans the whole archive
+            # first and fails on a truncated one before anything is restored.
+            for member in restart_archive:
                 if not member.isfile() or not member.name.endswith('.db2'):
                     continue
                 source = restart_archive.extractfile(member)
                 if source is None:
                     continue
-                archive.addfile(member, source)
+                # Read it fully before writing, so a member cut short never
+                # reaches the new archive.
+                data = source.read()
+                if len(data) != member.size:
+                    raise EOFError(f'{member.name} is incomplete')
+                archive.addfile(member, io.BytesIO(data))
                 processed_mols.add(member.name.removesuffix('.db2'))
-    except (OSError, tarfile.TarError) as error:
-        logger.error('Could not restore %s; starting fresh: %s', restart_tgz, error)
-        processed_mols.clear()
+    except (EOFError, OSError, tarfile.TarError) as error:
+        # EOFError is what gzip raises for a truncated file; it is not an OSError.
+        logger.warning('%s is incomplete (%s); kept the %d molecules read before that point',
+                       restart_tgz, error, len(processed_mols))
     finally:
         if os.path.exists(restart_tgz):
             os.remove(restart_tgz)
@@ -1667,7 +1727,9 @@ def _process_conformer_row(row, config, request_alignment, archive, library=None
         if 'pdbqt' in config.formats:
             confgen.to_pdbqt()
         sampling_time = 0.0
-        if config.formats.intersection({'sdf', 'mol2', 'oeb', 'oeb.lib'}):
+        if config.embed_only:
+            confgen.use_initial_embedding(request_alignment=request_alignment)
+        elif config.formats.intersection({'sdf', 'mol2', 'oeb', 'oeb.lib'}):
             sampling_started = time.perf_counter()
             confgen.conf_sampling(
                 numConfs=config.num_confs, energywindow=config.energy_window,
@@ -1807,6 +1869,7 @@ def main():
     parser.add_argument('--prefix', '-p', type=str, default = 'db2', help='Prefix for the output files.')
     parser.add_argument('--format', '-f', type=str, nargs='+', default=['db2.tgz'], choices=['db2', 'db2.tgz', 'pdbqt', 'sdf', 'mol2', 'oeb', 'oeb.lib'], help='Output format(s) (e.g., db2.tgz, pdbqt, sdf, mol2, oeb, oeb.lib).')
     parser.add_argument('--mode', '-mode', type=str, default='fixed', choices=['fixed', 'random', 'ignoretorlib'], help='Mode for conformer generation (fixed, random, ignoretorlib).')
+    parser.add_argument('--embed-only', '-eo', action='store_true', dest='embed_only', help='Skip sampling and write the initial embedding of each ring conformation (sdf, mol2, db2, oeb, oeb.lib).')
     parser.add_argument('--tolerance', '-tol', type=float, default=30, help='Tolerance for dihedral angle sampling (default: 30).')
     parser.add_argument('--allowNonring', '-anr', action='store_true', help='Allow full sampling of non-ring compounds.')
     parser.add_argument('--eps', type=float, default=4, help='The dielectric constant for electrostatic calculations (default: 4).')
