@@ -57,11 +57,16 @@ Each line holds six fields:
 
 Only the first five are required.
 
+* ``FUNCTIONAL_GROUP`` is the rule name (without spaces), usually the functional group being ionized.
+
+* ``pKa`` is the estimated pKa value of the functional group, given as an integer (without decimals).
+  Only one value per group can be assigned.
+
 * ``TYPE`` is ``ACID`` (deprotonation) or ``BASE`` (protonation).
-* ``REACTION`` is a reaction SMARTS.
 * An ``ACID`` rule is applied when its pKa is at or below the pH, and a
   ``BASE`` rule when its pKa is at or above the pH. Rules are evaluated at the
   chosen ``--pH`` and across the range set by ``--pH_range``.
+
 * ``Enumerate = 0``: the rule is applied at one matching site, then repeated on
   the product until no site matches, so all matching sites react.
 * ``Enumerate = 1``: each matching site starts a separate branch. If the SMARTS
@@ -76,18 +81,37 @@ Only the first five are required.
       C[NH+]1CCNCC1 1_1
       CN1CC[NH2+]CC1 1_2
 
+* ``REACTION`` is a reaction SMARTS.
+
+The rules run in this order:
+
+1. First all ``ACID`` rules by ascending pKa,
+   then all ``BASE`` rules by descending pKa.
+2. Rules with the same pKa: first ``Enumerate = 0``,
+   then ``Enumerate = 1``.
+3. Rules that are still tied: in file order.
+
 Tautomer rules
 --------------
 
-Each line holds a name, an ``Enumerate`` flag (``0`` or ``1``) and a reaction
-SMARTS. A fourth column (reference) is allowed and ignored.
+Each line holds four fields:
 
-* ``Enumerate = 0`` **standardizes**: the input is replaced by the preferred
+.. code-block:: text
+
+    name    enumerate	smarts      reference
+
+Only the first three are required.
+
+* ``name`` (without spaces), usually the functional group being tautomerized.
+
+* ``enumerate = 0`` **standardizes**: the input is replaced by the preferred
   tautomer. For example, an enol is converted to the ketone
   (``CC(O)=CC`` → ``CCC(C)=O``).
-* ``Enumerate = 1`` **enumerates**: the input is kept and alternative forms are
+* ``enumerate = 1`` **enumerates**: the input is kept and alternative forms are
   added. For example, both the 1H and 3H tautomers of 4-methylimidazole are
   returned.
+
+* ``smarts`` is the reaction pattern in SMARTS format.
 
 The rules run in this order:
 
