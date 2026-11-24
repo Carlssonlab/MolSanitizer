@@ -672,6 +672,7 @@ defaults. Account and partition are unset unless configured.
     --whole_node           Use whole-node jobs (default: disabled).
     --whole_node_cores     CPU cores per node for whole-node jobs (default: 32).
     --retry                Resubmit the unfinished jobs of existing batch directories.
+    --yes, -y              Do not ask before submitting 3D jobs with -l above 10,000.
 
 ``MAX_ARRAY_SIZE`` (default 1000) and ``MAX_LIMIT_PROJECT`` (default 5000) are
 personal configuration settings, not command-line flags. The former limits
@@ -690,13 +691,15 @@ default is unlimited or cannot be determined.
 
 **Choosing** ``-l`` **for 3D generation.** Each job processes its input in chunks
 of 10,000 molecules, so memory use does not grow with ``-l``. For ``--gen3d``,
-keep ``-l`` at or below 10,000 (the default of 200 is a good starting point).
+keep ``-l`` at or below 10,000; we recommend fewer than 5,000 (the default of
+200 is a good starting point).
 Above that, the ``db2.tgz`` and ``oeb.lib`` archives are rewritten after every
 chunk, which slows the job down, and a failed or timed-out job loses more
 work. Prefer many small jobs over a few large ones. When one of these two
 formats is requested (``db2.tgz`` is the default), ``msani_batch`` prints a
 warning and asks for confirmation (``y``) before submitting 3D jobs with ``-l``
-above 10,000.
+above 10,000. Without a terminal to answer on, nothing is submitted; pass
+``--yes`` to submit without being asked, for example from a script.
 
 
 Batch examples

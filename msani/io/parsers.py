@@ -650,7 +650,13 @@ def parseArguments(args = None, batch_mode = False):
             metavar='BATCH_DIR',
             help='Resubmit the unfinished jobs (remaining .lock files) of folders created by msani_batch.\n'
                  'Jobs still queued or running in SLURM are left alone. The jobs keep their original\n'
-                 'settings; only --timelimit, --mem and --max_jobs can be changed. Add --test for a dry run')
+                 'settings; only --projectName, --partition, --timelimit, --mem and --max_jobs can be\n'
+                 'changed. Add --test for a dry run')
+        batch_group.add_argument(
+            '--yes', '-y',
+            action='store_true',
+            help='Submit 3D jobs with more than 10,000 lines per job without asking for confirmation,\n'
+                 'e.g. when msani_batch is called from a script')
 
     
     # Parse the arguments

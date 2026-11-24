@@ -5,6 +5,7 @@ MolSanitizer in the batch mode.
 from msani import __version__
 
 
+import argparse
 import os
 import re
 import shlex
@@ -532,7 +533,11 @@ def confirm_large_3d_jobs(args):
           f"Each job works through its input in chunks of {LARGE_3D_JOB_LINES:,} molecules and rewrites "
           f"{archive_text} after every chunk, which slows the job down, "
           "and a failed or timed-out job loses more work. "
-          f"Prefer many small jobs (-l at or below {LARGE_3D_JOB_LINES:,}; we recommend fewer than 5000 lines per job).")
+          f"Prefer many small jobs: keep -l at or below {LARGE_3D_JOB_LINES:,}; "
+          "we recommend fewer than 5,000 lines per job.")
+    if getattr(args, 'yes', False):
+        print("Submitting anyway because --yes was given.\n")
+        return True
     try:
         answer = input("Do you want to submit anyway? (y/n): ")
     except EOFError:
@@ -551,7 +556,7 @@ def parse_flags_single_job(args: dict, parser):
         str: The flags for a single job
     """
     flags = []
-    omitted_args = ["input_files", "input_list", "config", "smiles", "proj_name", "timelimit", "lines", "max_jobs", "help", "whole_node", "whole_node_cores", "partition", "mem", "metal_error_file", "retry"]
+    omitted_args = ["input_files", "input_list", "config", "smiles", "proj_name", "timelimit", "lines", "max_jobs", "help", "whole_node", "whole_node_cores", "partition", "mem", "metal_error_file", "retry", "yes"]
     # Load the config file to see if the defaults are really the defaults by intention or already set
     # by the config file
     config_defaults = {}
@@ -877,17 +882,57 @@ def _array_spec(task_ids):
                     for first, last in ranges)
 
 
+def explicit_options(parser, argv, config_path=None):
+    """Destinations of the options the user set on this command line.
+
+    An option counts when it was typed or appears in the per-job YAML given
+    with --config. A value that merely equals the current default cannot be
+    told from "not given" by looking at the parsed arguments, hence this.
+    """
+    saved_actions = [(action, action.default) for action in parser._actions]
+    saved_defaults = dict(parser._defaults)
+    try:
+        for action in parser._actions:
+            action.default = argparse.SUPPRESS
+        parser._defaults.clear()
+        typed, _ = parser.parse_known_args(argv)
+    finally:
+        for action, default in saved_actions:
+            action.default = default
+        parser._defaults.update(saved_defaults)
+    explicit = set(vars(typed))
+
+    if config_path:
+        try:
+            with open(config_path, 'r') as stream:
+                config_keys = set(safe_load(stream) or {})
+        except Exception:
+            config_keys = set()
+        for action in parser._actions:
+            if action.dest in config_keys or any(
+                    option.lstrip('-') in config_keys for option in action.option_strings):
+                explicit.add(action.dest)
+    return explicit
+
+
+# Options that change how --retry resubmits; every other one is baked into
+# the folder's submit_msani.sh.
+RETRY_OPTIONS = {'retry', 'timelimit', 'mem', 'max_jobs', 'proj_name',
+                 'partition', 'test', 'config', 'yes'}
+
+
 def active_array_tasks(batch_dir):
     """Array task IDs that SLURM still has queued or running for a batch folder.
 
-    Jobs are matched by their working directory, which is the batch folder
-    for everything msani_batch submits. Raises OSError or
+    Only the user's own jobs are listed. They are matched by their working
+    directory, which is the batch folder for everything msani_batch submits.
+    Raises OSError or
     subprocess.SubprocessError when squeue cannot be queried.
     """
     batch_dir = os.path.realpath(batch_dir)
     # --array lists every array element on its own line, pending ones included.
     result = subprocess.run(
-        ['squeue', '--noheader', '--array', '--format=%i|%Z'],
+        ['squeue', '--me', '--noheader', '--array', '--format=%i|%Z'],
         stdout=subprocess.PIPE,
         stderr=subprocess.DEVNULL,
         text=True,
@@ -908,7 +953,7 @@ def active_array_tasks(batch_dir):
     return active
 
 
-def retry_batch_dir(batch_dir, args, parser):
+def retry_batch_dir(batch_dir, args, explicit=frozenset()):
     """Resubmit the jobs of one batch folder that still hold a lock file.
 
     A lock file is removed only when its job succeeds, so the remaining ones
@@ -969,15 +1014,22 @@ def retry_batch_dir(batch_dir, args, parser):
         return 0
 
     command = ['sbatch', f'--array={_array_spec(to_submit)}%{args.max_jobs}']
-    # The folder's script keeps its original settings; an explicitly given
-    # time limit or memory request replaces them for the retried jobs.
-    if args.timelimit != parser.get_default('timelimit'):
+    # The folder's script keeps its original settings. Options given on this
+    # command line replace them for the retried jobs, as sbatch options take
+    # precedence over the #SBATCH lines of the script.
+    if 'proj_name' in explicit and args.proj_name is not None:
+        command.append(f'--account={args.proj_name}')
+    if 'partition' in explicit and args.partition is not None:
+        command.append(f'--partition={args.partition}')
+    if 'timelimit' in explicit:
         command.append(f'--time={args.timelimit}:00:00')
-    if args.mem is not None and args.mem != parser.get_default('mem'):
-        if whole_node:
-            print("  Warning: --mem is ignored for whole-node batches.")
-        else:
+    # Memory also applies when it comes from SLURM_MEMORY in the configuration:
+    # setting it there is a request for every one-core job.
+    if args.mem is not None:
+        if not whole_node:
             command.append(f'--mem={args.mem}')
+        elif 'mem' in explicit:
+            print("  Warning: --mem is ignored for whole-node batches.")
     command.append(script.name)
 
     if whole_node:
@@ -996,10 +1048,27 @@ def retry_batch_dir(batch_dir, args, parser):
     return n_retry
 
 
-def retry_jobs(args, parser):
-    """Resubmit the unfinished jobs of batch folders created by msani_batch."""
+def retry_jobs(args, parser, argv=None):
+    """Resubmit the unfinished jobs of batch folders created by msani_batch.
+
+    argv is the command line the arguments were parsed from (default:
+    sys.argv[1:]); it tells which options were actually given.
+    """
     print(logo)
-    total = sum(retry_batch_dir(batch_dir, args, parser) for batch_dir in args.retry)
+    if argv is None:
+        argv = sys.argv[1:]
+    explicit = explicit_options(parser, argv, args.config)
+    ignored = [action.option_strings[-1] if len(action.option_strings[0]) == 2
+               else action.option_strings[0]
+               for action in parser._actions
+               if action.dest in explicit - RETRY_OPTIONS and action.option_strings]
+    if ignored:
+        print("Note: retried jobs keep the options of their folder's submit_msani.sh, "
+              f"so these are ignored: {', '.join(ignored)}.\n")
+    for option, dest in (('--projectName', 'proj_name'), ('--partition', 'partition')):
+        if dest in explicit and getattr(args, dest) is None:
+            print(f"Note: {option} cannot be unset for a retry; the folder's own setting is kept.\n")
+    total = sum(retry_batch_dir(batch_dir, args, explicit) for batch_dir in args.retry)
     print(f"Resubmitted {total} jobs in total.")
 
 
@@ -1016,7 +1085,7 @@ def main():
         print(f"RDKit version: {rdkit_version}")
         return
     if args.retry:
-        retry_jobs(args, parser)
+        retry_jobs(args, parser, sys.argv[1:])
         return
     if (args.input_files is None or len(args.input_files) == 0):
         print("No input files provided. Please provide input files using the -i or --input_files option.")

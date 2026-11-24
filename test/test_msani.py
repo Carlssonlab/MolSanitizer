@@ -1468,8 +1468,8 @@ class Test_MolSanitizer(unittest.TestCase):
         from msani import batchmode
 
         def confirm(gen3d, lines, answer=AssertionError('no prompt expected'),
-                    formats=('db2.tgz',)):
-            args = SimpleNamespace(gen3d=gen3d, lines=lines, format=list(formats))
+                    formats=('db2.tgz',), yes=False):
+            args = SimpleNamespace(gen3d=gen3d, lines=lines, format=list(formats), yes=yes)
             with (
                 patch('builtins.input', side_effect=[answer]) as prompt,
                 contextlib.redirect_stdout(io.StringIO()) as output,
@@ -1487,6 +1487,13 @@ class Test_MolSanitizer(unittest.TestCase):
                 confirmed, asked, output = confirm(True, 10_001, answer)
                 self.assertEqual((confirmed, asked), (expected, True))
                 self.assertIn('the db2.tgz archive ', output)
+
+        # --yes still shows the warning but does not ask.
+        confirmed, asked, output = confirm(True, 10_001, yes=True)
+        self.assertEqual((confirmed, asked), (True, False))
+        self.assertIn('the db2.tgz archive ', output)
+        self.assertIn('fewer than 5,000 lines per job', output)
+        self.assertTrue(parsers.parseArguments(['-y'], batch_mode=True)[0].yes)
 
         # Only the archive formats are rewritten after every chunk.
         for formats in (['db2'], ['sdf', 'mol2', 'pdbqt', 'oeb'], []):
@@ -1531,14 +1538,18 @@ class Test_MolSanitizer(unittest.TestCase):
                 (batch_dir / f'in{job:04d}.lock').write_text('')
             return batch_dir
 
-        def retry(batch_dirs, squeue_lines, extra_flags=(), squeue_error=None):
-            args, parser = parsers.parseArguments(
-                ['--retry', *map(str, batch_dirs), '-mj', '50', *extra_flags],
-                batch_mode=True)
+        def retry(batch_dirs, squeue_lines, extra_flags=(), squeue_error=None,
+                  configuration=None):
+            argv = ['--retry', *map(str, batch_dirs), '-mj', '50', *extra_flags]
+            defaults, sources = parsers.load_defaults()
+            defaults = {**defaults, **(configuration or {})}
+            with patch('msani.io.parsers.load_defaults', return_value=(defaults, sources)):
+                args, parser = parsers.parseArguments(argv, batch_mode=True)
             submissions = []
 
             def run_command(command, **kwargs):
                 if command[0] == 'squeue':
+                    self.assertIn('--me', command)
                     if squeue_error is not None:
                         raise squeue_error
                     return SimpleNamespace(stdout='\n'.join(squeue_lines), returncode=0)
@@ -1550,7 +1561,7 @@ class Test_MolSanitizer(unittest.TestCase):
                 patch('msani.batchmode.subprocess.run', side_effect=run_command),
                 contextlib.redirect_stdout(io.StringIO()) as output,
             ):
-                batchmode.retry_jobs(args, parser)
+                batchmode.retry_jobs(args, parser, argv)
             return submissions, output.getvalue()
 
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -1580,6 +1591,45 @@ class Test_MolSanitizer(unittest.TestCase):
                       'submit_msani.sh'], 'batch'),
                 ])
 
+            # A typed value is applied even when it equals the current default.
+            default_time = parsers.parseArguments([], batch_mode=True)[0].timelimit
+            with self.subTest(msg='Options equal to the default still apply'):
+                submissions, _ = retry([batch], [], [f'--timelimit={default_time}'])
+                self.assertEqual(submissions[0][0], [
+                    'sbatch', '--array=1-3,6,8%50', f'--time={default_time}:00:00',
+                    'submit_msani.sh'])
+                submissions, _ = retry([batch], [], ['--mem', '8G'],
+                                       configuration={'SLURM_MEMORY': '8G'})
+                self.assertEqual(submissions[0][0], [
+                    'sbatch', '--array=1-3,6,8%50', '--mem=8G', 'submit_msani.sh'])
+
+            with self.subTest(msg='SLURM_MEMORY from the configuration applies'):
+                submissions, _ = retry([batch], [], configuration={'SLURM_MEMORY': '8G'})
+                self.assertEqual(submissions[0][0], [
+                    'sbatch', '--array=1-3,6,8%50', '--mem=8G', 'submit_msani.sh'])
+
+            with self.subTest(msg='Account and partition can be changed'):
+                submissions, output = retry([batch], [], ['-A', 'proj', '--partition', 'gpu'])
+                self.assertEqual(submissions[0][0], [
+                    'sbatch', '--array=1-3,6,8%50', '--account=proj', '--partition=gpu',
+                    'submit_msani.sh'])
+                self.assertNotIn('are ignored', output)
+
+            with self.subTest(msg='A per-job YAML counts as given'):
+                job_config = Path(temp_dir) / 'retry.yaml'
+                job_config.write_text(f'timelimit: {default_time}\npartition: gpu\n')
+                submissions, _ = retry([batch], [], ['--config', str(job_config)])
+                self.assertEqual(submissions[0][0], [
+                    'sbatch', '--array=1-3,6,8%50', '--partition=gpu',
+                    f'--time={default_time}:00:00', 'submit_msani.sh'])
+
+            with self.subTest(msg='Other options are reported as ignored'):
+                submissions, output = retry([batch], [], ['-l', '50', '--gen3d', '-A', 'none'])
+                self.assertEqual(submissions[0][0],
+                                 ['sbatch', '--array=1-3,6,8%50', 'submit_msani.sh'])
+                self.assertIn('so these are ignored: --gen3d, --lines_per_job.', output)
+                self.assertIn('--projectName cannot be unset', output)
+
             with self.subTest(msg='Dry run'):
                 submissions, output = retry([batch], [], ['--test'])
                 self.assertEqual(submissions, [])
@@ -1597,6 +1647,12 @@ class Test_MolSanitizer(unittest.TestCase):
             with self.subTest(msg='Whole-node tasks cover several jobs'):
                 node = make_batch(temp_dir, 'node', 10, [0, 1, 5, 9], whole_node_cores=4)
                 # Task 1 (jobs 4-7) is still running; tasks 0 and 2 are retried.
+                # A configured SLURM_MEMORY is left out without comment.
+                submissions, output = retry([node], [f'903_1|{node}'],
+                                            configuration={'SLURM_MEMORY': '8G'})
+                self.assertEqual(submissions[0][0],
+                                 ['sbatch', '--array=0,2%50', 'submit_msani.sh'])
+                self.assertNotIn('--mem is ignored', output)
                 submissions, output = retry([node], [f'903_1|{node}'], ['--mem', '8G'])
                 self.assertEqual(submissions, [
                     (['sbatch', '--array=0,2%50', 'submit_msani.sh'], 'node'),

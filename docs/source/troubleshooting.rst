@@ -157,13 +157,16 @@ the cause, resubmit them with ``--retry``:
     $ msani_batch --retry example other_batch -tl 120 --mem 8G
 
 ``--retry`` takes one or more batch directories. It first asks ``squeue`` which
-array tasks of each directory are still queued or running and leaves those
-alone, so a job is never run twice at the same time; if ``squeue`` cannot be
-queried, nothing is resubmitted. The jobs reuse the directory's
-``submit_msani.sh`` and so keep their original options. Only the time limit
-(``-tl``), the memory request (``--mem``) and the concurrency limit (``-mj``)
-can be changed for the retried jobs. Add ``--test`` to see the ``sbatch``
-command without submitting it. In whole-node batches a retried array task skips
+of your array tasks in each directory are still queued or running and leaves
+those alone, so a job is never run twice at the same time; if ``squeue`` cannot
+be queried, nothing is resubmitted. The jobs reuse the directory's
+``submit_msani.sh`` and so keep their original options. The account (``-A``),
+partition (``--partition``), time limit (``-tl``), memory request (``--mem``)
+and concurrency limit (``-mj``) can be changed for the retried jobs by giving
+them on the ``--retry`` command line; any other option is ignored and reported.
+A ``SLURM_MEMORY`` set in the msani configuration is applied to retried
+one-core jobs as well, also when ``--mem`` is not given. Add ``--test`` to see
+the ``sbatch`` command without submitting it. In whole-node batches a retried array task skips
 the jobs that already succeeded.
 
 To resubmit by hand instead, inspect the SLURM task logs and scheduler state to
