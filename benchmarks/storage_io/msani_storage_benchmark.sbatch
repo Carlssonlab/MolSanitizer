@@ -8,8 +8,8 @@
 #
 # Benchmark where msani should write while it generates conformers.
 #
-# For every storage location in TARGETS, on the same node and with the same
-# msani flags, the job:
+# For every flag set in FLAGSETS and every storage location in TARGETS, on the
+# same node, the job:
 #   1. stages the input SMILES into a fresh working directory on that storage,
 #   2. runs msani with that directory as its working directory (msani writes
 #      its outputs to the current directory),
@@ -45,10 +45,16 @@
 #                 [$SLURM_SUBMIT_DIR/storage_bench_<jobid>]
 #   MSANI_CMD     msani executable ["msani"]
 #   NUMCORES      value for -j [$SLURM_CPUS_PER_TASK or 1]
-#   MSANI_ARGS    msani flags other than -i and -j
+#   FLAGSETS      msani flag sets to compare, each run on every storage
+#                 ["full minimal"]
+#   FLAGS_FULL    flags of the "full" set (besides -i and -j)
 #                 ["--gen3d --method rdkit --protonation --pH 7 -r 1
 #                   --numconfs 600 --rmsd 0.5 --timeout 1
 #                   --format db2 oeb.lib sdf"]
+#   FLAGS_MINIMAL flags of the "minimal" set
+#                 ["--gen3d --format db2 --numconfs 600"]
+#                 Any other set name works through FLAGS_<NAME>.
+#   MSANI_ARGS    shortcut: if set, run only this one flag set ("custom")
 #   REPEATS       times to run every target [1]; the order of TARGETS is
 #                 rotated on each repeat so no storage always runs first
 #   KEEP_OUTPUTS  1 keeps the copied-back outputs, 0 deletes them after the
@@ -75,7 +81,13 @@ TARGETS=${TARGETS:-"tmp scratch masc"}
 TMP_ROOT=${TMP_ROOT:-${SLURM_TMPDIR:-${TMPDIR:-/tmp}}}
 MSANI_CMD=${MSANI_CMD:-msani}
 NUMCORES=${NUMCORES:-${SLURM_CPUS_PER_TASK:-1}}
-MSANI_ARGS=${MSANI_ARGS:-"--gen3d --method rdkit --protonation --pH 7 -r 1 --numconfs 600 --rmsd 0.5 --timeout 1 --format db2 oeb.lib sdf"}
+FLAGS_FULL=${FLAGS_FULL:-"--gen3d --method rdkit --protonation --pH 7 -r 1 --numconfs 600 --rmsd 0.5 --timeout 1 --format db2 oeb.lib sdf"}
+FLAGS_MINIMAL=${FLAGS_MINIMAL:-"--gen3d --format db2 --numconfs 600"}
+if [[ -n "${MSANI_ARGS:-}" ]]; then
+    FLAGSETS=custom
+    FLAGS_CUSTOM=$MSANI_ARGS
+fi
+FLAGSETS=${FLAGSETS:-"full minimal"}
 REPEATS=${REPEATS:-1}
 KEEP_OUTPUTS=${KEEP_OUTPUTS:-1}
 RESULTS_DIR=${RESULTS_DIR:-${SLURM_SUBMIT_DIR:-$PWD}/storage_bench_${job_id}}
@@ -90,9 +102,25 @@ timings="$RESULTS_DIR/timings.tsv"
 exec 9>>"$timings.lock"
 flock 9
 if [[ ! -s "$timings" ]]; then
-    printf 'job\ttask\tnode\tinput\tn_mols\tstorage\troot\trepeat\tstage_s\trun_s\tcopyback_s\ttotal_s\texit_code\toutput_files\toutput_bytes\n' > "$timings"
+    printf 'job\ttask\tnode\tinput\tn_mols\tflagset\tstorage\troot\trepeat\tstage_s\trun_s\tcopyback_s\ttotal_s\texit_code\toutput_files\toutput_bytes\n' > "$timings"
 fi
 flock -u 9
+
+upper() { echo "$1" | tr '[:lower:]' '[:upper:]'; }
+
+# Flags of a flag set name: full -> FLAGS_FULL, foo -> FLAGS_FOO.
+flags_for() {
+    local var
+    var="FLAGS_$(upper "$1")"
+    echo "${!var:-}"
+}
+
+for set_name in $FLAGSETS; do
+    if [[ -z "$(flags_for "$set_name")" ]]; then
+        echo "No flags for flag set '$set_name': set FLAGS_$(upper "$set_name")." >&2
+        exit 1
+    fi
+done
 
 # Resolve the root directory of a storage label: tmp -> TMP_ROOT,
 # scratch -> SCRATCH_ROOT, masc -> MASC_ROOT, foo -> FOO_ROOT.
@@ -117,26 +145,30 @@ elapsed() { awk -v a="$1" -v b="$2" 'BEGIN { printf "%.2f", b - a }'; }
 echo "Node:        $(hostname)"
 echo "Input:       $INPUT ($n_mols molecules)"
 echo "Targets:     $TARGETS"
-echo "Command:     $MSANI_CMD -i <staged input> -j $NUMCORES $MSANI_ARGS"
+for set_name in $FLAGSETS; do
+    echo "Flags $set_name: $MSANI_CMD -i <staged input> -j $NUMCORES $(flags_for "$set_name")"
+done
 echo "Results dir: $RESULTS_DIR"
 "$MSANI_CMD" --version 2>/dev/null | tail -2
 
 read -r -a target_list <<< "$TARGETS"
-read -r -a msani_args <<< "$MSANI_ARGS"
+read -r -a flagset_list <<< "$FLAGSETS"
 n_targets=${#target_list[@]}
 
 workdir=""
 trap '[[ -n "$workdir" ]] && rm -rf "$workdir"' EXIT
 
 for (( rep = 1; rep <= REPEATS; rep++ )); do
+  for set_name in "${flagset_list[@]}"; do
+    read -r -a msani_args <<< "$(flags_for "$set_name")"
     for (( k = 0; k < n_targets; k++ )); do
         label=${target_list[$(( (k + rep - 1) % n_targets ))]}
         root=$(root_for "$label")
-        dest="$RESULTS_DIR/${input_stem}/${label}_rep${rep}"
+        dest="$RESULTS_DIR/${input_stem}/${set_name}/${label}_rep${rep}"
         mkdir -p "$dest"
 
         echo
-        echo "== $input_stem | $label ($root) | repeat $rep =="
+        echo "== $input_stem | flags $set_name | $label ($root) | repeat $rep =="
 
         t0=$(now)
         workdir=$(mktemp -d "$root/msani-bench-${job_id}-${task_id}-${label}-XXXXXX")
@@ -169,11 +201,12 @@ for (( rep = 1; rep <= REPEATS; rep++ )); do
         echo "stage ${stage}s  run ${run}s  copyback ${copy}s  total ${total}s  exit $rc  files $n_files"
 
         flock 9
-        printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
-            "$job_id" "$task_id" "$(hostname)" "$input_stem" "$n_mols" "$label" "$root" "$rep" \
+        printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+            "$job_id" "$task_id" "$(hostname)" "$input_stem" "$n_mols" "$set_name" "$label" "$root" "$rep" \
             "$stage" "$run" "$copy" "$total" "$rc" "$n_files" "$n_bytes" >> "$timings"
         flock -u 9
     done
+  done
 done
 
 echo
