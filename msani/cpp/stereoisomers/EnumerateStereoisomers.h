@@ -33,6 +33,7 @@
 #include <RDGeneral/export.h>
 #include <GraphMol/ROMol.h>
 #include <GraphMol/RWMol.h>
+#include <GraphMol/DistGeomHelpers/Embedder.h>
 
 namespace RDKit {
 namespace EnumerateStereoisomers {
@@ -80,16 +81,14 @@ struct MSANI_ENUMERATESTEREOISOMERS_EXPORT StereoEnumerationOptions {
                                    // cover ring systems made of neutral C, N,
                                    // O and S atoms (plus N+); anything else
                                    // is left to tryEmbedding.
-  unsigned int embedMaxAttempts{20};  // Only used with tryEmbedding: the
-                                      // number of embedding attempts made
-                                      // before a stereoisomer is declared
-                                      // non-physical.  0 means RDKit's
-                                      // default (10 x the number of atoms),
-                                      // which makes every impossible
-                                      // stereoisomer very expensive to
-                                      // reject.  Uses internal-coordinate
-                                      // embedding, which is why the build
-                                      // requires RDKit >= 2026.09.
+  // Only used with tryEmbedding.  Each stereoisomer is first embedded
+  // from internal coordinates with at most this many attempts.  If that
+  // fails, it is retried with an uncapped ETKDGv3 embedding (RDKit's default
+  // of 10 x the number of atoms attempts) before it is declared
+  // non-physical.  0 skips both and uses only the plain distance-geometry
+  // embedding used before the cap was added (uncapped, slower).  The capped
+  // embedding is why the build requires RDKit >= 2026.09.
+  unsigned int embedMaxAttempts{20};
 };
 
 // Class that enumerates the stereoisomers of a molecule.  Acts like a
@@ -158,6 +157,7 @@ class MSANI_ENUMERATESTEREOISOMERS_EXPORT StereoisomerEnumerator {
   // Seconds left before d_options.timeout expires; negative once it has.
   // Only meaningful if d_options.timeout > 0.
   double secondsLeft() const;
+  void setSeedAndTimeout(DGeomHelpers::EmbedParameters &params) const;
   bool embeddable(ROMol &isomer);
 };
 }  // namespace EnumerateStereoisomers

@@ -333,6 +333,23 @@ def parseArguments(args = None, batch_mode = False):
         )
     )
     smiles_group.add_argument(
+        '--stereo_ring_filter',
+        action=argparse.BooleanOptionalAction,
+        default=defaults.get('stereo_ring_filter', True),
+        help='Discard stereoisomers of bridged ring systems that are known to be impossible in 3D\n'
+             'before embedding them (default: on; use --no-stereo_ring_filter to disable).'
+             if show_advanced_help else argparse.SUPPRESS
+    )
+    smiles_group.add_argument(
+        '--stereo_embed_attempts',
+        type=int,
+        default=defaults.get('stereo_embed_attempts', 20),
+        help='Capped embedding attempts per stereoisomer before it is retried with an uncapped\n'
+             'ETKDGv3 embedding (default: 20). 0 uses only the plain uncapped embedding\n'
+             'used before the cap was added (slower).'
+             if show_advanced_help else argparse.SUPPRESS
+    )
+    smiles_group.add_argument(
         '--tautomers', '-tau',
         action='store_true',
         default=defaults.get('tautomers', False),
@@ -632,6 +649,8 @@ def parseArguments(args = None, batch_mode = False):
         parser.error('Please provide either input files or SMILES strings, not both.')
     if args.metal_max_variants < 1 or args.metal_max_combinations < 1:
         parser.error('--metal_max_variants and --metal_max_combinations must be positive.')
+    if args.stereo_embed_attempts < 0:
+        parser.error('--stereo_embed_attempts must be nonnegative.')
 
     if args.input_list is not None:
         if not Path(args.input_list).is_file():

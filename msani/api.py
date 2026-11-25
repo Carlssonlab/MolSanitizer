@@ -46,6 +46,10 @@ class Msani:
                     debug=True)
     >>> processed_df = processor.run(df)
 
+    With ``stereoisomers=True``, ``stereo_ring_filter`` and ``stereo_embed_attempts``
+    are passed to :class:`Stereoisomerizer` as ``useRingSystemFilter`` and
+    ``embedMaxAttempts``.
+
     """
     tautomer_params = None  # Define as a class variable
 
@@ -72,6 +76,8 @@ class Msani:
                 numcores = 1,
                 randomSeed = 42,
                 stereo_timeout = 60,
+                stereo_ring_filter = True,
+                stereo_embed_attempts = 20,
                 useCorina = False,
                 corinaPath = None,
                 standardize = False,
@@ -91,6 +97,8 @@ class Msani:
             raise ValueError('parallel_min_rows must be nonnegative')
         if metal not in ('strict', 'soft', 'off'):
             raise ValueError("metal must be 'strict', 'soft' or 'off'")
+        if stereo_embed_attempts < 0:
+            raise ValueError('stereo_embed_attempts must be nonnegative')
         if metal_max_variants < 1 or metal_max_combinations < 1:
             raise ValueError('metal enumeration limits must be positive')
         # Dissociated metal complexes are connected before any other step:
@@ -148,6 +156,8 @@ class Msani:
         self.pH_range = pH_range
         self.randomSeed = randomSeed
         self.stereo_timeout = stereo_timeout
+        self.stereo_ring_filter = stereo_ring_filter
+        self.stereo_embed_attempts = stereo_embed_attempts
         self.useCorina = useCorina
         self.corinaPath = corinaPath
         self.standardize = standardize    
@@ -195,7 +205,9 @@ class Msani:
                 maxIsomers=self.max_stereoisomers, tryEmbedding=True,
                 randomSeed=self.randomSeed, numcores=self.numcores,
                 timeout=self.stereo_timeout, useCorina=self.useCorina,
-                corinaPath=self.corinaPath, debug=self.debug))
+                corinaPath=self.corinaPath, debug=self.debug,
+                useRingSystemFilter=self.stereo_ring_filter,
+                embedMaxAttempts=self.stereo_embed_attempts))
         keys = {}
         for name, (_, options) in specifications.items():
             library = options.get('smartsFile')

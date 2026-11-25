@@ -179,6 +179,12 @@ change the defaults shown by your installed command.
       --stereo_timeout, -sto
                             Per-molecule timeout in seconds for stereoisomer enumeration (default: 60).
                             If the timeout is reached, any stereoisomers found up to that point are kept; if none are found, the input SMILES is kept unchanged.
+      --stereo_ring_filter  (advanced) Discard stereoisomers of bridged ring systems that are known to be impossible in 3D
+                            before embedding them (default: on; use --no-stereo_ring_filter to disable).
+      --stereo_embed_attempts
+                            (advanced) Capped embedding attempts per stereoisomer before it is retried with an uncapped
+                            ETKDGv3 embedding (default: 20). 0 uses only the plain uncapped embedding
+                            used before the cap was added (slower).
       --tautomers, -tau     Tautomers enumeration.
       --extended-tautomers, -et
                             Extended enumeration of tautomers using additional tautomerization rules

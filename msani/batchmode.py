@@ -481,7 +481,7 @@ def parse_flags_single_job(args: dict, parser):
             if arg in ("taurdkit", "cleanup") and not current_value:
                 flags.append(f"--no{arg}")
             # Handle the rest of the flags
-            elif arg in ("stereoisomers", "neutralize") and not current_value:
+            elif arg in ("stereoisomers", "neutralize", "stereo_ring_filter") and not current_value:
                 flags.append(f"--no-{arg}")
             elif current_value:
                 # The option string, not the dest: --embed-only is stored as embed_only.

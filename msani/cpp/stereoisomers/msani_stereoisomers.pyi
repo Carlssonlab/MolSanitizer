@@ -49,10 +49,12 @@ class StereoEnumerationOptions:
         only cover ring systems made of neutral C, N, O and S atoms (plus N+).
         Default=True.
     embedMaxAttempts : int
-        Only used with tryEmbedding: the number of embedding attempts made before
-        a stereoisomer is declared non-physical. 0 means RDKit's default (10 x the
-        number of atoms), which makes every impossible stereoisomer very expensive
-        to reject. Default=20.
+        Only used with tryEmbedding: each stereoisomer is first embedded from internal
+        coordinates with at most this many attempts. If that fails, it is retried with
+        an uncapped ETKDGv3 embedding (RDKit's default of 10 x the number of atoms
+        attempts) before it is declared non-physical. 0 skips both and uses only the
+        plain distance-geometry embedding used before the cap was added (uncapped,
+        slower). Default=20.
     """
 
     tryEmbedding: bool
@@ -90,7 +92,7 @@ def enumerate_stereoisomers(
         - randomSeed (int): Random seed for subset selection. Default=-1
         - timeout (float): Wall-clock timeout in seconds. 0 = no limit. Default=0
         - useRingSystemFilter (bool): Discard known-impossible bridged ring isomers. Default=True
-        - embedMaxAttempts (int): Embedding attempts per isomer with tryEmbedding. Default=20
+        - embedMaxAttempts (int): Capped embedding attempts per isomer with tryEmbedding before the uncapped ETKDGv3 retry; 0 = plain uncapped embedding only (previous behaviour). Default=20
 
     verbose : bool, optional
         Enable verbose output. Default=False
