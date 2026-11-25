@@ -146,8 +146,31 @@ Each batch directory contains ``submit_msani.sh``, the defaults snapshot
 input, ``input.data`` links to the original file, so keep that file available
 and unchanged as well.
 
-Inspect the SLURM task logs and scheduler state to identify failed array task
-IDs. After correcting the cause, resubmit only those tasks from the batch
+Every job starts with a lock file (``in0000.lock``, ``in0001.lock``, ...) that
+is removed only when the job succeeds. The lock files left in a batch directory
+therefore mark the jobs that failed, timed out, or never ran. After correcting
+the cause, resubmit them with ``--retry``:
+
+.. code-block:: console
+
+    $ msani_batch --retry example
+    $ msani_batch --retry example other_batch -tl 120 --mem 8G
+
+``--retry`` takes one or more batch directories. It first asks ``squeue`` which
+of your array tasks in each directory are still queued or running and leaves
+those alone, so a job is never run twice at the same time; if ``squeue`` cannot
+be queried, nothing is resubmitted. The jobs reuse the directory's
+``submit_msani.sh`` and so keep their original options. The account (``-A``),
+partition (``--partition``), time limit (``-tl``), memory request (``--mem``)
+and concurrency limit (``-mj``) can be changed for the retried jobs by giving
+them on the ``--retry`` command line; any other option is ignored and reported.
+A ``SLURM_MEMORY`` set in the msani configuration is applied to retried
+one-core jobs as well, also when ``--mem`` is not given. Add ``--test`` to see
+the ``sbatch`` command without submitting it. In whole-node batches a retried array task skips
+the jobs that already succeeded.
+
+To resubmit by hand instead, inspect the SLURM task logs and scheduler state to
+identify failed array task IDs and resubmit only those tasks from the batch
 directory, for example:
 
 .. code-block:: console

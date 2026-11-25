@@ -281,7 +281,9 @@ class Msani:
         Returns:
             DataFrame: A new DataFrame chunk with molecules that passed the filters.
         """
-        df.loc[:, 'mol'] = df['smiles'].apply(lambda x: Chem.MolFromSmiles(x))
+        # Parse into a new frame: writing 'mol' into the caller's chunk would keep
+        # every input molecule alive until the whole pipeline has finished.
+        df = df.assign(mol=df['smiles'].map(Chem.MolFromSmiles))
         df = Filters.remove_invalid_SMILES(df)
         # Connect metal and ligands before salt stripping and the filters, which
         # would otherwise treat them as separate fragments. Standardization

@@ -665,17 +665,41 @@ defaults. Account and partition are unset unless configured.
 
     --projectName, -A       SLURM account (default: unset); use "none" or "null" to omit it.
     --partition            SLURM partition (default: cluster default).
+    --mem                  Memory per one-core job, e.g. 4G (default: cluster per-core default).
     --lines_per_job, -l     Input records per task (default: 200).
     --timelimit, -tl        Time limit per job in hours (default: 72).
     --max_jobs, -mj         Maximum concurrent array tasks (default: 2000).
     --whole_node           Use whole-node jobs (default: disabled).
     --whole_node_cores     CPU cores per node for whole-node jobs (default: 32).
+    --retry                Resubmit the unfinished jobs of existing batch directories.
+    --yes, -y              Do not ask before submitting 3D jobs with -l above 10,000.
 
 ``MAX_ARRAY_SIZE`` (default 1000) and ``MAX_LIMIT_PROJECT`` (default 5000) are
 personal configuration settings, not command-line flags. The former limits
 array size; the latter limits project capacity at submission. See :doc:`config`.
-For retained staging files, use ``--nocleanup``. See :doc:`troubleshooting`
-for failed-task resubmission and recovery.
+For retained staging files, use ``--nocleanup``. Failed or timed-out jobs can
+be resubmitted with ``msani_batch --retry <batch directory>``; see
+:doc:`troubleshooting` for details and recovery.
+
+**Memory per job.** Without ``--mem``, each job gets the cluster's default
+memory for one core. If that default is below about 2 GB, pass ``--mem`` (or
+set ``SLURM_MEMORY`` with ``msani config``). At submission ``msani_batch`` asks
+``scontrol`` for the default, checking the partition first and then the
+cluster-wide setting, and prints a warning when it is below 2000 MB. The check
+is best-effort: it is skipped when ``--mem`` is given and stays silent when the
+default is unlimited or cannot be determined.
+
+**Choosing** ``-l`` **for 3D generation.** Each job processes its input in chunks
+of 10,000 molecules, so memory use does not grow with ``-l``. For ``--gen3d``,
+keep ``-l`` at or below 10,000; we recommend fewer than 5,000 (the default of
+200 is a good starting point).
+Above that, the ``db2.tgz`` and ``oeb.lib`` archives are rewritten after every
+chunk, which slows the job down, and a failed or timed-out job loses more
+work. Prefer many small jobs over a few large ones. When one of these two
+formats is requested (``db2.tgz`` is the default), ``msani_batch`` prints a
+warning and asks for confirmation (``y``) before submitting 3D jobs with ``-l``
+above 10,000. Without a terminal to answer on, nothing is submitted; pass
+``--yes`` to submit without being asked, for example from a script.
 
 
 Batch examples

@@ -5,7 +5,9 @@ MolSanitizer in the batch mode.
 from msani import __version__
 
 
+import argparse
 import os
+import re
 import shlex
 import sys
 import time
@@ -50,7 +52,7 @@ PARTITION_NAME
 #SBATCH -J msani_3d
 #SBATCH -t TIME_LIMIT
 #SBATCH --mail-type=FAIL
-#SBATCH --mem=MEMORY
+MEMORY_LIMIT
 '''
 
 slurm_header_whole_node = '''#!/bin/bash
@@ -108,6 +110,8 @@ run_chunk() {
     local chunk_status
 
     printf -v log_prefix "in%04d" "$i"
+    # A missing lock means this chunk already succeeded (resubmitted task).
+    [ -f "${log_prefix}.lock" ] || return 0
     log_file="${log_prefix}.log"
     task_dir=$(mktemp -d "${scratch_parent}/msani-${ARRAY_ID}-${i}-XXXXXX")
     smiles_file="${task_dir}/${log_prefix}.smi"
@@ -442,6 +446,106 @@ def prepare_batch_chunks(file_path, output_dir, lines_per_file):
             stream.write(f'{chunk_path.name}\n')
     return chunk_paths
 
+# Below this default, one-core jobs are at risk of being killed for memory.
+LOW_MEMORY_MB = 2000
+
+
+def _default_memory_setting(text):
+    """Read DefMemPerCPU/DefMemPerNode from scontrol output.
+
+    Returns the value in MB, math.inf for UNLIMITED or 0 (which SLURM also
+    treats as no limit), or None when absent. A one-core job gets the same
+    amount under either setting.
+    """
+    match = re.search(r'\bDefMemPer(?:CPU|Node)\s*=\s*(\S+)', text)
+    if match is None:
+        return None
+    value = match.group(1)
+    if value.upper() == 'UNLIMITED':
+        return math.inf
+    if not value.isdigit():
+        return None
+    return int(value) or math.inf
+
+
+def _scontrol(*arguments):
+    return subprocess.run(
+        ['scontrol', *arguments],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        text=True,
+        check=True,
+        timeout=10,
+    ).stdout
+
+
+def default_job_memory_mb(partition=None):
+    """Memory a one-core job gets when submitted without --mem.
+
+    Returns MB, math.inf when the cluster sets no limit, or None when it
+    cannot be determined. This is advisory, so it never raises.
+    """
+    try:
+        if partition is None:
+            # One line per partition; the default one is used when none is named.
+            lines = _scontrol('show', 'partition', '--oneliner').splitlines()
+            partitions = [line for line in lines if re.search(r'\bDefault=YES\b', line)]
+        else:
+            partitions = [_scontrol('show', 'partition', name, '--oneliner')
+                          for name in partition.split(',') if name]
+        # A partition without its own default reports UNLIMITED and inherits
+        # the cluster-wide setting.
+        limits = [_default_memory_setting(text) for text in partitions]
+        if any(limit in (None, math.inf) for limit in limits) or not limits:
+            limits.append(_default_memory_setting(_scontrol('show', 'config')))
+        limits = [limit for limit in limits if limit is not None]
+        # With several partitions the job may land on the smallest default.
+        finite = [limit for limit in limits if limit != math.inf]
+        if finite:
+            return min(finite)
+        return math.inf if limits else None
+    except (OSError, subprocess.SubprocessError):
+        return None
+
+
+# msani reads its input in chunks of this many records (cli.READ_CHUNK_SIZE).
+LARGE_3D_JOB_LINES = 10_000
+# Formats collected into one archive per job, which is rewritten after every chunk.
+ARCHIVE_FORMATS = ('db2.tgz', 'oeb.lib')
+
+
+def confirm_large_3d_jobs(args):
+    """Ask before submitting 3D archive jobs that span more than one read chunk.
+
+    Only the db2.tgz and oeb.lib formats are affected; the other formats
+    write one file per molecule. Returns True when the submission should go
+    ahead.
+    """
+    if not args.gen3d or args.lines <= LARGE_3D_JOB_LINES:
+        return True
+    formats = [args.format] if isinstance(args.format, str) else (args.format or [])
+    archives = [name for name in ARCHIVE_FORMATS if name in formats]
+    if not archives:
+        return True
+    archive_text = (f"the {archives[0]} archive" if len(archives) == 1
+                    else f"the {' and '.join(archives)} archives")
+    print(f"Warning: -l {args.lines} puts more than {LARGE_3D_JOB_LINES:,} molecules in each 3D job. "
+          f"Each job works through its input in chunks of {LARGE_3D_JOB_LINES:,} molecules and rewrites "
+          f"{archive_text} after every chunk, which slows the job down, "
+          "and a failed or timed-out job loses more work. "
+          f"Prefer many small jobs: keep -l at or below {LARGE_3D_JOB_LINES:,}; "
+          "we recommend fewer than 5,000 lines per job.")
+    if getattr(args, 'yes', False):
+        print("Submitting anyway because --yes was given.\n")
+        return True
+    try:
+        answer = input("Do you want to submit anyway? (y/n): ")
+    except EOFError:
+        # No terminal to answer on, e.g. when called from a script.
+        answer = ''
+    return answer.strip().lower() in ['y', 'yes']
+
+
 def parse_flags_single_job(args: dict, parser):
     """Parse the flags for a single job
 
@@ -452,7 +556,7 @@ def parse_flags_single_job(args: dict, parser):
         str: The flags for a single job
     """
     flags = []
-    omitted_args = ["input_files", "input_list", "config", "smiles", "proj_name", "timelimit", "lines", "max_jobs", "help", "whole_node", "whole_node_cores", "partition", "metal_error_file"]
+    omitted_args = ["input_files", "input_list", "config", "smiles", "proj_name", "timelimit", "lines", "max_jobs", "help", "whole_node", "whole_node_cores", "partition", "mem", "metal_error_file", "retry", "yes"]
     # Load the config file to see if the defaults are really the defaults by intention or already set
     # by the config file
     config_defaults = {}
@@ -602,10 +706,12 @@ def Split_Submit_jobs(args: dict, parser):
         active_header = active_header.replace('TIME_LIMIT', f'{args.timelimit}:00:00')
         if not args.gen3d:
             active_header = active_header.replace('msani_3d', 'msani_2d')
-        if args.lines >= 100_000: active_header = active_header.replace('MEMORY', '8G')
-        elif args.lines >= 50_000: active_header = active_header.replace('MEMORY', '6G')
-        elif args.lines >= 25_000: active_header = active_header.replace('MEMORY', '4G')
-        else: active_header = active_header.replace('MEMORY', '2G')
+        # Without --mem SLURM grants the per-core default, which is the most
+        # memory a one-core job can use without being billed for extra cores.
+        if args.mem is not None:
+            active_header = active_header.replace('MEMORY_LIMIT', f'#SBATCH --mem={args.mem}')
+        else:
+            active_header = active_header.replace('MEMORY_LIMIT\n', '')
 
         # --- Standard execution script (local copy) ---
         flags = parse_flags_single_job(args, parser)
@@ -622,12 +728,24 @@ def Split_Submit_jobs(args: dict, parser):
         if args.proj_name is not None: print(f"Using project name (-A): {args.proj_name}")
         if args.whole_node:
             print(f"Using whole-node mode:   partition = {args.partition}, {cores} cores per node")
+            if args.mem is not None: print("Warning: --mem is ignored with --whole_node.")
         else:
             if args.partition is not None: print(f"Using partition = {args.partition}")
+            if args.mem is not None:
+                print(f"Memory per job (--mem): {args.mem}")
+            else:
+                default_memory = default_job_memory_mb(args.partition)
+                if default_memory is not None and default_memory < LOW_MEMORY_MB:
+                    print(f"Warning: this cluster gives one-core jobs only {default_memory} MB of memory by default. "
+                          "Set --mem (or SLURM_MEMORY in the msani configuration) if jobs are killed for memory.")
         print(f"Time limit for each job (-tl): {args.timelimit} hours")
         print(f"Maximum number of jobs in an array: {max_array_size} jobs")
         print(f"Maximum number of jobs running parallelly (-mj): {args.max_jobs} jobs")
         print(f"Number of compounds per job (-l): {args.lines} lines\n")
+
+        if not confirm_large_3d_jobs(args):
+            print("Nothing was submitted. Exiting MolSanitizer...")
+            return
 
         squeue_command = ['squeue', '--noheader', '--array']
         if args.proj_name is not None:
@@ -752,6 +870,208 @@ def Split_Submit_jobs(args: dict, parser):
                 if staging_dir.exists():
                     shutil.rmtree(staging_dir)
         
+def _array_spec(task_ids):
+    """Compress task IDs into a SLURM array specification, e.g. 1,4-6,9."""
+    ranges = []
+    for task_id in sorted(set(task_ids)):
+        if ranges and task_id == ranges[-1][1] + 1:
+            ranges[-1][1] = task_id
+        else:
+            ranges.append([task_id, task_id])
+    return ','.join(str(first) if first == last else f'{first}-{last}'
+                    for first, last in ranges)
+
+
+def explicit_options(parser, argv, config_path=None):
+    """Destinations of the options the user set on this command line.
+
+    An option counts when it was typed or appears in the per-job YAML given
+    with --config. A value that merely equals the current default cannot be
+    told from "not given" by looking at the parsed arguments, hence this.
+    """
+    saved_actions = [(action, action.default) for action in parser._actions]
+    saved_defaults = dict(parser._defaults)
+    try:
+        for action in parser._actions:
+            action.default = argparse.SUPPRESS
+        parser._defaults.clear()
+        typed, _ = parser.parse_known_args(argv)
+    finally:
+        for action, default in saved_actions:
+            action.default = default
+        parser._defaults.update(saved_defaults)
+    explicit = set(vars(typed))
+
+    if config_path:
+        try:
+            with open(config_path, 'r') as stream:
+                config_keys = set(safe_load(stream) or {})
+        except Exception:
+            config_keys = set()
+        for action in parser._actions:
+            if action.dest in config_keys or any(
+                    option.lstrip('-') in config_keys for option in action.option_strings):
+                explicit.add(action.dest)
+    return explicit
+
+
+# Options that change how --retry resubmits; every other one is baked into
+# the folder's submit_msani.sh.
+RETRY_OPTIONS = {'retry', 'timelimit', 'mem', 'max_jobs', 'proj_name',
+                 'partition', 'test', 'config', 'yes'}
+
+
+def active_array_tasks(batch_dir):
+    """Array task IDs that SLURM still has queued or running for a batch folder.
+
+    Only the user's own jobs are listed. They are matched by their working
+    directory, which is the batch folder for everything msani_batch submits.
+    Raises OSError or
+    subprocess.SubprocessError when squeue cannot be queried.
+    """
+    batch_dir = os.path.realpath(batch_dir)
+    # --array lists every array element on its own line, pending ones included.
+    result = subprocess.run(
+        ['squeue', '--me', '--noheader', '--array', '--format=%i|%Z'],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        text=True,
+        check=True,
+    )
+    active = set()
+    for line in result.stdout.splitlines():
+        job_id, separator, work_dir = line.strip().partition('|')
+        if not separator or os.path.realpath(work_dir) != batch_dir:
+            continue
+        match = re.fullmatch(r'\d+_(\d+)', job_id)
+        if match is None:
+            # An array element that cannot be told apart, or a job that is not
+            # part of an array: nothing in this folder is safe to resubmit.
+            raise subprocess.SubprocessError(
+                f'cannot tell which tasks job {job_id} covers')
+        active.add(int(match.group(1)))
+    return active
+
+
+def retry_batch_dir(batch_dir, args, explicit=frozenset()):
+    """Resubmit the jobs of one batch folder that still hold a lock file.
+
+    A lock file is removed only when its job succeeds, so the remaining ones
+    mark jobs that failed, timed out, or never ran. Jobs SLURM still has
+    queued or running are left alone. Returns the number of resubmitted jobs.
+    """
+    batch_dir = Path(batch_dir)
+    script = batch_dir / 'submit_msani.sh'
+    offsets = batch_dir / 'input.offsets'
+    if not batch_dir.is_dir():
+        print(f"Skipping {batch_dir}: it is not a folder.\n")
+        return 0
+    if not script.is_file():
+        print(f"Skipping {batch_dir}: no submit_msani.sh, so it was not created by msani_batch.\n")
+        return 0
+
+    locked = sorted(
+        int(match.group(1))
+        for path in batch_dir.iterdir()
+        if (match := re.fullmatch(r'in(\d+)\.lock', path.name))
+    )
+    if not locked:
+        print(f"{batch_dir}: no lock files left, all jobs finished. Nothing to retry.\n")
+        return 0
+    if not offsets.is_file() or not (batch_dir / 'input.data').exists():
+        print(f"Skipping {batch_dir}: the staged input (input.data, input.offsets) is missing. "
+              "Prepare a new batch from the original input instead.\n")
+        return 0
+    n_jobs = len(offsets.read_text().split()) - 1
+    unknown = [job for job in locked if job >= n_jobs]
+    if unknown:
+        print(f"Skipping {batch_dir}: lock files in{unknown[0]:04d}.lock and above "
+              f"do not match the {n_jobs} jobs of this batch.\n")
+        return 0
+
+    # In whole-node mode one array task runs several jobs.
+    whole_node = re.search(r'START_IDX=\$\(\( TASK_ID \* (\d+) \)\)', script.read_text())
+    jobs_per_task = int(whole_node.group(1)) if whole_node else 1
+
+    try:
+        active = active_array_tasks(batch_dir)
+    except (OSError, subprocess.SubprocessError) as error:
+        print(f"Skipping {batch_dir}: could not check with squeue which jobs are still "
+              f"queued or running ({error}).\n")
+        return 0
+
+    tasks = sorted({job // jobs_per_task for job in locked})
+    still_active = [task for task in tasks if task in active]
+    to_submit = [task for task in tasks if task not in active]
+    n_retry = sum(1 for job in locked if job // jobs_per_task not in active)
+
+    print(f"{batch_dir}: {len(locked)} of {n_jobs} jobs are unfinished.")
+    if still_active:
+        print(f"  {len(locked) - n_retry} of them are still queued or running in SLURM "
+              f"(array tasks {_array_spec(still_active)}) and are left alone.")
+    if not to_submit:
+        print("  Nothing to retry.\n")
+        return 0
+
+    command = ['sbatch', f'--array={_array_spec(to_submit)}%{args.max_jobs}']
+    # The folder's script keeps its original settings. Options given on this
+    # command line replace them for the retried jobs, as sbatch options take
+    # precedence over the #SBATCH lines of the script.
+    if 'proj_name' in explicit and args.proj_name is not None:
+        command.append(f'--account={args.proj_name}')
+    if 'partition' in explicit and args.partition is not None:
+        command.append(f'--partition={args.partition}')
+    if 'timelimit' in explicit:
+        command.append(f'--time={args.timelimit}:00:00')
+    # Memory also applies when it comes from SLURM_MEMORY in the configuration:
+    # setting it there is a request for every one-core job.
+    if args.mem is not None:
+        if not whole_node:
+            command.append(f'--mem={args.mem}')
+        elif 'mem' in explicit:
+            print("  Warning: --mem is ignored for whole-node batches.")
+    command.append(script.name)
+
+    if whole_node:
+        print(f"  Resubmitting {n_retry} jobs as {len(to_submit)} array tasks "
+              f"({jobs_per_task} jobs per node): {' '.join(command)}")
+    else:
+        print(f"  Resubmitting {n_retry} jobs: {' '.join(command)}")
+    if args.test:
+        print("  Test mode: nothing was submitted.\n")
+        return 0
+    submission = subprocess.run(command, cwd=batch_dir)
+    if submission.returncode != 0:
+        print(f"  Submission failed for {batch_dir}.\n")
+        return 0
+    print()
+    return n_retry
+
+
+def retry_jobs(args, parser, argv=None):
+    """Resubmit the unfinished jobs of batch folders created by msani_batch.
+
+    argv is the command line the arguments were parsed from (default:
+    sys.argv[1:]); it tells which options were actually given.
+    """
+    print(logo)
+    if argv is None:
+        argv = sys.argv[1:]
+    explicit = explicit_options(parser, argv, args.config)
+    ignored = [action.option_strings[-1] if len(action.option_strings[0]) == 2
+               else action.option_strings[0]
+               for action in parser._actions
+               if action.dest in explicit - RETRY_OPTIONS and action.option_strings]
+    if ignored:
+        print("Note: retried jobs keep the options of their folder's submit_msani.sh, "
+              f"so these are ignored: {', '.join(ignored)}.\n")
+    for option, dest in (('--projectName', 'proj_name'), ('--partition', 'partition')):
+        if dest in explicit and getattr(args, dest) is None:
+            print(f"Note: {option} cannot be unset for a retry; the folder's own setting is kept.\n")
+    total = sum(retry_batch_dir(batch_dir, args, explicit) for batch_dir in args.retry)
+    print(f"Resubmitted {total} jobs in total.")
+
+
 def main():
     from msani.config import dispatch
     if dispatch(sys.argv[1:]):
@@ -763,6 +1083,9 @@ def main():
         print(logo)
         print(f"MolSanitizer version: {__version__}")
         print(f"RDKit version: {rdkit_version}")
+        return
+    if args.retry:
+        retry_jobs(args, parser, sys.argv[1:])
         return
     if (args.input_files is None or len(args.input_files) == 0):
         print("No input files provided. Please provide input files using the -i or --input_files option.")
