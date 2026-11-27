@@ -115,6 +115,17 @@ class WheelTestRunnerTests(unittest.TestCase):
                 self.assertEqual(suite['args'][:3], ['-m', 'unittest', 'discover'])
                 self.assertFalse(Path(suite['args'][suite['args'].index('-s') + 1]).exists())
 
+    def test_cp315_skips_the_pdbqt_extra(self):
+        # gemmi has no cp315 wheel; the extra cannot be installed in the slim image.
+        self.environment['MSANI_TAG'] = 'cp315'
+        self.wheel('molsanitizer-0.8.1-cp315-cp315-manylinux_2_28_x86_64.whl')
+        result = self.run_wrapper('2026.9.2')
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        installs = [call for call in self.calls() if call['args'][:3] == ['-m', 'pip', 'install']]
+        self.assertEqual(len(installs), 1)
+        self.assertFalse(installs[0]['args'][-1].endswith('[pdbqt]'))
+        self.assertEqual(self.calls()[-1]['args'][:3], ['-m', 'unittest', 'discover'])
+
     def test_unpinned_release_test_remains_supported(self):
         self.wheel()
         result = self.run_wrapper()

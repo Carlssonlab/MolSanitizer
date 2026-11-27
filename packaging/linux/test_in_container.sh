@@ -5,7 +5,7 @@
 # a wheel that needs manylinux build-image libraries is not redistributable.
 #
 # Inputs (environment):
-#   MSANI_TAG      cp310 .. cp314                    (required)
+#   MSANI_TAG      cp310 .. cp315                    (required)
 #   MSANI_WHEELS   directory holding repaired wheels (default /wheels)
 #   MSANI_TESTS    repository test directory         (default /test-input)
 #   MSANI_TEST_RDKIT exact runtime RDKit version     (optional)
@@ -59,7 +59,14 @@ print('Native RDKit:', msani_confgen_cpp.RDKIT_CPP_VERSION)
 assert 'etkdgv4-ic' in msani_confgen_cpp.EMBEDDING_PRESETS, msani_confgen_cpp.EMBEDDING_PRESETS
 PY
 
-python -m pip install --only-binary=rdkit "${constraints[@]}" "${wheel_paths[0]}[pdbqt]"
+# gemmi (imported by meeko) publishes no cp315 wheel yet and its sdist does not
+# build in this compiler-free image, so the PDBQT extra is skipped on 3.15 and
+# the suite skips its PDBQT test. Remove the exception once gemmi ships cp315.
+if [ "$tag" = cp315 ]; then
+    echo 'Skipping the pdbqt extra: no gemmi wheel for cp315' >&2
+else
+    python -m pip install --only-binary=rdkit "${constraints[@]}" "${wheel_paths[0]}[pdbqt]"
+fi
 python -m pip check
 python -m pip freeze
 

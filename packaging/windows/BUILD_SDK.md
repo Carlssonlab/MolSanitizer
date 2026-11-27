@@ -58,7 +58,7 @@ After the SDK reports success:
 packaging\windows\build_wheels.cmd --sdk "%USERPROFILE%\msani-sdk\windows-2026.9.2-conda\rdkit" --rdkit-version 2026.9.2 --versions 3.12
 ```
 
-Omit `--versions 3.12` to build Python 3.10–3.14. The same SDK serves every
+Omit `--versions 3.12` to build Python 3.10–3.15. The same SDK serves every
 Python version. The wheel script reads the manifest to locate native dependencies,
 repairs the wheels with delvewheel, and runs unit tests.
 Only distribute repaired, tested wheels. End users install those using pip;

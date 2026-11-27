@@ -15,7 +15,7 @@ bash packaging/macos/build_wheels.sh
 
 The wrapper provisions an isolated Conda C++ SDK with RDKit 2026.09.2, Boost
 1.90, and Eigen 5.0 under `build/macos-<arch>/sdk`. It installs uv into a local tool
-venv and uses uv-managed CPython to build and test Python 3.10–3.14. Existing
+venv and uses uv-managed CPython to build and test Python 3.10–3.15. Existing
 Conda environments are not changed. SDK packages are recorded in
 `build/macos-<arch>/sdk-explicit.txt`; caches and interpreters stay in `build/macos-<arch>`.
 An SDK prefix left over from a different RDKit pin is rejected rather than reused:
@@ -56,7 +56,7 @@ when intentionally targeting a newer macOS version.
 Each repaired wheel is installed in a fresh standalone CPython environment,
 with no Conda, SDK, Homebrew, or DYLD search paths. Validation imports every
 native extension, checks package metadata and dependencies, installs the
-`pdbqt` extra, and runs the repository unittest suite outside the source tree.
+`pdbqt` extra (skipped on 3.15 until gemmi publishes a wheel for it), and runs the repository unittest suite outside the source tree.
 Testing on this Mac does not establish support for older macOS releases;
 validate on the oldest supported OS before a release. The scripts do not
 upload or publish anything.

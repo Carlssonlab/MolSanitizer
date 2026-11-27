@@ -1,4 +1,5 @@
 import argparse
+import re
 import sys
 
 from pathlib import Path
@@ -6,7 +7,7 @@ from yaml import safe_load
 
 
 
-from msani.config import ConfigError, load_defaults
+from msani.config import SLURM_MEMORY_PATTERN, ConfigError, load_defaults
 from msani.moltransform.metal_complex import MAX_COMBINATIONS, MAX_VARIANTS
 
 info_standalone = """MolSanitizer - A package to prepare SMILES databases
@@ -62,6 +63,14 @@ def none_or_str(value):
         return None
     return value
 
+def slurm_memory(value):
+    """Validate a SLURM --mem value such as 2500M or 4G; "none" leaves it unset."""
+    value = none_or_str(value)
+    if value is not None and not SLURM_MEMORY_PATTERN.fullmatch(value):
+        raise argparse.ArgumentTypeError(
+            f'invalid memory {value!r}: expected an integer with an optional K, M, G or T suffix')
+    return value
+
 class PHOption(argparse.Action):
     """Distinguish explicit pH options from inherited personal defaults."""
 
@@ -93,6 +102,7 @@ def parseArguments(args = None, batch_mode = False):
         raise SystemExit(f'Configuration error: {exc}') from exc
     slurm_account = configurations.get('SLURM_ACCOUNT', None)
     slurm_partition = configurations.get('SLURM_PARTITION', None)
+    slurm_memory_default = configurations.get('SLURM_MEMORY', None)
     time_limit = configurations.get('TIME_LIMIT', 72)
     lines_per_job = configurations.get('LINES_PER_JOB', 200)
     max_jobs = configurations.get('MAX_JOBS', 1000)
@@ -598,6 +608,15 @@ def parseArguments(args = None, batch_mode = False):
             dest='partition', 
             type=none_or_str, 
             help=f'Partition for the SLURM script (default: {slurm_partition})')
+        mem_default = defaults.get('mem', slurm_memory_default)
+        batch_group.add_argument(
+            '--mem',
+            # argparse validates only string defaults, and YAML may give an integer.
+            default=None if mem_default is None else str(mem_default),
+            dest='mem',
+            type=slurm_memory,
+            help=f'Memory per job for the SLURM script, e.g. 4G (default: {slurm_memory_default}; unset means the cluster\'s per-core default).\n'
+                 'Clusters may bill extra cores for memory above one core\'s share. Ignored with --whole_node')
         batch_group.add_argument(
             '--lines_per_job', '-l',
             dest='lines', 
@@ -624,6 +643,14 @@ def parseArguments(args = None, batch_mode = False):
             type=int, 
             default=defaults.get('whole_node_cores', whole_node_cores), 
             help=f'Number of CPU cores per node (default: {whole_node_cores}). Only to set when WHOLE_NODE is true.')
+        batch_group.add_argument(
+            '--retry',
+            nargs='+',
+            default=None,
+            metavar='BATCH_DIR',
+            help='Resubmit the unfinished jobs (remaining .lock files) of folders created by msani_batch.\n'
+                 'Jobs still queued or running in SLURM are left alone. The jobs keep their original\n'
+                 'settings; only --timelimit, --mem and --max_jobs can be changed. Add --test for a dry run')
 
     
     # Parse the arguments

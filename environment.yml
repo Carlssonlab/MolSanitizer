@@ -6,7 +6,9 @@ channels:
   - rdkit
 
 dependencies:
-  - python>=3.10,<3.15
+  # Python 3.15 is supported by MolSanitizer, but conda-forge has no 3.15
+  # builds of openbabel and gemmi yet: drop those two to solve with 3.15.
+  - python>=3.10,<3.16
   - numpy
   - pandas
   - pip

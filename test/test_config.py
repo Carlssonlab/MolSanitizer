@@ -59,6 +59,21 @@ class TestConfig(unittest.TestCase):
             config.main(['init', '--path', str(path)])
         self.assertEqual(config.load_defaults()[0]['NUMCONFS'], 123)
 
+    def test_slurm_memory_setting(self):
+        path = self.path / 'memory.yaml'
+        self.assertIsNone(config.load_defaults()[0]['SLURM_MEMORY'])
+        os.environ['MSANI_CONFIG'] = str(path)
+        for value, expected in (('4G', '4G'), ('4000', 4000), ('null', None)):
+            with self.subTest(value=value):
+                path.write_text(f'SLURM_MEMORY: {value}\n')
+                self.assertEqual(config.load_defaults()[0]['SLURM_MEMORY'], expected)
+        # Zero would request the whole node's memory.
+        for value in ('0', '4.5G', '4GB', 'true'):
+            with self.subTest(value=value):
+                path.write_text(f'SLURM_MEMORY: {value}\n')
+                with self.assertRaises(config.ConfigError):
+                    config.load_defaults()
+
     def test_env_override_does_not_change_pointer(self):
         config.main(['init'])
         pointer = (self.path / 'settings/settings.json').read_text()

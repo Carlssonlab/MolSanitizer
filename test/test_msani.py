@@ -1,3 +1,5 @@
+import math
+import argparse
 import contextlib
 import io
 import unittest
@@ -110,7 +112,7 @@ class Test_MolSanitizer(unittest.TestCase):
                         is_extended=False,
                         is_synthon=False,
                     ) as chunks:
-                        self.assertEqual(chunks.chunksize, 100_000)
+                        self.assertEqual(chunks.chunksize, cli.READ_CHUNK_SIZE)
                         frame = next(chunks)
                     self.assertEqual(frame.to_dict('records'), [
                         {'smiles': 'CC', 'ids': 'ethanol'},
@@ -230,6 +232,7 @@ class Test_MolSanitizer(unittest.TestCase):
             args.input_files = [first_input, second_input]
             args.proj_name = 'test-project'
             args.partition = None
+            args.mem = None
             args.lines = 2
             args.timelimit = 1
             args.max_jobs = 10
@@ -266,10 +269,15 @@ class Test_MolSanitizer(unittest.TestCase):
                     patch('msani.batchmode.write_single_job_script'),
                     patch('msani.batchmode.subprocess.run', side_effect=run_command),
                     patch('msani.config.load_defaults', return_value=({'MAX_ARRAY_SIZE': 2, 'MAX_LIMIT_PROJECT': 5000}, {})),
+                    patch('msani.batchmode.default_job_memory_mb', return_value=1000) as default_memory,
+                    contextlib.redirect_stdout(io.StringIO()) as output,
                 ):
                     Split_Submit_jobs(args, parser)
             finally:
                 os.chdir(previous_dir)
+
+            default_memory.assert_called_once_with(None)
+            self.assertIn('only 1000 MB of memory by default', output.getvalue())
 
             # The oversized first input is skipped without preventing the
             # independently valid second input from being submitted.
@@ -1326,6 +1334,7 @@ class Test_MolSanitizer(unittest.TestCase):
             args.prefix = Path(temp_dir)
             args.proj_name = 'dummy_output'
             args.partition = None
+            args.mem = None
             args.whole_node = False
             args.whole_node_cores = 1
             args.max_jobs = 2
@@ -1361,6 +1370,10 @@ class Test_MolSanitizer(unittest.TestCase):
                 file_contents = contents.splitlines(keepends=True)
                 self.assertEqual(file_contents[:7], expected_template,
                                  "submit_msani.sh header is incorrect.")
+                # No memory request by default: the cluster's per-core share applies.
+                self.assertNotIn('--mem', contents)
+                self.assertNotIn('MEMORY_LIMIT', contents)
+                self.assertIn('#SBATCH --mail-type=FAIL\n\nexport MSANI_CONFIG=', contents)
 
                 self.assertIn('dd if=input.data', contents)
                 self.assertIn('-i "$smiles_file" -j 1', contents)
@@ -1372,6 +1385,248 @@ class Test_MolSanitizer(unittest.TestCase):
                         self.assertIn(f'--{flag}', contents)
             subprocess.run(['bash', '-n', 'submit_msani.sh'], check=True)
             os.chdir(self.path)
+
+    @unittest.skipIf(OS == "Windows",
+                     "Skipping SLURM shell-script test on Windows.")
+    def test_batch_explicit_memory(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            args, parser = parsers.parseArguments(['--mem', '4G'], batch_mode=True)
+            self.assertEqual(args.mem, '4G')
+            batch_args = self.generate_mock_arguments([f'{self.path}/in_data100.txt'],
+                                                      ['test'], temp_dir)
+            batch_args.prefix = Path(temp_dir)
+            batch_args.proj_name = None
+            batch_args.partition = None
+            batch_args.mem = args.mem
+            batch_args.whole_node = False
+            batch_args.whole_node_cores = 1
+            batch_args.max_jobs = 2
+            batch_args.lines = 50
+            batch_args.timelimit = 1
+
+            try:
+                Split_Submit_jobs(batch_args, parser)
+                contents = (Path(temp_dir) / 'in_data100' / 'submit_msani.sh').read_text()
+            finally:
+                os.chdir(self.path)
+            self.assertIn('#SBATCH --mem=4G\n', contents)
+            # --mem configures the submission; it is not an msani flag.
+            self.assertNotIn(' --mem', contents.replace('#SBATCH --mem=4G', ''))
+
+    def test_batch_memory_from_job_config(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            job_config = Path(temp_dir) / 'job.yaml'
+            job_config.write_text('mem: 4000\n')
+            args, _ = parsers.parseArguments(['--config', str(job_config)], batch_mode=True)
+            self.assertEqual(args.mem, '4000')
+            # An integer from YAML is validated like a command-line value.
+            job_config.write_text('mem: 0\n')
+            with self.assertRaises(SystemExit), contextlib.redirect_stderr(io.StringIO()):
+                parsers.parseArguments(['--config', str(job_config)], batch_mode=True)
+
+    def test_default_job_memory(self):
+        from msani import batchmode
+
+        config_text = 'DefMemPerNode           = UNLIMITED\nMaxArraySize            = 1001\n'
+        low = 'PartitionName=low Default=NO DefMemPerCPU=1000 MaxMemPerNode=UNLIMITED'
+        main = 'PartitionName=main Default=YES DefMemPerNode=UNLIMITED MaxMemPerNode=UNLIMITED'
+        cases = [
+            # (partition, cluster-wide config, expected MB)
+            (None, config_text, math.inf),
+            (None, 'DefMemPerCPU            = 2700\n', 2700),
+            ('low', config_text, 1000),
+            ('main', 'DefMemPerNode           = 1500\n', 1500),
+            # A job may land on either partition, so the smaller default counts.
+            ('main,low', 'DefMemPerCPU            = 2700\n', 1000),
+            (None, 'MaxArraySize            = 1001\n', math.inf),
+            # 0 means no limit, like UNLIMITED, and must not trigger a warning.
+            (None, 'DefMemPerCPU            = 0\n', math.inf),
+            ('zero', 'DefMemPerCPU            = 2700\n', 2700),
+        ]
+        for partition, cluster, expected in cases:
+            def scontrol(*arguments, cluster=cluster):
+                if arguments == ('show', 'config'):
+                    return cluster
+                if arguments == ('show', 'partition', '--oneliner'):
+                    return f'{low}\n{main}\n'
+                zero = 'PartitionName=zero Default=NO DefMemPerCPU=0'
+                return {'low': low, 'main': main, 'zero': zero}[arguments[2]]
+
+            with self.subTest(partition=partition, cluster=cluster):
+                with patch('msani.batchmode._scontrol', side_effect=scontrol):
+                    self.assertEqual(batchmode.default_job_memory_mb(partition), expected)
+
+        # Without SLURM, or with a failing scontrol, the check stays silent.
+        for error in (FileNotFoundError('scontrol'),
+                      subprocess.CalledProcessError(1, 'scontrol'),
+                      subprocess.TimeoutExpired('scontrol', 10)):
+            with self.subTest(error=type(error).__name__):
+                with patch('msani.batchmode.subprocess.run', side_effect=error):
+                    self.assertIsNone(batchmode.default_job_memory_mb('main'))
+
+    def test_large_3d_jobs_need_confirmation(self):
+        from msani import batchmode
+
+        def confirm(gen3d, lines, answer=AssertionError('no prompt expected'),
+                    formats=('db2.tgz',)):
+            args = SimpleNamespace(gen3d=gen3d, lines=lines, format=list(formats))
+            with (
+                patch('builtins.input', side_effect=[answer]) as prompt,
+                contextlib.redirect_stdout(io.StringIO()) as output,
+            ):
+                return batchmode.confirm_large_3d_jobs(args), prompt.called, output.getvalue()
+
+        # 2D jobs and 3D jobs within one read chunk are submitted without asking.
+        for gen3d, lines in ((False, 100_000), (True, 200), (True, 10_000)):
+            with self.subTest(gen3d=gen3d, lines=lines):
+                self.assertEqual(confirm(gen3d, lines), (True, False, ''))
+
+        for answer, expected in (('y', True), (' YES ', True), ('n', False),
+                                 ('', False), (EOFError(), False)):
+            with self.subTest(answer=answer):
+                confirmed, asked, output = confirm(True, 10_001, answer)
+                self.assertEqual((confirmed, asked), (expected, True))
+                self.assertIn('the db2.tgz archive ', output)
+
+        # Only the archive formats are rewritten after every chunk.
+        for formats in (['db2'], ['sdf', 'mol2', 'pdbqt', 'oeb'], []):
+            with self.subTest(formats=formats):
+                self.assertEqual(confirm(True, 100_000, formats=formats), (True, False, ''))
+        for formats, named in ((['sdf', 'oeb.lib'], 'the oeb.lib archive '),
+                               (['oeb.lib', 'db2.tgz'], 'the db2.tgz and oeb.lib archives ')):
+            with self.subTest(formats=formats):
+                confirmed, asked, output = confirm(True, 100_000, 'y', formats)
+                self.assertEqual((confirmed, asked), (True, True))
+                self.assertIn(named, output)
+
+        # Declining stops before anything is staged or submitted.
+        args, parser = parsers.parseArguments(['-3d', '-l', '20000'], batch_mode=True)
+        args.input_files = ['missing.smi']
+        with (
+            patch('builtins.input', return_value='n'),
+            patch('msani.batchmode.default_job_memory_mb', return_value=None),
+            patch('msani.batchmode.subprocess.run',
+                  side_effect=AssertionError('nothing may run after declining')),
+            contextlib.redirect_stdout(io.StringIO()) as output,
+        ):
+            batchmode.Split_Submit_jobs(args, parser)
+        self.assertIn('Nothing was submitted', output.getvalue())
+
+    def test_batch_retry(self):
+        from msani import batchmode
+
+        self.assertEqual(batchmode._array_spec([7, 1, 2, 3, 9, 10, 3]), '1-3,7,9-10')
+
+        def make_batch(root, name, n_jobs, locked, whole_node_cores=None):
+            batch_dir = Path(root) / name
+            batch_dir.mkdir()
+            script = '#!/bin/bash\n'
+            if whole_node_cores:
+                script += f'START_IDX=$(( TASK_ID * {whole_node_cores} ))\n'
+            (batch_dir / 'submit_msani.sh').write_text(script)
+            (batch_dir / 'input.data').write_text('C\n' * n_jobs)
+            (batch_dir / 'input.offsets').write_text(
+                ''.join(f'{2 * index}\n' for index in range(n_jobs + 1)))
+            for job in locked:
+                (batch_dir / f'in{job:04d}.lock').write_text('')
+            return batch_dir
+
+        def retry(batch_dirs, squeue_lines, extra_flags=(), squeue_error=None):
+            args, parser = parsers.parseArguments(
+                ['--retry', *map(str, batch_dirs), '-mj', '50', *extra_flags],
+                batch_mode=True)
+            submissions = []
+
+            def run_command(command, **kwargs):
+                if command[0] == 'squeue':
+                    if squeue_error is not None:
+                        raise squeue_error
+                    return SimpleNamespace(stdout='\n'.join(squeue_lines), returncode=0)
+                self.assertEqual(command[0], 'sbatch')
+                submissions.append((command, Path(kwargs['cwd']).name))
+                return SimpleNamespace(returncode=0)
+
+            with (
+                patch('msani.batchmode.subprocess.run', side_effect=run_command),
+                contextlib.redirect_stdout(io.StringIO()) as output,
+            ):
+                batchmode.retry_jobs(args, parser)
+            return submissions, output.getvalue()
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            batch = make_batch(temp_dir, 'batch', 10, [1, 2, 3, 6, 8])
+            other = make_batch(temp_dir, 'other', 4, [])
+            squeue = [
+                f'900_2|{batch}',          # running
+                f'900_8|{batch}/',         # pending
+                f'901_6|{other}',          # same task ID, different folder
+                '902|/somewhere/else',     # unrelated job
+            ]
+
+            with self.subTest(msg='Active tasks are left alone'):
+                submissions, output = retry([batch, other], squeue)
+                self.assertEqual(submissions, [
+                    (['sbatch', '--array=1,3,6%50', 'submit_msani.sh'], 'batch'),
+                ])
+                self.assertIn('5 of 10 jobs are unfinished', output)
+                self.assertIn('array tasks 2,8', output)
+                self.assertIn('no lock files left', output)
+                self.assertIn('Resubmitted 3 jobs in total', output)
+
+            with self.subTest(msg='Explicit time limit and memory replace the script settings'):
+                submissions, _ = retry([batch], [], ['-tl', '5', '--mem', '8G'])
+                self.assertEqual(submissions, [
+                    (['sbatch', '--array=1-3,6,8%50', '--time=5:00:00', '--mem=8G',
+                      'submit_msani.sh'], 'batch'),
+                ])
+
+            with self.subTest(msg='Dry run'):
+                submissions, output = retry([batch], [], ['--test'])
+                self.assertEqual(submissions, [])
+                self.assertIn('sbatch --array=1-3,6,8%50 submit_msani.sh', output)
+
+            # Without a reliable answer from squeue nothing is resubmitted.
+            for error, lines in ((FileNotFoundError('squeue'), []),
+                                 (subprocess.CalledProcessError(1, 'squeue'), []),
+                                 (None, [f'900_[1-3%50]|{batch}'])):
+                with self.subTest(msg='squeue cannot tell', error=error, lines=lines):
+                    submissions, output = retry([batch], lines, squeue_error=error)
+                    self.assertEqual(submissions, [])
+                    self.assertIn('could not check with squeue', output)
+
+            with self.subTest(msg='Whole-node tasks cover several jobs'):
+                node = make_batch(temp_dir, 'node', 10, [0, 1, 5, 9], whole_node_cores=4)
+                # Task 1 (jobs 4-7) is still running; tasks 0 and 2 are retried.
+                submissions, output = retry([node], [f'903_1|{node}'], ['--mem', '8G'])
+                self.assertEqual(submissions, [
+                    (['sbatch', '--array=0,2%50', 'submit_msani.sh'], 'node'),
+                ])
+                self.assertIn('Resubmitting 3 jobs as 2 array tasks', output)
+                self.assertIn('--mem is ignored', output)
+
+            with self.subTest(msg='Folders that cannot be retried'):
+                cleaned = make_batch(temp_dir, 'cleaned', 4, [1])
+                (cleaned / 'input.offsets').unlink()
+                stray = make_batch(temp_dir, 'stray', 4, [7])
+                plain = Path(temp_dir) / 'plain'
+                plain.mkdir()
+                submissions, output = retry(
+                    [cleaned, stray, plain, Path(temp_dir) / 'missing'], [])
+                self.assertEqual(submissions, [])
+                self.assertIn('staged input', output)
+                self.assertIn('do not match the 4 jobs', output)
+                self.assertIn('not created by msani_batch', output)
+                self.assertIn('not a folder', output)
+
+        # A resubmitted whole-node task skips the chunks that already succeeded.
+        self.assertIn('[ -f "${log_prefix}.lock" ] || return 0',
+                      batchmode.slurm_script_whole_node)
+
+    def test_batch_memory_validation(self):
+        self.assertIsNone(parsers.slurm_memory('none'))
+        self.assertEqual(parsers.slurm_memory('2500M'), '2500M')
+        with self.assertRaises(argparse.ArgumentTypeError):
+            parsers.slurm_memory('lots')
 
     @unittest.skipIf(OS == "Windows",
                      "Skipping SLURM shell-script test on Windows.")

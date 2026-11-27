@@ -26,7 +26,7 @@ class TestInputReaders(unittest.TestCase):
         self.path.write_text(contents)
         with cli.read_input_file(self.path, extended, synthon) as chunks:
             self.assertEqual(chunks.engine, 'c')
-            self.assertEqual(chunks.chunksize, 100_000)
+            self.assertEqual(chunks.chunksize, cli.READ_CHUNK_SIZE)
             return next(chunks)
 
     def test_plain_smiles_and_extra_columns(self):
@@ -60,11 +60,11 @@ class TestInputReaders(unittest.TestCase):
                 self.assertEqual([atom.GetIdx() for atom in groups[0].GetAtoms()], [1])
 
     def test_cxsmiles_after_sample_and_chunk_boundary(self):
-        self.path.write_text('CCO\tethanol\n' * 100_000 + f'{self.CXSMILES}\tstereo\n')
+        self.path.write_text('CCO\tethanol\n' * cli.READ_CHUNK_SIZE + f'{self.CXSMILES}\tstereo\n')
         with cli.read_input_file(self.path, False, False) as chunks:
             first = next(chunks)
             second = next(chunks)
-        self.assertEqual(len(first), 100_000)
+        self.assertEqual(len(first), cli.READ_CHUNK_SIZE)
         self.assertEqual(second.to_dict('records'), [{'smiles': self.CXSMILES, 'ids': 'stereo'}])
 
     def test_quoted_cxsmiles_preserves_stereo_and_ids(self):

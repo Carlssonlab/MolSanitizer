@@ -11,6 +11,11 @@ import tempfile
 
 from windows_toolchain import select_msvc, wheel_compiler_settings
 
+VERSIONS = ('3.10', '3.11', '3.12', '3.13', '3.14', '3.15')
+# gemmi (imported by meeko) publishes no wheel for these yet, and its sdist does
+# not build against current nanobind: skip the pdbqt extra when testing them.
+NO_PDBQT_WHEELS = {'3.15'}
+
 
 def run(args, *, env, cwd, log):
     args = [str(a) for a in args]
@@ -34,7 +39,7 @@ def main():
     parser.add_argument('--rdkit-version', required=True,
                         help='Python RDKit version matching the Windows C++ SDK')
     parser.add_argument('--extra-prefixes', default='')
-    parser.add_argument('--versions', nargs='+', default=['3.10', '3.11', '3.12', '3.13', '3.14'])
+    parser.add_argument('--versions', nargs='+', default=list(VERSIONS))
     parser.add_argument('--jobs', type=int, default=2)
     parser.add_argument('--python-provider', choices=['conda', 'launcher', 'venv'],
                         default='conda',
@@ -45,8 +50,8 @@ def main():
     args = parser.parse_args()
     if sys.platform != 'win32':
         parser.error('Run on native Windows, not WSL.')
-    if args.jobs < 1 or any(v not in ('3.10', '3.11', '3.12', '3.13', '3.14') for v in args.versions):
-        parser.error('Use positive jobs and Python versions 3.10 through 3.14.')
+    if args.jobs < 1 or any(v not in VERSIONS for v in args.versions):
+        parser.error('Use positive jobs and Python versions 3.10 through 3.15.')
     if not shutil.which('cl'):
         parser.error('Start from the VS x64 developer shell (cl.exe must be available).')
     launcher = shutil.which('py') if args.python_provider == 'launcher' else None
@@ -202,7 +207,8 @@ def main():
                     run([test_python, '-c', smoke], env=test_env, cwd=work, log=log)
                     # Install the wheel's declared optional dependencies, not an
                     # unrelated MolSanitizer release from the package index.
-                    run([test_python, '-m', 'pip', 'install', str(repaired) + '[pdbqt]'], env=test_env, cwd=work, log=log)
+                    if version not in NO_PDBQT_WHEELS:
+                        run([test_python, '-m', 'pip', 'install', str(repaired) + '[pdbqt]'], env=test_env, cwd=work, log=log)
                     run([test_python, '-m', 'pip', 'check'], env=test_env, cwd=work, log=log)
                     run([test_python, '-m', 'pip', 'freeze'], env=test_env, cwd=work, log=log)
                     tests = work / 'tests'

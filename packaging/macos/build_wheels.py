@@ -17,7 +17,10 @@ import sys
 import tempfile
 
 
-VERSIONS = ['3.10', '3.11', '3.12', '3.13', '3.14']
+VERSIONS = ['3.10', '3.11', '3.12', '3.13', '3.14', '3.15']
+# gemmi (imported by meeko) publishes no wheel for these yet, and its sdist does
+# not build against current nanobind: skip the pdbqt extra when testing them.
+NO_PDBQT_WHEELS = {'3.15'}
 # conda subdir and delocate/CMake spellings for each supported host.
 ARCHITECTURES = {'arm64': 'osx-arm64', 'x86_64': 'osx-64'}
 
@@ -172,7 +175,8 @@ def main():
                     'print("Native imports passed")'
                 )
                 run([clean_python, '-c', smoke], env=base, cwd=work, log=log)
-                run([clean_python, '-m', 'pip', 'install', str(wheel) + '[pdbqt]'], env=base, cwd=work, log=log)
+                if version not in NO_PDBQT_WHEELS:
+                    run([clean_python, '-m', 'pip', 'install', str(wheel) + '[pdbqt]'], env=base, cwd=work, log=log)
                 run([clean_python, '-m', 'pip', 'check'], env=base, cwd=work, log=log)
                 run([clean_python, '-m', 'pip', 'freeze'], env=base, cwd=work, log=log)
                 tests = work / 'tests'
